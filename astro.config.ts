@@ -13,7 +13,14 @@ export default defineConfig({
           expandDepth: 2,
         },
       },
-      title: "tiger-cloud",
+      title: "Tiger Data Docs",
+      logo: {
+        light: "./src/assets/logo-light.svg",
+        dark: "./src/assets/logo-dark.svg",
+        alt: "Tiger Data",
+        replacesTitle: true,
+      },
+      favicon: "favicon.ico",
       customCss: ["./theme.css"],
       header: {
         layout: "stacked",
@@ -43,7 +50,7 @@ export default defineConfig({
           ],
         },
         {
-          label: "API Reference",
+          label: "Cloud API Reference",
           link: "/api",
           sidebar: generateAPIReferenceItems({
             excludeResourceOverviewPages: true,
