@@ -39,13 +39,10 @@ export default defineConfig({
           label: "Guides",
           link: "/",
           sidebar: [
+            "",
             {
               label: "Getting started",
-              items: [""], // "" links to the index page
-            },
-            {
-              label: "Guides",
-              autogenerate: { directory: "guides" },
+              autogenerate: { directory: "getting-started" },
             },
           ],
         },

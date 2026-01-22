@@ -1,0 +1,361 @@
+---
+title: Try the key features in Tiger Data products
+description: Improve database performance with hypertables, time bucketing, compression and continuous aggregates.
+products: [cloud, self_hosted, mst]
+content_group: Getting started
+---
+
+import { Steps, Step, Callout } from '@stainless-api/docs/components';
+
+Tiger Cloud offers managed database services that provide a stable and reliable environment for your
+applications.
+
+Each Tiger Cloud service is a single optimised Postgres instance extended with innovations such as TimescaleDB in the database
+engine, in a cloud infrastructure that delivers speed without sacrifice. A radically faster Postgres for transactional,
+analytical, and agentic workloads at scale.
+
+Tiger Cloud scales Postgres to ingest and query vast amounts of live data. Tiger Cloud
+provides a range of features and optimizations that supercharge your queries while keeping the
+costs down. For example:
+* The hypercore row-columnar engine in TimescaleDB makes queries up to 350x faster, ingests 44% faster, and reduces
+  storage by 90%.
+* Tiered storage in Tiger Cloud seamlessly moves your data from high performance storage for frequently accessed data to
+  low cost bottomless storage for rarely accessed data.
+
+The following figure shows how TimescaleDB optimizes your data for superfast real-time analytics:
+
+![Main features and tiered data](https://assets.timescale.com/docs/images/mutation.png)
+
+This page shows you how to rapidly implement the features in Tiger Cloud that enable you to
+ingest and query data faster while keeping the costs low.
+
+## Prerequisites
+
+To follow the steps on this page:
+
+* Create a target [Tiger Cloud service][create-service] with the Real-time analytics capability.
+
+   You need [your connection details][connection-info]. This procedure also
+   works for [self-hosted TimescaleDB][enable-timescaledb].
+
+## Optimize time-series data in hypertables with hypercore
+
+Time-series data represents the way a system, process, or behavior changes over time. Hypertables are Postgres tables
+that help you improve insert and query performance by automatically partitioning your data by time. Each hypertable
+is made up of child tables called chunks. Each chunk is assigned a range of time, and only
+contains data from that range. When you run a query, TimescaleDB identifies the correct chunk and runs the query on
+it, instead of going through the entire table. You can also tune hypertables to increase performance even more.
+
+![Hypertable structure](https://assets.timescale.com/docs/images/hypertable-structure.png)
+
+[Hypercore][hypercore] is the hybrid row-columnar storage engine in TimescaleDB used by hypertables. Traditional
+databases force a trade-off between fast inserts (row-based storage) and efficient analytics
+(columnar storage). Hypercore eliminates this trade-off, allowing real-time analytics without sacrificing
+transactional capabilities.
+
+Hypercore dynamically stores data in the most efficient format for its lifecycle:
+
+![Move from rowstore to columstore in hypercore](https://assets.timescale.com/docs/images/hypercore_intro.svg)
+
+* **Row-based storage for recent data**: the most recent chunk (and possibly more) is always stored in the rowstore,
+   ensuring fast inserts, updates, and low-latency single record queries. Additionally, row-based storage is used as a
+   writethrough for inserts and updates to columnar storage.
+* **Columnar storage for analytical performance**: chunks are automatically compressed into the columnstore, optimizing
+   storage efficiency and accelerating analytical queries.
+
+Unlike traditional columnar databases, hypercore allows data to be inserted or modified at any stage, making it a
+flexible solution for both high-ingest transactional workloads and real-time analytics—within a single database.
+
+Hypertables exist alongside regular Postgres tables.
+You use regular Postgres tables for relational data, and interact with hypertables
+and regular Postgres tables in the same way.
+
+This section shows you how to create regular tables and hypertables, and import
+relational and time-series data from external files.
+
+<Steps>
+
+  <Step title="Import some time-series data into hypertables">
+
+    1. Unzip [crypto_sample.zip](https://assets.timescale.com/docs/downloads/candlestick/crypto_sample.zip) to a `<local folder>`.
+
+       This test dataset contains:
+         - Second-by-second data for the most-traded crypto-assets. This time-series data is best suited for
+           optimization in a [hypertable][hypertables-section].
+         - A list of asset symbols and company names. This is best suited for a regular relational table.
+
+       To import up to 100 GB of data directly from your current Postgres-based database,
+       [migrate with downtime][migrate-with-downtime] using native Postgres tooling. To seamlessly import 100GB-10TB+
+       of data, use the [live migration][migrate-live] tooling supplied by Tiger Data. To add data from non-Postgres data
+       sources, see [Import and ingest data][data-ingest].
+
+    2. Upload data into a hypertable:
+
+       To more fully understand how to create a hypertable, how hypertables work, and how to optimize them for
+       performance by tuning chunk intervals and enabling chunk skipping, see
+       [the hypertables documentation][hypertables-section].
+
+          The Tiger Console data upload creates hypertables and relational tables from the data you are uploading:
+          1. In [Tiger Console][services-portal], select the service to add data to, then click `Actions` > `Import data` > `Upload .CSV`.
+          1. Click to browse, or drag and drop `<local folder>/tutorial_sample_tick.csv` to upload.
+          1. Leave the default settings for the delimiter, skipping the header, and creating a new table.
+          1. In `Table`, provide `crypto_ticks` as the new table name.
+          1. Enable `hypertable partition` for the `time` column and click `Process CSV file`.
+
+              The upload wizard creates a hypertable containing the data from the CSV file.
+          1. When the data is uploaded, close `Upload .CSV`.
+
+              If you want to  have a quick look at your data, press `Run` .
+          1. Repeat the process with `<local folder>/tutorial_sample_assets.csv` and rename to `crypto_assets`.
+
+              There is no time-series data in this table, so you don't see the  `hypertable partition` option.
+
+  </Step>
+
+  <Step title="Have a quick look at your data">
+
+    You query hypertables in exactly the same way as you would a relational Postgres table.
+    Use one of the following SQL editors to run a query and see the data you uploaded:
+
+    - **Data view**: write queries, visualize data, and share your results in [Tiger Console](https://console.cloud.timescale.com/dashboard/services?popsql) for all your Tiger Cloud services.
+
+      <Callout type="note">
+        This feature is not available under the Free pricing plan.
+      </Callout>
+
+    - **SQL editor**: write, fix, and organize SQL faster and more accurately in [Tiger Console](https://console.cloud.timescale.com/dashboard/services) for a Tiger Cloud service.
+    - **psql**: easily run queries on your Tiger Cloud services or self-hosted TimescaleDB deployment from Terminal.
+
+  </Step>
+</Steps>
+
+
+## Write fast and efficient analytical queries
+
+Aggregation is a way of combing data to get insights from it. Average, sum, and count are all
+examples of simple aggregates. However, with large amounts of data, aggregation slows things down, quickly.
+Continuous aggregates are a kind of hypertable that is refreshed automatically in
+the background as new data is added, or old data is modified. Changes to your dataset are tracked,
+and the hypertable behind the continuous aggregate is automatically updated in the background.
+
+![Reduced data calls with continuous aggregates](https://assets.timescale.com/docs/images/continuous-aggregate.png)
+
+You create continuous aggregates on uncompressed data in high-performance storage. They continue to work
+on [data in the columnstore][test-drive-enable-compression]
+and [rarely accessed data in tiered storage][test-drive-tiered-storage]. You can even
+create [continuous aggregates on top of your continuous aggregates][hierarchical-caggs].
+
+You use time buckets to create a continuous aggregate. Time buckets aggregate data in hypertables by time
+interval. For example, a 5-minute, 1-hour, or 3-day bucket. The data grouped in a time bucket uses a single
+timestamp. Continuous aggregates minimize the number of records that you need to look up to perform your
+query.
+
+This section shows you how to run fast analytical queries using time buckets and continuous aggregate in
+Tiger Console. You can also do this using psql.
+
+<Steps>
+  <Step title="In Tiger Console, click `Data view`" />
+
+  <Step title="Connect to your service">
+    In the connection drop-down in the top right, select your service.
+  </Step>
+
+  <Step title="Create a continuous aggregate">
+
+    For a continuous aggregate, data grouped using a time bucket is stored in a
+    Postgres `MATERIALIZED VIEW` in a hypertable. `timescaledb.continuous` ensures that this data
+    is always up to date.
+    In Data view, use the following code to create a continuous aggregate on the real-time data in
+    the `crypto_ticks` table:
+
+    ```sql
+    CREATE MATERIALIZED VIEW assets_candlestick_daily
+    WITH (timescaledb.continuous) AS
+    SELECT
+      time_bucket('1 day', "time") AS day,
+      symbol,
+      max(price) AS high,
+      first(price, time) AS open,
+      last(price, time) AS close,
+      min(price) AS low
+    FROM crypto_ticks srt
+    GROUP BY day, symbol;
+    ```
+
+    This continuous aggregate creates the [candlestick chart][charts] data you use to visualize
+    the price change of an asset.
+  </Step>
+
+  <Step title="Create a policy to refresh the view every hour">
+   ```sql
+   SELECT add_continuous_aggregate_policy('assets_candlestick_daily',
+   start_offset => INTERVAL '3 weeks',
+   end_offset => INTERVAL '24 hours',
+   schedule_interval => INTERVAL '3 hours');
+   ```
+  </Step>
+
+  <Step title="Have a quick look at your data">
+
+    You query continuous aggregates exactly the same way as your other tables. To query the `assets_candlestick_daily`
+    continuous aggregate for all assets:
+
+    ```sql
+    SELECT * FROM assets_candlestick_daily
+    ORDER BY day DESC, symbol
+    LIMIT 10;
+    ```
+
+  </Step>
+</Steps>
+
+To see the change in terms of query time and data returned between a regular query and
+a continuous aggregate, run the query part of the continuous aggregate
+( `SELECT ...GROUP BY day, symbol;` ) and compare the results.
+
+## Slash storage charges
+
+<Callout type="note">
+  This feature is currently not supported for Tiger Cloud on Microsoft Azure.
+</Callout>
+
+In the previous sections, you used continuous aggregates to make fast analytical queries, and
+hypercore to reduce storage costs on frequently accessed data. To reduce storage costs even more,
+you create tiering policies to move rarely accessed data to the object store. The object store is
+low-cost bottomless data storage built on Amazon S3. However, no matter the tier, you can
+[query your data when you need][querying-tiered-data]. Tiger Cloud seamlessly accesses the correct storage
+tier and generates the response.
+
+![Tiered storage](https://assets.timescale.com/docs/images/tiered-storage.png)
+
+To set up data tiering:
+
+<Steps>
+
+  <Step title="Enable data tiering">
+
+    1. In [Tiger Console][services-portal], select the service to modify.
+
+    1. In `Explorer`, click `Storage configuration` > `Tiering storage`, then click `Enable tiered storage`.
+
+        ![Enable tiered storage](https://assets.timescale.com/docs/images/tiger-on-azure/enable-tiered-storage-tiger-console.png)
+
+        When tiered storage is enabled, you see the amount of data in the tiered object storage.
+  </Step>
+  <Step title="Set the time interval when data is tiered">
+
+    In Tiger Console, click `Data view`, then enable data tiering on a hypertable with the following query:
+     ```sql
+     SELECT add_tiering_policy('assets_candlestick_daily', INTERVAL '3 weeks');
+     ```
+
+  </Step>
+
+  <Step title="Query tiered data">
+    You enable reads from tiered data for each query, for a session or for all future
+    sessions. To run a single query on tiered data:
+
+    1. Enable reads on tiered data:
+      ```sql
+      set timescaledb.enable_tiered_reads = true
+      ```
+    1. Query the data:
+      ```sql
+      SELECT * FROM crypto_ticks srt LIMIT 10
+      ```
+    1. Disable reads on tiered data:
+      ```sql
+      set timescaledb.enable_tiered_reads = false;
+      ```
+    For more information, see [Querying tiered data][querying-tiered-data].
+
+  </Step>
+</Steps>
+
+## Reduce the risk of downtime and data loss
+
+{/* <Availability products={['cloud']} price_plans={['enterprise', 'scale']} /> */}
+
+By default, all Tiger Cloud services have rapid recovery enabled. However, if your app has very low tolerance
+for downtime, Tiger Cloud offers high-availability replicas. HA replicas are exact, up-to-date copies
+of your database hosted in multiple AWS availability zones (AZ) within the same region as your primary node.
+HA replicas automatically take over operations if the original primary data node becomes unavailable.
+The primary node streams its write-ahead log (WAL) to the replicas to minimize the chances of
+data loss during failover.
+
+<Steps>
+
+  <Step>In [Tiger Console][cloud-login], select the service to enable replication for.</Step>
+  <Step>Click `Operations`, then select `High availability`.</Step>
+  <Step>
+    Choose your replication strategy, then click `Change configuration`.
+
+    ![Tiger Cloud service replicas](https://assets.timescale.com/docs/images/tiger-on-azure/tiger-console-ha-replicas.png)
+  </Step>
+
+  <Step>
+    In `Change high availability configuration`, click `Change config`.
+  </Step>
+</Steps>
+
+For more information, see [High availability][high-availability].
+
+## Tiger Cloud support
+
+Tiger Data runs a global support organization with Customer Satisfaction (CSAT) scores above 99%.
+Support covers all timezones and is fully staffed at weekend hours.
+
+All paid pricing plans have free Developer Support through email with a target response time of 1 business
+day; we are often faster. If you need 24x7 responsiveness, talk to us about
+[Production Support][production-support]. With Production Support, you can request help at any time at our [Support portal][support-portal].
+
+What next? See the [use case tutorials][tutorials], interact with the data in your Tiger Cloud service using
+[your favorite programming language][connect-with-code], integrate your Tiger Cloud service with a range of
+[third-party tools][integrations], plain old [Use Tiger Data products][use-timescale], or dive into [the API][use-the-api].
+
+[connection-info]: /integrations/latest/find-connection-details/
+[create-service]: /getting-started/latest/services/
+[enable-timescaledb]: /self-hosted/latest/install/
+
+[hypercore]: /use-timescale/latest/hypercore/
+[move-from-rowstore-to-columstore-in-hypercore]: https://assets.timescale.com/docs/images/hypercore_intro.svg
+
+[add_columnstore_policy]: /api/latest/hypercore/add_columnstore_policy/
+[alter_job_samples]: /api/latest/jobs-automation/alter_job/#samples
+[convert_to_columnstore]: /api/latest/hypercore/convert_to_columnstore/
+[create_table_arguments]: /api/latest/hypertable/create_table/#arguments
+[hypertable-create-table]: /api/latest/hypertable/create_table/
+[remove_columnstore_policy]: /api/latest/hypercore/remove_columnstore_policy/
+
+[cloud-login]: https://console.cloud.timescale.com
+[service_long-replicas]: https://assets.timescale.com/docs/images/tiger-on-azure/tiger-console-ha-replicas.png
+
+[production-support]: https://www.tigerdata.com/support
+[support-portal]: https://portal.support.timescale.com/login
+
+[cagg-wizard]: https://assets.timescale.com/docs/images/tiger-cloud-console/continuous-aggregate-wizard-tiger-console.png
+[charts]: https://www.investopedia.com/terms/c/candlestick.asp
+[connect-with-code]: /getting-started/latest/start-coding-with-timescale/
+[crypto_samplezip]: https://assets.timescale.com/docs/downloads/candlestick/crypto_sample.zip
+[data-ingest]: /migrate/latest/
+[enable-tiered-storage]: https://assets.timescale.com/docs/images/tiger-on-azure/enable-tiered-storage-tiger-console.png
+[hierarchical-caggs]: /use-timescale/latest/continuous-aggregates/hierarchical-continuous-aggregates/
+[high-availability]: /use-timescale/latest/ha-replicas/high-availability/
+[hypertable-structure]: https://assets.timescale.com/docs/images/hypertable-structure.png
+[hypertables-section]: /use-timescale/latest/hypertables/
+[integrations]: /integrations/latest/
+[main-features-and-tiered-data]: https://assets.timescale.com/docs/images/mutation.png
+[migrate-live]: /migrate/latest/live-migration/
+[migrate-with-downtime]: /migrate/latest/pg-dump-and-restore/
+[portal-data-mode]: https://console.cloud.timescale.com/dashboard/services?popsql
+[portal-ops-mode]: https://console.cloud.timescale.com/dashboard/services
+[querying-tiered-data]: /use-timescale/latest/data-tiering/querying-tiered-data/
+[reduced-data-calls-with-caggs]: https://assets.timescale.com/docs/images/continuous-aggregate.png
+[secondary-indexes]: /use-timescale/latest/hypercore/secondary-indexes/
+[services-portal]: https://console.cloud.timescale.com/dashboard/services
+[test-drive-enable-compression]: /getting-started/latest/try-key-features-timescale-products/#enhance-query-performance-for-analytics
+[test-drive-tiered-storage]: /getting-started/latest/try-key-features-timescale-products/#slash-storage-charges
+[tiered-storage]: https://assets.timescale.com/docs/images/tiered-storage.png
+[tutorials]: /tutorials/latest/
+[use-the-api]: /api/latest/
+[use-timescale]: /use-timescale/latest/
