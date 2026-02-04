@@ -252,6 +252,19 @@ function transformContent(
   // Remove empty <p></p> tags that break MDX
   body = body.replace(/<p>\s*<\/p>/g, "");
 
+  // Convert <br> to self-closing <br /> for JSX compatibility
+  body = body.replace(/<br>/g, "<br />");
+
+  // Remove Mermaid CSS garbage (rendered CSS that got scraped)
+  body = body.replace(/#mermaid-[^{]+\{[^}]+\}[^\n]*/g, "");
+
+  // Escape comparison operators that look like JSX tags
+  // Only escape < and > when they're clearly comparison operators (surrounded by spaces or preceded by word char)
+  body = body.replace(/(\w)\s*<\s*(\d)/g, "$1 &lt; $2");
+  body = body.replace(/(\w)\s*>\s*(\d)/g, "$1 &gt; $2");
+  body = body.replace(/(\w)\s*<=\s*(\d)/g, "$1 &lt;= $2");
+  body = body.replace(/(\w)\s*>=\s*(\d)/g, "$1 &gt;= $2");
+
   // Add component imports if needed
   const imports: string[] = [];
   if (body.includes("<Callout")) {
