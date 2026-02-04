@@ -259,11 +259,11 @@ function transformContent(
   body = body.replace(/#mermaid-[^{]+\{[^}]+\}[^\n]*/g, "");
 
   // Escape comparison operators that look like JSX tags
-  // Only escape < and > when they're clearly comparison operators (surrounded by spaces or preceded by word char)
-  body = body.replace(/(\w)\s*<\s*(\d)/g, "$1 &lt; $2");
-  body = body.replace(/(\w)\s*>\s*(\d)/g, "$1 &gt; $2");
-  body = body.replace(/(\w)\s*<=\s*(\d)/g, "$1 &lt;= $2");
-  body = body.replace(/(\w)\s*>=\s*(\d)/g, "$1 &gt;= $2");
+  // Only escape when clearly version comparisons (word char, optional space, operator, optional space, digit - same line only)
+  body = body.replace(/(\w)[ \t]*<[ \t]*(\d)/g, "$1 &lt; $2");
+  body = body.replace(/(\w)[ \t]*>[ \t]*(\d)/g, "$1 &gt; $2");
+  body = body.replace(/(\w)[ \t]*<=[ \t]*(\d)/g, "$1 &lt;= $2");
+  body = body.replace(/(\w)[ \t]*>=[ \t]*(\d)/g, "$1 &gt;= $2");
 
   // Add component imports if needed
   const imports: string[] = [];
