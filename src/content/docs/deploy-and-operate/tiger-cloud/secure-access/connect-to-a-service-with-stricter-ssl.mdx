@@ -1,0 +1,184 @@
+---
+title: "Connect to a service with stricter SSL"
+description: "Learn how to connect to Tiger Cloud services with stricter SSL requirements"
+---
+
+## Overview
+
+This guide explains how to configure stricter SSL/TLS settings when connecting to Tiger Cloud. Stricter SSL modes like `verify-ca` and `verify-full` provide additional security by verifying the server's identity, protecting against man-in-the-middle attacks.
+
+## Prerequisites
+
+- An active Tiger Cloud service
+- The Tiger Cloud root CA certificate
+- A database client that supports SSL certificate verification
+- Understanding of your security and compliance requirements
+
+## Understanding SSL modes
+
+PostgreSQL supports several SSL modes with increasing levels of security.
+
+### SSL mode comparison
+
+| Mode | Encryption | Server certificate verification | Hostname verification |
+|------|------------|--------------------------------|----------------------|
+| `disable` | No | No | No |
+| `allow` | If available | No | No |
+| `prefer` | If available | No | No |
+| `require` | Yes | No | No |
+| `verify-ca` | Yes | Yes | No |
+| `verify-full` | Yes | Yes | Yes |
+
+### When to use each mode
+
+- **`require`**: Ensures encryption but does not verify the server identity. Suitable when you trust the network path.
+- **`verify-ca`**: Verifies the server certificate is signed by a trusted CA. Use when you have a private CA.
+- **`verify-full`**: Verifies the CA and that the hostname matches the certificate. Recommended for production environments.
+
+## Configuring verify-ca mode
+
+How to configure connections that verify the server certificate.
+
+### Step 1: Download the CA certificate
+
+How to obtain the Tiger Cloud root CA certificate from the console.
+
+### Step 2: Install the CA certificate
+
+Where to place the CA certificate on your system:
+
+- Linux: `~/.postgresql/root.crt` or specify with `sslrootcert`
+- macOS: `~/.postgresql/root.crt` or system keychain
+- Windows: Certificate store or specify path
+
+### Step 3: Configure your connection
+
+How to specify `sslmode=verify-ca` and the CA certificate path in your connection string.
+
+### Step 4: Test the connection
+
+How to verify that certificate verification is working.
+
+## Configuring verify-full mode
+
+How to configure the strictest SSL mode with hostname verification.
+
+### How hostname verification works
+
+In `verify-full` mode, the client verifies that:
+
+1. The server certificate is signed by a trusted CA
+2. The hostname in the connection string matches either:
+   - A Subject Alternative Name (SAN) in the certificate, or
+   - The Common Name (CN) if no SAN is present
+
+### Connection string configuration
+
+How to enable `verify-full` mode in your connection string.
+
+### Troubleshooting hostname mismatches
+
+What to do if the hostname does not match the certificate.
+
+## Client certificate authentication (Mutual TLS)
+
+For maximum security, configure mutual TLS where both server and client authenticate with certificates.
+
+### How mutual TLS works
+
+In mutual TLS (mTLS):
+
+1. The server presents its certificate to the client
+2. The client verifies the server certificate
+3. The client presents its certificate to the server
+4. The server verifies the client certificate and uses it for authentication
+
+### Generating a client certificate
+
+How to generate a client key and certificate signing request (CSR).
+
+### Installing client certificates
+
+Where to place client certificates:
+
+- `~/.postgresql/postgresql.crt`: Client certificate
+- `~/.postgresql/postgresql.key`: Private key (must have restricted permissions)
+
+### Connection string for mTLS
+
+How to configure a connection string that uses client certificate authentication.
+
+## Language-specific configuration
+
+How to configure strict SSL in popular languages and frameworks.
+
+### Python (psycopg2)
+
+Code example for verify-full mode with psycopg2.
+
+### Python (SQLAlchemy)
+
+Code example for verify-full mode with SQLAlchemy.
+
+### Node.js (pg)
+
+Code example for verify-full mode with node-postgres.
+
+### Java (JDBC)
+
+How to configure JDBC with truststore and keystore for strict SSL.
+
+### Go (pgx)
+
+Code example for verify-full mode with pgx.
+
+## TLS version requirements
+
+Configuring minimum TLS versions for enhanced security.
+
+### Recommended TLS versions
+
+- TLS 1.3: Most secure, recommended where supported
+- TLS 1.2: Widely supported, minimum recommended version
+- TLS 1.1 and below: Deprecated, do not use
+
+### Specifying minimum TLS version
+
+How to configure your client to require a minimum TLS version.
+
+## Certificate management
+
+Best practices for managing SSL certificates.
+
+### Certificate expiration
+
+How to monitor and handle certificate expiration.
+
+### Certificate renewal
+
+Process for updating certificates when they are renewed.
+
+### Key security
+
+Protecting private keys:
+
+- Set restrictive file permissions (600 or 400)
+- Never share private keys
+- Use hardware security modules (HSM) for high-security environments
+
+## Troubleshooting
+
+Common issues and their solutions:
+
+- SSL error: certificate verify failed
+- SSL error: hostname mismatch
+- SSL error: unable to get local issuer certificate
+- Private key permission errors
+- TLS version negotiation failures
+- Certificate chain incomplete
+
+## Next steps
+
+- [Connect to Tiger Cloud from your app](/deploy-and-operate/tiger-cloud/secure-access/connect-to-tiger-cloud-from-your-app)
+- [User authentication](/deploy-and-operate/tiger-cloud/secure-access/user-authentication)
+- [Connect securely from any cloud](/deploy-and-operate/tiger-cloud/secure-access/connect-securely-from-any-cloud)

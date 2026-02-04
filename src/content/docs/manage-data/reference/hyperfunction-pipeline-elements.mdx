@@ -1,0 +1,563 @@
+---
+title: "Function pipeline elements"
+description: "Reference guide for all function pipeline elements including transforms, finalizers, and aggregate accessors"
+---
+Early access Function pipeline elements are the building blocks for constructing data analysis queries using function pipelines. This reference covers all available elements organized by category.
+
+Transform elements
+
+Transform elements take a [`timevector`](/api-reference/timescaledb-toolkit/timevector/timevector), and produce a `timevector`.
+
+Vectorized math functions
+
+Vectorized math function elements modify each `value` inside the `timevector` with the specified mathematical function. They are applied point-by-point and they produce a one-to-one mapping from the input to output `timevector`. Each point in the input has a corresponding point in the output, with its `value` transformed by the mathematical function specified. Elements are always applied left to right, so the order of operations is not taken into account even in the presence of explicit parentheses. This means for a `timevector` row `('2020-01-01 00:00:00+00', 20.0)`, this pipeline works: And this pipeline works in the same way: Both of these examples produce `('2020-01-01 00:00:00+00', 31.0)`. If multiple arithmetic operations are needed and precedence is important, consider using a Lambda instead.
+
+Unary mathematical functions
+
+Unary mathematical function elements apply the corresponding mathematical function to each datapoint in the `timevector`, leaving the timestamp and ordering the same. The available elements are:
+
+Element
+
+Description
+
+`abs()`
+
+Computes the absolute value of each value
+
+`cbrt()`
+
+Computes the cube root of each value
+
+`ceil()`
+
+Computes the first integer greater than or equal to each value
+
+`floor()`
+
+Computes the first integer less than or equal to each value
+
+`ln()`
+
+Computes the natural logarithm of each value
+
+`log10()`
+
+Computes the base 10 logarithm of each value
+
+`round()`
+
+Computes the closest integer to each value
+
+`sign()`
+
+Computes +/-1 for each positive/negative value
+
+`sqrt()`
+
+Computes the square root for each value
+
+`trunc()`
+
+Computes only the integer portion of each value
+
+Even if an element logically computes an integer, `timevector`s only deal with double precision floating point values, so the computed value is the floating point representation of the integer. For example: The output for this example:
+
+Binary mathematical functions
+
+Binary mathematical function elements run the corresponding mathematical function on the `value` in each point in the `timevector`, using the supplied number as the second argument of the function. The available elements are:
+
+Element
+
+Description
+
+`add(N)`
+
+Computes each value plus `N`
+
+`div(N)`
+
+Computes each value divided by `N`
+
+`logn(N)`
+
+Computes the logarithm base `N` of each value
+
+`mod(N)`
+
+Computes the remainder when each number is divided by `N`
+
+`mul(N)`
+
+Computes each value multiplied by `N`
+
+`power(N)`
+
+Computes each value taken to the `N` power
+
+`sub(N)`
+
+Computes each value less `N`
+
+These elements calculate `vector -> power(2)` by squaring all of the `values`, and `vector -> logn(3)` gives the log-base-3 of each `value`. For example: The output for this example:
+
+Compound transforms
+
+Mathematical transforms are applied only to the `value` in each point in a `timevector` and always produce one-to-one output `timevector`s. Compound transforms can involve both the `time` and `value` parts of the points in the `timevector`, and they are not necessarily one-to-one. One or more points in the input can be used to produce zero or more points in the output. So, where mathematical transforms always produce `timevector`s of the same length, compound transforms can produce larger or smaller `timevector`s as an output.
+
+Delta transforms
+
+A `delta()` transform calculates the difference between consecutive `values` in the `timevector`. The first point in the `timevector` is omitted as there is no previous value and it cannot have a `delta()`. Data should be sorted using the `sort()` element before passing into `delta()`. For example: The output for this example:
+
+The first row of the output is missing, as there is no way to compute a delta without a previous value.
+
+Fill method transform
+
+The `fill_to()` transform ensures that there is a point at least every `interval`, if there is not a point, it fills in the point using the method provided. The `timevector` must be sorted before calling `fill_to()`. The available fill methods are:
+
+fill\_method
+
+description
+
+LOCF
+
+Last object carried forward, fill with last known value prior to the hole
+
+Interpolate
+
+Fill the hole using a collinear point with the first known value on either side
+
+Linear
+
+This is an alias for interpolate
+
+Nearest
+
+Fill with the matching value from the closer of the points preceding or following the hole
+
+For example: The output for this example:
+
+Largest triangle three buckets (LTTB) transform
+
+The largest triangle three buckets (LTTB) transform uses the [LTTB](/api-reference/timescaledb-toolkit/downsampling/lttb) graphical downsampling algorithm to downsample a `timevector` to the specified resolution while maintaining visual acuity.
+
+Sort transform
+
+The `sort()` transform sorts the `timevector` by time, in ascending order. This transform is ignored if the `timevector` is already sorted. For example: The output for this example:
+
+Lambda elements
+
+The Lambda element functions use the Toolkit’s experimental Lambda syntax to transform a `timevector`. A Lambda is an expression that is applied to the elements of a `timevector`. It is written as a string, usually `$$`\-quoted, containing the expression to run. For example: A Lambda expression can be constructed using these components:
+
+-   **Variable declarations** such as `let $foo = 3; $foo * $foo`. Variable declarations end with a semicolon. All Lambdas must end with an expression, this does not have a semicolon. Multiple variable declarations can follow one another, for example: `let $foo = 3; let $bar = $foo * $foo; $bar * 10`
+-   **Variable names** such as `$foo`. They must start with a `$` symbol. The variables `$time` and `$value` are reserved; they refer to the time and value of the point in the vector the Lambda expression is being called on.
+-   **Function calls** such as `abs($foo)`. Most mathematical functions are supported.
+-   **Binary operations** containing the arithmetic binary operators `and`, `or`, `=`, `!=`, `<`, `<=`, `>`, `>=`, `^`, `*`, `/`, `+`, and `-` are supported.
+-   **Interval literals** are expressed with a trailing `i`. For example, `'1 day'i`. Except for the trailing `i`, these follow the Postgres `INTERVAL` input format.
+-   **Time literals** such as `'2021-01-02 03:00:00't` expressed with a trailing `t`. Except for the trailing `t` these follow the Postgres `TIMESTAMPTZ` input format.
+-   **Number literals** such as `42`, `0.0`, `-7`, or `1e2`.
+
+Map Lambda
+
+The `map()` Lambda maps each element of the `timevector`. This Lambda must return either a `DOUBLE PRECISION`, where only the values of each point in the `timevector` is altered, or a `(TIMESTAMPTZ, DOUBLE PRECISION)`, where both the times and values are changed. An example of the `map()` Lambda with a `DOUBLE PRECISION` return: The output for this example: An example of the `map()` Lambda with a `(TIMESTAMPTZ, DOUBLE PRECISION)` return: The output for this example:
+
+Filter Lambda
+
+The `filter()` Lambda filters a `timevector` based on a Lambda expression that returns `true` for every point that should stay in the `timevector` timeseries, and `false` for every point that should be removed. For example: The output for this example:
+
+Finalizer elements
+
+Finalizer elements complete the function pipeline, and output a value or an aggregate.
+
+Output element
+
+You can finalize a pipeline with a `timevector` output element. These are used at the end of a pipeline to return a `timevector`. This can be useful if you need to use them in another pipeline later on. The two types of output are:
+
+-   [`unnest()`](/api-reference/timescaledb-toolkit/timevector/unnest), which returns a set of `(TimestampTZ, DOUBLE PRECISION)` pairs.
+-   `materialize()`, which forces the pipeline to materialize a `timevector`. This blocks any optimizations that lazily materialize a `timevector`.
+
+Aggregate output elements
+
+These elements take a `timevector` and run the corresponding aggregate over it to produce a result. The possible elements are:
+
+-   `average()`
+-   `integral()`
+-   [`counter_agg()`](/api-reference/timescaledb-toolkit/counter-aggregation/counter_agg)
+-   [`hyperloglog()`](/api-reference/timescaledb-toolkit/hyperloglog/hyperloglog)
+-   [`stats_agg()`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-one-variable/stats_agg)
+-   `sum()`
+-   `num_vals()`
+
+An example of an aggregate output using `num_vals()`: The output for this example: An example of an aggregate output using `stats_agg()`: The output for this example:
+
+Aggregate accessors and mutators
+
+Aggregate accessors and mutators work in function pipelines in the same way as they do in other aggregates. You can use them to get a value from the aggregate part of a function pipeline. For example: When you use them in a pipeline instead of standard function accessors and mutators, they can make the syntax clearer by getting rid of nested functions. For example, the nested syntax looks like this: Using a function pipeline with the `->` operator instead looks like this:
+
+Counter aggregates
+
+Counter aggregates handle resetting counters. Counters are a common type of metric in application performance monitoring and metrics. All values have resets accounted for. These elements must have a `CounterSummary` to their left when used in a pipeline, from a [`counter_agg()`](/api-reference/timescaledb-toolkit/counter-aggregation/counter_agg) aggregate or pipeline element. The available counter aggregate functions are:
+
+Element
+
+Description
+
+`counter_zero_time()`
+
+The time at which the counter value is predicted to have been zero based on the least squares fit of the points input to the `CounterSummary`(x intercept)
+
+`corr()`
+
+The correlation coefficient of the least squares fit line of the adjusted counter value
+
+`delta()`
+
+Computes the last - first value of the counter
+
+`extrapolated_delta(method)`
+
+Computes the delta extrapolated using the provided method to bounds of range. Bounds must have been provided in the aggregate or a `with_bounds` call.
+
+`idelta_left()`/`idelta_right()`
+
+Computes the instantaneous difference between the second and first points (left) or last and next-to-last points (right)
+
+`intercept()`
+
+The y-intercept of the least squares fit line of the adjusted counter value
+
+`irate_left()`/`irate_right()`
+
+Computes the instantaneous rate of change between the second and first points (left) or last and next-to-last points (right)
+
+`num_changes()`
+
+Number of times the counter changed values
+
+`num_elements()`
+
+Number of items - any with the exact same time have been counted only once
+
+`num_changes()`
+
+Number of times the counter reset
+
+`slope()`
+
+The slope of the least squares fit line of the adjusted counter value
+
+`with_bounds(range)`
+
+Applies bounds using the `range` (a `TSTZRANGE`) to the `CounterSummary` if they weren’t provided in the aggregation step
+
+Percentile approximation
+
+Percentile approximation aggregate accessors are used to approximate percentiles. Currently, only accessors are implemented for [`percentile_agg`](/api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/percentile_agg) and [`uddsketch`](/api-reference/timescaledb-toolkit/percentile-approximation/uddsketch) based aggregates. We have not yet implemented the pipeline aggregate for percentile approximation with [`tdigest`](/api-reference/timescaledb-toolkit/percentile-approximation/tdigest).
+
+Element
+
+Description
+
+[`approx_percentile(p)`](/api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/approx_percentile)
+
+The approximate value at percentile `p`
+
+[`approx_percentile_rank(v)`](/api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/approx_percentile_rank)
+
+The approximate percentile a value `v` would fall in
+
+[`error()`](/api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/error)
+
+The maximum relative error guaranteed by the approximation
+
+[`mean()`](/api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/mean)
+
+The exact average of the input values.
+
+[`num_vals()`](/api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/num_vals)
+
+The number of input values
+
+Statistical aggregates
+
+Statistical aggregate accessors add support for common statistical aggregates. These allow you to compute and `rollup()` common statistical aggregates like [`average`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-one-variable/average) and [`stddev`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-one-variable/stddev), more advanced aggregates like [`skewness`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-one-variable/skewness), and two-dimensional aggregates like [`slope`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-two-variables/slope) and [`covariance`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-two-variables/covariance). Because there are both single-dimensional and two-dimensional versions of these, the accessors can have multiple forms. For example, `average()` calculates the average on a single-dimension aggregate, while `average_y()` and `average_x()` calculate the average on each of two dimensions. The available statistical aggregates are:
+
+Element
+
+Description
+
+[`average()/average_y()/average_x()`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-one-variable/average)
+
+The average of the values
+
+[`corr()`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-two-variables/corr)
+
+The correlation coefficient of the least squares fit line
+
+[`covariance(method)`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-two-variables/covariance)
+
+The covariance of the values using either `population` or `sample` method
+
+[`determination_coeff()`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-two-variables/determination_coeff)
+
+The determination coefficient (or R squared) of the values
+
+[`kurtosis(method)/kurtosis_y(method)/kurtosis_x(method)`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-one-variable/kurtosis)
+
+The kurtosis (fourth moment) of the values using either the `population` or `sample` method
+
+[`intercept()`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-two-variables/intercept)
+
+The intercept of the least squares fit line
+
+[`num_vals()`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-one-variable/num_vals)
+
+The number of values seen
+
+[`skewness(method)/skewness_y(method)/skewness_x(method)`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-one-variable/skewness)
+
+The skewness (third moment) of the values using either the `population` or `sample` method
+
+[`slope()`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-two-variables/slope)
+
+The slope of the least squares fit line
+
+[`stddev(method)/stddev_y()/stddev_x()`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-one-variable/stddev)
+
+The standard deviation of the values using either the `population` or `sample` method
+
+[`sum()`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-one-variable/sum)
+
+The sum of the values
+
+[`variance(method)/variance_y()/variance_x()`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-one-variable/variance)
+
+The variance of the values using either the `population` or `sample` method
+
+[`x_intercept()`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-two-variables/x_intercept)
+
+The x intercept of the least squares fit line
+
+Time-weighted averages aggregates
+
+The [`average()`](/api-reference/timescaledb-toolkit/time-weighted-averages/average) accessor can be called on the output of a [`time_weight()`](/api-reference/timescaledb-toolkit/time-weighted-averages/time_weight). For example:
+
+Approximate count distinct aggregates
+
+This is an approximation for distinct counts. The [`distinct_count()`](/api-reference/timescaledb-toolkit/hyperloglog/distinct_count) accessor can be called on the output of a [`hyperloglog()`](/api-reference/timescaledb-toolkit/hyperloglog/hyperloglog). For example:
+
+Formatting timevectors
+
+You can turn a timevector into a formatted text representation. There are two functions for turning a timevector to text:
+
+-   `to_text`, which allows you to specify the template
+-   `to_plotly`, which outputs a format suitable for use with the [Plotly JSON chart schema](https://plotly.com/chart-studio-help/json-chart-schema/)
+
+to\_text
+
+This function produces a text representation, formatted according to the `format_string`. The format string can use any valid Tera template syntax, and it can include any of the built-in variables:
+
+-   `TIMES`: All the times in the timevector, as an array
+-   `VALUES`: All the values in the timevector, as an array
+-   `TIMEVALS`: All the time-value pairs in the timevector, formatted as `{"time": $TIME, "val": $VAL}`, as an array
+
+For example, given this table of data: You can use a format string with `TIMEVALS` to produce the following text: Or you can use a format string with `TIMES` and `VALUES` to produce the following text:
+
+to\_plotly
+
+This function produces a text representation, formatted for use with Plotly. For example, given this table of data: You can produce the following Plotly-compatible text:
+
+All function pipeline elements
+
+This table lists all function pipeline elements in alphabetical order:
+
+Element
+
+Category
+
+Output
+
+`abs()`
+
+Unary Mathematical
+
+`timevector` pipeline
+
+`add(val DOUBLE PRECISION)`
+
+Binary Mathematical
+
+`timevector` pipeline
+
+`average()`
+
+Aggregate Finalizer
+
+DOUBLE PRECISION
+
+`cbrt()`
+
+Unary Mathematical
+
+`timevector` pipeline
+
+`ceil()`
+
+Unary Mathematical
+
+`timevector` pipeline
+
+[`counter_agg()`](/api-reference/timescaledb-toolkit/counter-aggregation/counter_agg)
+
+Aggregate Finalizer
+
+`CounterAgg`
+
+`delta()`
+
+Compound
+
+`timevector` pipeline
+
+`div`
+
+Binary Mathematical
+
+`timevector` pipeline
+
+`fill_to`
+
+Compound
+
+`timevector` pipeline
+
+`filter`
+
+Lambda
+
+`timevector` pipeline
+
+`floor`
+
+Unary Mathematical
+
+`timevector` pipeline
+
+[`hyperloglog`](/api-reference/timescaledb-toolkit/hyperloglog/hyperloglog)
+
+Aggregate Finalizer
+
+HyperLogLog
+
+`ln`
+
+Unary Mathematical
+
+`timevector` pipeline
+
+`log10`
+
+Unary Mathematical
+
+`timevector` pipeline
+
+`logn`
+
+Binary Mathematical
+
+`timevector` pipeline
+
+[`lttb`](/api-reference/timescaledb-toolkit/downsampling/lttb)
+
+Compound
+
+`timevector` pipeline
+
+`map`
+
+Lambda
+
+`timevector` pipeline
+
+`materialize`
+
+Output
+
+`timevector` pipeline
+
+`mod`
+
+Binary Mathematical
+
+`timevector` pipeline
+
+`mul`
+
+Binary Mathematical
+
+`timevector` pipeline
+
+`num_vals`
+
+Aggregate Finalizer
+
+BIGINT
+
+`power`
+
+Binary Mathematical
+
+`timevector` pipeline
+
+`round`
+
+Unary Mathematical
+
+`timevector` pipeline
+
+`sign`
+
+Unary Mathematical
+
+`timevector` pipeline
+
+`sort`
+
+Compound
+
+`timevector` pipeline
+
+`sqrt`
+
+Unary Mathematical
+
+`timevector` pipeline
+
+[`stats_agg`](/api-reference/timescaledb-toolkit/statistical-and-regression-analysis/stats_agg-one-variable/stats_agg)
+
+Aggregate Finalizer
+
+StatsSummary1D
+
+`sub`
+
+Binary Mathematical
+
+`timevector` pipeline
+
+`sum`
+
+Aggregate Finalizer
+
+`timevector` pipeline
+
+`trunc`
+
+Unary Mathematical
+
+`timevector` pipeline
+
+`unnest`
+
+Output
+
+`TABLE (time TIMESTAMPTZ, value DOUBLE PRECISION)`

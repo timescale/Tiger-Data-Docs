@@ -1,0 +1,25 @@
+---
+title: "Time and continuous aggregates"
+description: "Work with timezones and integer-based time in continuous aggregates"
+---
+Functions that depend on a local timezone setting inside a continuous aggregate are not supported. You cannot adjust to a local time because the timezone setting changes from user to user. To manage this, you can use explicit timezones in the view definition. Alternatively, you can create your own custom aggregation scheme for tables that use an integer time column.
+
+Declare an explicit timezone
+
+The most common method of working with timezones is to declare an explicit timezone in the view query.
+
+1.  **Create the view with an explicit timezone**
+2.  **Cast to timestamp at query time** Alternatively, you can cast to a timestamp after the view using `SELECT`:
+
+Integer-based time
+
+Date and time is usually expressed as year-month-day and hours:minutes:seconds. Most TimescaleDB databases use a [date/time-type](https://www.postgresql.org/docs/current/datatype-datetime.html) column to express the date and time. However, in some cases, you might need to convert these common time and date formats to a format that uses an integer. The most common integer time is Unix epoch time, which is the number of seconds since the Unix epoch of 1970-01-01, but other types of integer-based time formats are possible. These examples use a hypertable called `devices` that contains CPU and disk usage information. The devices measure time using the Unix epoch. To create a hypertable that uses an integer-based column as time, you need to provide the chunk time interval. In this case, each chunk is 10 minutes.
+
+1.  **Create a hypertable with an integer time column** Create a hypertable and define the integer-based time column and chunk time interval: For TimescaleDB [v2.23.0](https://github.com/timescale/timescaledb/releases/tag/2.23.0) and higher, the table is automatically partitioned on the first column in the table with a timestamp data type. If multiple columns are suitable candidates as a partitioning column, TimescaleDB throws an error and asks for an explicit definition. For earlier versions, set `partition_column` to a time column. If you are self-hosting TimescaleDB [v2.20.0](https://github.com/timescale/timescaledb/releases/tag/2.23.0) to [v2.22.1](https://github.com/timescale/timescaledb/releases/tag/2.23.0), to convert your data to the columnstore after a specific time interval, you have to call [add\_columnstore\_policy](/api-reference/timescaledb/hypercore/add_columnstore_policy) after you call [CREATE TABLE](/api-reference/timescaledb/hypertables/create_table) If you are self-hosting TimescaleDB [v2.19.3](https://github.com/timescale/timescaledb/releases/tag/2.19.3) and below, create a [Postgres relational table](https://www.postgresql.org/docs/current/sql-createtable.html), then convert it using [create\_hypertable](/api-reference/timescaledb/hypertables/create_hypertable). You then enable hypercore with a call to [ALTER TABLE](/api-reference/timescaledb/hypercore/alter_table).
+
+To define a continuous aggregate on a hypertable that uses integer-based time, you need to have a function to get the current time in the correct format, and set it for the hypertable. You can do this with the [`set_integer_now_func`](/api-reference/timescaledb/hypertables/set_integer_now_func) function. It can be defined as a regular Postgres function, but needs to be [`STABLE`](https://www.postgresql.org/docs/current/sql-createfunction.html), take no arguments, and return an integer value of the same type as the time column in the table. When you have set up the time-handling, you can create the continuous aggregate.
+
+1.  **Set up a function to convert the time to the Unix epoch**
+2.  **Create the continuous aggregate for the `devices` table**
+3.  **Insert some rows into the table** This command uses the `tablefunc` extension to generate a normal distribution, and uses the `row_number` function to turn it into a cumulative sequence.
+4.  **Check that the view contains the correct data**

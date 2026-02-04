@@ -1,0 +1,46 @@
+---
+title: "Monitor application performance"
+description: "Collect counter data with counter aggregation functions that handle resets and interruptions"
+---
+When you are monitoring application performance, there are two main types of metrics that you can collect: gauges, and counters. Gauges fluctuate up and down, like temperature or speed, while counters always increase, like the total number of miles travelled in a vehicle. When you process counter data, it is usually assumed that if the value of the counter goes down, the counter has been reset. For example, if you wanted to count the total number of miles travelled in a vehicle, you would expect the values to continuously increase: 1, 2, 3, 4, and so on. If the counter reset to 0, you would expect that this was a new trip, or an entirely new vehicle. This can become a problem if you want to continue counting from where you left off, rather than resetting to 0. A reset could occur if you have had a short server outage, or any number of other reasons. To get around this, you can analyze counter data by looking at the change over time, which accounts for resets. Accounting for resets can be difficult to do in SQL, so TimescaleDB has developed aggregate and accessor functions that handle calculations for counters in a more practical way.
+
+Counter aggregates can be used in continuous aggregates, even though they are not parallelizable in Postgres. For more information, see the section on [parallelism and ordering](#parallelism-and-ordering).
+
+For more information about counter aggregation API calls, see the [hyperfunction API documentation](/api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg).
+
+Prerequisites
+
+To follow the steps on this page:
+
+-   Create a target [Tiger Cloud service](/deploy-and-operate/tiger-cloud/get-started/create-services) with Real-time analytics enabled.
+    
+    You need [your connection details](/integrations/find-connection-details). This procedure also works for [self-hosted TimescaleDB](/deploy-and-operate/self-hosted/install-and-update/install-self-hosted).
+
+Run a counter aggregate query using a delta function
+
+In this procedure, we are using an example table called `example` that contains counter data.
+
+1.  **Create a table**
+2.  **Create a counter aggregate and the delta accessor function** This gives you the change in the counter’s value over the time period using [`counter_agg()`](/api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/counter_agg) and [`delta()`](/api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/delta), accounting for any resets. This allows you to search for fifteen minute periods where the counter increased by a larger or smaller amount:
+3.  **Use the [`time_bucket`](/api-reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket) function to produce a series of deltas** Produce deltas over fifteen minute increments:
+
+Run a counter aggregate query using an extrapolated delta function
+
+If your series is less regular, the deltas are affected by the number of samples in each fifteen minute period. You can improve this by using the [`extrapolated_delta`](/api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/extrapolated_delta) function. To do this, you need to provide bounds that define where to extrapolate to. In this example, we use the [`time_bucket_range`](/api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/time_bucket_range) function, which works in the same way as `time_bucket` but produces an open ended range of all the times in the bucket. This example also uses a CTE to do the counter aggregation, which makes it a little easier to understand what’s going on in each part.
+
+1.  **Create a hypertable** When you create a hypertable using [CREATE TABLE … WITH …](/api-reference/timescaledb/hypertables/create_table), the default partitioning column is automatically the first column with a timestamp data type. Also, TimescaleDB creates a [columnstore policy](/api-reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts your data to the columnstore, after an interval equal to the value of the [chunk\_interval](/api-reference/timescaledb/hypertables/create_table#arguments), defined through `compress_after` in the policy. This columnar format enables fast scanning and aggregation, optimizing performance for analytical workloads while also saving significant storage space. In the columnstore conversion, hypertable chunks are compressed by up to 98%, and organized for efficient, large-scale queries. You can customize this policy later using [alter\_job](/api-reference/timescaledb/jobs-automation/alter_job#samples). However, to change `after` or `created_before`, the compression settings, or the hypertable the policy is acting on, you must [remove the columnstore policy](/api-reference/timescaledb/hypercore/remove_columnstore_policy) and [add a new one](/api-reference/timescaledb/hypercore/add_columnstore_policy). You can also manually [convert chunks](/api-reference/timescaledb/hypercore/convert_to_columnstore) in a hypertable to the columnstore.
+2.  **Create a counter aggregate and the extrapolated delta function**
+    
+    In this procedure, `Prometheus` is used to do the extrapolation. TimescaleDB’s current `extrapolation` function is built to mimic the Prometheus project’s `increase` function, which measures the change of a counter extrapolated to the edges of the queried region.
+    
+
+Run a counter aggregate query with a continuous aggregate
+
+Your counter aggregate might be more useful if you make a continuous aggregate out of it.
+
+1.  **Create the continuous aggregate**
+2.  **Re-aggregate from the continuous aggregate into a larger bucket size** Use [`rollup()`](/api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/rollup) to combine counter aggregates:
+
+Parallelism and ordering
+
+The counter reset calculations require a strict ordering of inputs, which means they are not parallelizable in Postgres. This is because Postgres handles parallelism by issuing rows randomly to workers. However, if your parallelism can guarantee sets of rows that are disjointed in time, the algorithm can be parallelized, as long as it is within a time range, and all rows go to the same worker. This is the case for both continuous aggregates and for distributed hypertables, as long as the partitioning keys are in the `group by`, even though the aggregate itself doesn’t really make sense otherwise. For more information about parallelism and ordering, see the [developer documentation](https://github.com/timescale/timescaledb-toolkit/blob/main/docs/counter_agg.md#counter-agg-ordering).

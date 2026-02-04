@@ -1,0 +1,407 @@
+---
+title: "Integrate Tiger Cloud with your AI Assistant"
+description: "Manage your services and optimize your schema and queries using your AI Assistant"
+---
+Tiger MCP Server provides access to your Tiger Cloud resources through Claude and other AI Assistants. MCP Server mirrors the functionality of Tiger CLI and is integrated directly into the CLI binary. You manage your Tiger Cloud resources using natural language from your AI Assistant. As MCP Server is integrated with the Tiger Data documentation, ask any question and you will get the best answer. This page shows you how to install Tiger CLI and set up secure authentication for MCP Server, then manage the resources in your Tiger Cloud account through Tiger MCP Server using your AI Assistant.
+
+Prerequisites
+
+To follow the steps on this page:
+
+-   Create a target [Tiger Cloud account](/deploy-and-operate/get-started/create-services#create-a-tiger-cloud-account).
+
+-   Install an AI Assistant on your developer device with an active API key. The following AI Assistants are automatically configured by Tiger MCP Server: `claude-code`, `cursor`, `windsurf`, `codex`, `gemini/gemini-cli`, `vscode/code/vs-code`. You can also [manually configure](#manually-configure-mcp-server) MCP Server.
+
+Install and configure MCP Server
+
+MCP Server is bundled with Tiger CLI:
+
+1.  **Install Tiger CLI** Use the terminal to install the CLI:
+    
+2.  **Set up API credentials**
+    1.  Log Tiger CLI into your Tiger Cloud account: Tiger CLI opens Console in your browser. Log in, then click `Authorize`. You can have a maximum of 10 active client credentials. If you get an error, open [credentials](https://console.cloud.timescale.com/dashboard/settings) and delete an unused credential.
+    2.  Select a Tiger Cloud project: If only one project is associated with your account, this step is not shown. Where possible, Tiger CLI stores your authentication information in the system keychain/credential manager. If that fails, the credentials are stored in `~/.config/tiger/credentials` with restricted file permissions (600). By default, Tiger CLI stores your configuration in `~/.config/tiger/config.yaml`.
+3.  **Test your authenticated connection to Tiger Cloud by listing services** This call returns something like:
+    -   No services:
+    -   One or more services:
+
+1.  **Configure your AI Assistant to interact with the project and services in your Tiger Cloud account** For example:
+2.  \*\*Choose the client to integrate with, then press `Enter` \*\*
+
+And that is it, you are ready to use Tiger MCP Server to manage your services in Tiger Cloud.
+
+Manage the resources in your Tiger Cloud account through your AI Assistant
+
+Your AI Assistant is connected to your Tiger Cloud account and the Tiger Data documentation, you can now use it to manage your services and learn more about how to implement Tiger Cloud features. For example:
+
+1.  **Run your AI Assistant** Claude automatically runs MCP Server server that enables you to interact with Tiger Cloud from your AI Assistant.
+2.  **Check your Tiger MCP Server configuration** You see something like:
+3.  **Ask a basic question about your services** You see something like:
+4.  **Manage your services without having to learn how to** For example: You see something like:
+5.  **Find best practice for things you need to do** For example: You see something like:
+
+That beats working. Let MCP Server do it all for you.
+
+Manually configure MCP Server
+
+If your MCP client is not supported by `tiger mcp install`, follow the client’s instructions to install MCP servers. For example, many clients use a JSON file like the following that use `tiger mcp start` to start Tiger MCP Server:
+
+Tiger MCP Server tools
+
+Tiger MCP Server exposes the following MCP tools to your AI Assistant:
+
+Command
+
+Parameter
+
+Required
+
+Description
+
+`service_list`
+
+\-
+
+\-
+
+Returns a list of the services in the current project.
+
+`service_get`
+
+\-
+
+\-
+
+Returns detailed information about a service.
+
+`service_id`
+
+✓
+
+The unique identifier of the service (10-character alphanumeric string).
+
+`with_password`
+
+\-
+
+Set to `true` to include the password in the response and connection string.  
+**WARNING**: never do this unless the user explicitly requests the password.
+
+`service_create`
+
+\-
+
+\-
+
+Create a new service in Tiger Cloud.  
+**WARNING**: creates billable resources.
+
+`name`
+
+\-
+
+Set the human-readable name of up to 128 characters for this service.
+
+`addons`
+
+\-
+
+Set the array of [addons](/deploy-and-operate/get-started/create-services) to enable for the service. Options:
+
+-   `time-series`: enables TimescaleDB
+-   `ai`: enables the AI and vector extensions
+
+Set an empty array for Postgres-only.
+
+`region`
+
+\-
+
+Set the [AWS region](/deploy-and-operate/understand/regions) to deploy this service in.
+
+`cpu_memory`
+
+\-
+
+CPU and memory allocation combination.  
+Available configurations are:
+
+-   shared/shared
+-   0.5 CPU/2 GB
+-   1 CPU/4 GB
+-   2 CPU/8 GB
+-   4 CPU/16 GB
+-   8 CPU/32 GB
+-   16 CPU/64 GB
+-   32 CPU/128 GB
+
+`replicas`
+
+\-
+
+Set the number of [high-availability replicas](/deploy-and-operate/scale/ha-replicas) for fault tolerance.
+
+`wait`
+
+\-
+
+Set to `true` to wait for the service to be fully ready before returning.
+
+`timeout_minutes`
+
+\-
+
+Set the timeout in minutes to wait for service to be ready. Only used when `wait=true`. Default: 30 minutes
+
+`set_default`
+
+\-
+
+By default, the new service is the default for following commands in CLI. Set to `false` to keep the previous service as the default.
+
+`with_password`
+
+\-
+
+Set to `true` to include the password for this service in response and connection string.  
+**WARNING**: never set to `true` unless user explicitly requests the password.
+
+`service_fork`
+
+\-
+
+\-
+
+Fork an existing service to create a new independent copy.  
+**WARNING**: creates billable resources.
+
+`service_id`
+
+✓
+
+The unique identifier of the service to fork (10-character alphanumeric string).
+
+`fork_strategy`
+
+✓
+
+Fork strategy:
+
+-   `NOW`: fork at the current database state
+-   `LAST_SNAPSHOT`:fork at last existing snapshot. This is the faster option
+-   `PITR`: create a point-in-time recovery. You must also set the `target_time` parameter for PITR forks.
+
+`target_time`
+
+\-
+
+Set the target time for a `PIRT` `fork_strategy` in RFC3339 format. For example `2025-01-15T10:30:00Z`).
+
+`name`
+
+\-
+
+Set the human-readable name for the forked service. Defaults to `{source-service-name}-fork`.
+
+`cpu_memory`
+
+\-
+
+CPU and memory allocation combination. Inherits from source service if not specified.  
+Available configurations are:
+
+-   shared/shared
+-   0.5 CPU/2 GB
+-   1 CPU/4 GB
+-   2 CPU/8 GB
+-   4 CPU/16 GB
+-   8 CPU/32 GB
+-   16 CPU/64 GB
+-   32 CPU/128 GB
+
+`wait`
+
+\-
+
+Set to `true` to wait for the forked service to be fully ready before returning. Default: `false`.
+
+`timeout_minutes`
+
+\-
+
+Set the timeout in minutes to wait for forked service to be ready. Only used when `wait=true`. Default: 30 minutes
+
+`set_default`
+
+\-
+
+By default, the forked service is set as the default for following commands in CLI. Set to `false` to keep the previous service as the default.
+
+`with_password`
+
+\-
+
+Set to `true` to include the password for the forked service in response and connection string.  
+**WARNING**: never set to `true` unless user explicitly requests the password.
+
+`service_update_password`
+
+\-
+
+\-
+
+Update the password for the `tsdbadmin` for this service. The password change takes effect immediately and may terminate existing connections.
+
+`service_id`
+
+✓
+
+The unique identifier of the service you want to update the password for.
+
+`password`
+
+✓
+
+The new password for the `tsdbadmin` user.
+
+`db_execute_query`
+
+\-
+
+\-
+
+Execute a single SQL query against a service. This command returns column metadata, result rows, affected row count, and execution time. Multi-statement queries are not supported.  
+**WARNING**: can execute destructive SQL including INSERT, UPDATE, DELETE, and DDL commands.
+
+`service_id`
+
+✓
+
+The unique identifier of the service. Use `tiger_service_list` to find service IDs.
+
+`query`
+
+✓
+
+The SQL query to execute. Single statement queries are supported.
+
+`parameters`
+
+\-
+
+Query parameters for parameterized queries. Values are substituted for the `$n` placeholders in the query.
+
+`timeout_seconds`
+
+\-
+
+The query timeout in seconds. Default: `30`.
+
+`role`
+
+\-
+
+The service role/username to connect as. Default: `tsdbadmin`.
+
+`pooled`
+
+\-
+
+Use [connection pooling](/deploy-and-operate/scale/connection-pooling). This is only available if you have already enabled it for the service. Default: `false`.
+
+Tiger CLI commands for MCP Server
+
+You can use the following Tiger CLI commands to run MCP Server: Usage: `tiger mcp [subcommand] --<flags>`
+
+Command
+
+Subcommand
+
+Description
+
+mcp
+
+Manage Tiger MCP Server
+
+install `[client]`
+
+Install and configure MCP Server for a specific client installed on your developer device.  
+Supported clients are: `claude-code`, `cursor`, `windsurf`, `codex`, `gemini/gemini-cli`, `vscode/code/vs-code`.  
+Flags:
+
+-   `--no-backup`: do not back up the existing configuration
+-   `--config-path`: open the configuration file at a specific location
+
+start
+
+Start MCP Server. This is the same as `tiger mcp start stdio`
+
+start stdio
+
+Start MCP Server with stdio transport
+
+start http
+
+Start MCP Server with HTTP transport. This option is for users who wish to access Tiger MCP Server without using stdio. For example, your AI Assistant does not support stdio, or you do not want to run CLI on your device.  
+Flags are:
+
+-   `--port <port number>`: the default is `8000`
+-   `--host <hostname>`: the default is `localhost`
+
+Global flags
+
+You can use the following Tiger CLI global flags when you run MCP Server:
+
+Flag
+
+Default
+
+Description
+
+`--analytics`
+
+`true`
+
+Set to `false` to disable usage analytics
+
+`--color`
+
+`true`
+
+Set to `false` to disable colored output
+
+`--config-dir` string
+
+`~/.config/tiger`
+
+Set the directory that holds `config.yaml`
+
+`--debug`
+
+No debugging
+
+Enable debug logging
+
+`--help`
+
+\-
+
+Print help about the current command. For example, `tiger service --help`
+
+`--password-storage` string
+
+keyring
+
+Set the password storage method. Options are `keyring`, `pgpass`, or `none`
+
+`--service-id` string
+
+\-
+
+Set the Tiger Cloud service to manage
+
+`--skip-update-check`
+
+\-
+
+Do not check if a new version of Tiger CLI is available

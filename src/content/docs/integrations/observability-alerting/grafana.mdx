@@ -1,0 +1,70 @@
+---
+title: "Integrate Grafana with Tiger Cloud"
+description: "Query, visualize, and explore your data with interactive dashboards"
+---
+[Grafana](https://grafana.com/docs/) is an open-source analytics and visualization platform that enables you to query, visualize, alert on, and explore your metrics, logs, and traces wherever they’re stored. This page shows you how to integrate Grafana with a Tiger Cloud service, create a dashboard and panel, then visualize geospatial data.
+
+Prerequisites
+
+To follow the steps on this page:
+
+-   Create a target [Tiger Cloud service](/deploy-and-operate/tiger-cloud/get-started/create-services) with Real-time analytics enabled. You need your [connection details](/integrations/find-connection-details).
+
+-   Install [self-managed Grafana](https://grafana.com/get/?tab=self-managed) or sign up for [Grafana Cloud](https://grafana.com/get/).
+
+Connect Grafana to Tiger Cloud
+
+To visualize the results of your queries, enable Grafana to read the data in your service:
+
+1.  **Log in to Grafana** In your browser, log in to either:
+    -   Self-hosted Grafana: at `http://localhost:3000/`. The default credentials are `admin`, `admin`.
+    -   Grafana Cloud: use the URL and credentials you set when you created your account.
+2.  **Add your service as a data source**
+    
+    1.  Open `Connections` > `Data sources`, then click `Add new data source`.
+    2.  Select `PostgreSQL` from the list.
+    3.  Configure the connection:
+        -   `Host URL`, `Database name`, `Username`, and `Password` Configure using your [connection details](/integrations/find-connection-details). `Host URL` is in the format `<host>:<port>`.
+        -   `TLS/SSL Mode`: select `require`.
+        -   `PostgreSQL options`: enable `TimescaleDB`.
+        -   Leave the default setting for all other fields.
+    4.  Click `Save & test`.
+    
+    Grafana checks that your details are set correctly.
+
+Create a Grafana dashboard and panel
+
+Grafana is organized into dashboards and panels. A dashboard represents a view into the performance of a system, and each dashboard consists of one or more panels, which represent information about a specific metric related to that system. To create a new dashboard:
+
+1.  **On the `Dashboards` page, click `New` and select `New dashboard`**
+2.  **Click `Add visualization`**
+3.  **Select the data source** Select your service from the list of pre-configured data sources or configure a new one.
+4.  **Configure your panel** Select the visualization type. The type defines specific fields to configure in addition to standard ones, such as the panel name.
+5.  **Run your queries** You can edit the queries directly or use the built-in query editor. If you are visualizing time-series data, select `Time series` in the `Format` drop-down.
+6.  **Click `Save dashboard`** You now have a dashboard with one panel. Add more panels to a dashboard by clicking `Add` at the top right and selecting `Visualization` from the drop-down.
+
+Use the time filter function
+
+Grafana time-series panels include a time filter:
+
+1.  **Call `$__timefilter()` to link the user interface construct in a Grafana panel with the query** For example, to set the `pickup_datetime` column as the filtering range for your visualizations:
+2.  **Group your visualizations and order the results by [time buckets](/api-reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket)** In this case, the `GROUP BY` and `ORDER BY` statements reference `time`. For example: When you visualize this query in Grafana, you see this: ![Tiger Cloud and Grafana query results](https://assets.timescale.com/docs/images/grafana_query_results.png) You can adjust the `time_bucket` function and compare the graphs: When you visualize this query, it looks like this: ![Tiger Cloud and Grafana query results in time buckets](https://assets.timescale.com/docs/images/grafana_query_results_5m.png)
+
+Visualize geospatial data
+
+Grafana includes a Geomap panel so you can see geospatial data overlaid on a map. This can be helpful to understand how data changes based on its location. This section visualizes taxi rides in Manhattan, where the distance traveled was greater than 5 miles. It uses the same query as the [NYC Taxi Cab](/tutorials/real-time-analytics/transport) tutorial as a starting point.
+
+1.  **Add a geospatial visualization**
+    1.  In your Grafana dashboard, click `Add` > `Visualization`.
+    2.  Select `Geomap` in the visualization type drop-down at the top right.
+2.  **Configure the data format**
+    1.  In the `Queries` tab below, select your data source.
+    2.  In the `Format` drop-down, select `Table`.
+    3.  In the mode switcher, toggle `Code` and enter the query, then click `Run`. For example:
+3.  **Customize the Geomap settings** With default settings, the visualization uses green circles of the fixed size. Configure at least the following for a more representative view:
+    
+    -   `Map layers` > `Styles` > `Size` > `value`. This changes the size of the circle depending on the value, with bigger circles representing bigger values.
+    -   `Map layers` > `Styles` > `Color` > `value`.
+    -   `Thresholds` > Add `threshold`. Add thresholds for 7 and 10, to mark rides over 7 and 10 miles in different colors, respectively.
+    
+    You now have a visualization that looks like this: ![Tiger Cloud and Grafana integration](https://assets.timescale.com/docs/images/timescale-grafana-integration.png)
