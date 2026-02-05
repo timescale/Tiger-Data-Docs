@@ -1,0 +1,43 @@
+---
+title: "Alter and update table schemas"
+description: "Modify the schema of an existing hypertable with the ALTER TABLE command. See examples for adding a table and checking the schema before applying it"
+---
+To modify the schema of an existing hypertable, you can use the `ALTER TABLE` command. When you change the hypertable schema, the changes are also propagated to each underlying chunk.
+
+While you can change the schema of an existing hypertable, you cannot change the schema of a continuous aggregate. For continuous aggregates, the only permissible changes are renaming a view, setting a schema, changing the owner, and adjusting other parameters.
+
+For example, to add a new column called `address` to a table called `distributors`: This creates the new column, with all existing entries recording `NULL` for the new column. Changing the schema can, in some cases, consume a lot of resources. This is especially true if it requires underlying data to be rewritten. If you want to check your schema change before you apply it, you can use a `CHECK` constraint, like this: This scans the table to verify that existing rows meet the constraint, but does not require a table rewrite.
+
+Alter hypertables with columnstore enabled
+
+Most common schema modifications work on hypertables with columnstore enabled, including adding columns, renaming columns, dropping columns, adding constraints, setting NOT NULL, and changing defaults. However, some operations are blocked, the most common of them being:
+
+-   **Changing column data type** (`ALTER COLUMN ... TYPE`)
+-   **Changing column storage** (`ALTER COLUMN ... SET STORAGE`)
+-   **Dropping orderby or segmentby columns**
+-   **Row-level security operations** (`ENABLE/DISABLE ROW SECURITY`)
+
+When you attempt a blocked operation, you receive an error: If you encounter this error, you need to:
+
+1.  Stop any columnstore policy
+2.  Convert the affected chunks back into rowstore
+3.  Disable columnstore
+4.  Perform the schema change
+5.  Re-enable columnstore and restart the policy
+
+Change the column type on a hypertable
+
+This example shows how to change a column’s data type on a hypertable with columnstore enabled, which requires conversion to rowstore:
+
+1.  **Create a hypertable with columnstore enabled**
+2.  **(Optional) Insert sample data**
+3.  **Check for a columnstore policy and note its settings**
+4.  **If a policy exists, pause it**
+5.  **Convert all chunks back to rowstore**
+6.  **Disable columnstore**
+7.  **Perform the schema modification**
+8.  **Re-enable columnstore with original settings**
+9.  **Restart the columnstore policy**
+10.  **(Optional) Manually convert the chunks to columnstore immediately**
+
+For more information about Postgres `ALTER TABLE` operations, see the [Postgres `ALTER TABLE` documentation](https://www.postgresql.org/docs/current/sql-altertable.html).

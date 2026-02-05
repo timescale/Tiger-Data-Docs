@@ -1,0 +1,373 @@
+---
+title: "Troubleshoot TimescaleDB"
+description: "Solutions to common errors and ways to output diagnostic information"
+---
+This page provides solutions to common errors and ways to output diagnostic information for troubleshooting TimescaleDB issues.
+
+Hypertables
+
+Temporary file size limit exceeded when converting chunks to the columnstore
+
+**Message**:
+
+-   `ERROR`: temporary file size exceeds temp\_file\_limit
+
+**APIs**:
+
+-   [`compress_chunk()`](/api-reference/timescaledb/compression/compress_chunk)
+-   [`add_compression_policy()`](/api-reference/timescaledb/compression/add_compression_policy)
+-   [`create_hypertable()`](/api-reference/timescaledb/hypertables/create_hypertable)
+
+When you try to convert a chunk to the columnstore, especially if the chunk is very large, you could get this error. Compression operations write files to a new compressed chunk table, which is written in temporary memory. The maximum amount of temporary memory available is determined by the `temp_file_limit` parameter. You can work around this problem by adjusting the `temp_file_limit` and `maintenance_work_mem` parameters.
+
+Dropping chunks times out
+
+**APIs**:
+
+-   [`drop_chunks()`](/api-reference/timescaledb/hypertables/drop_chunks)
+
+When you drop a chunk, it requires an exclusive lock. If a chunk is being accessed by another session, you cannot drop the chunk at the same time. If a drop chunk operation can’t get the lock on the chunk, then it times out and the process fails. To resolve this problem, check what is locking the chunk. In some cases, this could be caused by a continuous aggregate or other process accessing the chunk. When the drop chunk operation can get an exclusive lock on the chunk, it completes as expected. For more information about locks, see the [Postgres lock monitoring documentation](https://wiki.postgresql.org/wiki/Lock_Monitoring).
+
+Tuple decompression limit exceeded by operation
+
+**Message**:
+
+-   `ERROR`: tuple decompression limit exceeded by operation
+
+**APIs**:
+
+-   `compression`
+-   [`timescaledb_information.chunks`](/api-reference/timescaledb/informational-views/chunks)
+-   [`timescaledb_information.compression_settings`](/api-reference/timescaledb/informational-views/compression_settings)
+
+When inserting, updating, or deleting tuples from chunks in the columnstore, it might be necessary to convert tuples to the rowstore. This happens either when you are updating existing tuples or have constraints that need to be verified during insert time. If you happen to trigger a lot of rowstore conversion with a single command, you may end up running out of storage space. For this reason, a limit has been put in place on the number of tuples you can decompress into the rowstore for a single command. The limit can be increased or turned off (set to 0) like so:
+
+User permissions do not allow chunks to be converted to columnstore or rowstore
+
+**Message**:
+
+-   `ERROR`: must be owner of hypertable “HYPERTABLE\_NAME”
+
+**APIs**:
+
+-   [`compress_chunk()`](/api-reference/timescaledb/compression/compress_chunk)
+-   [`decompress_chunk()`](/api-reference/timescaledb/compression/decompress_chunk)
+-   [`recompress_chunk()`](/api-reference/timescaledb/compression/recompress_chunk)
+-   [`timescaledb_information.chunks`](/api-reference/timescaledb/informational-views/chunks)
+-   [`timescaledb_information.compression_settings`](/api-reference/timescaledb/informational-views/compression_settings)
+
+You might get this error if you attempt to compress a chunk into the columnstore, or decompress it back into rowstore with a non-privileged user account. To compress or decompress a chunk, your user account must have permissions that allow it to perform `CREATE INDEX` on the chunk. You can check the permissions of the current user with this command at the `psql` command prompt: To resolve this problem, grant your user account the appropriate privileges with this command: For more information about the `GRANT` command, see the [Postgres documentation](https://www.postgresql.org/docs/current/sql-grant.html).
+
+Low compression rate
+
+**APIs**:
+
+-   `compression`
+-   `hypercore`
+
+Low compression rates are often caused by [high cardinality](https://www.tigerdata.com/blog/what-is-high-cardinality) of the segment key. This means that the column you selected for grouping the rows during compression has too many unique values. This makes it impossible to group a lot of rows in a batch. To achieve better compression results, choose a segment key with lower cardinality.
+
+Reindex hypertables to fix large indexes
+
+**Message**:
+
+-   `ERROR`: invalid attribute number -6 for \_hyper\_2\_839\_chunk
+-   `CONTEXT`: SQL function “hypertable\_local\_size” statement 1 PL/pgSQL function hypertable\_detailed\_size(regclass) line 26 at RETURN QUERY SQL function “hypertable\_size” statement 1
+-   `SQL state`: XX000
+
+**APIs**:
+
+-   [`hypertable_size()`](/api-reference/timescaledb/hypertables/hypertable_size)
+-   [`hypertable_detailed_size()`](/api-reference/timescaledb/hypertables/hypertable_detailed_size)
+-   [`hypertable_index_size()`](/api-reference/timescaledb/hypertables/hypertable_index_size)
+-   [`chunks_detailed_size()`](/api-reference/timescaledb/hypertables/chunks_detailed_size)
+
+You might see this error if your hypertable indexes have become very large. To resolve the problem, reindex your hypertables with this command: For more information, see the [hypertable documentation](/use-timescale/hypertables).
+
+Can’t create unique index on hypertable, or can’t create hypertable with unique index
+
+**Message**:
+
+-   `ERROR: cannot create a unique index without the column "<COLUMN_NAME>" (used in partitioning)`
+
+**APIs**:
+
+-   [`create_hypertable()`](/api-reference/timescaledb/hypertables/create_hypertable)
+-   `create_distributed_hypertable()`
+
+You might get a unique index and partitioning column error in 2 situations:
+
+-   When creating a primary key or unique index on a hypertable
+-   When creating a hypertable from a table that already has a unique index or primary key
+
+For more information on how to fix this problem, see the [section on creating unique indexes on hypertables](/use-timescale/hypertables/hypertables-and-unique-indexes).
+
+Continuous aggregates
+
+Queries fail when defining continuous aggregates but work on regular tables
+
+**APIs**:
+
+-   [`CREATE MATERIALIZED VIEW (Continuous Aggregate)`](/api-reference/timescaledb/continuous-aggregates/create_materialized_view)
+
+continuous aggregates do not work on all queries. For example, TimescaleDB does not support window functions on continuous aggregates. If you use an unsupported function, you see the following error: For more information about supported functions in continuous aggregates, see the [CREATE MATERIALIZED VIEW](/api-reference/timescaledb/continuous-aggregates/create_materialized_view) documentation.
+
+Continuous aggregate watermark is in the future
+
+**APIs**:
+
+-   [`add_continuous_aggregate_policy()`](/api-reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy)
+-   [`add_policies()`](/api-reference/timescaledb/continuous-aggregates/add_policies)
+-   [`alter_policies()`](/api-reference/timescaledb/continuous-aggregates/alter_policies)
+-   [`CREATE MATERIALIZED VIEW (Continuous Aggregate)`](/api-reference/timescaledb/continuous-aggregates/create_materialized_view)
+-   [`refresh_continuous_aggregate()`](/api-reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate)
+
+continuous aggregates use a watermark to indicate which time buckets have already been materialized. When you query a continuous aggregate, your query returns materialized data from before the watermark. It returns real-time, non-materialized data from after the watermark. In certain cases, the watermark might be in the future. If this happens, all time buckets, including the most recent time bucket, are materialized and below the watermark. No real-time data is returned. This might happen if you refresh your continuous aggregate over the time window `<START_TIME>, NULL`, which materializes all recent data. It might also happen if you create a continuous aggregate using the `WITH DATA` option. This also implicitly refreshes your continuous aggregate with a window of `NULL, NULL`. To fix this, create a new continuous aggregate using the `WITH NO DATA` option. Then use a policy to refresh this continuous aggregate over an explicit time window.
+
+1.  Create a continuous aggregate using the `WITH NO DATA` option:
+2.  Refresh the continuous aggregate using a policy with an explicit `end_offset`. For example:
+3.  Check your new continuous aggregate‘s watermark to make sure it is in the past, not the future. Get the ID for the materialization hypertable that contains the actual continuous aggregate data:
+4.  Use the returned ID to query for the watermark’s timestamp: For TimescaleDB &gt;= 2.12: For TimescaleDB &lt; 2.12:
+
+If you choose to delete your old continuous aggregate after creating a new one, beware of historical data loss. If your old continuous aggregate contained data that you dropped from your original hypertable, for example through a data retention policy, the dropped data is not included in your new continuous aggregate.
+
+Updates to previously materialized regions aren’t shown in real-time aggregates
+
+**APIs**:
+
+-   [`add_continuous_aggregate_policy()`](/api-reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy)
+-   [`add_policies()`](/api-reference/timescaledb/continuous-aggregates/add_policies)
+-   [`alter_policies()`](/api-reference/timescaledb/continuous-aggregates/alter_policies)
+-   [`CREATE MATERIALIZED VIEW (Continuous Aggregate)`](/api-reference/timescaledb/continuous-aggregates/create_materialized_view)
+-   [`refresh_continuous_aggregate()`](/api-reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate)
+
+Real-time aggregates combine materialized data with real-time calculations on recent data. However, if you update, insert, or delete data in a previously materialized time bucket, those changes are not visible in your continuous aggregate until you refresh that time bucket again. To see updates to previously materialized regions, you must manually refresh the continuous aggregate for the affected time range using `refresh_continuous_aggregate()`. The following example shows how this works:
+
+1.  Create the hypertable: For TimescaleDB [v2.23.0](https://github.com/timescale/timescaledb/releases/tag/2.23.0) and higher, the table is automatically partitioned on the first column in the table with a timestamp data type. If multiple columns are suitable candidates as a partitioning column, TimescaleDB throws an error and asks for an explicit definition. For earlier versions, set `partition_column` to a time column. If you are self-hosting TimescaleDB [v2.20.0](https://github.com/timescale/timescaledb/releases/tag/2.23.0) to [v2.22.1](https://github.com/timescale/timescaledb/releases/tag/2.23.0), to convert your data to the columnstore after a specific time interval, you have to call [add\_columnstore\_policy](/api-reference/timescaledb/hypercore/add_columnstore_policy) after you call [CREATE TABLE](/api-reference/timescaledb/hypertables/create_table) If you are self-hosting TimescaleDB [v2.19.3](https://github.com/timescale/timescaledb/releases/tag/2.19.3) and below, create a [Postgres relational table](https://www.postgresql.org/docs/current/sql-createtable.html), then convert it using [create\_hypertable](/api-reference/timescaledb/hypertables/create_hypertable). You then enable hypercore with a call to [ALTER TABLE](/api-reference/timescaledb/hypercore/alter_table).
+2.  Add data to your hypertable:
+3.  Create a continuous aggregate but do not materialize any data:
+    1.  Create the continuous aggregate:
+    2.  Check your data: The query on the continuous aggregate fetches data directly from the hypertable:
+        
+        city
+        
+        bucket
+        
+        min
+        
+        max
+        
+        Moscow
+        
+        2021-06-14
+        
+        22
+        
+        30
+        
+        Moscow
+        
+        2021-06-21
+        
+        31
+        
+        34
+        
+4.  Materialize data into the continuous aggregate:
+    1.  Add a refresh policy:
+    2.  Check your data: The select query returns the same data, as expected, but this time the data is fetched from the underlying materialized table
+        
+        city
+        
+        bucket
+        
+        min
+        
+        max
+        
+        Moscow
+        
+        2021-06-14
+        
+        22
+        
+        30
+        
+        Moscow
+        
+        2021-06-21
+        
+        31
+        
+        34
+        
+5.  Update the data in the previously materialized bucket:
+    1.  Update the data in your hypertable:
+    2.  Check your data: The updated data is not yet visible when you query the continuous aggregate. This is because these changes have not been materialized. (Similarly, any INSERTs or DELETEs would also not be visible).
+        
+        city
+        
+        bucket
+        
+        min
+        
+        max
+        
+        Moscow
+        
+        2021-06-14
+        
+        22
+        
+        30
+        
+        Moscow
+        
+        2021-06-21
+        
+        31
+        
+        34
+        
+6.  Refresh the data again to update the previously materialized region:
+    1.  Refresh the data:
+7.  Check your data: You see something like:
+    
+    city
+    
+    bucket
+    
+    min
+    
+    max
+    
+    Moscow
+    
+    2021-06-14
+    
+    22
+    
+    35
+    
+    Moscow
+    
+    2021-06-21
+    
+    31
+    
+    34
+    
+
+Continuous aggregate doesn’t refresh with newly inserted historical data
+
+**APIs**:
+
+-   [`add_continuous_aggregate_policy()`](/api-reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy)
+-   [`add_policies()`](/api-reference/timescaledb/continuous-aggregates/add_policies)
+-   [`alter_policies()`](/api-reference/timescaledb/continuous-aggregates/alter_policies)
+-   [`CREATE MATERIALIZED VIEW (Continuous Aggregate)`](/api-reference/timescaledb/continuous-aggregates/create_materialized_view)
+-   [`refresh_continuous_aggregate()`](/api-reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate)
+
+Materialized views are generally used with ordered data. If you insert historic data, or data that is not related to the current time, you need to refresh policies and reevaluate the values that are dragging from past to present. You can set up an after insert rule for your hypertable or upsert to trigger something that can validate what needs to be refreshed as the data is merged. Let’s say you inserted ordered timeframes named A, B, D, and F, and you already have a continuous aggregate looking for this data. If you now insert E, you need to refresh E and F. However, if you insert C we’ll need to refresh C, D, E and F. For example:
+
+1.  A, B, D, and F are already materialized in a view with all data.
+2.  To insert C, split the data into `AB` and `DEF` subsets.
+3.  `AB` are consistent and the materialized data is too; you only need to reuse it.
+4.  Insert C, `DEF`, and refresh policies after C.
+
+This can use a lot of resources to process, especially if you have any important data in the past that also needs to be brought to the present. Consider an example where you have 300 columns on a single hypertable and use, for example, five of them in a continuous aggregate. In this case, it could be hard to refresh and would make more sense to isolate these columns in another hypertable. Alternatively, you might create one hypertable per metric and refresh them independently.
+
+Hypertable retention policy isn’t applying to continuous aggregates
+
+**APIs**:
+
+-   [`add_retention_policy()`](/api-reference/timescaledb/data-retention/add_retention_policy)
+
+A retention policy set on a hypertable does not apply to any continuous aggregates made from the hypertable. This allows you to set different retention periods for raw and summarized data. To apply a retention policy to a continuous aggregate, set the policy on the continuous aggregate itself.
+
+Hierarchical continuous aggregate fails with incompatible bucket width
+
+**Message**:
+
+-   `ERROR`: cannot create continuous aggregate with incompatible bucket width
+-   `DETAIL`: Time bucket width of `"<BUCKET>"` \[1 year\] should be multiple of the time bucket width of `"<BUCKET>"` \[1 day\].
+
+**APIs**:
+
+-   [`refresh_continuous_aggregate()`](/api-reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate)
+
+If you attempt to create a hierarchical continuous aggregate, you must use compatible time buckets. You can’t create a continuous aggregate with a fixed-width time bucket on top of a continuous aggregate with a variable-width time bucket. For more information, see the restrictions section in [hierarchical continuous aggregates](/manage-data/capabilities/continuous-aggregates/hierarchical-continuous-aggregates#restrictions).
+
+Permissions error when migrating a continuous aggregate
+
+**APIs**:
+
+-   [`cagg_migrate()`](/api-reference/timescaledb/continuous-aggregates/cagg_migrate)
+
+When migrating a continuous aggregate using `cagg_migrate()`, you may encounter permissions errors. The `cagg_migrate()` function requires specific permissions to modify the continuous aggregate structure. To resolve this issue, ensure that the user executing the migration has the necessary permissions on the continuous aggregate and its underlying hypertable. For more information, see the [`cagg_migrate()`](/api-reference/timescaledb/continuous-aggregates/cagg_migrate) documentation.
+
+Queries using `locf()` don’t treat `NULL` values as missing
+
+**APIs**:
+
+-   [`locf()`](/api-reference/timescaledb/hyperfunctions/time_bucket_gapfill/locf)
+
+When you have a query that uses a last observation carried forward (locf) function, the query carries forward NULL values by default. If you want the function to ignore NULL values instead, you can set `treat_null_as_missing=TRUE` as the second parameter in the query. For example:
+
+Hypercore
+
+Out of memory errors after enabling the columnstore
+
+**Message**:
+
+-   Level: Error out of memory DETAIL: Failed on request of size 16777216 in memory context “ErrorContext”.
+
+**APIs**:
+
+-   [`alter_job()`](/api-reference/timescaledb/jobs-automation/alter_job)
+
+By default, columnstore policies move all uncompressed chunks to the columnstore. However, before converting a large backlog of chunks from the rowstore to the columnstore, best practice is to set `maxchunks_to_compress` and limit to amount of chunks to be converted. For example: When all chunks have been converted to the columnstore, set `maxchunks_to_compress` to `0`, unlimited.
+
+Jobs
+
+Scheduled jobs stop running
+
+**APIs**:
+
+-   [`add_continuous_aggregate_policy()`](/api-reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy)
+-   [`add_policies()`](/api-reference/timescaledb/continuous-aggregates/add_policies)
+-   [`add_reorder_policy()`](/api-reference/timescaledb/hypertables/add_reorder_policy)
+-   [`add_retention_policy()`](/api-reference/timescaledb/data-retention/add_retention_policy)
+-   [`add_compression_policy()`](/api-reference/timescaledb/compression/add_compression_policy)
+-   [`add_continuous_aggregate_policy()`](/api-reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy)
+-   [`timescaledb_information.jobs`](/api-reference/timescaledb/informational-views/jobs)
+-   [`timescaledb_information.job_stats`](/api-reference/timescaledb/informational-views/job_stats)
+-   [`add_job()`](/api-reference/timescaledb/jobs-automation/add_job)
+
+Your scheduled jobs might stop running for various reasons. On self-hosted TimescaleDB, you can fix this by restarting background workers:
+
+On Tiger Cloud and MST, background workers are managed automatically and restart when needed.
+
+Failed to start a background worker
+
+**Message**:
+
+-   `"<TYPE_OF_BACKGROUND_JOB>": failed to start a background worker`
+
+**APIs**:
+
+-   [`timescaledb_information.jobs`](/api-reference/timescaledb/informational-views/jobs)
+-   [`timescaledb_information.job_stats`](/api-reference/timescaledb/informational-views/job_stats)
+-   [`add_job()`](/api-reference/timescaledb/jobs-automation/add_job)
+-   [`add_reorder_policy()`](/api-reference/timescaledb/hypertables/add_reorder_policy)
+-   [`add_retention_policy()`](/api-reference/timescaledb/data-retention/add_retention_policy)
+-   [`add_compression_policy()`](/api-reference/timescaledb/compression/add_compression_policy)
+-   [`add_continuous_aggregate_policy()`](/api-reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy)
+
+You might see this error message in the logs if background workers aren’t properly configured. To fix this error, make sure that `max_worker_processes`, `max_parallel_workers`, and `timescaledb.max_background_workers` are properly set. `timescaledb.max_background_workers` should equal the number of databases plus the number of concurrent background workers. `max_worker_processes` should equal the sum of `timescaledb.max_background_workers` and `max_parallel_workers`. For more information, see the [worker configuration docs](/deploy-and-operate/self-hosted/configuration/about-configuration#workers).
+
+Getting more information
+
+A particular query executes more slowly than expected
+
+To troubleshoot a query, you can examine its EXPLAIN plan. Postgres’s EXPLAIN feature allows users to understand the underlying query plan that Postgres uses to execute a query. There are multiple ways that Postgres can execute a query: for example, a query might be fulfilled using a slow sequence scan or a much more efficient index scan. The choice of plan depends on what indexes are created on the table, the statistics that Postgres has about your data, and various planner settings. The EXPLAIN output let’s you know which plan Postgres is choosing for a particular query. Postgres has a [in-depth explanation](https://www.postgresql.org/docs/current/static/using-explain.html) of this feature. To understand the query performance on a hypertable, we suggest first making sure that the planner statistics and table maintenance is up-to-date on the hypertable by running `VACUUM ANALYZE <your-hypertable>;`. Then, we suggest running the following version of EXPLAIN: If you suspect that your performance issues are due to slow IOs from disk, you can get even more information by enabling the [track\_io\_timing](https://www.postgresql.org/docs/current/static/runtime-config-statistics.html#GUC-TRACK-IO-TIMING) variable with `SET track_io_timing = 'on';` before running the above EXPLAIN.

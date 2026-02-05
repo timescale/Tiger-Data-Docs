@@ -1,0 +1,148 @@
+---
+title: "Troubleshoot"
+description: "Troubleshooting for self-hosted TimescaleDB"
+---
+Install
+
+Can’t access file “timescaledb” after installation
+
+**Message**:
+
+-   Log error: could not access file “timescaledb”
+
+If your Postgres logs have this error preventing it from starting up, you should double check that the TimescaleDB files have been installed to the correct location. Our installation methods use `pg_config` to get Postgres‘s location. However if you have multiple versions of Postgres installed on the same machine, the location `pg_config` points to may not be for the version you expect. To check which version TimescaleDB used: If that is the correct version, double check that the installation path is the one you’d expect. For example, for Postgres 11.0 installed via Homebrew on macOS it should be `/usr/local/Cellar/postgresql/11.0/bin`: If either of those steps is not the version you are expecting, you need to either (a) uninstall the incorrect version of Postgres if you can or (b) update your `PATH` environmental variable to have the correct path of `pg_config` listed first, that is, by prepending the full path: Then, reinstall TimescaleDB and it should find the correct installation path.
+
+Error loading the timescaledb extension
+
+**Message**:
+
+-   `ERROR`: could not load library “C:/Program Files/PostgreSQL/16/lib/timescaledb-2.14.2.dll”: The specified module could not be found.
+
+If you see a message saying that Postgres cannot load the TimescaleDB library `timescaledb-<version>.dll`, start a new psql session to your self-hosted instance and create the `timescaledb` extension as the first command:
+
+Update and upgrade
+
+Error updating TimescaleDB when using a third-party Postgres admin tool
+
+The update command `ALTER EXTENSION timescaledb UPDATE` must be the first command executed upon connection to a database. Some admin tools execute commands before this, which can disrupt the process. Try manually updating the database with `psql`. For instructions, see the [updating guide](/deploy-and-operate/self-hosted/upgrades).
+
+Can’t access file “timescaledb-VERSION” after update
+
+**Message**:
+
+-   `ERROR: could not access file "timescaledb-<VERSION>": No such file or directory`
+
+If the error occurs immediately after updating your version of TimescaleDB and the file mentioned is from the previous version, it is probably due to an incomplete update process. Within the greater Postgres server instance, each database that has TimescaleDB installed needs to be updated with the SQL command `ALTER EXTENSION timescaledb UPDATE;` while connected to that database. Otherwise, the database looks for the previous version of the TimescaleDB files. See [our update docs](/deploy-and-operate/self-hosted/upgrades) for more info.
+
+Upgrading fails with an error saying “old version has already been loaded”
+
+**Message**:
+
+-   `ERROR`: extension “timescaledb” cannot be updated after the old version has already been loaded
+
+When you use the `ALTER EXTENSION timescaledb UPDATE` command to upgrade, this error might appear. This occurs if you don’t run `ALTER EXTENSION timescaledb UPDATE` command as the first command after starting a new session using psql or if you use tab completion when running the command. Tab completion triggers metadata queries in the background which prevents the alter extension from being the first command. To correct the problem, execute the ALTER EXTENSION command like this:
+
+TimescaleDB upgrade fails with no update path
+
+**Message**:
+
+-   `ERROR`: extension “timescaledb\_toolkit” has no update path from version “1.2” to version “1.3”
+
+In some cases, when you use the `ALTER EXTENSION timescaledb UPDATE` command to upgrade, it might fail with the above error. This occurs if the list of available extensions does not include the version you are trying to upgrade to, and it can occur if the package was not installed correctly in the first place. To correct the problem, install the upgrade package, restart Postgres, verify the version, and then attempt the upgrade again.
+
+TimescaleDB Toolkit
+
+Install or upgrade of TimescaleDB Toolkit fails
+
+**Message**:
+
+-   `ERROR`: extension “timescaledb\_toolkit” has no update path from version “1.2” to version “1.3”
+
+In some cases, when you create the TimescaleDB Toolkit extension, or upgrade it with the `ALTER EXTENSION timescaledb_toolkit UPDATE` command, it might fail with the above error. This occurs if the list of available extensions does not include the version you are trying to upgrade to, and it can occur if the package was not installed correctly in the first place. To correct the problem, install the upgrade package, restart Postgres, verify the version, and then attempt the update again.
+
+1.  If you’re installing Toolkit from a package, check your package manager’s local repository list. Make sure the TimescaleDB repository is available and contains Toolkit. For instructions on adding the TimescaleDB repository, see the installation guides:
+    -   [Linux installation guide](/deploy-and-operate/self-hosted/install/installation-linux)
+2.  Update your local repository list with `apt update` or `yum update`.
+3.  Restart your Postgres service.
+4.  Check that the right version of Toolkit is among your available extensions: The result should look like this:
+5.  Retry `CREATE EXTENSION` or `ALTER EXTENSION`.
+
+Backup and migrate
+
+Errors occur when running `pg_dump`
+
+**Message**:
+
+-   pg\_dump: NOTICE: hypertable data are in the chunks, no data will be copied
+-   DETAIL: Data for hypertables are stored in the chunks of a hypertable so COPY TO of a hypertable will not copy any data.
+-   HINT: Use `"COPY (SELECT * FROM <hypertable>) TO ..."` to copy all data in hypertable, or copy each chunk individually.
+
+You might see the errors above when running `pg_dump`. You can safely ignore these. Your hypertable data is still accurately copied.
+
+Permission denied for table `job_errors` when running `pg_dump`
+
+**Message**:
+
+-   `ERROR`: permission denied for table job\_errors
+-   pg\_dump: detail: Query was: LOCK TABLE \_timescaledb\_internal.job\_errors IN ACCESS SHARE MODE
+
+When the `pg_dump` tool tries to acquire a lock on the `job_errors` table, if the user doesn’t have the required SELECT permission, it results in this error. To resolve this issue, use a superuser account to grant the necessary permissions to the user requiring the `pg_dump` tool. Use this command to grant permissions to `<TEST_USER>`:
+
+Versions are mismatched when dumping and restoring a database
+
+The Postgres `pg_dump` command does not allow you to specify which version of the extension to use when backing up. This can create problems if you have a more recent version installed. For example, if you create the backup using an older version of TimescaleDB, and when you restore it uses the current version, without giving you an opportunity to upgrade first. You can work around this problem when you are restoring from backup by making sure the new Postgres instance has the same extension version as the original database before you perform the restore. After the data is restored, you can upgrade the version of TimescaleDB.
+
+Errors occur after restoring from file dump
+
+**Message**:
+
+-   org.postgresql.util.PSQLException: ERROR: invalid INSERT on the root table of hypertable “\_hyper\_1\_10\_chunk.
+
+You might see the errors above when running `pg_restore`. When loading from a logical dump make sure that you set `timescaledb.restoring` to true before loading the dump.
+
+Errors encountered during a pg\_dump migration
+
+**Message**:
+
+-   pg\_dump: warning: there are circular foreign-key constraints on this table:
+-   pg\_dump: hypertable
+-   pg\_dump: You might not be able to restore the dump without using —disable-triggers or temporarily dropping the constraints.
+-   pg\_dump: Consider using a full dump instead of a —data-only dump to avoid this problem.
+-   pg\_dump: NOTICE: hypertable data are in the chunks, no data will be copied
+-   DETAIL: Data for hypertables are stored in the chunks of a hypertable so COPY TO of a hypertable will not copy any data.
+-   HINT: Use `"COPY (SELECT * FROM <hypertable>) TO ..."` to copy all data in hypertable, or copy each chunk individually.
+-   `WARNING: skipping "<TABLE OR INDEX>" --- only superuser can analyze it`
+
+If you see these errors during the migration process, you can safely ignore them. The migration still occurs successfully.
+
+Errors encountered during a pg\_dump migration
+
+**Message**:
+
+-   pg\_restore: creating EXTENSION “timescaledb”
+-   pg\_restore: creating COMMENT “EXTENSION timescaledb”
+-   pg\_restore: while PROCESSING TOC:
+-   pg\_restore: from TOC entry 6239; 0 0 COMMENT EXTENSION timescaledb
+-   pg\_restore: error: could not execute query: ERROR: must be owner of extension timescaledb
+
+The `pg_restore` function tries to apply the TimescaleDB extension when it copies your schema. This can cause a permissions error. If you already have the TimescaleDB extension installed, you can safely ignore this.
+
+Jobs and background workers
+
+Failed to start a background worker
+
+**Message**:
+
+-   `"<TYPE_OF_BACKGROUND_JOB>": failed to start a background worker`
+
+**APIs**:
+
+-   [`timescaledb_information.jobs`](/api-reference/timescaledb/informational-views/jobs)
+-   [`timescaledb_information.job_stats`](/api-reference/timescaledb/informational-views/job_stats)
+-   [`add_job()`](/api-reference/timescaledb/jobs-automation/add_job)
+-   [`add_reorder_policy()`](/api-reference/timescaledb/hypertables/add_reorder_policy)
+-   [`add_retention_policy()`](/api-reference/timescaledb/data-retention/add_retention_policy)
+-   [`add_compression_policy()`](/api-reference/timescaledb/compression/add_compression_policy)
+-   [`add_continuous_aggregate_policy()`](/api-reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy)
+
+You might see this error message in the logs if background workers aren’t properly configured. To fix this error, make sure that `max_worker_processes`, `max_parallel_workers`, and `timescaledb.max_background_workers` are properly set. `timescaledb.max_background_workers` should equal the number of databases plus the number of concurrent background workers. `max_worker_processes` should equal the sum of `timescaledb.max_background_workers` and `max_parallel_workers`. For more information, see the [worker configuration docs](/deploy-and-operate/self-hosted/configuration/about-configuration#workers).

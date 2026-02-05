@@ -1,0 +1,14 @@
+---
+title: "Convert continuous aggregates to columnstore"
+description: "Convert a continuous aggregate to columnstore to save storage space while keeping data available for analytical workloads"
+---
+To save on storage costs, you use hypercore to downsample historical data stored in continuous aggregates. After you [enable columnstore](/api-reference/timescaledb/continuous-aggregates/alter_materialized_view) on a `MATERIALIZED VIEW`, you set a [columnstore policy](/api-reference/hypercore/add_columnstore_policy). This policy defines the intervals when chunks in a continuous aggregate are compressed as they are converted from the rowstore to the columnstore. Columnstore works in the same way on [hypertables and continuous aggregates](/manage-data/capabilities/hypercore). When you enable Columnstore with no other options, your data is [segmented by](/api-reference/timescaledb/continuous-aggregates/alter_materialized_view#arguments) the `groupby` columns in the continuous aggregate, and [ordered by](/api-reference/timescaledb/continuous-aggregates/alter_materialized_view#arguments) the time column. [Real-time aggregation](/manage-data/capabilities/continuous-aggregates/real-time-aggregates) is disabled by default. Since 2.20.0. For the old API (pre-2.20.0), see [legacy compression documentation](https://www.tigerdata.com/docs/use-timescale/latest/compression/compression-on-continuous-aggregates/).
+
+Configure columnstore on continuous aggregates
+
+For an [existing continuous aggregate](/manage-data/capabilities/continuous-aggregates/setup-continuous-aggregates):
+
+1.  **Enable columnstore on a continuous aggregate** To enable the columnstore compression on a continuous aggregate, set `timescaledb.enable_columnstore = true` when you alter the view: To disable the columnstore compression, set `timescaledb.enable_columnstore = false`.
+2.  **Set columnstore policies on the continuous aggregate** Before you set up a columnstore policy on a continuous aggregate, you first set the [refresh policy](/manage-data/capabilities/continuous-aggregates/refresh-policies). To prevent refresh policies from failing, you set the columnstore policy interval so that actively refreshed regions are not compressed. For example:
+    1.  **Set the refresh policy**
+    2.  **Set the columnstore policy** For this refresh policy, the `after` parameter must be greater than the value of `start_offset` in the refresh policy:

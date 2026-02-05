@@ -1,0 +1,53 @@
+---
+title: "Drop data from continuous aggregates"
+description: "Drop a view or raw data from a continuous aggregate or its underlying hypertable"
+---
+[Available on: Scale, Enterprise, Performance](/deploy-and-operate/tiger-cloud/understand/pricing-and-account-management) When you are working with continuous aggregates, you can drop a view, or you can drop raw data from the underlying hypertable or from the continuous aggregate itself. A combination of [refresh](/manage-data/capabilities/continuous-aggregates/refresh-policies) and data retention policies can help you downsample your data. This lets you keep historical data at a lower granularity than recent data. However, you should be aware if a retention policy is likely to drop raw data from your hypertable that you need in your continuous aggregate. To simplify the process of setting up downsampling, you can use the [visualizer and code generator](#set-up-downsampling-and-data-retention).
+
+Drop a continuous aggregate view
+
+You can drop a continuous aggregate view using the `DROP MATERIALIZED VIEW` command. This command also removes refresh policies defined on the continuous aggregate. It does not drop the data from the underlying hypertable. To drop a continuous aggregate view:
+
+Drop raw data from a hypertable
+
+If you drop data from a hypertable used in a continuous aggregate it can lead to problems with your continuous aggregate view. In many cases, dropping underlying data replaces the aggregate with NULL values, which can lead to unexpected results in your view. You can drop data from a hypertable using [`drop_chunks`](/api-reference/timescaledb/hypertables/drop_chunks) in the usual way, but before you do so, always check that the chunk is not within the refresh window of a continuous aggregate that still needs the data. This is also important if you are manually refreshing a continuous aggregate. Calling [`refresh_continuous_aggregate`](/api-reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate) on a region containing dropped chunks recalculates the aggregate without the dropped data. If a continuous aggregate is refreshing when data is dropped because of a retention policy, the aggregate is updated to reflect the loss of data. If you need to retain the continuous aggregate after dropping the underlying data, set the `start_offset` value of the aggregate policy to a smaller interval than the `drop_after` parameter of the retention policy. For more information, see the [data retention documentation](/manage-data/capabilities/data-retention#data-retention-with-continuous-aggregates).
+
+Set up downsampling and data retention
+
+Maximize your storage by keeping downsampled historical data and dropping raw data. Once you’ve [created a continuous aggregate](/manage-data/capabilities/continuous-aggregates/setup-continuous-aggregates), you can automatically downsample your data by configuring the following policies:
+
+1.  **Refresh policy**: control when and how often your continuous aggregate is updated
+2.  **Raw data retention policy**: control how long to keep data in the underlying hypertable
+3.  **Downsampled data retention policy**: control how long to keep data in the continuous aggregate
+
+The following widget creates a valid policy for you. Run the generated SQL in your Tiger Cloud service.
+
+Time bucket interval
+
+hour(s)day(s)week(s)month(s)
+
+Refresh end\_offset: 2 days
+
+Refresh start\_offset: 30 days
+
+Raw data retention: 90 days
+
+Downsampled retention: 365 days
+
+```
+-- Add refresh policy
+SELECT add_continuous_aggregate_policy('continuous_aggregate_name',
+  start_offset => INTERVAL '30 days',
+  end_offset => INTERVAL '2 days',
+  schedule_interval => INTERVAL '1 hour');
+
+-- Add retention policy for raw data
+SELECT add_retention_policy('hypertable_name',
+  drop_after => INTERVAL '90 days');
+
+-- Add retention policy for downsampled data
+SELECT add_retention_policy('continuous_aggregate_name',
+  drop_after => INTERVAL '365 days');
+```
+
+Dropping raw data within your refresh interval can cause data loss. To fix, only drop raw data older than your refresh interval.

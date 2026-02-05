@@ -1,0 +1,109 @@
+---
+title: "Count distinct values efficiently"
+description: "Use approximate count distinct to find the number of unique values, or cardinality, in a large dataset."
+---
+When you calculate cardinality in a dataset, the time it takes to process the query is proportional to how large the dataset is. Finding the cardinality of a dataset that contains 20 million entries can take a significant amount of time and compute resources. Approximate count distinct does not calculate the exact cardinality of a dataset, but rather estimates the number of unique values. This reduces memory consumption and improves compute time by avoiding spilling intermediate results to secondary storage. TimescaleDB uses the [HyperLogLog](https://en.wikipedia.org/wiki/HyperLogLog) algorithm, which provides estimates typically within a 2% margin of error. The benefit of HyperLogLog on time-series data is that it can continue to calculate the approximate cardinality of a dataset as it changes over time. It does this by adding an entry to the HyperLogLog hash as new data is retrieved, rather than recalculating the result for the entire dataset every time it is needed. This makes it an ideal candidate for using with continuous aggregates.
+
+Prerequisites
+
+To follow the steps on this page:
+
+-   Create a target [Tiger Cloud service](/deploy-and-operate/tiger-cloud/get-started/create-services) with Real-time analytics enabled.
+    
+    You need [your connection details](/integrations/find-connection-details). This procedure also works for [self-hosted TimescaleDB](/deploy-and-operate/self-hosted/install-and-update/install-self-hosted).
+
+Calculate approximate distinct counts
+
+This example tracks unique users visiting different API endpoints over time.
+
+1.  **Create the `api_requests` hypertable**
+2.  **Insert sample data** Generate API requests from different users:
+3.  **Count distinct users per endpoint using approx\_count\_distinct** The [`approx_count_distinct()`](/api-reference/timescaledb-toolkit/hyperloglog/approx_count_distinct) function uses default settings that work well for most use cases: This creates a hyperloglog aggregate for each endpoint. To get the actual distinct count, use the [`distinct_count()`](/api-reference/timescaledb-toolkit/hyperloglog/distinct_count) accessor:
+4.  **Count distinct users per hour using hyperloglog with custom bucket size** For more control over accuracy, use [`hyperloglog()`](/api-reference/timescaledb-toolkit/hyperloglog/hyperloglog) directly:
+
+Use with continuous aggregates
+
+Create a continuous aggregate to efficiently track unique users over time.
+
+1.  **Create a continuous aggregate with HyperLogLog**
+2.  **Query daily unique users by rolling up hourly aggregates**
+3.  **Calculate total unique users across all endpoints**
+
+Understand accuracy and memory trade-offs
+
+The number of buckets in a HyperLogLog affects both accuracy and memory usage. More buckets provide better accuracy but require more memory.
+
+Approximate relative errors by bucket size
+
+Precision
+
+Buckets
+
+Error
+
+Memory (bytes)
+
+10
+
+1024
+
+3.25%
+
+768
+
+11
+
+2048
+
+2.30%
+
+1536
+
+12
+
+4096
+
+1.63%
+
+3072
+
+13
+
+8192
+
+1.15%
+
+6144
+
+14
+
+16384
+
+0.81%
+
+12288
+
+15
+
+32768
+
+0.57%
+
+24576
+
+16
+
+65536
+
+0.41%
+
+49152
+
+**Recommendations:**
+
+-   For most use cases, 8,192 buckets (1.15% error) provides a good balance
+-   Use fewer buckets (1,024-4,096) when memory is constrained
+-   Use more buckets (16,384+) when high accuracy is critical
+-   Avoid using less than 1,024 buckets when cardinality is high
+
+-   For more information about the HyperLogLog algorithm, see the [HyperLogLog Wikipedia article](https://en.wikipedia.org/wiki/HyperLogLog).

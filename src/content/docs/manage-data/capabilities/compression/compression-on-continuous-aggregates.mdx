@@ -1,0 +1,22 @@
+---
+title: "Compress a continuous aggregate"
+description: "Compress a continuous aggregate to save storage space while making sure the data is still available for analytical workloads"
+---
+Old API since [2.18.0](https://github.com/timescale/timescaledb/releases/tag/2.18.0). Superseded by [Convert continuous aggregates to the columnstore](/manage-data/capabilities/continuous-aggregates/compression-on-continuous-aggregates). However, compression APIs are still supported, you do not need to migrate to the hypercore APIs. Continuous aggregates are often used to downsample historical data. If the data is only used for analytical queries and never modified, you can compress the aggregate to save on storage.
+
+Before version [2.18.1](https://github.com/timescale/timescaledb/releases/tag/2.18.1), you can’t refresh the compressed regions of a continuous aggregate. To avoid conflicts between compression and refresh, make sure you set `compress_after` to a larger interval than the `start_offset` of your [refresh policy](/api-reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy).
+
+Compression on continuous aggregates works similarly to [compression on hypertables](/manage-data/capabilities/compression/about-compression). When compression is enabled and no other options are provided, the `segment_by` value will be automatically set to the group by columns of the continuous aggregate and the `time_bucket` column will be used as the `order_by` column in the compression configuration.
+
+Enable compression on continuous aggregates
+
+You can enable and disable compression on continuous aggregates by setting the `compress` parameter when you alter the view.
+
+1.  **Enable compression** For an existing continuous aggregate, at the `psql` prompt, enable compression:
+2.  **Disable compression**
+
+Disabling compression on a continuous aggregate fails if there are compressed chunks associated with the continuous aggregate. In this case, you need to decompress the chunks, and then drop any compression policy on the continuous aggregate, before you disable compression. For more detailed information, see the [decompress chunks](/manage-data/capabilities/compression/decompress-chunks) section:
+
+Compression policies on continuous aggregates
+
+Before setting up a compression policy on a continuous aggregate, you should set up a [refresh policy](/api-reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy). The compression policy interval should be set so that actively refreshed regions are not compressed. This is to prevent refresh policies from failing. For example, consider a refresh policy like this: With this kind of refresh policy, the compression policy needs the `compress_after` parameter greater than the `start_offset` parameter of the continuous aggregate policy:

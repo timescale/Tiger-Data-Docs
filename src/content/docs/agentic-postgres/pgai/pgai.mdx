@@ -1,0 +1,116 @@
+---
+title: "Retrieval for RAG and Agentic apps"
+description: "Power your RAG and Agentic applications with PostgreSQL"
+---
+A Python library that transforms PostgreSQL into a robust, production-ready retrieval engine for RAG and Agentic applications.
+
+-   **Automatically create and synchronize vector embeddings** from PostgreSQL data and S3 documents. Embeddings update automatically as data changes.
+-   **[Semantic Catalog](/agentic-postgres/pgai/semantic-catalog): Enable natural language to SQL with AI**. Automatically generate database descriptions and power text-to-SQL for agentic applications.
+-   Powerful vector and semantic search with pgvector and pgvectorscale.
+-   **Production-ready out-of-the-box**: Supports batch processing for efficient embedding generation, with built-in handling for model failures, rate limits, and latency spikes.
+-   Works with any PostgreSQL database, including Tiger Cloud, Amazon RDS, Supabase and more.
+
+Features
+
+Our pgai Python library lets you work with embeddings generated from your data:
+
+-   Automatically create and sync vector embeddings for your data using the [vectorizer](/agentic-postgres/pgai/vectorizer-overview).
+-   [Load data](/agentic-postgres/pgai/vectorizer-api-reference#loading-configuration) from a column in your table or from a file, s3 bucket, etc.
+-   Create multiple embeddings for the same data with different models and parameters for testing and experimentation.
+-   [Customize](#a-configurable-vectorizer-pipeline) how your embedding pipeline parses, chunks, formats, and embeds your data.
+
+You can use the vector embeddings to:
+
+-   [Perform semantic search](/agentic-postgres/pgai/vectorizer-overview#query-an-embedding) using pgvector.
+-   Implement Retrieval Augmented Generation (RAG)
+-   Perform high-performance, cost-efficient ANN search on large vector workloads with [pgvectorscale](https://github.com/timescale/pgvectorscale), which complements pgvector.
+
+**Text-to-SQL with Semantic Catalog:** Transform natural language into accurate SQL queries. The semantic catalog generates database descriptions automatically, lets a human in the loop review and improve the descriptions and stores SQL examples and business facts. This enables LLMs to understand your schema and data context. See the [semantic catalog](/agentic-postgres/pgai/semantic-catalog) for more details. We also offer a [PostgreSQL extension](https://github.com/timescale/pgai/tree/main/projects/extension) that can perform LLM model calling directly from SQL. This is often useful for use cases like classification, summarization, and data enrichment on your existing data.
+
+A configurable vectorizer pipeline
+
+The vectorizer is designed to be flexible and customizable. Each vectorizer defines a pipeline for creating embeddings from your data. The pipeline is defined by a series of components that are applied in sequence to the data:
+
+-   **[Loading](/agentic-postgres/pgai/vectorizer-api-reference#loading-configuration):** First, you define the source of the data to embed. It can be the data stored directly in a column of the source table or a URI referenced in a column of the source table that points to a file, s3 bucket, etc.
+-   **[Parsing](/agentic-postgres/pgai/vectorizer-api-reference#parsing-configuration):** Then, you define the way the data is parsed if it is a non-text document such as a PDF, HTML, or markdown file.
+-   **[Chunking](/agentic-postgres/pgai/vectorizer-api-reference#chunking-configuration):** Next, you define the way text data is split into chunks.
+-   **[Formatting](/agentic-postgres/pgai/vectorizer-api-reference#formatting-configuration):** Then, for each chunk, you define the way the data is formatted before it is sent for embedding. For example, you can add the title of the document as the first line of the chunk.
+-   **[Embedding](/agentic-postgres/pgai/vectorizer-api-reference#embedding-configuration):** Finally, you specify the LLM provider, model, and the parameters to be used when generating the embeddings.
+
+Supported embedding models
+
+The following models are supported for embedding:
+
+-   [Ollama](/agentic-postgres/pgai/vectorizer-api-reference#aiembedding_ollama)
+-   [OpenAI](/agentic-postgres/pgai/vectorizer-api-reference#aiembedding_openai)
+-   [Voyage AI](/agentic-postgres/pgai/vectorizer-api-reference#aiembedding_voyageai)
+-   [Cohere](/agentic-postgres/pgai/vectorizer-api-reference#aiembedding_litellm)
+-   [Huggingface](/agentic-postgres/pgai/vectorizer-api-reference#aiembedding_litellm)
+-   [Mistral](/agentic-postgres/pgai/vectorizer-api-reference#aiembedding_litellm)
+-   [Azure OpenAI](/agentic-postgres/pgai/vectorizer-api-reference#aiembedding_litellm)
+-   [AWS Bedrock](/agentic-postgres/pgai/vectorizer-api-reference#aiembedding_litellm)
+-   [Vertex AI](/agentic-postgres/pgai/vectorizer-api-reference#aiembedding_litellm)
+
+Error handling
+
+Simply creating vector embeddings is easy and straightforward. The challenge is that LLMs are somewhat unreliable and the endpoints exhibit intermittent failures and/or degraded performance. A critical part of properly handling failures is that your primary data-modification operations (INSERT, UPDATE, DELETE) should not be dependent on the embedding operation. Otherwise, your application will be down every time the endpoint is slow or fails and your user experience will suffer. Normally, you would need to implement a custom MLops pipeline to properly handle endpoint failures. This commonly involves queuing system like Kafka, specialized workers, and other infrastructure for handling the queue and retrying failed requests. This is a lot of work and it is easy to get wrong. With pgai, you can skip all that and focus on building your application because the vectorizer is managing the embeddings for you. We have built in queueing and retry logic to handle the various failure modes you can encounter. Because we do this work in the background, the primary data modification operations are not dependent on the embedding operation. This is why pgai is production-ready out of the box. Many specialized vector databases create embeddings for you. However, they typically fail when embedding endpoints are down or degraded, placing the burden of error handling and retries back on you.
+
+Architecture
+
+The system consists of an application you write, a PostgreSQL database, and stateless vectorizer workers. The application defines a vectorizer configuration to embed data from sources like PostgreSQL or S3. The workers read this configuration, processes the data queue into embeddings and chunked text, and writes the results back. The application then queries this data to power RAG and semantic search. The key strength of this architecture lies in its resilience: data modifications made by the application are decoupled from the embedding process, ensuring that failures in the embedding service do not affect the core data operations.
+
+Install
+
+First, install the pgai package. Then, install the pgai database components. You can do this from the terminal using the CLI or in your Python application code using the pgai python package. If you are not on Tiger Cloud you will also need to run the pgai vectorizer worker. Install the dependencies for it via: If you are using the [semantic catalog](/agentic-postgres/pgai/semantic-catalog), you will need to run:
+
+Quick Start
+
+This quickstart demonstrates how pgai Vectorizer enables semantic search and RAG over PostgreSQL data by automatically creating and synchronizing embeddings as data changes. **Looking for text-to-SQL?** Check out the [Semantic Catalog quickstart](/agentic-postgres/pgai/semantic-catalog) to transform natural language questions into SQL queries. The key “secret sauce” of pgai Vectorizer is its declarative approach to embedding generation. Simply define your pipeline and let Vectorizer handle the operational complexity of keeping embeddings in sync, even when embedding endpoints are unreliable. You can define a simple version of the pipeline as follows: The vectorizer will automatically create embeddings for all the rows in the `wiki` table, and, more importantly, will keep the embeddings synced with the underlying data as it changes. **Think of it almost like declaring an index** on the `wiki` table, but instead of the database managing the index datastructure for you, the Vectorizer is managing the embeddings.
+
+Running the quick start
+
+**Prerequisites:**
+
+-   A PostgreSQL database (see [Docker installation](https://docs.timescale.com/self-hosted/latest/install/installation-docker/)).
+-   An OpenAI API key (we use openai for embedding in the quick start, but you can use [multiple providers](#supported-embedding-models)).
+
+Create a `.env` file with the following: You can download the full [python code](https://github.com/timescale/pgai/blob/main/examples/quickstart/main.py) and [requirements.txt](https://github.com/timescale/pgai/blob/main/examples/quickstart/requirements.txt) from the quickstart example and run it in the same directory as the `.env` file. Sample output:
+
+Code walkthrough
+
+Install the pgai database components
+
+pgai requires a few catalog tables and functions to be installed into the database. This is done using the `pgai.install` function, which will install the necessary components into the `ai` schema of the database.
+
+Create the vectorizer
+
+This defines the vectorizer, which tells the system how to create the embeddings from the `text` column in the `wiki` table. The vectorizer creates a view `wiki_embedding` that we can query for the embeddings (as we’ll see below).
+
+Run the vectorizer worker
+
+In this example, we run the vectorizer worker once to create the embeddings for the existing data. In a real application, we would not call the worker manually like this every time we want to create the embeddings. Instead, we would run the worker in the background and it would run continuously, polling for work from the vectorizer. You can run the worker in the background from the application, the cli, or docker. See the [vectorizer worker](/agentic-postgres/pgai/vectorizer-worker) documentation for more details.
+
+Search the wiki articles using semantic search
+
+This is standard pgvector semantic search in PostgreSQL. The search is performed against the `wiki_embedding` view, which is created by the vectorizer and includes all the columns from the `wiki` table plus the `embedding` column and the chunk text. This function returns both the entire `text` column from the `wiki` table and smaller chunks of the text that are most relevant to the query.
+
+Insert a new article into the wiki table
+
+This code is notable for what it is not doing. This is a simple insert of a new article into the `wiki` table. We did not need to do anything different to create the embeddings, the vectorizer worker will take care of updating the embeddings as the data changes.
+
+Perform RAG with the LLM
+
+This code performs RAG with the LLM. It uses the `_find_relevant_chunks` function defined above to find the most relevant chunks of text from the `wiki` table and then uses the LLM to generate a response.
+
+Next steps
+
+More RAG and Vectorization Examples
+
+-   [FastAPI + psycopg quickstart](https://github.com/timescale/pgai/tree/main/examples/simple_fastapi_app)
+-   [Vectorizer overview](/agentic-postgres/pgai/vectorizer-overview)
+-   [Vectorizer worker documentation](/agentic-postgres/pgai/vectorizer-worker)
+-   [Vectorizer API reference](/agentic-postgres/pgai/vectorizer-api-reference)
+
+Text-to-SQL with Semantic Catalog
+
+-   **[Semantic Catalog Quickstart](/agentic-postgres/pgai/semantic-catalog)** - Learn how to use the semantic catalog to translate natural language to SQL for agentic applications.

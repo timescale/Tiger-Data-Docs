@@ -1,0 +1,139 @@
+---
+title: "Read and write data"
+description: "Learn how to insert, query, update, and delete data in Tiger Cloud using standard SQL and TimescaleDB optimizations"
+---
+
+## Overview
+
+Learn how to read and write data in your Tiger Cloud database using standard PostgreSQL SQL statements. Tiger Cloud is built on TimescaleDB, which extends PostgreSQL with optimizations for time-series data while maintaining full SQL compatibility.
+
+## Prerequisites
+
+- A Tiger Cloud service with a database and tables created
+- Connection to your database via psql, application code, or a GUI client
+- Basic familiarity with SQL syntax
+- Understanding of your table schema and data types
+
+## Writing data
+
+This section covers methods for inserting and modifying data in your Tiger Cloud database.
+
+### INSERT statements
+
+Insert single rows or multiple rows using standard PostgreSQL INSERT syntax. TimescaleDB works with regular tables and hypertables identically for write operations.
+
+#### Single row inserts
+
+Basic syntax for inserting individual records.
+
+#### Batch inserts
+
+Insert multiple rows in a single statement for significantly better performance. Aim for hundreds or thousands of rows per INSERT rather than row-by-row inserts.
+
+### COPY for bulk loading
+
+Use the COPY command for high-performance bulk data loading from files. This method minimizes transactional overhead and is ideal for large datasets.
+
+### INSERT with conflict handling
+
+Use `INSERT ... ON CONFLICT` (upsert) to handle duplicate key scenarios gracefully, either updating existing rows or ignoring conflicts.
+
+### UPDATE statements
+
+Modify existing data using UPDATE statements. For hypertables, updates to recent time intervals perform best.
+
+### DELETE statements
+
+Remove data using DELETE statements. Consider using retention policies for automatic cleanup of old time-series data.
+
+## Reading data
+
+This section covers querying data from your Tiger Cloud database.
+
+### SELECT queries
+
+Retrieve data using standard SELECT statements with filtering, sorting, and limiting.
+
+#### Basic queries
+
+Simple SELECT statements for retrieving rows from tables.
+
+#### Filtering with WHERE
+
+Use WHERE clauses to filter results by time ranges, values, or conditions.
+
+#### Sorting and limiting
+
+Order results and limit the number of rows returned for efficient queries.
+
+### Time-series query patterns
+
+Leverage TimescaleDB features for efficient time-series analysis.
+
+#### Querying by time range
+
+Filter data by time intervals using comparison operators or the `now()` function.
+
+#### Using time_bucket for aggregation
+
+Group data into time intervals (hourly, daily, weekly) using the `time_bucket` function for efficient time-series aggregations.
+
+### Joins and subqueries
+
+Combine data from multiple tables using standard SQL joins and subqueries.
+
+## Performance best practices
+
+### Write optimization
+
+- Use batch inserts with many rows per INSERT statement instead of row-by-row inserts
+- Use COPY for bulk loading large datasets
+- Insert data with recent timestamps for best hypertable performance
+- Consider direct compression for high-throughput ingestion
+
+### Read optimization
+
+- Always include time-based filters when querying hypertables
+- Use `time_bucket` for aggregations instead of date manipulation functions
+- Create appropriate indexes for your query patterns
+- Use continuous aggregates for frequently-run aggregation queries
+
+### Chunk size configuration
+
+Configure hypertable chunk intervals based on your data volume and query patterns. Aim for chunks that fit in memory for best query performance.
+
+## Working with hypertables
+
+### Understanding hypertables
+
+Hypertables are TimescaleDB's core abstraction for time-series data, automatically partitioning data by time for improved performance.
+
+### Hypertable-specific considerations
+
+- Inserts to recent time intervals are optimized
+- Updates to older data may have lower throughput
+- Retention policies can automatically drop old chunks
+
+## Troubleshooting
+
+### Slow insert performance
+
+Verify you are batching inserts. Check for table bloat and consider vacuuming. Ensure indexes are not causing write amplification.
+
+### Slow query performance
+
+Add time-based filters, verify indexes exist for your query patterns, and analyze query plans with EXPLAIN ANALYZE.
+
+### Out of memory during queries
+
+Limit result sets, add appropriate filters, or increase work_mem for complex queries.
+
+### Data type errors
+
+Verify that values match the expected column data types. Use explicit casting when needed.
+
+## Next steps
+
+- [Import data using Terminal](/manage-data/import-and-ingest/import-terminal/) - Bulk import data from files
+- [Import data using Console](/manage-data/import-and-ingest/import-console/) - Visual import interface
+- [Continuous aggregates](/manage-data/continuous-aggregates/) - Pre-compute aggregations for faster queries

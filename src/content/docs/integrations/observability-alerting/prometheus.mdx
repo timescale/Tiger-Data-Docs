@@ -1,0 +1,81 @@
+---
+title: "Integrate Prometheus with Tiger Cloud"
+description: "Export telemetry metrics from your service to monitor system performance and health"
+---
+[Prometheus](https://prometheus.io/docs/introduction/overview/) is an open-source monitoring system with a dimensional data model, flexible query language, and a modern alerting approach. This page shows you how to export your service telemetry to Prometheus:
+
+-   For Tiger Cloud, using a dedicated Prometheus exporter in Tiger Console.
+-   For self-hosted TimescaleDB, using [Postgres Exporter](https://grafana.com/oss/prometheus/exporters/postgres-exporter/).
+
+Prerequisites
+
+To follow the steps on this page:
+
+-   [Download and run Prometheus](https://prometheus.io/docs/prometheus/latest/installation/).
+-   For Tiger Cloud: Create a target [Tiger Cloud service](/deploy-and-operate/get-started/create-services) with Real-time analytics enabled.
+-   For self-hosted TimescaleDB:
+    -   Create a target [self-hosted TimescaleDB](/deploy-and-operate/self-hosted/install) instance. You need your [connection details](/integrations/find-connection-details).
+    -   [Install Postgres Exporter](https://grafana.com/oss/prometheus/exporters/postgres-exporter/?tab=installation). To reduce latency and potential data transfer costs, install Prometheus and Postgres Exporter on a machine in the same AWS region as your Tiger Cloud service.
+
+Export Tiger Cloud service telemetry to Prometheus
+
+To export your data, do the following:
+
+To export metrics from a Tiger Cloud service, you create a dedicated Prometheus exporter in Tiger Console, attach it to your service, then configure Prometheus to scrape metrics using the exposed URL. The Prometheus exporter exposes the metrics related to the Tiger Cloud service like CPU, memory, and storage. To scrape other metrics, use Postgres Exporter as described for self-hosted TimescaleDB. The Prometheus exporter is available for [Scale and Enterprise](/about/pricing-and-account-management#features-included-in-each-plan) pricing plans.
+
+1.  **Create a Prometheus exporter**
+    1.  In [Tiger Console](https://console.cloud.timescale.com/dashboard/services), click `Exporters` > `+ New exporter`.
+    2.  Select `Metrics` for data type and `Prometheus` for provider. ![Create a Prometheus exporter in Tiger Cloud](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-cloud-create-prometheus-exporter.png)
+    3.  Choose the region for the exporter. Only services in the same project and region can be attached to this exporter.
+    4.  Name your exporter.
+    5.  Change the auto-generated Prometheus credentials, if needed. See [official documentation](https://prometheus.io/docs/guides/basic-auth/) on basic authentication in Prometheus. ![Prometheus exporter credentials](https://assets.timescale.com/docs/images/tiger-cloud-console/prometheus-exporter-basic-authentication.png)
+2.  **Attach the exporter to a service**
+    
+    1.  Select a service, then click `Operations` > `Exporters`.
+    2.  Select the exporter in the drop-down, then click `Attach exporter`. ![Attach a Prometheus exporter to a Tiger Cloud service](https://assets.timescale.com/docs/images/tiger-cloud-console/attach-prometheus-exporter-tiger-cloud.png)
+    
+    The exporter is now attached to your service. To unattach it, click the trash icon in the exporter list. ![Unattach a Prometheus exporter from a Tiger Cloud service](https://assets.timescale.com/docs/images/tiger-cloud-console/unattach-prometheus-exporter-tiger-cloud-service.png)
+3.  **Configure the Prometheus scrape target**
+    1.  Select your service, then click `Operations` > `Exporters` and click the information icon next to the exporter. You see the exporter details. ![Prometheus exporter details in Tiger Cloud](https://assets.timescale.com/docs/images/tiger-cloud-console/prometheus-exporter-details-tiger-cloud.png)
+    2.  Copy the exporter URL.
+    3.  In your Prometheus installation, update `prometheus.yml` to point to the exporter URL as a scrape target: See the [Prometheus documentation](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) for details on configuring scrape targets. You can now monitor your service metrics. Use the following metrics to check the service is running correctly:
+        
+        -   `timescale.cloud.system.cpu.usage.millicores`
+        -   `timescale.cloud.system.cpu.total.millicores`
+        -   `timescale.cloud.system.memory.usage.bytes`
+        -   `timescale.cloud.system.memory.total.bytes`
+        -   `timescale.cloud.system.disk.usage.bytes`
+        -   `timescale.cloud.system.disk.total.bytes`
+        
+        Additionally, use the following tags to filter your results.
+        
+        Tag
+        
+        Example variable
+        
+        Description
+        
+        `host`
+        
+        `us-east-1.timescale.cloud`
+        
+        `project-id`
+        
+        `service-id`
+        
+        `region`
+        
+        `us-east-1`
+        
+        AWS region
+        
+        `role`
+        
+        `replica` or `primary`
+        
+        For service with replicas
+        
+
+You can further [visualize your data](https://grafana.com/docs/grafana-cloud/send-data/metrics/metrics-prometheus/) with Grafana. Use the [Grafana Postgres dashboard](https://grafana.com/oss/prometheus/exporters/postgres-exporter/?tab=dashboards) or [create a custom dashboard](/integrations/grafana) that suits your needs.
+
+This feature is currently not supported for Tiger Cloud on Microsoft Azure.
