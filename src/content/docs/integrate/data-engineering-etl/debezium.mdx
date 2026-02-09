@@ -1,0 +1,55 @@
+---
+title: "Integrate Debezium with Tiger Cloud"
+description: "Capture and stream database changes in real time for event-driven architecture"
+---
+[Debezium](https://debezium.io/) is an open-source distributed platform for change data capture (CDC). It enables you to capture changes in a self-hosted TimescaleDB instance and stream them to other systems in real time. Debezium can capture events about:
+
+-   [Hypertables](/build/time-series/understand-hypertables): captured events are rerouted from their chunk-specific topics to a single logical topic named according to the following pattern: `<topic.prefix>.<hypertable-schema-name>.<hypertable-name>`
+-   [Continuous aggregates](/build/continuous-aggregates/): captured events are rerouted from their chunk-specific topics to a single logical topic named according to the following pattern: `<topic.prefix>.<aggregate-schema-name>.<aggregate-name>`
+-   [Hypercore](/build/columnar-storage/understand-hypercore): If you enable hypercore, the Debezium TimescaleDB connector does not apply any special processing to data in the columnstore. Compressed chunks are forwarded unchanged to the next downstream job in the pipeline for further processing as needed. Typically, messages with compressed chunks are dropped, and are not processed by subsequent jobs in the pipeline. This limitation only affects changes to chunks in the columnstore. Changes to data in the rowstore work correctly.
+
+This page explains how to capture changes in your database and stream them using Debezium on Apache Kafka.
+
+Prerequisites
+
+To follow the steps on this page:
+
+-   Create a target [self-hosted TimescaleDB](/deploy/self-hosted/install-and-update/install-self-hosted) instance.
+
+-   [Install Docker](https://docs.docker.com/engine/install/) on your development machine.
+
+Configure your database to work with Debezium
+
+To set up self-hosted TimescaleDB to communicate with Debezium:
+
+1.  **Configure your self-hosted Postgres deployment**
+    1.  Open `postgresql.conf`. The Postgres configuration files are usually located in:
+        -   Docker: `/home/postgres/pgdata/data/`
+        -   Linux: `/etc/postgresql/<version>/main/` or `/var/lib/pgsql/<version>/data/`
+        -   MacOS: `/opt/homebrew/var/postgresql@<version>/`
+        -   Windows: `C:\Program Files\PostgreSQL\<version>\data\`
+    2.  Enable logical replication. Modify the following settings in `postgresql.conf`:
+    3.  Open `pg_hba.conf` and enable host replication. To allow replication connections, add the following: This permission is for the `debezium` Postgres user running on a local or Docker deployment. For more about replication permissions, see [Configuring Postgres to allow replication with the Debezium connector host](https://debezium.io/documentation/reference/3.1/connectors/postgresql.html#postgresql-host-replication-permissions).
+    4.  Restart Postgres.
+2.  **Connect to your self-hosted TimescaleDB instance** Use [`psql`](/integrate/psql#connect-to-your-service).
+3.  **Create a Debezium user in Postgres** Create a user with the `LOGIN` and `REPLICATION` permissions:
+4.  **Enable a replication spot for Debezium**
+    1.  Create a table for Debezium to listen to:
+    2.  Turn the table into a hypertable: Debezium also works with [continuous aggregates](/build/continuous-aggregates/).
+    3.  Create a publication and enable a replication slot:
+
+Configure Debezium to work with your database
+
+Set up Kafka Connect server, plugins, drivers, and connectors:
+
+1.  **Run Zookeeper in Docker** In another Terminal window, run the following command: Check the output log to see that zookeeper is running.
+2.  **Run Kafka in Docker** In another Terminal window, run the following command: Check the output log to see that Kafka is running.
+3.  **Run Kafka Connect in Docker** In another Terminal window, run the following command: Check the output log to see that Kafka Connect is running.
+4.  **Register the Debezium Postgres source connector** Update the `<properties>` for the `<debezium-user>` you created in your self-hosted TimescaleDB instance in the following command. Then run the command in another Terminal window:
+5.  **Verify `timescaledb-source-connector` is included in the connector list**
+    1.  Check the tasks associated with `timescaledb-connector`: You see something like:
+6.  **Verify `timescaledb-connector` is running**
+    1.  Open the Terminal window running Kafka Connect. When the connector is active, you see something like the following:
+    2.  Watch the events in the accounts topic on your self-hosted TimescaleDB instance. In another Terminal instance, run the following command: You see the topics being streamed. For example:
+
+And that is it, you have configured Debezium to interact with Tiger Data products.

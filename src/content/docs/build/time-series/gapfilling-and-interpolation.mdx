@@ -1,0 +1,39 @@
+---
+title: "Gapfilling and interpolation"
+description: "Handle missing data when you query time-series data"
+---
+Most time-series data analysis techniques aggregate data into fixed time intervals, which smooths the data and makes it easier to interpret and analyze. When you write queries for data in this form, you need an efficient way to aggregate raw observations, which are often noisy and irregular, into fixed time intervals. TimescaleDB does this using [time bucketing](/api-reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket), which gives a clear picture of the important data trends using a concise, declarative SQL query. Sorting data into time buckets works well in most cases, but gaps in the data can cause problems. If you have a time bucket that has no data at all, the average returned from the time bucket is `NULL`. This can happen if you have irregular sampling intervals, or you have experienced an outage of some sort. You can use a gapfilling function to create additional rows of data in any gaps, ensuring that rows appear in chronological order and remain contiguous. The [`time_bucket_gapfill`](/api-reference/timescaledb/hyperfunctions/time_bucket_gapfill/time_bucket_gapfill) function creates a contiguous set of time buckets but does not fill the rows with data. You can create data for the new rows using:
+
+-   **[`locf()`](/api-reference/timescaledb/hyperfunctions/time_bucket_gapfill/locf)**: Last observation carried forward - takes the last known value and uses it as a replacement for missing data
+-   **[`interpolate()`](/api-reference/timescaledb/hyperfunctions/time_bucket_gapfill/interpolate)**: Linear interpolation - calculates values between known data points
+
+Prerequisites
+
+To follow the steps on this page:
+
+-   Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled.
+    
+    You need [your connection details](/integrate/find-connection-details). This procedure also works for [self-hosted TimescaleDB](/deploy/self-hosted/install-and-update/install-self-hosted).
+
+Fill gaps with time\_bucket\_gapfill
+
+This example uses a `sensor_data` table that tracks temperature readings from IoT sensors.
+
+1.  **Create the `sensor_data` hypertable**
+2.  **Insert sample data with gaps** Create data with intentional gaps to demonstrate gapfilling:
+3.  **Query without gapfilling** First, see what happens with a regular `time_bucket` query: This returns gaps where data is missing (no rows for 00:20:00 and 00:40:00).
+4.  **Query with time\_bucket\_gapfill** Use `time_bucket_gapfill` to create rows for missing time periods: This returns all time buckets, but missing data shows as NULL.
+
+Fill gaps with LOCF
+
+Last observation carried forward (LOCF) takes the last known value and uses it as a replacement for missing data. This is useful when values change slowly or when you want to assume the last known state continues.
+
+1.  **Use LOCF to fill missing values** Missing values are now filled with the last observed temperature.
+
+Fill gaps with interpolation
+
+Linear interpolation calculates values between known data points, creating a smooth transition. This is useful when values change gradually and you want to estimate intermediate values.
+
+1.  **Use interpolate to fill missing values** Missing values are now calculated by linearly interpolating between known data points.
+
+For more information about how gapfilling works, read the [gapfilling blog](https://www.tigerdata.com/blog/sql-functions-for-time-series-analysis).

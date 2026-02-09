@@ -1,0 +1,52 @@
+---
+title: "Troubleshoot"
+description: "Troubleshooting for Managed Service for TimescaleDB"
+---
+Service is running low on disk, memory, or CPU
+
+**Message**:
+
+-   Your Managed Service for TimescaleDB service, in project “ExampleAccount”, is running low on CPU. Running low on CPU affects performance and could affect service availability. Please either optimize your usage pattern or reduce the workload, and consider upgrading to a larger plan to avoid service outage.
+
+When your database reaches 90% of your allocated disk, memory, or CPU resources, an automated message with the text above is sent to your email address. You can resolve this by logging in to your Managed Service for TimescaleDB account and changing your plan to increase your available resources:
+
+1.  From the Managed Service for TimescaleDB Dashboard, select the service that you want to increase resources for.
+2.  Click `Service Settings` > `Service summary` > `Change Plan`.
+3.  Select the suitable plan and click `Change Plan`.
+
+If you run out of resources regularly, you might need to consider using your resources more efficiently. Consider enabling [hypercore](/use-timescale/hypercore/real-time-analytics-in-hypercore), using [continuous aggregates](/build/continuous-aggregates/), or [configuring data retention](/use-timescale/data-retention) to reduce the amount of resources your database uses.
+
+Reset password
+
+It happens to us all, you want to login to MST Console, and the password is somewhere next to your keys, wherever they are. To reset your password:
+
+1.  Open [MST Portal](https://portal.managed.timescale.com/login).
+2.  Click `Forgot password`.
+3.  Enter your email address, then click `Reset password`.
+
+A secure reset password link is sent to the email associated with this account. Click the link and update your password.
+
+Permission denied when changing ownership of tables and hypertables
+
+**Message**:
+
+-   `ERROR`: permission denied for schema \_timescaledb\_internal
+
+You might see this error when using the `ALTER TABLE` command to change the ownership of tables or hypertables. This use of `ALTER TABLE` is blocked because the `tsdbadmin` user is not a superuser. To change table ownership, use the [`REASSIGN`](https://www.postgresql.org/docs/current/sql-reassign-owned.html) command instead:
+
+Corrupted unique index has duplicated rows
+
+**Message**:
+
+-   `ERROR`: could not create unique index
+-   `DETAIL`: Table contains duplicated values.
+
+When you try to rebuild index with `REINDEX` it fails because of conflicting duplicated rows. To identify conflicting duplicate rows, you need to run a query that counts the number of rows for each combination of columns included in the index definition. For example, this `route` table has a `unique_route_index` index defining unique rows based on the combination of the `source` and `destination` columns: If the `unique_route_index` is corrupt, you can find duplicated rows in the `route` table using this query: The query groups the data by the same `source` and `destination` fields defined in the index, and filters any entries with more than one occurrence. Resolve the problematic entries in the rows by manually deleting or merging the entries until no duplicates exist. After all duplicate entries are removed, you can use the `REINDEX` command to rebuild the index.
+
+Problem resolving DNS
+
+MST services require a DNS record. When you launch a new service the DNS record is created, and it can take some time for the new name to propagate to DNS servers around the world. If you move an existing service to a new Cloud provider or region, the service is rebuilt in the new region in the background. When the service has been rebuilt in the new region, the DNS records are updated. This could cause a short interruption to your service while the DNS changes are propagated. If you are unable to resolve DNS, wait a few minutes and try again.
+
+Postgres transaction ID wraparound
+
+The transaction control mechanism in Postgres assigns a transaction ID to every row that is modified in the database; these IDs control the visibility of that row to other concurrent transactions. The transaction ID is a 32-bit number where two billion IDs are always in the visible past and the remaining IDs are reserved for future transactions and are not visible to the running transaction. To avoid a transaction wraparound of old rows, Postgres requires occasional cleanup and freezing of old rows. This ensures that existing rows are visible when more transactions are created. You can manually freeze the old rows by executing `VACUUM FREEZE`. It can also be done automatically using the `autovacuum` daemon when a configured number of transactions has been created since the last freeze point. In Managed Service for TimescaleDB, the transaction limit is set according to the size of the database, up to 1.5 billion transactions. This ensures 500 million transaction IDs are available before a forced freeze and avoids churning stable data in existing tables. To check your transaction freeze limits, you can execute `show autovacuum_freeze_max_age` in your Postgres instance. When the limit is reached, `autovacuum` starts freezing the old rows. Some applications do not automatically adjust the configuration when the Postgres settings change, which can result in unnecessary warnings. For example, PGHero’s default settings alert when 500 million transactions have been created instead of alerting after 1.5 billion transactions. To avoid this, change the value of the `transaction_id_danger` setting from 1,500,000,000 to 500,000,000, to receive warnings when the transaction limit reaches 1.5 billion.

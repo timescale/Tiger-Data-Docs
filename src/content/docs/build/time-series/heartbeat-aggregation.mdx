@@ -1,0 +1,27 @@
+---
+title: "Analyze intermittent time-series data"
+description: "Analyze intermittent or irregular time-series data with heartbeat aggregation in TimescaleDB"
+---
+Given a series of timestamped health checks, it can be tricky to determine the overall health of a system over a given interval. Postgres provides window functions that you use to get a sense of where unhealthy gaps are, but they can be somewhat awkward to use efficiently. This is one of the many cases where hyperfunctions provide an efficient, simple solution for a frequently occurring problem. Heartbeat aggregation helps analyze event-based time-series data with intermittent or irregular signals.
+
+Prerequisites
+
+To follow the steps on this page:
+
+-   Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled.
+    
+    You need [your connection details](/integrate/find-connection-details). This procedure also works for [self-hosted TimescaleDB](/deploy/self-hosted/install-and-update/install-self-hosted).
+
+-   This example uses the [SustData public dataset](https://osf.io/2ac8q/). This dataset tracks the power usage of a small number of apartments and houses over four different deployment intervals. The data is collected in one-minute samples from each unit.
+
+Create a materialized view with heartbeat aggregates
+
+When you have loaded the data into hypertables, you can create a materialized view containing weekly heartbeat aggregates for each of the units.
+
+1.  **Create the materialized view** [`heartbeat_agg`](/api-reference/timescaledb-toolkit/state-tracking/heartbeat_agg/heartbeat_agg) takes the following parameters: the timestamp column, the start of the interval, the length of the interval, and how long the aggregate is considered live after each timestamp. This example uses 2 minutes as the heartbeat lifetime to give some tolerance for small gaps.
+2.  **Query heartbeat data for a particular unit** You can use this data to see when you’re receiving data for a particular unit. This example rolls up the weekly aggregates into a single aggregate using [`rollup()`](/api-reference/timescaledb-toolkit/state-tracking/heartbeat_agg/rollup), and then views the live ranges using [`live_ranges()`](/api-reference/timescaledb-toolkit/state-tracking/heartbeat_agg/live_ranges):
+3.  **Construct more elaborate queries** To return the 5 units with the lowest [`uptime`](/api-reference/timescaledb-toolkit/state-tracking/heartbeat_agg/uptime) during the third deployment:
+4.  **Combine aggregates from different units to get the combined coverage** This example queries the interval where any part of a deployment was active: You can use this data to make observations and draw conclusions:
+    -   The second deployment had a lot more problems than the other ones.
+    -   There were some readings from February 2013 that were incorrectly categorized as a second deployment.
+    -   The timestamps are given in a local time without time zone, resulting in some missing hours around springtime daylight savings time changes.

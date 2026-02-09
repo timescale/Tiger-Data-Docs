@@ -42,7 +42,7 @@ pnpm format
 ### Site Configuration
 
 All navigation, tabs, and sidebar structure is defined in `astro.config.ts` via the `stainlessDocs()` integration:
-- 7 main tabs: Guides, Deploy & Operate, Agentic Postgres, TimescaleDB, pgai, pgvectorscale, Cloud API Reference
+- 8 main tabs: Get Started, Learn, Build, Migrate, Integrate, Reference, Deploy, Cloud API Reference
 - API Reference is auto-generated from the `tiger-cloud` Stainless project
 - Sidebar entries use `autogenerate: { directory: "..." }` to pull from content directories
 
@@ -50,16 +50,86 @@ All navigation, tabs, and sidebar structure is defined in `astro.config.ts` via 
 
 ```
 src/content/docs/
-├── getting-started/     # Quickstart guides
-├── manage-data/         # Data management docs
-├── integrations/        # Integration guides
-├── tutorials/           # Step-by-step tutorials
-├── deploy-and-operate/  # Tiger Cloud, Self-Hosted, MST deployment
-├── agentic-postgres/    # Vector DB, agents, interfaces, pgai, pgvectorscale
-├── timescaledb/         # Synced from timescaledb repo
-├── pgai/                # Synced from pgai repo
-└── pgvectorscale/       # Synced from pgvectorscale repo
+├── get-started/         # Welcome + quickstart path
+│   ├── index.mdx        # Welcome page with path selection
+│   ├── quickstart-5-minutes.mdx
+│   ├── create-service.mdx
+│   ├── connect-your-app.mdx
+│   ├── next-steps.mdx
+│   └── new.mdx          # Changelog
+│
+├── learn/               # Conceptual learning content
+│   ├── fundamentals/    # Core concepts (hypertables, chunks, compression)
+│   ├── deep-dive/       # Advanced architecture topics
+│   ├── examples/        # Real-world use case tutorials
+│   └── production-patterns/  # Best practices for production
+│
+├── build/               # Task-oriented guides by feature
+│   ├── time-series/     # Hypertables and time-series operations
+│   ├── continuous-aggregates/  # CAGG setup and management
+│   ├── columnar-storage/  # Hypercore and compression
+│   ├── tiered-storage/  # Data tiering configuration
+│   ├── performance-optimization/  # Query and schema optimization
+│   ├── cost-optimization/  # Cost reduction strategies
+│   ├── migration/       # General migration strategies (links to /migrate)
+│   ├── operations/      # Jobs, monitoring, maintenance
+│   ├── cookbooks/       # Step-by-step recipes
+│   └── troubleshooting/ # Common issues and fixes
+│
+├── migrate/             # Migration from other databases
+│   ├── index.mdx        # Migration overview
+│   ├── import-*.mdx     # Import methods
+│   └── migrate-from/    # Database-specific guides
+│       ├── postgres.mdx
+│       ├── mongodb.mdx
+│       ├── clickhouse.mdx
+│       └── ...
+│
+├── integrate/           # Tool and framework integrations
+│   ├── data-engineering-etl/
+│   ├── bi-vizualization/
+│   ├── data-ingestion-streaming/
+│   ├── connectors/
+│   ├── code/
+│   ├── query-administration/
+│   ├── secure-connectivity/
+│   ├── observability-alerting/
+│   └── configuration-deployment/
+│
+├── reference/           # API reference and configuration
+│   ├── timescaledb/     # SQL function reference (synced from repo)
+│   ├── toolkit/         # Toolkit function reference
+│   ├── pgai/            # pgai reference (synced from repo)
+│   ├── pgvectorscale/   # pgvectorscale reference (synced from repo)
+│   ├── tiger-cloud-api/ # REST API reference
+│   ├── configuration/   # PostgreSQL/TimescaleDB settings
+│   └── glossary.mdx
+│
+└── deploy/              # Deployment options
+    ├── tiger-cloud/     # Managed cloud service
+    │   ├── get-started/
+    │   ├── configuration/
+    │   ├── data-security/
+    │   ├── secure-access/
+    │   ├── monitoring/
+    │   ├── storage/
+    │   └── pricing/
+    ├── self-hosted/     # Self-managed deployment
+    │   ├── install/
+    │   ├── configuration/
+    │   └── operations/
+    └── mst/             # Managed Service for TimescaleDB
 ```
+
+### Legacy Content (deprecated)
+
+The following directories are deprecated and have been reorganized:
+- `getting-started/` → `get-started/`
+- `manage-data/` → `build/` and `learn/`
+- `tutorials/` → `learn/examples/`
+- `integrations/` → `integrate/`
+- `deploy-and-operate/` → `deploy/`
+- `agentic-postgres/` → removed (content moved to reference)
 
 ### MDX Components
 

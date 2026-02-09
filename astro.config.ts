@@ -27,7 +27,7 @@ export default defineConfig({
         links: [
           {
             label: "Get started",
-            link: "/",
+            link: "/get-started",
           },
         ],
       },
@@ -35,174 +35,259 @@ export default defineConfig({
         aiChat: aiChat(),
       },
       tabs: [
+        // Get Started tab
         {
-          label: "Guides",
-          link: "/",
+          label: "Get Started",
+          link: "/get-started",
           sidebar: [
-            "",
             {
-              label: "Getting started",
-              autogenerate: { directory: "getting-started" },
+              label: "Welcome",
+              link: "/get-started",
             },
             {
-              label: "Manage Data",
-              collapsed: true,
-              autogenerate: { directory: "manage-data" },
-            },
-            {
-              label: "Integrations",
-              collapsed: true,
-              autogenerate: { directory: "integrations" },
-            },
-            {
-              label: "Tutorials",
-              collapsed: true,
-              autogenerate: { directory: "tutorials" },
+              label: "Quickstart",
+              autogenerate: { directory: "get-started" },
             },
           ],
         },
+        // Learn tab
         {
-          label: "Deploy & Operate",
-          link: "/deploy-and-operate/choose-deployment-type",
+          label: "Learn",
+          link: "/learn",
           sidebar: [
             {
               label: "Overview",
-              link: "/deploy-and-operate/choose-deployment-type",
+              link: "/learn",
             },
             {
-              label: "Tiger Cloud",
-              autogenerate: { directory: "deploy-and-operate/tiger-cloud" },
+              label: "Fundamentals",
+              autogenerate: { directory: "learn/fundamentals" },
             },
             {
-              label: "Self-Hosted",
-              autogenerate: { directory: "deploy-and-operate/self-hosted" },
+              label: "Deep Dive",
+              collapsed: true,
+              autogenerate: { directory: "learn/deep-dive" },
             },
             {
-              label: "Managed Service (MST)",
-              autogenerate: { directory: "deploy-and-operate/mst" },
+              label: "Examples",
+              collapsed: true,
+              autogenerate: { directory: "learn/examples" },
+            },
+            {
+              label: "Production Patterns",
+              collapsed: true,
+              autogenerate: { directory: "learn/production-patterns" },
             },
           ],
         },
+        // Build tab
         {
-          label: "Agentic Postgres",
-          link: "/agentic-postgres/key-vector-database-concepts",
+          label: "Build",
+          link: "/build",
           sidebar: [
             {
-              label: "Key Concepts",
-              link: "/agentic-postgres/key-vector-database-concepts",
+              label: "Overview",
+              link: "/build",
             },
             {
-              label: "Agents",
-              autogenerate: { directory: "agentic-postgres/agents" },
+              label: "Time-Series / Hypertables",
+              autogenerate: { directory: "build/time-series" },
             },
             {
-              label: "Interfaces",
-              autogenerate: { directory: "agentic-postgres/interfaces" },
+              label: "Continuous Aggregates",
+              collapsed: true,
+              autogenerate: { directory: "build/continuous-aggregates" },
+            },
+            {
+              label: "Columnar Storage",
+              collapsed: true,
+              autogenerate: { directory: "build/columnar-storage" },
+            },
+            {
+              label: "Tiered Storage",
+              collapsed: true,
+              autogenerate: { directory: "build/tiered-storage" },
+            },
+            {
+              label: "Performance Optimization",
+              collapsed: true,
+              autogenerate: { directory: "build/performance-optimization" },
+            },
+            {
+              label: "Cost Optimization",
+              collapsed: true,
+              autogenerate: { directory: "build/cost-optimization" },
+            },
+            {
+              label: "Migration",
+              collapsed: true,
+              autogenerate: { directory: "build/migration" },
+            },
+            {
+              label: "Operations",
+              collapsed: true,
+              autogenerate: { directory: "build/operations" },
+            },
+            {
+              label: "Cookbooks",
+              collapsed: true,
+              autogenerate: { directory: "build/cookbooks" },
+            },
+            {
+              label: "Troubleshooting",
+              collapsed: true,
+              autogenerate: { directory: "build/troubleshooting" },
+            },
+          ],
+        },
+        // Migrate tab
+        {
+          label: "Migrate",
+          link: "/migrate",
+          sidebar: [
+            {
+              label: "Overview",
+              link: "/migrate",
+            },
+            {
+              label: "Import Methods",
+              autogenerate: { directory: "migrate" },
+            },
+            {
+              label: "Migrate From",
+              collapsed: true,
+              autogenerate: { directory: "migrate/migrate-from" },
+            },
+          ],
+        },
+        // Integrate tab
+        {
+          label: "Integrate",
+          link: "/integrate",
+          sidebar: [
+            {
+              label: "Overview",
+              link: "/integrate",
+            },
+            {
+              label: "Data Engineering & ETL",
+              collapsed: true,
+              autogenerate: { directory: "integrate/data-engineering-etl" },
+            },
+            {
+              label: "BI & Visualization",
+              collapsed: true,
+              autogenerate: { directory: "integrate/bi-vizualization" },
+            },
+            {
+              label: "Data Ingestion & Streaming",
+              collapsed: true,
+              autogenerate: { directory: "integrate/data-ingestion-streaming" },
+            },
+            {
+              label: "Connectors",
+              collapsed: true,
+              autogenerate: { directory: "integrate/connectors" },
+            },
+            {
+              label: "Code & Libraries",
+              collapsed: true,
+              autogenerate: { directory: "integrate/code" },
+            },
+            {
+              label: "Query & Administration",
+              collapsed: true,
+              autogenerate: { directory: "integrate/query-administration" },
+            },
+            {
+              label: "Secure Connectivity",
+              collapsed: true,
+              autogenerate: { directory: "integrate/secure-connectivity" },
+            },
+            {
+              label: "Observability & Alerting",
+              collapsed: true,
+              autogenerate: { directory: "integrate/observability-alerting" },
+            },
+            {
+              label: "Configuration & Deployment",
+              collapsed: true,
+              autogenerate: { directory: "integrate/configuration-deployment" },
+            },
+          ],
+        },
+        // Reference tab
+        {
+          label: "Reference",
+          link: "/reference",
+          sidebar: [
+            {
+              label: "Overview",
+              link: "/reference",
+            },
+            {
+              label: "TimescaleDB",
+              collapsed: true,
+              autogenerate: { directory: "reference/timescaledb" },
+            },
+            {
+              label: "Toolkit",
+              collapsed: true,
+              autogenerate: { directory: "reference/toolkit" },
             },
             {
               label: "pgai",
-              autogenerate: { directory: "agentic-postgres/pgai" },
+              collapsed: true,
+              autogenerate: { directory: "reference/pgai" },
             },
             {
               label: "pgvectorscale",
-              autogenerate: { directory: "agentic-postgres/pgvectorscale" },
-            },
-          ],
-        },
-        {
-          label: "TimescaleDB",
-          link: "/timescaledb",
-          sidebar: [
-            {
-              label: "Overview",
-              link: "/timescaledb",
-            },
-            {
-              label: "Getting Started",
-              autogenerate: { directory: "timescaledb/getting-started" },
-            },
-            {
-              label: "Guides",
-              autogenerate: { directory: "timescaledb", collapsed: true },
-            },
-          ],
-        },
-        {
-          label: "pgai",
-          link: "/pgai",
-          sidebar: [
-            {
-              label: "Overview",
-              link: "/pgai",
-            },
-            {
-              label: "Vectorizer",
-              autogenerate: { directory: "pgai/vectorizer" },
-            },
-            {
-              label: "Semantic Catalog",
-              autogenerate: { directory: "pgai/semantic_catalog" },
-            },
-            {
-              label: "Utilities",
-              autogenerate: { directory: "pgai/utils" },
-            },
-            {
-              label: "Extension",
               collapsed: true,
-              items: [
-                {
-                  label: "Overview",
-                  link: "/pgai/extension",
-                },
-                {
-                  label: "Installation",
-                  autogenerate: { directory: "pgai/extension/install" },
-                },
-                {
-                  label: "Model Calling",
-                  autogenerate: { directory: "pgai/extension/model_calling" },
-                },
-                {
-                  label: "Security",
-                  autogenerate: { directory: "pgai/extension/security" },
-                },
-                {
-                  label: "Utilities",
-                  autogenerate: { directory: "pgai/extension/utils" },
-                },
-              ],
+              autogenerate: { directory: "reference/pgvectorscale" },
+            },
+            {
+              label: "Tiger Cloud API",
+              collapsed: true,
+              autogenerate: { directory: "reference/tiger-cloud-api" },
+            },
+            {
+              label: "Configuration",
+              collapsed: true,
+              autogenerate: { directory: "reference/configuration" },
+            },
+            {
+              label: "Cloud API Reference",
+              collapsed: true,
+              items: generateAPIReferenceItems({
+                excludeResourceOverviewPages: true,
+              }),
             },
           ],
         },
+        // Deploy tab
         {
-          label: "pgvectorscale",
-          link: "/pgvectorscale",
+          label: "Deploy",
+          link: "/deploy",
           sidebar: [
             {
               label: "Overview",
-              link: "/pgvectorscale",
+              link: "/deploy",
             },
             {
-              label: "Development",
-              link: "/pgvectorscale/development",
+              label: "Tiger Cloud",
+              autogenerate: { directory: "deploy/tiger-cloud" },
             },
             {
-              label: "Testing",
-              link: "/pgvectorscale/testing",
+              label: "Self-Hosted",
+              collapsed: true,
+              autogenerate: { directory: "deploy/self-hosted" },
             },
             {
-              label: "Contributing",
-              link: "/pgvectorscale/contributing",
+              label: "Managed Service (MST)",
+              collapsed: true,
+              autogenerate: { directory: "deploy/mst" },
             },
           ],
-        },
-        {
-          label: "Cloud API Reference",
-          link: "/api",
-          sidebar: generateAPIReferenceItems({
-            excludeResourceOverviewPages: true,
-          }),
         },
       ],
     }),
