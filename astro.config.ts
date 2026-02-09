@@ -255,6 +255,13 @@ export default defineConfig({
               collapsed: true,
               autogenerate: { directory: "reference/configuration" },
             },
+            {
+              label: "Cloud API Reference",
+              collapsed: true,
+              items: generateAPIReferenceItems({
+                excludeResourceOverviewPages: true,
+              }),
+            },
           ],
         },
         // Deploy tab
@@ -281,14 +288,6 @@ export default defineConfig({
               autogenerate: { directory: "deploy/mst" },
             },
           ],
-        },
-        // Cloud API Reference tab (generated)
-        {
-          label: "Cloud API Reference",
-          link: "/api",
-          sidebar: generateAPIReferenceItems({
-            excludeResourceOverviewPages: true,
-          }),
         },
       ],
     }),
