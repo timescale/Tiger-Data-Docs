@@ -1,0 +1,165 @@
+---
+title: "Ingest data"
+description: "Learn how to ingest data in Managed Service for TimescaleDB"
+---
+
+## Overview
+
+Optimize data ingestion into your Managed Service for TimescaleDB (MST) instance for high-throughput time-series workloads. TimescaleDB can handle millions of data points per second per node when properly configured.
+
+## Prerequisites
+
+- An active MST instance with a hypertable created
+- Database credentials and connection details
+- Data to ingest (files, streaming sources, or application data)
+
+## Ingestion methods
+
+Choose the right method based on your data source and throughput requirements.
+
+### COPY command
+
+The most efficient method for bulk loading data from files.
+
+```sql
+COPY measurements (time, device_id, temperature, humidity)
+FROM '/path/to/data.csv'
+WITH (FORMAT csv, HEADER true);
+```
+
+- Up to 10x faster than INSERT statements
+- Ideal for loading historical data or large CSV files
+- Supports CSV, text, and binary formats
+
+### Batched INSERT statements
+
+Insert multiple rows in a single statement for application-level ingestion.
+
+```sql
+INSERT INTO measurements (time, device_id, temperature, humidity)
+VALUES
+  ('2024-01-01 00:00:00', 'dev-001', 22.5, 45.0),
+  ('2024-01-01 00:00:01', 'dev-001', 22.6, 44.8),
+  ('2024-01-01 00:00:02', 'dev-001', 22.4, 45.2);
+```
+
+- Batch hundreds or thousands of rows per INSERT
+- Reduces connection and transaction overhead
+- Balance batch size against memory usage
+
+### Parallel ingestion
+
+Maximize throughput by running multiple ingest processes concurrently.
+
+- Use `timescaledb-parallel-copy` for bulk CSV loading
+- Run multiple application instances inserting in parallel
+- Each parallel stream operates as a separate transaction
+
+### Streaming ingestion
+
+Continuously ingest data from real-time sources.
+
+- Connect message queues (Kafka, RabbitMQ) to your database
+- Use application-level batching for efficiency
+- Consider write-ahead logging for durability
+
+## Performance optimization
+
+Techniques to maximize ingestion throughput.
+
+### Batch size tuning
+
+Find the optimal batch size for your workload.
+
+- Start with 1,000-10,000 rows per batch
+- Monitor throughput and adjust based on results
+- Larger batches reduce overhead but increase memory usage
+
+### Index management
+
+Indexes improve query performance but slow down ingestion.
+
+- Evaluate which indexes are necessary
+- Consider dropping non-essential indexes during bulk loads
+- Rebuild indexes after loading historical data
+
+### Foreign keys and triggers
+
+Constraints add overhead to each inserted row.
+
+- Temporarily disable triggers during bulk loads: `ALTER TABLE measurements DISABLE TRIGGER ALL`
+- Consider dropping and recreating foreign keys for large loads
+- Re-enable after loading: `ALTER TABLE measurements ENABLE TRIGGER ALL`
+
+### Chunk sizing
+
+Configure chunks to fit in memory for optimal performance.
+
+- Latest chunk and its indexes should fit in `shared_buffers`
+- Adjust chunk time interval based on your data volume
+- Smaller chunks improve insert performance, larger chunks improve query performance
+
+### Parallel workers
+
+Configure background workers for chunk operations.
+
+```sql
+-- Check current settings
+SHOW timescaledb.max_background_workers;
+```
+
+## Loading historical data
+
+Best practices for backfilling large amounts of historical data.
+
+### Preparation
+
+1. Plan the data loading order (chronological is often best)
+2. Consider temporarily increasing instance resources
+3. Disable compression policies during the load
+4. Drop non-essential indexes
+
+### Execution
+
+1. Load data in parallel streams
+2. Monitor progress and resource utilization
+3. Load data in approximate time order across all sources
+
+### Post-load optimization
+
+1. Run `ANALYZE` to update table statistics
+2. Run `VACUUM` to reclaim space and update visibility maps
+3. Rebuild any indexes that were dropped
+4. Re-enable compression and retention policies
+
+## Monitoring ingestion
+
+Track ingestion performance and identify bottlenecks.
+
+### Key metrics
+
+- Rows inserted per second
+- Transaction duration
+- Chunk creation rate
+- WAL generation rate
+
+### Identifying bottlenecks
+
+- High CPU: Consider more parallel workers or query optimization
+- High I/O wait: Storage may be saturated, consider scaling
+- Lock contention: Review indexing strategy and transaction size
+
+## Troubleshooting
+
+Common ingestion issues and solutions.
+
+- Insert performance degradation over time
+- Chunk creation errors
+- Out of memory during bulk loads
+- Connection timeouts during long-running loads
+
+## Next steps
+
+- [Connection pools](/deploy/mst/data-performance/connection-pools) - Optimize connections for high-throughput ingestion
+- [Storage](/deploy/mst/storage/storage) - Configure compression to reduce storage from ingested data
+- [Configuration](/deploy/mst/configuration/configuration) - Tune settings for ingestion workloads

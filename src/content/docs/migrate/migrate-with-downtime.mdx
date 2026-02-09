@@ -1,0 +1,143 @@
+---
+title: "Import from a database with downtime"
+description: "Migrate your PostgreSQL database to Tiger Cloud using pg_dump and pg_restore for a complete offline migration"
+---
+
+## Overview
+
+Learn how to migrate your existing PostgreSQL database to Tiger Cloud using `pg_dump` and `pg_restore`. This offline migration approach requires a maintenance window but provides a straightforward, reliable method for transferring your complete database including schema, data, and permissions.
+
+## Prerequisites
+
+- Source database running PostgreSQL 10 or later
+- A Tiger Cloud service provisioned with sufficient storage
+- `pg_dump` and `pg_restore` utilities installed (use the target PostgreSQL version)
+- Network connectivity to both source and target databases
+- Sufficient local disk space for the dump file (or streaming capability)
+- Scheduled maintenance window for your application
+
+## When to use offline migration
+
+This section helps you determine if offline migration is the right approach.
+
+### Ideal scenarios
+
+- Databases smaller than 100GB where dump/restore completes within acceptable downtime
+- Development or staging environments where downtime is not critical
+- Situations where simplicity and reliability are prioritized over zero downtime
+- Initial migrations before going live with Tiger Cloud
+
+### Estimating downtime
+
+Factors that affect migration duration include database size, network bandwidth, table indexes, and server resources.
+
+## Migration workflow
+
+### Step 1: Prepare for migration
+
+Plan your maintenance window, notify stakeholders, and verify prerequisites.
+
+#### Export roles and users
+
+PostgreSQL roles are global and must be exported separately using `pg_dumpall -g`.
+
+#### Vacuum and analyze tables
+
+Reduce table bloat before dumping to minimize dump size and time.
+
+### Step 2: Stop application writes
+
+Put your application in maintenance mode or stop services to prevent writes during migration.
+
+### Step 3: Create the database dump
+
+#### Choose the dump format
+
+- **Custom format (-Fc)**: Compressed, supports parallel restore, recommended for most cases
+- **Directory format (-Fd)**: Supports parallel dump and restore, good for very large databases
+- **Plain SQL (-Fp)**: Human-readable, useful for small databases or debugging
+
+#### Run pg_dump
+
+Execute the dump command with appropriate options for your chosen format.
+
+### Step 4: Transfer the dump file
+
+Move the dump file to a location accessible for restoration. Consider compression for large files.
+
+### Step 5: Import roles and users
+
+Restore global objects (roles, users) to Tiger Cloud before restoring the database.
+
+### Step 6: Restore the database
+
+#### Tune restore performance
+
+Adjust server parameters to speed up restoration:
+- Increase `maintenance_work_mem` for faster index creation
+- Set appropriate `max_parallel_maintenance_workers`
+- Consider temporarily disabling fsync (with caution)
+
+#### Run pg_restore
+
+Execute the restore with parallel jobs for faster completion.
+
+### Step 7: Verify and validate
+
+Run validation queries to ensure data integrity and completeness.
+
+### Step 8: Update application configuration
+
+Point your application to the new Tiger Cloud database and resume operations.
+
+## Best practices
+
+- Use PostgreSQL binaries from the target version for both dump and restore
+- Export roles and users before database objects to preserve permissions
+- Use custom or directory format for flexibility and compression
+- Enable parallel processing with the `-j` flag to reduce restore time
+- Place your client machine close to both databases to minimize network latency
+- Test the entire process in a non-production environment first
+- Document the expected duration and have a rollback plan
+
+## Performance optimization
+
+### Parallel dump and restore
+
+Use multiple concurrent jobs to maximize throughput on multi-core systems.
+
+### Network considerations
+
+For remote migrations, consider compressing dumps or using faster network paths.
+
+### Server tuning during restore
+
+Temporarily adjust database parameters to prioritize restore speed.
+
+## Troubleshooting
+
+### Dump takes too long
+
+Vacuum tables before dumping, use parallel dump (directory format), or identify and exclude large unused tables.
+
+### Restore fails with permission errors
+
+Ensure roles were imported before the database restore. Check that the restore user has necessary privileges.
+
+### Out of disk space
+
+Use compressed formats, stream directly between databases, or provision additional temporary storage.
+
+### Foreign key constraint failures
+
+Use `--disable-triggers` option during restore or ensure tables are restored in the correct order.
+
+### Sequence values incorrect
+
+Sequences should be included in the dump. Verify with `pg_dump --section=post-data` if needed.
+
+## Next steps
+
+- [Live import from a database](/migrate/live-migration/) - Alternative approach with zero downtime
+- [Import data using Terminal](/migrate/import-terminal/) - Additional terminal import methods
+- [Read and write data](/get-started/timescaledb-read-write-data/) - Start querying your migrated data

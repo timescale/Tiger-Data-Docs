@@ -1,0 +1,204 @@
+---
+title: "Get started with Managed Service for TimescaleDB"
+description: "Learn how to get started with Managed Service for TimescaleDB"
+---
+
+## Overview
+
+Create your first Managed Service for TimescaleDB (MST) instance and start working with time-series data in minutes. This guide walks you through provisioning a database, connecting to it, and running your first queries.
+
+## Prerequisites
+
+- A Tiger Cloud account (sign up at tigerdata.com if needed)
+- A PostgreSQL client (psql, pgAdmin, DBeaver, or your preferred tool)
+- Basic familiarity with SQL
+
+## Create your MST instance
+
+Provision a new database instance through the Tiger Cloud console.
+
+### Step 1: Log in to Tiger Cloud
+
+Navigate to the Tiger Cloud console and sign in with your credentials.
+
+### Step 2: Create a new service
+
+1. Click **Create Service** or **New Instance**
+2. Select **Managed Service for TimescaleDB** as the service type
+3. Choose your configuration:
+   - **Region** - Select the cloud region closest to your application
+   - **Instance size** - Start small for development, scale up for production
+   - **Storage** - Allocate initial storage (can be increased later)
+   - **High availability** - Enable for production workloads
+
+### Step 3: Configure access
+
+1. Set an admin password or generate one
+2. Note your connection details (displayed after creation)
+3. Configure IP allowlist if needed (or allow all for development)
+
+### Step 4: Wait for provisioning
+
+Instance creation typically takes 2-5 minutes. Status changes from "Creating" to "Running" when ready.
+
+## Connect to your instance
+
+Use your preferred PostgreSQL client to connect.
+
+### Connection details
+
+Find your connection information in the Tiger Cloud console:
+
+- **Host** - Your instance hostname
+- **Port** - 5432 (direct) or 6432 (pooled)
+- **Database** - defaultdb (or your database name)
+- **User** - tsdbadmin (or your username)
+- **Password** - Your configured password
+- **SSL mode** - require (always use SSL)
+
+### Connect with psql
+
+```bash
+psql "postgres://tsdbadmin:YOUR_PASSWORD@YOUR_HOST:5432/defaultdb?sslmode=require"
+```
+
+### Connect with a connection string
+
+Most applications accept a PostgreSQL connection string:
+
+```
+postgres://tsdbadmin:YOUR_PASSWORD@YOUR_HOST:5432/defaultdb?sslmode=require
+```
+
+### Verify your connection
+
+Run a simple query to confirm connectivity:
+
+```sql
+SELECT version();
+SELECT extversion FROM pg_extension WHERE extname = 'timescaledb';
+```
+
+## Create your first hypertable
+
+Set up a time-series table optimized for your data.
+
+### Create a regular table
+
+```sql
+CREATE TABLE sensor_data (
+  time        TIMESTAMPTZ NOT NULL,
+  sensor_id   TEXT NOT NULL,
+  temperature DOUBLE PRECISION,
+  humidity    DOUBLE PRECISION
+);
+```
+
+### Convert to a hypertable
+
+```sql
+SELECT create_hypertable('sensor_data', 'time');
+```
+
+This enables automatic time-based partitioning and TimescaleDB optimizations.
+
+## Insert sample data
+
+Add some test data to your hypertable.
+
+```sql
+INSERT INTO sensor_data (time, sensor_id, temperature, humidity)
+VALUES
+  (NOW() - INTERVAL '1 hour', 'sensor-1', 22.5, 45.0),
+  (NOW() - INTERVAL '30 minutes', 'sensor-1', 23.1, 44.2),
+  (NOW(), 'sensor-1', 22.8, 45.5),
+  (NOW() - INTERVAL '1 hour', 'sensor-2', 21.0, 50.0),
+  (NOW() - INTERVAL '30 minutes', 'sensor-2', 21.5, 49.0),
+  (NOW(), 'sensor-2', 21.2, 49.5);
+```
+
+## Query your data
+
+Run time-series queries using standard SQL.
+
+### Basic query
+
+```sql
+SELECT * FROM sensor_data
+WHERE time > NOW() - INTERVAL '2 hours'
+ORDER BY time DESC;
+```
+
+### Time-bucket aggregation
+
+Use TimescaleDB's `time_bucket` function for time-based aggregations:
+
+```sql
+SELECT
+  time_bucket('15 minutes', time) AS bucket,
+  sensor_id,
+  AVG(temperature) AS avg_temp,
+  AVG(humidity) AS avg_humidity
+FROM sensor_data
+WHERE time > NOW() - INTERVAL '2 hours'
+GROUP BY bucket, sensor_id
+ORDER BY bucket DESC;
+```
+
+## Enable compression (optional)
+
+Reduce storage costs by compressing older data.
+
+```sql
+-- Enable compression on the hypertable
+ALTER TABLE sensor_data SET (
+  timescaledb.compress,
+  timescaledb.compress_segmentby = 'sensor_id'
+);
+
+-- Create a policy to compress data older than 7 days
+SELECT add_compression_policy('sensor_data', INTERVAL '7 days');
+```
+
+## Clean up (optional)
+
+If this is a test instance, you can delete it when done:
+
+1. Navigate to your instance in the Tiger Cloud console
+2. Select **Settings** or **Actions**
+3. Choose **Delete instance**
+4. Confirm deletion
+
+Note: Deletion is permanent and removes all data.
+
+## Troubleshooting
+
+Common issues when getting started.
+
+### Cannot connect to instance
+
+- Verify your IP is in the allowlist
+- Check that you're using the correct port (5432 or 6432)
+- Ensure SSL mode is set to "require"
+- Confirm the instance status is "Running"
+
+### Permission denied errors
+
+- Verify you're using the correct username and password
+- Check that the user has permissions on the database
+
+### Extension not found
+
+TimescaleDB should be pre-installed. Verify with:
+
+```sql
+SELECT * FROM pg_extension WHERE extname = 'timescaledb';
+```
+
+## Next steps
+
+- [About MST](/deploy/mst/understand/about-managed-service-for-timescaledb) - Learn about MST features and architecture
+- [Ingest data](/deploy/mst/data-performance/ingest-data) - Load data at scale
+- [Storage](/deploy/mst/storage/storage) - Configure compression and tiered storage
+- [Secure access](/deploy/mst/secure-access/secure-access) - Set up authentication and access controls
+- [Connection pools](/deploy/mst/data-performance/connection-pools) - Optimize connection management
