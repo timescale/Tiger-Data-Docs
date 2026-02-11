@@ -1,11 +1,11 @@
-name: PR Checklist Check
+name: git-bounce
 
 on:
   pull_request:
     types: [opened, edited, synchronize, ready_for_review]
 
 concurrency:
-  group: pr-checklist-${{ github.event.pull_request.number }}
+  group: git-bounce-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -22,6 +22,7 @@ jobs:
           script: |
             const prBody = context.payload.pull_request.body || '';
             const prNumber = context.payload.pull_request.number;
+            const prUrl = context.payload.pull_request.html_url;
             
             // Required checkboxes from the PR template
             const requiredItems = [
@@ -39,7 +40,7 @@ jobs:
               'This references a feature that is public'
             ];
             
-            const commentMarker = '<!-- pr-checklist-bot -->';
+            const commentMarker = '<!-- git-bounce-bot -->';
             let errorMessage = '';
             let shouldFail = false;
             
@@ -79,29 +80,21 @@ jobs:
                 errorMessage = `**PR is missing required checklist items.** Please do not delete items from the PR template:\n\n${missingItems.map(i => `- ${i}`).join('\n')}`;
                 shouldFail = true;
               } else if (uncheckedItems.length > 0) {
-                errorMessage = `**Please complete all checklist items before requesting review.**\n\nUnchecked items:\n${uncheckedItems.map(i => `- [ ] ${i}`).join('\n')}`;
+                errorMessage = `**Please complete all checklist items in [the PR description](${prUrl}) before requesting review.**\n\nUnchecked items:\n${uncheckedItems.map(i => `- ${i}`).join('\n')}`;
                 shouldFail = true;
               }
             }
             
-            // Find and delete previous bot comments
+            // Find existing bot comment
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber
             });
             
-            for (const comment of comments) {
-              if (comment.body.includes(commentMarker)) {
-                await github.rest.issues.deleteComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: comment.id
-                });
-              }
-            }
+            const existingComment = comments.find(c => c.body.includes(commentMarker));
             
-            // Post new comment
+            // Build comment body
             let commentBody;
             if (shouldFail) {
               commentBody = `${commentMarker}\n## Checklist Verification Failed\n\n${errorMessage}`;
@@ -109,12 +102,22 @@ jobs:
               commentBody = `${commentMarker}\n## Checklist Verification Passed\n\nThank you for taking the time to properly review your PR! All checklist items are complete.`;
             }
             
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: commentBody
-            });
+            // Update existing comment or create new one
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentBody
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: commentBody
+              });
+            }
             
             if (shouldFail) {
               core.setFailed(errorMessage.replace(/\*\*/g, '').replace(/\n/g, ' '));
