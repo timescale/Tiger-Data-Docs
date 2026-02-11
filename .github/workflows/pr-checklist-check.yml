@@ -85,14 +85,17 @@ jobs:
               }
             }
             
-            // Find existing bot comment
+            // Find existing bot comments (check both old and new markers)
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber
             });
             
-            const existingComment = comments.find(c => c.body.includes(commentMarker));
+            const oldMarker = '<!-- pr-checklist-bot -->';
+            const botComments = comments.filter(c => 
+              c.body.includes(commentMarker) || c.body.includes(oldMarker)
+            );
             
             // Build comment body
             let commentBody;
@@ -102,14 +105,25 @@ jobs:
               commentBody = `${commentMarker}\n## Checklist Verification Passed\n\nThank you for taking the time to properly review your PR! All checklist items are complete.`;
             }
             
-            // Update existing comment or create new one
-            if (existingComment) {
+            // Delete all but the first bot comment, then update the first one
+            // This cleans up any duplicates from previous runs
+            if (botComments.length > 0) {
+              // Update the first comment
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                comment_id: existingComment.id,
+                comment_id: botComments[0].id,
                 body: commentBody
               });
+              
+              // Delete any extra comments
+              for (let i = 1; i < botComments.length; i++) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComments[i].id
+                });
+              }
             } else {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
