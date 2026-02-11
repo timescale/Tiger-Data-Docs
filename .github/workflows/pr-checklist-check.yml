@@ -85,18 +85,6 @@ jobs:
               }
             }
             
-            // Find existing bot comments (check both old and new markers)
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber
-            });
-            
-            const oldMarker = '<!-- pr-checklist-bot -->';
-            const botComments = comments.filter(c => 
-              c.body.includes(commentMarker) || c.body.includes(oldMarker)
-            );
-            
             // Build comment body
             let commentBody;
             if (shouldFail) {
@@ -105,33 +93,32 @@ jobs:
               commentBody = `${commentMarker}\n## Checklist Verification Passed\n\nThank you for taking the time to properly review your PR! All checklist items are complete.`;
             }
             
-            // Delete all but the first bot comment, then update the first one
-            // This cleans up any duplicates from previous runs
-            if (botComments.length > 0) {
-              // Update the first comment
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComments[0].id,
-                body: commentBody
-              });
-              
-              // Delete any extra comments
-              for (let i = 1; i < botComments.length; i++) {
+            // Get all comments on the PR
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+            
+            // Delete ALL existing bot comments (both old and new markers)
+            const oldMarker = '<!-- pr-checklist-bot -->';
+            for (const comment of comments) {
+              if (comment.body && (comment.body.includes(commentMarker) || comment.body.includes(oldMarker))) {
                 await github.rest.issues.deleteComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  comment_id: botComments[i].id
+                  comment_id: comment.id
                 });
               }
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                body: commentBody
-              });
             }
+            
+            // Create fresh comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: commentBody
+            });
             
             if (shouldFail) {
               core.setFailed(errorMessage.replace(/\*\*/g, '').replace(/\n/g, ' '));
