@@ -1,0 +1,127 @@
+name: git-bounce
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, ready_for_review]
+
+concurrency:
+  group: git-bounce-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check-checklist:
+    name: Verify PR Checklist
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Check PR template and checkboxes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prBody = context.payload.pull_request.body || '';
+            const prNumber = context.payload.pull_request.number;
+            const prUrl = context.payload.pull_request.html_url;
+            
+            // Required checkboxes from the PR template
+            const requiredItems = [
+              'Is this ready for review',
+              'This has deployed to a staging environment correctly',
+              'I have reviewed my changes',
+              'I have confirmed the content is technically accurate',
+              'I have confirmed the content is free of typos or grammar errors',
+              'I have reviewed the deployed version of my changes',
+              'I have tested any code that is added or updated',
+              'I have verified all images and videos are clear',
+              'I have verified all images and videos match production',
+              'I have tested that the content matches the functionality in production',
+              'All checks have passed',
+              'This references a feature that is public'
+            ];
+            
+            const commentMarker = '<!-- git-bounce-bot -->';
+            let errorMessage = '';
+            let shouldFail = false;
+            
+            // Check for required sections
+            const hasDescribeSection = prBody.includes('## Describe your changes');
+            const hasIssuesSection = prBody.includes('## Related Issues');
+            const hasChecklistSection = prBody.includes('## Checklist before requesting a review');
+            
+            const missingStructure = [];
+            if (!hasDescribeSection) missingStructure.push('"## Describe your changes"');
+            if (!hasIssuesSection) missingStructure.push('"## Related Issues"');
+            if (!hasChecklistSection) missingStructure.push('"## Checklist before requesting a review"');
+            
+            if (missingStructure.length > 0) {
+              errorMessage = `**PR is missing required template sections:**\n\n${missingStructure.join('\n')}\n\nPlease use the PR template.`;
+              shouldFail = true;
+            } else {
+              // Check that all required checklist items exist and are checked
+              const missingItems = [];
+              const uncheckedItems = [];
+              
+              for (const item of requiredItems) {
+                const uncheckedPattern = new RegExp(`- \\[ \\].*${item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+                const checkedPattern = new RegExp(`- \\[x\\].*${item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+                
+                const isUnchecked = uncheckedPattern.test(prBody);
+                const isChecked = checkedPattern.test(prBody);
+                
+                if (!isUnchecked && !isChecked) {
+                  missingItems.push(item);
+                } else if (isUnchecked) {
+                  uncheckedItems.push(item);
+                }
+              }
+              
+              if (missingItems.length > 0) {
+                errorMessage = `**PR is missing required checklist items.** Please do not delete items from the PR template:\n\n${missingItems.map(i => `- ${i}`).join('\n')}`;
+                shouldFail = true;
+              } else if (uncheckedItems.length > 0) {
+                errorMessage = `**Please complete all checklist items in [the PR description](${prUrl}) before requesting review.**\n\nUnchecked items:\n${uncheckedItems.map(i => `- ${i}`).join('\n')}`;
+                shouldFail = true;
+              }
+            }
+            
+            // Build comment body
+            let commentBody;
+            if (shouldFail) {
+              commentBody = `${commentMarker}\n## Checklist Verification Failed\n\n${errorMessage}`;
+            } else {
+              commentBody = `${commentMarker}\n## Checklist Verification Passed\n\nThank you for taking the time to properly review your PR! All checklist items are complete.`;
+            }
+            
+            // Get all comments on the PR
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+            
+            // Delete ALL existing bot comments (both old and new markers)
+            const oldMarker = '<!-- pr-checklist-bot -->';
+            for (const comment of comments) {
+              if (comment.body && (comment.body.includes(commentMarker) || comment.body.includes(oldMarker))) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id
+                });
+              }
+            }
+            
+            // Create fresh comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: commentBody
+            });
+            
+            if (shouldFail) {
+              core.setFailed(errorMessage.replace(/\*\*/g, '').replace(/\n/g, ' '));
+            } else {
+              console.log('All checklist items are complete!');
+            }
