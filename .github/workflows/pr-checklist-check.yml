@@ -41,8 +41,8 @@ jobs:
             ];
             
             const commentMarker = '<!-- git-bounce-bot -->';
-            let errorMessage = '';
-            let shouldFail = false;
+            let warningMessage = '';
+            let hasWarning = false;
             
             // Check for required sections
             const hasDescribeSection = prBody.includes('## Describe your changes');
@@ -55,8 +55,8 @@ jobs:
             if (!hasChecklistSection) missingStructure.push('"## Checklist before requesting a review"');
             
             if (missingStructure.length > 0) {
-              errorMessage = `**PR is missing required template sections:**\n\n${missingStructure.join('\n')}\n\nPlease use the PR template.`;
-              shouldFail = true;
+              warningMessage = `**PR is missing required template sections:**\n\n${missingStructure.join('\n')}\n\nPlease use the PR template.`;
+              hasWarning = true;
             } else {
               // Check that all required checklist items exist and are checked
               const missingItems = [];
@@ -77,20 +77,20 @@ jobs:
               }
               
               if (missingItems.length > 0) {
-                errorMessage = `**PR is missing required checklist items.** Please do not delete items from the PR template:\n\n${missingItems.map(i => `- ${i}`).join('\n')}`;
-                shouldFail = true;
+                warningMessage = `**PR is missing required checklist items.** Please do not delete items from the PR template:\n\n${missingItems.map(i => `- ${i}`).join('\n')}`;
+                hasWarning = true;
               } else if (uncheckedItems.length > 0) {
-                errorMessage = `**Please complete all checklist items in [the PR description](${prUrl}) before requesting review.**\n\nUnchecked items:\n${uncheckedItems.map(i => `- ${i}`).join('\n')}`;
-                shouldFail = true;
+                warningMessage = `**Please complete all checklist items in [the PR description](${prUrl}) before requesting review.**\n\nUnchecked items:\n${uncheckedItems.map(i => `- ${i}`).join('\n')}\n\n> **Tip:** If an item isn't relevant to your PR, mark it as checked and add "n/a" next to it.`;
+                hasWarning = true;
               }
             }
             
             // Build comment body
             let commentBody;
-            if (shouldFail) {
-              commentBody = `${commentMarker}\n## Checklist Verification Failed\n\n${errorMessage}`;
+            if (hasWarning) {
+              commentBody = `${commentMarker}\n## ⚠️ Checklist Incomplete\n\n${warningMessage}`;
             } else {
-              commentBody = `${commentMarker}\n## Checklist Verification Passed\n\nThank you for taking the time to properly review your PR! All checklist items are complete.`;
+              commentBody = `${commentMarker}\n## ✅ Checklist Complete\n\nThank you for taking the time to properly review your PR! All checklist items are complete.`;
             }
             
             // Get all comments on the PR
@@ -120,8 +120,8 @@ jobs:
               body: commentBody
             });
             
-            if (shouldFail) {
-              core.setFailed(errorMessage.replace(/\*\*/g, '').replace(/\n/g, ' '));
-            } else {
-              console.log('All checklist items are complete!');
+            if (hasWarning) {
+              core.warning(warningMessage.replace(/\*\*/g, '').replace(/\n/g, ' '));
             }
+            
+            console.log(hasWarning ? 'Checklist incomplete - warning posted' : 'All checklist items complete!');
