@@ -43,10 +43,7 @@ export default defineConfig({
           label: "Get Started",
           link: "/get-started",
           sidebar: [
-            {
-              label: "Welcome",
-              link: "/get-started",
-            },
+            "get-started", // Welcome/index page
             {
               label: "Quickstart",
               autogenerate: { directory: "get-started" },
