@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      checks: read
     steps:
       - name: Generate preview URL
         id: preview-url
@@ -31,6 +32,52 @@ jobs:
           
           echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
           echo "branch=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Wait for Stainless deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.payload.pull_request.head.sha;
+            const maxAttempts = 60; // 10 minutes max (60 * 10 seconds)
+            const delaySeconds = 10;
+            
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              console.log(`Checking for Stainless deployment (attempt ${attempt}/${maxAttempts})...`);
+              
+              const { data: checkRuns } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: sha
+              });
+              
+              // Look for Stainless-related check
+              const stainlessCheck = checkRuns.check_runs.find(check => 
+                check.name.toLowerCase().includes('stainless') || 
+                check.name.toLowerCase().includes('deploy') ||
+                check.app?.slug?.includes('stainless')
+              );
+              
+              if (stainlessCheck) {
+                console.log(`Found check: ${stainlessCheck.name} - Status: ${stainlessCheck.status}, Conclusion: ${stainlessCheck.conclusion}`);
+                
+                if (stainlessCheck.status === 'completed') {
+                  if (stainlessCheck.conclusion === 'success') {
+                    console.log('Stainless deployment completed successfully!');
+                    return;
+                  } else {
+                    core.setFailed(`Stainless deployment failed with conclusion: ${stainlessCheck.conclusion}`);
+                    return;
+                  }
+                }
+              } else {
+                console.log('No Stainless check found yet...');
+              }
+              
+              // Wait before next attempt
+              await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
+            }
+            
+            console.log('Timeout waiting for Stainless deployment, posting comment anyway');
 
       - name: Comment preview link on PR
         uses: actions/github-script@v7
