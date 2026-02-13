@@ -46,15 +46,20 @@ const id = title
   .replace(/[^a-z0-9]+/g, '-')
   .replace(/(^-|-$)/g, '');
 
-// Format date for display
-const displayDate = new Date(date).toLocaleDateString('en-US', {
+// Parse the YYYY-MM-DD date string as a UTC date to avoid timezone shifts
+const [year, month, day] = date.split('-').map(Number);
+const utcDate = new Date(Date.UTC(year, month - 1, day));
+
+// Format date for display in a timezone-stable way (UTC)
+const displayDate = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
-});
+  timeZone: 'UTC',
+}).format(utcDate);
 
-// Get ISO date for sorting
-const isoDate = new Date(date).toISOString().split('T')[0];
+// Use the original ISO date string for sorting / attributes
+const isoDate = date;
 ---
 
 <article 
