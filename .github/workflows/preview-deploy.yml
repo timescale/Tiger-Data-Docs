@@ -1,0 +1,112 @@
+name: Docs Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: docs-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  # Update this with your Stainless project name
+  STAINLESS_PROJECT: tiger-data-docs
+
+jobs:
+  build-and-preview:
+    name: Build & Post Preview Link
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build docs
+        run: pnpm build
+        env:
+          STAINLESS_API_KEY: ${{ secrets.STAINLESS_API_KEY }}
+
+      - name: Generate preview URL
+        id: preview-url
+        run: |
+          # Sanitize branch name for URL (replace special chars with hyphens)
+          BRANCH_NAME="${{ github.head_ref }}"
+          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's/[^a-zA-Z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | tr '[:upper:]' '[:lower:]')
+          
+          # Stainless preview URL pattern - adjust if your pattern differs
+          PREVIEW_URL="https://${STAINLESS_PROJECT}--${SANITIZED_BRANCH}.preview.stainless.dev"
+          
+          echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
+          echo "branch=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Comment preview link on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const previewUrl = '${{ steps.preview-url.outputs.preview_url }}';
+            const branch = '${{ steps.preview-url.outputs.branch }}';
+            const sha = context.payload.pull_request.head.sha.substring(0, 7);
+            
+            const commentMarker = '<!-- stainless-docs-preview -->';
+            
+            const commentBody = `${commentMarker}
+            ## 📚 Docs Preview
+            
+            | Status | Link |
+            |--------|------|
+            | ✅ Build successful | [Preview Deployment](${previewUrl}) |
+            
+            **Branch:** \`${branch}\`
+            **Commit:** \`${sha}\`
+            
+            > 🕐 Preview deployments may take a few minutes to become available after the build completes.
+            `;
+            
+            // Get existing comments
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+            
+            // Find existing bot comment
+            const existingComment = comments.find(comment => 
+              comment.body && comment.body.includes(commentMarker)
+            );
+            
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentBody
+              });
+              console.log('Updated existing preview comment');
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: commentBody
+              });
+              console.log('Created new preview comment');
+            }
