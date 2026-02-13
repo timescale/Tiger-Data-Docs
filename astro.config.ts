@@ -1,9 +1,13 @@
 import { defineConfig } from "astro/config";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
 import aiChat from "@stainless-api/docs-ai-chat/plugin";
+import remarkVariables from "./src/remark-variables";
 
 // https://astro.build/config
 export default defineConfig({
+  markdown: {
+    remarkPlugins: [remarkVariables],
+  },
   integrations: [
     stainlessDocs({
       apiReference: {
