@@ -1,8 +1,3 @@
-export const MY_CONSTANT = "some value";
-
-
-// ES6 module used by frontend React components and dynamically imported by gatsby-node.js
-
 // General
 
 export const PRODUCT_PREFIX = 'Tiger';
