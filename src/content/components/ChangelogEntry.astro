@@ -1,0 +1,256 @@
+---
+/**
+ * ChangelogEntry Component
+ * 
+ * A wrapper component for changelog entries that provides:
+ * - Visual card styling with clear separation
+ * - Structured date display
+ * - Anchor ID generation for deep linking
+ * - Data attributes for filtering/sorting
+ * 
+ * Usage:
+ * <ChangelogEntry 
+ *   title="Feature Name"
+ *   date="2026-02-11"
+ *   tags={["new-feature", "integration"]}
+ * >
+ *   Content here...
+ * </ChangelogEntry>
+ */
+
+import ChangelogTag from './ChangelogTag.astro';
+
+interface Props {
+  title: string;
+  date: string; // ISO format: YYYY-MM-DD
+  tags: Array<
+    | 'new-feature'
+    | 'improvement' 
+    | 'performance'
+    | 'security'
+    | 'integration'
+    | 'region'
+    | 'deprecation'
+    | 'bug-fix'
+    | 'breaking-change'
+    | 'beta'
+    | 'ga'
+  >;
+}
+
+const { title, date, tags } = Astro.props;
+
+// Generate URL-friendly ID from title
+const id = title
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/(^-|-$)/g, '');
+
+// Parse the YYYY-MM-DD date string as a UTC date to avoid timezone shifts
+const [year, month, day] = date.split('-').map(Number);
+const utcDate = new Date(Date.UTC(year, month - 1, day));
+
+// Format date for display in a timezone-stable way (UTC)
+const displayDate = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  timeZone: 'UTC',
+}).format(utcDate);
+
+// Use the original ISO date string for sorting / attributes
+const isoDate = date;
+---
+
+<article 
+  class="changelog-entry" 
+  id={id}
+  data-date={isoDate}
+  data-tags={tags.join(',')}
+>
+  <header class="changelog-entry__header">
+    <div class="changelog-entry__meta">
+      <time class="changelog-entry__date" datetime={isoDate}>
+        {displayDate}
+      </time>
+      <a href={`#${id}`} class="changelog-entry__anchor" aria-label={`Link to ${title}`}>
+        #
+      </a>
+    </div>
+    <h2 class="changelog-entry__title">{title}</h2>
+    <div class="changelog-entry__tags">
+      {tags.map((tag) => <ChangelogTag type={tag} />)}
+    </div>
+  </header>
+  
+  <div class="changelog-entry__content">
+    <slot />
+  </div>
+</article>
+
+<style>
+  .changelog-entry {
+    --entry-border-color: light-dark(#e5e7eb, #374151);
+    --entry-bg: light-dark(#ffffff, #111827);
+    --entry-hover-bg: light-dark(#f9fafb, #1f2937);
+    
+    position: relative;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    background: var(--entry-bg);
+    border: 1px solid var(--entry-border-color);
+    border-radius: 12px;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+
+  .changelog-entry:hover {
+    border-color: light-dark(#d1d5db, #4b5563);
+    box-shadow: 0 4px 12px light-dark(rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.3));
+  }
+
+  .changelog-entry:target {
+    border-color: light-dark(#6446fb, #f5ff80);
+    box-shadow: 0 0 0 3px light-dark(rgba(100, 70, 251, 0.1), rgba(245, 255, 128, 0.1));
+  }
+
+  .changelog-entry__header {
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--entry-border-color);
+  }
+
+  .changelog-entry__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.375rem;
+  }
+
+  .changelog-entry__date {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: light-dark(#6b7280, #9ca3af);
+  }
+
+  .changelog-entry__anchor {
+    opacity: 0;
+    font-size: 1rem;
+    color: light-dark(#9ca3af, #6b7280);
+    text-decoration: none;
+    transition: opacity 0.15s ease, color 0.15s ease, outline-color 0.15s ease;
+  }
+
+  .changelog-entry:hover .changelog-entry__anchor {
+    opacity: 1;
+  }
+
+  .changelog-entry__anchor:hover,
+  .changelog-entry__anchor:focus,
+  .changelog-entry__anchor:focus-visible {
+    opacity: 1;
+    color: light-dark(#6446fb, #f5ff80);
+    outline: 2px solid light-dark(#6446fb, #f5ff80);
+    outline-offset: 2px;
+  }
+
+  .changelog-entry__title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.375rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: light-dark(#111827, #f9fafb);
+  }
+
+  .changelog-entry__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .changelog-entry__content {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: light-dark(#374151, #d1d5db);
+  }
+
+  .changelog-entry__content :global(p) {
+    margin: 0.375rem 0 !important;
+  }
+
+  .changelog-entry__content :global(p:first-child) {
+    margin-top: 0 !important;
+  }
+
+  .changelog-entry__content :global(p:last-child) {
+    margin-bottom: 0 !important;
+  }
+
+  .changelog-entry__content :global(h2),
+  .changelog-entry__content :global(h2:first-child) {
+    font-size: 1.125rem !important;
+    font-weight: 600 !important;
+    margin-top: 0.625rem !important;
+    margin-bottom: 0.25rem !important;
+    color: light-dark(#1f2937, #e5e7eb) !important;
+    line-height: 1.4 !important;
+  }
+
+  .changelog-entry__content :global(h3),
+  .changelog-entry__content :global(h3:first-child) {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    margin-top: 0.625rem !important;
+    margin-bottom: 0.25rem !important;
+    color: light-dark(#1f2937, #e5e7eb) !important;
+    line-height: 1.4 !important;
+  }
+
+  .changelog-entry__content :global(h2 a.anchor),
+  .changelog-entry__content :global(h3 a.anchor) {
+    display: inline-block !important;
+    margin-left: 0.375rem !important;
+    vertical-align: middle !important;
+    line-height: 1 !important;
+  }
+
+  .changelog-entry__content :global(h2:first-child),
+  .changelog-entry__content :global(h3:first-child) {
+    margin-top: 0 !important;
+  }
+
+  .changelog-entry__content :global(ul),
+  .changelog-entry__content :global(ol) {
+    margin: 0.375rem 0;
+    padding-left: 1.5rem;
+  }
+
+  .changelog-entry__content :global(li) {
+    margin-bottom: 0.125rem;
+  }
+
+  .changelog-entry__content :global(a) {
+    color: light-dark(#6446fb, #f5ff80);
+    text-decoration: none;
+  }
+
+  .changelog-entry__content :global(a:hover) {
+    text-decoration: underline;
+  }
+
+  .changelog-entry__content :global(strong) {
+    font-weight: 600;
+    color: light-dark(#1f2937, #f3f4f6);
+  }
+
+  .changelog-entry__content :global(code) {
+    font-size: 0.875em;
+    padding: 0.125em 0.375em;
+    background: light-dark(#f3f4f6, #1f2937);
+    border-radius: 4px;
+  }
+
+  /* Hide entry when filtered out */
+  .changelog-entry[data-hidden="true"] {
+    display: none;
+  }
+</style>
