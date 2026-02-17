@@ -1,0 +1,73 @@
+import * as C from "../constants";
+import { Steps, Step } from "@stainless-api/docs/components";
+
+import HypertableIntro from "./_tutorials_hypertable_intro.mdx";
+import CreateHypertablePolicyNote from "./_create-hypertable-columnstore-policy-note.mdx";
+
+## Optimize time-series data in hypertables
+
+<HypertableIntro />
+
+<Steps>
+
+<Step title={`Connect to your ${C.SERVICE_LONG}`}>
+
+In [{C.CONSOLE}][services-portal] open an [SQL editor][in-console-editors]. You can also connect to your service using [psql][connect-using-psql].
+
+</Step>
+
+<Step title={`Create a ${C.HYPERTABLE} to store the real-time stock data`}>
+
+```sql
+ CREATE TABLE stocks_real_time (
+   time TIMESTAMPTZ NOT NULL,
+   symbol TEXT NOT NULL,
+   price DOUBLE PRECISION NULL,
+   day_volume INT NULL
+ ) WITH (
+    tsdb.hypertable
+ );
+ ```
+<CreateHypertablePolicyNote />
+
+</Step>
+
+<Step title="Create an index to support efficient queries">
+
+Index on the `symbol` and `time` columns:
+
+```sql
+CREATE INDEX ix_symbol_time ON stocks_real_time (symbol, time DESC);
+```
+
+</Step>
+
+</Steps>
+
+## Create standard {C.PG} tables for relational data
+
+When you have other relational data that enhances your time-series data, you can
+create standard {C.PG} tables just as you would normally. For this dataset,
+there is one other table of data called `company`.
+
+<Steps>
+
+<Step title="Add a table to store the company data">
+
+```sql
+CREATE TABLE company (
+  symbol TEXT NOT NULL,
+  name TEXT NOT NULL
+);
+```
+
+</Step>
+
+</Steps>
+
+You now have two tables in your {C.SERVICE_LONG}. One hypertable
+named `stocks_real_time`, and one regular {C.PG} table named `company`.
+
+[connect-using-psql]: /integrations/psql/#connect-to-your-service
+[in-console-editors]: /getting-started/run-queries-from-console/
+[services-portal]: https://console.cloud.timescale.com/dashboard/services
