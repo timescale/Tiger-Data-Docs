@@ -2,11 +2,10 @@
 /**
  * ChangelogFilter Component
  * 
- * Provides client-side filtering and sorting for changelog entries.
+ * Provides client-side filtering for changelog entries.
  * 
  * Features:
  * - Filter by tag type (multi-select)
- * - Sort by date (newest/oldest)
  * - Search by keyword
  * - URL state persistence
  * 
@@ -45,15 +44,6 @@ const tagOptions = [
         placeholder="Search updates..."
         aria-label="Search changelog entries"
       />
-    </div>
-
-    <!-- Sort -->
-    <div class="changelog-filter__sort">
-      <label for="changelog-sort" class="changelog-filter__sort-label">Sort:</label>
-      <select id="changelog-sort" class="changelog-filter__sort-select">
-        <option value="newest">Newest first</option>
-        <option value="oldest">Oldest first</option>
-      </select>
     </div>
   </div>
 
@@ -153,69 +143,29 @@ const tagOptions = [
     color: var(--filter-text-muted);
   }
 
-  /* Sort */
-  .changelog-filter__sort {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .changelog-filter__sort-label {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--filter-text-muted);
-    line-height: 2.5rem;
-  }
-
-  .changelog-filter__sort-select {
-    height: 2.5rem;
-    padding: 0 2rem 0 0.75rem;
-    font-size: 0.875rem;
-    color: var(--filter-text);
-    background: var(--filter-input-bg);
-    border: 1px solid var(--filter-border);
-    border-radius: 8px;
-    cursor: pointer;
-    outline: none;
-    appearance: none;
-    box-sizing: border-box;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.5rem center;
-  }
-
-  .changelog-filter__sort-select:focus {
-    border-color: var(--filter-accent);
-    box-shadow: 0 0 0 3px light-dark(rgba(100, 70, 251, 0.1), rgba(245, 255, 128, 0.1));
-  }
-
   /* Tags */
   .changelog-filter__tags {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.5rem;
-    margin-top: 0.25rem;
+    align-items: center;
+    column-gap: 0.5rem;
+    row-gap: 0.5rem;
   }
 
   .changelog-filter__tags-label {
-    display: inline-flex;
-    align-items: center;
-    height: 2rem;
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--filter-text-muted);
-    margin-right: 0.25rem;
+    line-height: 1.75rem;
   }
 
   .changelog-filter__tag-btn {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
     gap: 0.25rem;
-    height: 2rem;
-    padding: 0 0.75rem;
-    font-size: 0.8125rem;
+    height: 1.75rem;
+    padding: 0 0.625rem;
+    font-size: 0.75rem;
     font-weight: 500;
     line-height: 1;
     color: var(--filter-text);
@@ -245,7 +195,7 @@ const tagOptions = [
   }
 
   .changelog-filter__tag-icon {
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     line-height: 1;
   }
 
@@ -264,16 +214,51 @@ const tagOptions = [
 
   /* Responsive */
   @media (max-width: 640px) {
+    .changelog-filter {
+      padding: 0.75rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
     .changelog-filter__controls {
-      flex-direction: column;
+      margin-bottom: 0.75rem;
     }
 
-    .changelog-filter__sort {
+    .changelog-filter__search {
+      min-width: 100%;
+    }
+
+    .changelog-filter__search-input {
+      height: 2.25rem;
+      font-size: 1rem; /* Prevents iOS zoom on focus */
+    }
+
+    .changelog-filter__tags {
+      column-gap: 0.375rem;
+      row-gap: 0.375rem;
+    }
+
+    .changelog-filter__tags-label {
       width: 100%;
+      margin-bottom: 0.125rem;
+      font-size: 0.75rem;
+      line-height: 1;
     }
 
-    .changelog-filter__sort-select {
-      flex: 1;
+    .changelog-filter__tag-btn {
+      height: 1.5rem;
+      padding: 0 0.5rem;
+      font-size: 0.6875rem;
+    }
+
+    .changelog-filter__tag-icon {
+      font-size: 0.625rem;
+    }
+
+    .changelog-filter__results {
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      font-size: 0.75rem;
     }
   }
 </style>
@@ -282,13 +267,11 @@ const tagOptions = [
   document.addEventListener('DOMContentLoaded', () => {
     const filterContainer = document.getElementById('changelog-filter');
     const searchInput = document.getElementById('changelog-search') as HTMLInputElement;
-    const sortSelect = document.getElementById('changelog-sort') as HTMLSelectElement;
     const tagButtons = document.querySelectorAll('.changelog-filter__tag-btn');
     const resultsContainer = document.querySelector('.changelog-filter__results-count');
     
     let activeFilters: Set<string> = new Set(['all']);
     let searchQuery = '';
-    let sortOrder = 'newest';
 
     // Get all changelog entries
     const getEntries = () => document.querySelectorAll('.changelog-entry') as NodeListOf<HTMLElement>;
@@ -297,7 +280,6 @@ const tagOptions = [
     const updateURL = () => {
       const params = new URLSearchParams();
       if (searchQuery) params.set('q', searchQuery);
-      if (sortOrder !== 'newest') params.set('sort', sortOrder);
       if (!activeFilters.has('all')) {
         params.set('tags', Array.from(activeFilters).join(','));
       }
@@ -318,11 +300,6 @@ const tagOptions = [
         searchInput.value = searchQuery;
       }
       
-      if (params.has('sort')) {
-        sortOrder = params.get('sort') || 'newest';
-        sortSelect.value = sortOrder;
-      }
-      
       if (params.has('tags')) {
         const tags = params.get('tags')?.split(',') || [];
         activeFilters = new Set(tags);
@@ -335,26 +312,10 @@ const tagOptions = [
       }
     };
 
-    // Filter and sort entries
+    // Filter entries
     const applyFilters = () => {
       const entries = getEntries();
-      const entriesArray = Array.from(entries);
       let visibleCount = 0;
-
-      // Sort entries
-      const container = entries[0]?.parentElement;
-      if (container) {
-        entriesArray.sort((a, b) => {
-          const dateA = a.dataset.date || '';
-          const dateB = b.dataset.date || '';
-          return sortOrder === 'newest' 
-            ? dateB.localeCompare(dateA)
-            : dateA.localeCompare(dateB);
-        });
-
-        // Re-append in sorted order
-        entriesArray.forEach(entry => container.appendChild(entry));
-      }
 
       // Filter entries
       entries.forEach(entry => {
@@ -391,11 +352,6 @@ const tagOptions = [
     // Event handlers
     searchInput?.addEventListener('input', (e) => {
       searchQuery = (e.target as HTMLInputElement).value;
-      applyFilters();
-    });
-
-    sortSelect?.addEventListener('change', (e) => {
-      sortOrder = (e.target as HTMLSelectElement).value;
       applyFilters();
     });
 
