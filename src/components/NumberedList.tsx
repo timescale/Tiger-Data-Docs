@@ -4,10 +4,8 @@ import type { ReactNode } from "react";
  * NumberedList – a numbered instruction list with step circles and a vertical connecting line.
  * Use in MDX for step-by-step guides. Styles live in theme.css.
  *
- * Import path is relative to your MDX file:
- *   - From docs/get-started/*.mdx:  import { NumberedList, NumberedItem } from "../../../components/NumberedList";
- *   - From docs/learn/*.mdx:          import { NumberedList, NumberedItem } from "../../../../components/NumberedList";
- *   - From docs/build/foo/*.mdx:      import { NumberedList, NumberedItem } from "../../../../components/NumberedList";
+ * Import from any MDX file (use the @components alias):
+ *   import { NumberedList, NumberedItem } from "@components/NumberedList";
  *
  * Usage:
  *   <NumberedList>

@@ -4,6 +4,14 @@ import aiChat from "@stainless-api/docs-ai-chat/plugin";
 
 // https://astro.build/config
 export default defineConfig({
+  vite: {
+    resolve: {
+      alias: {
+        "@components": new URL("./src/components", import.meta.url).pathname,
+        "@constants": new URL("./src/constants.ts", import.meta.url).pathname,
+      },
+    },
+  },
   integrations: [
     stainlessDocs({
       apiReference: {
