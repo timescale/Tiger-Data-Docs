@@ -1,0 +1,162 @@
+---
+title: Integrate Tiger Cloud with your AI Assistant (MCP and CLI)
+description: Install Tiger CLI, set up Tiger MCP, and manage Tiger Cloud resources from Claude, Cursor, and other AI assistants.
+products: [cloud]
+content_group: Getting started
+---
+
+import { Callout } from "@stainless-api/docs/components";
+
+# Integrate Tiger Cloud with your AI Assistant
+
+**Tiger Cloud:** Performance, scale, enterprise, and free tiers. Tiger MCP gives your AI assistant access to Tiger Cloud so you can manage services and query your data using natural language.
+
+Tiger MCP is built into the Tiger CLI binary. It mirrors CLI functionality and is wired to Tiger Data documentation, so your AI assistant can answer questions with up-to-date guidance. This page walks you through installing Tiger CLI, configuring authentication for Tiger MCP, and managing Tiger Cloud resources from your AI assistant.
+
+## Prerequisites
+
+Before you start:
+
+- **Create a Tiger Cloud account** and (optionally) a target project.
+- **Install an AI assistant** on your machine with an active API key.
+
+<Callout variant="note" title="Supported clients may change">
+The following AI assistants are **automatically** configured by Tiger MCP: `claude-code`, `cursor`, `windsurf`, `codex`, `gemini/gemini-cli`, `vscode/code/vs-code`. Support for additional clients is added over time; if yours isn’t listed, use [manual configuration](#manually-configure-tiger-mcp) below.
+</Callout>
+
+## Install and configure Tiger MCP
+
+Tiger MCP is bundled with Tiger CLI.
+
+### 1. Install Tiger CLI
+
+In a terminal, install the CLI using the method for your platform (see [Tiger Cloud documentation](https://www.tigerdata.com/docs) for the latest install command).
+
+### 2. Set up API credentials
+
+1. **Log in to Tiger Cloud**  
+   Run:
+   ```bash
+   tiger auth login
+   ```
+   Tiger CLI opens the browser for Console. Log in and click **Authorize**.
+
+   <Callout variant="warning" title="Credential limit">
+   You can have a maximum of **10 active client credentials**. If login fails, open [credentials](https://console.cloud.timescale.com) and remove an unused credential.
+   </Callout>
+
+2. **Select a Tiger Cloud project**  
+   If you have multiple projects, the CLI will prompt you to choose one (e.g. Tiger Project, company-wide project, or department project). If you have only one project, this step is skipped.
+
+   Credentials are stored in the system keychain (or credential manager) when possible. If that fails, they are stored in `~/.config/tiger/credentials` with restricted permissions (600). Configuration is stored by default in `~/.config/tiger/config.yaml`.
+
+3. **Confirm the connection**  
+   List services to verify authentication:
+   ```bash
+   tiger service list
+   ```
+   You’ll see either an empty list with a prompt to create a service, or a table of your services (service ID, name, status, type, region, created).
+
+### 3. Install Tiger MCP
+
+Run:
+
+```bash
+tiger mcp install
+```
+
+Choose the MCP client to integrate with (e.g. Claude Code, Cursor, Windsurf, Codex, Gemini CLI, VS Code) and press **Enter**.
+
+<Callout variant="note" title="CLI and MCP commands">
+The exact list of clients and subcommands (e.g. `tiger mcp install`, `tiger mcp list`) can change with new CLI releases. If a command fails, check the latest [Tiger Cloud docs](https://www.tigerdata.com/docs/ai/latest/mcp-server) or run `tiger mcp --help`.
+</Callout>
+
+After this, you can use Tiger MCP from your AI assistant to manage Tiger Cloud.
+
+## Manage Tiger Cloud from your AI assistant
+
+Once connected, you can manage services and learn best practices through your assistant.
+
+1. **Start your AI assistant** (e.g. `claude`). It will start the Tiger MCP server and connect to Tiger Cloud.
+2. **Confirm MCP is active**  
+   Ask: *“Is the Tiger Data MCP server active?”* You should see a summary of available tools (service management, database operations, documentation search, skills for hypertables, etc.).
+3. **List services**  
+   Ask: *“Can you list my active services?”* to see your Tiger Cloud services.
+4. **Manage services in plain language**  
+   For example: *“Create a new AI service called bob with a replica.”* The assistant will use MCP tools to create the service.
+5. **Get best practices**  
+   For example: *“I need to migrate a database with 25 million rows to Tiger Cloud; what service optimizations should I do before migration?”* The assistant can use docs and tools to give tailored advice.
+
+## Manually configure Tiger MCP
+
+If your MCP client isn’t supported by `tiger mcp install`, add Tiger MCP manually. Many clients use a JSON config that starts the server with `tiger mcp start`:
+
+```json
+{
+  "mcpServers": {
+    "tiger": {
+      "command": "tiger",
+      "args": ["mcp", "start"]
+    }
+  }
+}
+```
+
+<Callout variant="note" title="Config format may vary">
+Config key names (e.g. `mcpServers`) and structure depend on your client. See your AI assistant’s MCP documentation for the exact format and where to place the file.
+</Callout>
+
+## Tiger MCP tools
+
+Tiger MCP exposes the following tools to your AI assistant. **Parameter names and required/optional fields may change with new MCP versions**; use `tiger mcp get <tool_name>` or the latest [Tiger Cloud MCP docs](https://www.tigerdata.com/docs/ai/latest/mcp-server) for current definitions.
+
+| Tool | Key parameters | Description |
+|------|----------------|-------------|
+| **service_list** | — | List services in the current project. |
+| **service_get** | `service_id` (required) | Detailed info for one service. Optional: `with_password` (use only if the user explicitly asks for the password). |
+| **service_create** | `name`, `addons`, `region`, `cpu_memory`, `replicas`, `wait`, `timeout_minutes`, `set_default`, `with_password` | Create a new service. **WARNING:** creates billable resources. Addons: `time-series` (TimescaleDB), `ai` (AI/vector). |
+| **service_fork** | `service_id`, `fork_strategy` (NOW \| LAST_SNAPSHOT \| PITR), `target_time` (for PITR), `name`, `cpu_memory`, `wait`, `timeout_minutes`, `set_default`, `with_password` | Fork a service. **WARNING:** creates billable resources. |
+| **service_update_password** | `service_id`, `password` | Update `tsdbadmin` password; may disconnect existing sessions. |
+| **service_start** | `service_id`, `wait`, `timeout_minutes` | Start a stopped service. |
+| **service_stop** | `service_id`, `wait`, `timeout_minutes` | Stop a running service. |
+| **service_resize** | `service_id`, `cpu_memory`, `wait`, `timeout_minutes` | Change CPU/memory. **WARNING:** affects billing; service may be briefly unavailable. |
+| **service_logs** | `service_id`, `tail`, `until`, `node` | Fetch service logs (e.g. tail length, time range, node). |
+| **db_execute_query** | `service_id`, `query`, `parameters`, `timeout_seconds`, `role`, `pooled` | Run a single SQL statement. **WARNING:** can run destructive SQL (INSERT/UPDATE/DELETE/DDL). Multi-statement not supported. |
+
+## Tiger CLI commands for MCP
+
+Use these under the `tiger mcp` namespace. **Subcommands and flags may be updated in new CLI releases.**
+
+| Command | Description |
+|--------|-------------|
+| `tiger mcp install [client]` | Configure Tiger MCP for a client (e.g. `claude-code`, `cursor`, `windsurf`, `codex`, `gemini/gemini-cli`, `vscode/code/vs-code`). Flags: `--no-backup`, `--config-path`. |
+| `tiger mcp list` | List MCP tools, prompts, and resources. Optional: `--output` / `-o` (json, yaml, table). |
+| `tiger mcp get <name>` | Details for one capability (e.g. `tiger mcp get service_create` or `tiger mcp get setup-timescaledb-hypertables`). Aliases: `describe`, `show`. |
+| `tiger mcp start` | Start Tiger MCP (same as `tiger mcp start stdio`). |
+| `tiger mcp start stdio` | Start MCP with stdio transport. |
+| `tiger mcp start http` | Start MCP with HTTP (e.g. if your assistant doesn’t support stdio). Flags: `--port` (default 8080), `--host` (default localhost). |
+
+## Global flags
+
+When running Tiger CLI (including MCP commands), you can use:
+
+| Flag | Default | Description |
+|------|--------|-------------|
+| `--analytics` | true | Enable/disable usage analytics. |
+| `--color` | true | Enable/disable colored output. |
+| `--config-dir` | `~/.config/tiger` | Config directory for `config.yaml`. |
+| `--debug` | false | Enable debug logging. |
+| `--help` / `-h` | — | Help for the current command. |
+| `--password-storage` | keyring | Password storage: `keyring`, `pgpass`, or `none`. |
+| `--service-id` | — | Default service for subsequent commands. |
+| `--skip-update-check` | false | Skip CLI update check. |
+
+<Callout variant="tip" title="Keep docs in sync">
+For the latest tool parameters, CPU/memory options, regions, and addon names, refer to the [current Tiger Cloud MCP server documentation](https://www.tigerdata.com/docs/ai/latest/mcp-server). These details can change with product updates.
+</Callout>
+
+## Next steps
+
+- [Create a Tiger Cloud service](/docs/get-started/create-service) if you don’t have one yet.
+- [Connect your app](/docs/get-started/connect-your-app) to your service.
+- Use your AI assistant to run SQL, manage services, and follow Tiger Data best practices via MCP.
