@@ -4,6 +4,7 @@ description: Learn what hypertables are, why they matter, and create your first 
 ---
 
 import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 # Your First Hypertable
 
@@ -55,8 +56,9 @@ We will create a simple hypertable for sensor-style data: a `conditions` table w
 
 **Prerequisites:** A Tiger Cloud service with Real-time analytics (or self-hosted TimescaleDB) and your [connection details](/deploy/tiger-cloud/get-started/create-services). The steps below work in any client that can run SQL (e.g. `psql` or your app’s SQL driver).
 
-### Step 1: Create the hypertable
+<NumberedList>
 
+<NumberedItem title="Create the hypertable">
 Run the following SQL. The important part is the `WITH (tsdb.hypertable, ...)` clause: it tells the database to treat this table as a hypertable. The first column with a timestamp type (`time`) is used as the partitioning column by default. We use `tsdb.segmentby = 'device'` so that rows are grouped by `device` inside chunks, which helps both query and compression when you filter by device. We use `tsdb.orderby = 'time DESC'` so that recent data is stored in an order that matches typical time-range queries.
 
 ```sql
@@ -74,9 +76,9 @@ CREATE TABLE conditions (
 ```
 
 You should see a confirmation that the table was created (exact message depends on your client). The table is now a hypertable: new chunks will be created automatically as you insert data into new time ranges.
+</NumberedItem>
 
-### Step 2: Insert a few rows
-
+<NumberedItem title="Insert a few rows">
 Insert some sample rows so we can query the hypertable:
 
 ```sql
@@ -86,9 +88,9 @@ VALUES
    (NOW() - INTERVAL '1 hour',  'office', 'sensor-1', 22.3, 44.8),
    (NOW(),                      'office', 'sensor-1', 22.2, 45.1);
 ```
+</NumberedItem>
 
-### Step 3: Query the hypertable
-
+<NumberedItem title="Query the hypertable">
 Query it like a normal table:
 
 ```sql
@@ -96,6 +98,9 @@ SELECT * FROM conditions ORDER BY time DESC;
 ```
 
 You should see your three rows, with the most recent first. Notice that you didn’t have to mention chunks or partitioning—you just use standard SQL. The database routes the query to the right chunk(s) for you.
+</NumberedItem>
+
+</NumberedList>
 
 You have built your first hypertable and used it for inserts and a time-ordered query. From here you can add more data, add indexes, or enable features like the columnstore; the [Setup hypertables](/build/time-series/setup-hypertables) guide and [Optimize time-series data in hypertables](https://www.tigerdata.com/docs/use-timescale/latest/hypertables/hypertable-crud) on the Tiger Data docs cover those next steps.
 
