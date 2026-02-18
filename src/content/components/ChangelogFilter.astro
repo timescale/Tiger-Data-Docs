@@ -1,0 +1,446 @@
+---
+/**
+ * ChangelogFilter Component
+ * 
+ * Provides client-side filtering and sorting for changelog entries.
+ * 
+ * Features:
+ * - Filter by tag type (multi-select)
+ * - Sort by date (newest/oldest)
+ * - Search by keyword
+ * - URL state persistence
+ * 
+ * Usage:
+ * Place this component at the top of your changelog page, before the entries.
+ * <ChangelogFilter />
+ */
+
+const tagOptions = [
+  { value: 'new-feature', label: 'New Feature', icon: '✨' },
+  { value: 'improvement', label: 'Improvement', icon: '💡' },
+  { value: 'performance', label: 'Performance', icon: '🏎️' },
+  { value: 'security', label: 'Security', icon: '🔐' },
+  { value: 'integration', label: 'Integration', icon: '🔌' },
+  { value: 'region', label: 'Availability', icon: '🌍' },
+  { value: 'deprecation', label: 'Deprecation', icon: '⚠️' },
+  { value: 'bug-fix', label: 'Bug Fix', icon: '🐛' },
+  { value: 'breaking-change', label: 'Breaking', icon: '🚨' },
+  { value: 'beta', label: 'Beta', icon: '🧪' },
+  { value: 'ga', label: 'GA', icon: '🎉' },
+];
+---
+
+<div class="changelog-filter" id="changelog-filter">
+  <div class="changelog-filter__controls">
+    <!-- Search -->
+    <div class="changelog-filter__search">
+      <svg class="changelog-filter__search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.3-4.3"></path>
+      </svg>
+      <input 
+        type="search" 
+        id="changelog-search" 
+        class="changelog-filter__search-input"
+        placeholder="Search updates..."
+        aria-label="Search changelog entries"
+      />
+    </div>
+
+    <!-- Sort -->
+    <div class="changelog-filter__sort">
+      <label for="changelog-sort" class="changelog-filter__sort-label">Sort:</label>
+      <select id="changelog-sort" class="changelog-filter__sort-select">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Tag filters -->
+  <div class="changelog-filter__tags">
+    <span class="changelog-filter__tags-label">Filter by:</span>
+    <button 
+      class="changelog-filter__tag-btn changelog-filter__tag-btn--all active"
+      data-tag="all"
+      aria-pressed="true"
+    >All</button>
+    {tagOptions.map((tag) => (
+      <button 
+        class={`changelog-filter__tag-btn changelog-filter__tag-btn--${tag.value}`}
+        data-tag={tag.value}
+        aria-pressed="false"
+      >
+        <span class="changelog-filter__tag-icon" aria-hidden="true">{tag.icon}</span>
+        {tag.label}
+      </button>
+    ))}
+  </div>
+
+  <!-- Results count -->
+  <div class="changelog-filter__results" id="changelog-results">
+    <span class="changelog-filter__results-count"></span>
+  </div>
+</div>
+
+<style>
+  .changelog-filter {
+    --filter-border: light-dark(#e5e7eb, #374151);
+    --filter-bg: light-dark(#f9fafb, #1f2937);
+    --filter-input-bg: light-dark(#ffffff, #111827);
+    --filter-text: light-dark(#374151, #d1d5db);
+    --filter-text-muted: light-dark(#6b7280, #9ca3af);
+    --filter-accent: light-dark(#6446fb, #f5ff80);
+    --filter-accent-text: light-dark(#ffffff, #000000);
+    
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    background: var(--filter-bg);
+    border: 1px solid var(--filter-border);
+    border-radius: 12px;
+    backdrop-filter: blur(8px);
+  }
+
+  .changelog-filter__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Search */
+  .changelog-filter__search {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+  }
+
+  .changelog-filter__search-icon {
+    position: absolute;
+    left: 0.875rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--filter-text-muted);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .changelog-filter__search-input {
+    width: 100%;
+    height: 2.5rem;
+    padding: 0 0.875rem 0 2.5rem;
+    font-size: 0.875rem;
+    line-height: 2.5rem;
+    color: var(--filter-text);
+    background: var(--filter-input-bg);
+    border: 1px solid var(--filter-border);
+    border-radius: 8px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .changelog-filter__search-input:focus {
+    border-color: var(--filter-accent);
+    box-shadow: 0 0 0 3px light-dark(rgba(100, 70, 251, 0.1), rgba(245, 255, 128, 0.1));
+  }
+
+  .changelog-filter__search-input::placeholder {
+    color: var(--filter-text-muted);
+  }
+
+  /* Sort */
+  .changelog-filter__sort {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .changelog-filter__sort-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--filter-text-muted);
+    line-height: 2.5rem;
+  }
+
+  .changelog-filter__sort-select {
+    height: 2.5rem;
+    padding: 0 2rem 0 0.75rem;
+    font-size: 0.875rem;
+    color: var(--filter-text);
+    background: var(--filter-input-bg);
+    border: 1px solid var(--filter-border);
+    border-radius: 8px;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    box-sizing: border-box;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+  }
+
+  .changelog-filter__sort-select:focus {
+    border-color: var(--filter-accent);
+    box-shadow: 0 0 0 3px light-dark(rgba(100, 70, 251, 0.1), rgba(245, 255, 128, 0.1));
+  }
+
+  /* Tags */
+  .changelog-filter__tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .changelog-filter__tags-label {
+    display: inline-flex;
+    align-items: center;
+    height: 2rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--filter-text-muted);
+    margin-right: 0.25rem;
+  }
+
+  .changelog-filter__tag-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    height: 2rem;
+    padding: 0 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--filter-text);
+    background: var(--filter-input-bg);
+    border: 1px solid var(--filter-border);
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  .changelog-filter__tag-btn:hover {
+    border-color: var(--filter-accent);
+  }
+
+  .changelog-filter__tag-btn.active {
+    background: var(--filter-accent);
+    color: var(--filter-accent-text);
+    border-color: var(--filter-accent);
+  }
+
+  .changelog-filter__tag-btn[aria-pressed="true"] {
+    background: var(--filter-accent);
+    color: var(--filter-accent-text);
+    border-color: var(--filter-accent);
+  }
+
+  .changelog-filter__tag-icon {
+    font-size: 0.875rem;
+    line-height: 1;
+  }
+
+  /* Results */
+  .changelog-filter__results {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--filter-border);
+    font-size: 0.8125rem;
+    color: var(--filter-text-muted);
+  }
+
+  .changelog-filter__results-count:empty {
+    display: none;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .changelog-filter__controls {
+      flex-direction: column;
+    }
+
+    .changelog-filter__sort {
+      width: 100%;
+    }
+
+    .changelog-filter__sort-select {
+      flex: 1;
+    }
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const filterContainer = document.getElementById('changelog-filter');
+    const searchInput = document.getElementById('changelog-search') as HTMLInputElement;
+    const sortSelect = document.getElementById('changelog-sort') as HTMLSelectElement;
+    const tagButtons = document.querySelectorAll('.changelog-filter__tag-btn');
+    const resultsContainer = document.querySelector('.changelog-filter__results-count');
+    
+    let activeFilters: Set<string> = new Set(['all']);
+    let searchQuery = '';
+    let sortOrder = 'newest';
+
+    // Get all changelog entries
+    const getEntries = () => document.querySelectorAll('.changelog-entry') as NodeListOf<HTMLElement>;
+
+    // Update URL with current filter state
+    const updateURL = () => {
+      const params = new URLSearchParams();
+      if (searchQuery) params.set('q', searchQuery);
+      if (sortOrder !== 'newest') params.set('sort', sortOrder);
+      if (!activeFilters.has('all')) {
+        params.set('tags', Array.from(activeFilters).join(','));
+      }
+      
+      const newURL = params.toString() 
+        ? `${window.location.pathname}?${params.toString()}`
+        : window.location.pathname;
+      
+      window.history.replaceState({}, '', newURL);
+    };
+
+    // Read initial state from URL
+    const readURL = () => {
+      const params = new URLSearchParams(window.location.search);
+      
+      if (params.has('q')) {
+        searchQuery = params.get('q') || '';
+        searchInput.value = searchQuery;
+      }
+      
+      if (params.has('sort')) {
+        sortOrder = params.get('sort') || 'newest';
+        sortSelect.value = sortOrder;
+      }
+      
+      if (params.has('tags')) {
+        const tags = params.get('tags')?.split(',') || [];
+        activeFilters = new Set(tags);
+        tagButtons.forEach(btn => {
+          const tag = (btn as HTMLElement).dataset.tag;
+          const isActive = activeFilters.has(tag || '');
+          btn.classList.toggle('active', isActive);
+          btn.setAttribute('aria-pressed', String(isActive));
+        });
+      }
+    };
+
+    // Filter and sort entries
+    const applyFilters = () => {
+      const entries = getEntries();
+      const entriesArray = Array.from(entries);
+      let visibleCount = 0;
+
+      // Sort entries
+      const container = entries[0]?.parentElement;
+      if (container) {
+        entriesArray.sort((a, b) => {
+          const dateA = a.dataset.date || '';
+          const dateB = b.dataset.date || '';
+          return sortOrder === 'newest' 
+            ? dateB.localeCompare(dateA)
+            : dateA.localeCompare(dateB);
+        });
+
+        // Re-append in sorted order
+        entriesArray.forEach(entry => container.appendChild(entry));
+      }
+
+      // Filter entries
+      entries.forEach(entry => {
+        const entryTags = (entry.dataset.tags || '').split(',');
+        const entryText = entry.textContent?.toLowerCase() || '';
+        
+        // Check tag filter
+        const matchesTags = activeFilters.has('all') || 
+          entryTags.some(tag => activeFilters.has(tag));
+        
+        // Check search filter
+        const matchesSearch = !searchQuery || 
+          entryText.includes(searchQuery.toLowerCase());
+
+        const isVisible = matchesTags && matchesSearch;
+        entry.setAttribute('data-hidden', String(!isVisible));
+        
+        if (isVisible) visibleCount++;
+      });
+
+      // Update results count
+      if (resultsContainer) {
+        const totalCount = entries.length;
+        if (visibleCount === totalCount) {
+          resultsContainer.textContent = `Showing all ${totalCount} updates`;
+        } else {
+          resultsContainer.textContent = `Showing ${visibleCount} of ${totalCount} updates`;
+        }
+      }
+
+      updateURL();
+    };
+
+    // Event handlers
+    searchInput?.addEventListener('input', (e) => {
+      searchQuery = (e.target as HTMLInputElement).value;
+      applyFilters();
+    });
+
+    sortSelect?.addEventListener('change', (e) => {
+      sortOrder = (e.target as HTMLSelectElement).value;
+      applyFilters();
+    });
+
+    tagButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tag = (btn as HTMLElement).dataset.tag;
+        
+        if (tag === 'all') {
+          // Reset to all
+          activeFilters = new Set(['all']);
+          tagButtons.forEach(b => {
+            const isAll = (b as HTMLElement).dataset.tag === 'all';
+            b.classList.toggle('active', isAll);
+            b.setAttribute('aria-pressed', String(isAll));
+          });
+        } else {
+          // Toggle specific tag
+          activeFilters.delete('all');
+          
+          if (activeFilters.has(tag || '')) {
+            activeFilters.delete(tag || '');
+          } else {
+            activeFilters.add(tag || '');
+          }
+
+          // If no tags selected, reset to all
+          if (activeFilters.size === 0) {
+            activeFilters.add('all');
+          }
+
+          // Update button states
+          tagButtons.forEach(b => {
+            const btnTag = (b as HTMLElement).dataset.tag;
+            const isActive = activeFilters.has(btnTag || '');
+            b.classList.toggle('active', isActive);
+            b.setAttribute('aria-pressed', String(isActive));
+          });
+        }
+
+        applyFilters();
+      });
+    });
+
+    // Initialize
+    readURL();
+    applyFilters();
+  });
+</script>
