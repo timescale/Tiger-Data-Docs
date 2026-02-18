@@ -1,6 +1,6 @@
-import * as C from "../constants";
+import * as C from "@constants";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
-import { Steps, Step } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 import MigrationPrerequisites from "./_migrate_prerequisites.mdx";
 import SetupConnectionStrings from "./_migrate_live_setup_connection_strings.mdx";
@@ -65,9 +65,9 @@ The `<user>` in the `SOURCE` connection must have the replication role granted i
 
 Use `pg_dump` to:
 
-<Steps>
+<NumberedList>
 
-<Step title="Download the schema from the source database">
+<NumberedItem title="Download the schema from the source database">
 
 ```shell
 pg_dump $SOURCE \
@@ -81,17 +81,17 @@ pg_dump $SOURCE \
 --file=schema.sql
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title={`Apply the schema on the target ${C.SERVICE_SHORT}`}>
+<NumberedItem title={`Apply the schema on the target ${C.SERVICE_SHORT}`}>
 
 ```shell
 psql $TARGET -f schema.sql
 ```
 
-</Step>
+</NumberedItem>
 
-</Steps>
+</NumberedList>
 
 ## Convert partitions and tables with time-series data into hypertables
 
@@ -99,9 +99,9 @@ For efficient querying and analysis, you can convert tables which contain time-s
 events data, and tables that are already partitioned using {C.PG} declarative partition into
 [hypertables][hypertables-section].
 
-<Steps>
+<NumberedList>
 
-<Step title="Convert tables to hypertables">
+<NumberedItem title="Convert tables to hypertables">
 
 Run the following on each table in the target {C.SERVICE_LONG} to convert it to a hypertable:
 
@@ -116,9 +116,9 @@ For example, to convert the *metrics* table into a hypertable with *time* as a p
 psql -X -d $TARGET -c "SELECT public.create_hypertable('public.metrics', by_range('time', '1 day'::interval));"
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title={`Convert ${C.PG} partitions to hypertables`}>
+<NumberedItem title={`Convert ${C.PG} partitions to hypertables`}>
 
 Rename the partition and create a new regular table with the same name as the partitioned table, then
 convert to a {C.HYPERTABLE}:
@@ -133,9 +133,9 @@ psql $TARGET -f - <<'EOF'
 EOF
 ```
 
-</Step>
+</NumberedItem>
 
-</Steps>
+</NumberedList>
 
 
 ## Specify the tables to synchronize
@@ -143,9 +143,9 @@ EOF
 After the schema is migrated, you [`CREATE PUBLICATION`][create-publication] on the source database that
 specifies the tables to synchronize.
 
-<Steps>
+<NumberedList>
 
-<Step title="Create a publication that specifies the table to synchronize">
+<NumberedItem title="Create a publication that specifies the table to synchronize">
 
 A `PUBLICATION` enables you to synchronize some or all the tables in the schema or database.
 
@@ -159,9 +159,9 @@ CREATE PUBLICATION <publication_name> FOR TABLE <table_name>, <table_name>;
 ALTER PUBLICATION <publication_name> ADD TABLE <table_name>;
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title={`Publish the ${C.PG} declarative partitioned table`}>
+<NumberedItem title={`Publish the ${C.PG} declarative partitioned table`}>
 
 ```sql
 ALTER PUBLICATION <publication_name> SET(publish_via_partition_root=true);
@@ -169,17 +169,17 @@ ALTER PUBLICATION <publication_name> SET(publish_via_partition_root=true);
 
 To convert a partitioned table to a hypertable, follow [Convert partitions and tables with time-series data into hypertables][convert-partitions-and-tables-with-time-series-data-into-hypertables-link].
 
-</Step>
+</NumberedItem>
 
-<Step title="Stop syncing a table in the `PUBLICATION`, use `DROP TABLE`">
+<NumberedItem title="Stop syncing a table in the `PUBLICATION`, use `DROP TABLE`">
 
 ```sql
 ALTER PUBLICATION <publication_name> DROP TABLE <table_name>;
 ```
 
-</Step>
+</NumberedItem>
 
-</Steps>
+</NumberedList>
 
 
 ## Synchronize data to your {C.SERVICE_LONG}
@@ -187,9 +187,9 @@ ALTER PUBLICATION <publication_name> DROP TABLE <table_name>;
 You use the {C.PG_CONNECTOR} docker image to synchronize changes in real time from a {C.PG} database
 instance to a {C.SERVICE_LONG}:
 
-<Steps>
+<NumberedList>
 
-<Step title={`Start the ${C.PG_CONNECTOR}`}>
+<NumberedItem title={`Start the ${C.PG_CONNECTOR}`}>
 
 As you run the {C.PG_CONNECTOR} continuously, best practice is to run it as a Docker daemon.
 
@@ -225,18 +225,18 @@ To map only the schema, use:
 ```
 This flag can be repeated for multiple table mappings.
 
-</Step>
+</NumberedItem>
 
-<Step title="Capture logs">
+<NumberedItem title="Capture logs">
 
 Once the {C.PG_CONNECTOR} is running as a docker daemon, you can also capture the logs:
 ```shell
 docker logs -f livesync
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title="View the progress of tables being synchronized">
+<NumberedItem title="View the progress of tables being synchronized">
 
 List the tables being synchronized by the {C.PG_CONNECTOR} using the `_ts_live_sync.subscription_rel` table in the target {C.SERVICE_LONG}:
 
@@ -273,9 +273,9 @@ WHERE slot_name LIKE 'live_sync_%' AND slot_type = 'logical'
 EOF
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title="Add or remove tables from the publication">
+<NumberedItem title="Add or remove tables from the publication">
 
 To add tables, use [ALTER PUBLICATION .. ADD TABLE][alter-publication]**
 
@@ -289,9 +289,9 @@ To remove tables, use [ALTER PUBLICATION .. DROP TABLE][alter-publication]**
 ALTER PUBLICATION <publication_name> DROP TABLE <table_name>;
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title="Update table statistics">
+<NumberedItem title="Update table statistics">
 
 If you have a large table, you can run `ANALYZE` on the target {C.SERVICE_LONG}
 to update the table statistics after the initial sync is complete.
@@ -302,17 +302,17 @@ This helps the query planner make better decisions for query execution plans.
 vacuumdb --analyze --verbose --dbname=$TARGET
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title={`Stop the ${C.PG_CONNECTOR}`}>
+<NumberedItem title={`Stop the ${C.PG_CONNECTOR}`}>
 
 ```shell
 docker stop live-sync
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title={`(Optional) Reset sequence nextval on the target ${C.SERVICE_LONG}`}>
+<NumberedItem title={`(Optional) Reset sequence nextval on the target ${C.SERVICE_LONG}`}>
 
 The {C.PG_CONNECTOR} does not automatically reset the sequence nextval on the target
 {C.SERVICE_LONG}.
@@ -357,9 +357,9 @@ $$ LANGUAGE plpgsql;
 EOF
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title="Clean up">
+<NumberedItem title="Clean up">
 
 Use the `--drop` flag to remove the replication slots created by the {C.PG_CONNECTOR} on the source database.
 
@@ -370,9 +370,9 @@ docker run -it --rm --name livesync timescale/live-sync:v0.11.2 run \
    --drop
 ```
 
-</Step>
+</NumberedItem>
 
-</Steps>
+</NumberedList>
 
 [alter-publication]: https://www.postgresql.org/docs/current/sql-alterpublication.html
 [convert-partitions-and-tables-with-time-series-data-into-hypertables-link]: /migrate/livesync-for-postgresql/#convert-partitions-and-tables-with-time-series-data-into-hypertables

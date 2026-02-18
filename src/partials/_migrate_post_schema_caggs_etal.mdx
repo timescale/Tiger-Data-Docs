@@ -1,5 +1,5 @@
-import * as C from "../constants";
-import { Steps, Step } from "@stainless-api/docs/components";
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 ## Migrate schema post-data
 
@@ -7,9 +7,9 @@ When you have migrated your table and hypertable data, migrate your {C.PG} schem
 
 ### Migrating schema post-data
 
-<Steps>
+<NumberedList>
 
-<Step title="At the command prompt, dump the schema post-data from your source database">
+<NumberedItem title="At the command prompt, dump the schema post-data from your source database">
 
 into a `dump_post_data.dump` file, using your source database connection details. Exclude
 Timescale-specific schemas. If you are prompted for a password, use your
@@ -22,9 +22,9 @@ pg_dump -U <SOURCE_DB_USERNAME> -W \
 -f dump_post_data.dump <DATABASE_NAME>
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title="Restore the dumped schema post-data from the `dump_post_data.dump` file into">
+<NumberedItem title="Restore the dumped schema post-data from the `dump_post_data.dump` file into">
 
 your {C.SERVICE_LONG}, using your connection details. To avoid permissions
 errors, include the `--no-owner` flag:
@@ -35,9 +35,9 @@ pg_restore -U tsdbadmin -W \
 -v -d tsdb dump_post_data.dump
 ```
 
-</Step>
+</NumberedItem>
 
-</Steps>
+</NumberedList>
 
 ### Troubleshooting
 
@@ -62,17 +62,17 @@ don't include deleted raw data.
 
 ### Recreating continuous aggregates
 
-<Steps>
+<NumberedList>
 
-<Step title="Connect to your source database:">
+<NumberedItem title="Connect to your source database:">
 
 ```bash
 psql "postgres://<SOURCE_DB_USERNAME>:<SOURCE_DB_PASSWORD>@<SOURCE_DB_HOST>:<SOURCE_DB_PORT>/<SOURCE_DB_NAME>?sslmode=require"
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title="Get a list of your existing continuous aggregate definitions:">
+<NumberedItem title="Get a list of your existing continuous aggregate definitions:">
 
 ```sql
 SELECT view_name, view_definition FROM timescaledb_information.continuous_aggregates;
@@ -92,17 +92,17 @@ avg_fill_levels |  SELECT round(avg(fill_measurements.fill_level), 2) AS avg_fil
 (1 row)
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title={`Connect to your ${C.SERVICE_LONG}:`}>
+<NumberedItem title={`Connect to your ${C.SERVICE_LONG}:`}>
 
 ```bash
 psql "postgres://tsdbadmin:<PASSWORD>@<HOST>:<PORT>/tsdb?sslmode=require"
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title="Recreate each continuous aggregate definition:">
+<NumberedItem title="Recreate each continuous aggregate definition:">
 
 ```sql
 CREATE MATERIALIZED VIEW <VIEW_NAME>
@@ -110,9 +110,9 @@ WITH (timescaledb.continuous) AS
 <VIEW_DEFINITION>
 ```
 
-</Step>
+</NumberedItem>
 
-</Steps>
+</NumberedList>
 
 ## Recreate policies
 
@@ -121,17 +121,17 @@ separately. Recreate them on your {C.SERVICE_LONG}.
 
 ### Recreating policies
 
-<Steps>
+<NumberedList>
 
-<Step title="Connect to your source database:">
+<NumberedItem title="Connect to your source database:">
 
 ```bash
 psql "postgres://<SOURCE_DB_USERNAME>:<SOURCE_DB_PASSWORD>@<SOURCE_DB_HOST>:<SOURCE_DB_PORT>/<SOURCE_DB_NAME>?sslmode=require"
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title="Get a list of your existing policies. This query returns a list of all your">
+<NumberedItem title="Get a list of your existing policies. This query returns a list of all your">
 
 policies, including continuous aggregate refresh policies, retention
 policies, compression policies, and reorder policies:
@@ -142,24 +142,24 @@ SELECT application_name, schedule_interval, retry_period,
     FROM timescaledb_information.jobs WHERE owner = '<SOURCE_DB_USERNAME>';
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title={`Connect to your ${C.SERVICE_LONG}:`}>
+<NumberedItem title={`Connect to your ${C.SERVICE_LONG}:`}>
 
 ```sql
 psql "postgres://tsdbadmin:<PASSWORD>@<HOST>:<PORT>/tsdb?sslmode=require"
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title="Recreate each policy. For more information about recreating policies, see">
+<NumberedItem title="Recreate each policy. For more information about recreating policies, see">
 
 the sections on [continuous-aggregate refresh policies][refresh-policy],
 [retention policies][retention-policy], [Hypercore policies][setup-hypercore], and [reorder policies][reordering].
 
-</Step>
+</NumberedItem>
 
-</Steps>
+</NumberedList>
 
 ## Update table statistics
 

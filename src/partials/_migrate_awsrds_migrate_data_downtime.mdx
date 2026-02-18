@@ -1,29 +1,29 @@
-import * as C from "../constants";
-import { Steps, Step } from "@stainless-api/docs/components";
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 import MigrationSetupDBConnectionPostgresql from "./_migrate_set_up_align_db_extensions_postgres_based.mdx";
 
 ## Prepare to migrate
-<Steps>
+<NumberedList>
 
-<Step title="Take the applications that connect to the RDS instance offline">
+<NumberedItem title="Take the applications that connect to the RDS instance offline">
 
 The duration of the migration is proportional to the amount of data stored in your database.  
 By disconnection your app from your database you avoid and possible data loss. You should also ensure that your 
 source RDS instance is not receiving any DML queries.
 
-</Step>
+</NumberedItem>
 
-<Step title="Connect to your intermediary EC2 instance">
+<NumberedItem title="Connect to your intermediary EC2 instance">
 
 For example:
 ```sh
 ssh -i "<key-pair>.pem" ubuntu@<EC2 instance's Public IPv4>
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title="Set your connection strings">
+<NumberedItem title="Set your connection strings">
 
 These variables hold the connection information for the RDS instance and target {C.SERVICE_LONG}:
 
@@ -34,9 +34,9 @@ export TARGET=postgres://tsdbadmin:<PASSWORD>@<HOST>:<PORT>/tsdb?sslmode=require
 You find the connection information for `SOURCE` in your RDS configuration. For `TARGET` in the configuration file you
 downloaded when you created the {C.SERVICE_LONG}.
 
-</Step>
+</NumberedItem>
 
-</Steps>
+</NumberedList>
 
 ## Align the extensions on the source and target
 
@@ -49,9 +49,9 @@ downloaded when you created the {C.SERVICE_LONG}.
 
 Roles manage database access permissions. To migrate your role-based security hierarchy to your {C.SERVICE_LONG}:
 
-<Steps>
+<NumberedList>
 
-<Step title="Dump the roles from your RDS instance">
+<NumberedItem title="Dump the roles from your RDS instance">
 
 Export your role-based security hierarchy. If you only use the default `postgres` role, this 
 step is not necessary. 
@@ -67,9 +67,9 @@ pg_dumpall -d "$SOURCE" \
 AWS RDS does not allow you to export passwords with roles. You assign passwords to these roles
 when you have uploaded them to your {C.SERVICE_LONG}.
 
-</Step>
+</NumberedItem>
 
-<Step title="Remove roles with superuser access">
+<NumberedItem title="Remove roles with superuser access">
 
 {C.SERVICE_LONG}s do not support roles with superuser access. Run the following script
 to remove statements, permissions and clauses that require superuser permissions from `roles.sql`:
@@ -89,9 +89,9 @@ sed -i -E \
 roles.sql
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title={`Upload the roles to your ${C.SERVICE_LONG}`}>
+<NumberedItem title={`Upload the roles to your ${C.SERVICE_LONG}`}>
 
 ```bash
 psql -X -d "$TARGET" \
@@ -100,9 +100,9 @@ psql -X -d "$TARGET" \
   -f roles.sql
 ```
 
-</Step>
+</NumberedItem>
 
-<Step title="Manually assign passwords to the roles">
+<NumberedItem title="Manually assign passwords to the roles">
 
 AWS RDS did not allow you to export passwords with roles. For each role, use the following command to manually 
 assign a password to a role:
@@ -111,15 +111,15 @@ assign a password to a role:
  psql $TARGET -c "ALTER ROLE <role name> WITH PASSWORD '<highly secure password>';"
  ```
 
-</Step>
+</NumberedItem>
 
-</Steps> 
+</NumberedList> 
 
 ## Migrate data from your RDS instance to your {C.SERVICE_LONG}
 
-<Steps>
+<NumberedList>
 
-<Step title="Dump the data from your RDS instance to your intermediary EC2 instance">
+<NumberedItem title="Dump the data from your RDS instance to your intermediary EC2 instance">
 
 The `pg_dump` flags remove superuser access and tablespaces from your data. When you run
 `pgdump`, check the run time, [a long-running `pg_dump` can cause issues][long-running-pgdump].
@@ -136,18 +136,18 @@ pg_dump -d "$SOURCE" \
 To dramatically reduce the time taken to dump the RDS instance, using multiple connections. For more information,
 see [dumping with concurrency][dumping-with-concurrency] and [restoring with concurrency][restoring-with-concurrency].
 
-</Step>
+</NumberedItem>
 
-<Step title={`Upload your data to your ${C.SERVICE_LONG}`}>
+<NumberedItem title={`Upload your data to your ${C.SERVICE_LONG}`}>
 
 ```bash
 psql -d $TARGET -v ON_ERROR_STOP=1 --echo-errors \
   -f dump.sql
 ```
 
-</Step>
+</NumberedItem>
 
-</Steps>
+</NumberedList>
 
 
 [Upgrade TimescaleDB]: /self-hosted/upgrades/

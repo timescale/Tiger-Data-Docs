@@ -1,3 +1,12 @@
+/**
+ * Shared product/brand and doc constants. Use a single source of truth so
+ * renames (e.g. product names) stay consistent across the site.
+ *
+ * Import from anywhere in src (MDX, Astro, TS):
+ *   import * as C from "@constants";
+ * Then use as e.g. C.CLOUD_LONG, C.TIMESCALE_DB.
+ */
+
 // General
 
 export const PRODUCT_PREFIX = 'Tiger';
