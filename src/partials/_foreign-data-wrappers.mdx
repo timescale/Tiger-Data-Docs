@@ -1,0 +1,215 @@
+import * as C from "../constants";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { Steps, Step } from "@stainless-api/docs/components";
+
+import IntegrationPrereqs from "./_integration-prereqs.mdx";
+
+You use {C.PG} foreign data wrappers (FDWs) to query external data sources from a {C.SERVICE_LONG}. These external data sources can be one of the following:
+
+- Other {C.SERVICE_LONG}s
+- {C.PG} databases outside of {C.CLOUD_LONG}
+
+If you are using {C.VPC} peering, you can create FDWs in your Customer VPC to query a {C.SERVICE_SHORT} in your {C.CLOUD_LONG} project. However, you can't create FDWs in your {C.SERVICE_LONG}s to query a data source in your Customer VPC. This is because {C.CLOUD_LONG} {C.VPC} peering uses AWS PrivateLink for increased security. See [VPC peering documentation][vpc-peering] for additional details.
+
+{C.PG} FDWs are particularly useful if you manage multiple {C.SERVICE_LONG}s with different capabilities, and need to seamlessly access and merge regular and time-series data.
+
+## Prerequisites
+
+<IntegrationPrereqs />
+
+## Query another data source
+
+To query another data source: 
+
+<Tabs>
+
+<TabItem label="Tiger">
+
+You create {C.PG} FDWs with the `postgres_fdw` extension, which is enabled by default in {C.CLOUD_LONG}.
+
+<Steps>
+
+<Step title="Connect to your service">
+
+See [how to connect][in-console-editors].
+
+</Step>
+
+<Step title="Create a server">
+
+Run the following command using your [connection details][connection-info]:
+
+```sql
+CREATE SERVER myserver 
+FOREIGN DATA WRAPPER postgres_fdw 
+OPTIONS (host '<host>', dbname 'tsdb', port '<port>');
+```
+
+</Step>
+
+<Step title="Create user mapping">
+
+Run the following command using your [connection details][connection-info]:
+
+```sql
+CREATE USER MAPPING FOR tsdbadmin 
+SERVER myserver 
+OPTIONS (user 'tsdbadmin', password '<password>');
+```
+
+</Step>
+
+<Step title="Import a foreign schema (recommended) or create a foreign table">
+
+- Import the whole schema:
+
+   ```sql
+   CREATE SCHEMA foreign_stuff;
+
+   IMPORT FOREIGN SCHEMA public 
+   FROM SERVER myserver 
+   INTO foreign_stuff ;
+   ```
+
+ - Alternatively, import a limited number of tables:
+
+   ```sql
+   CREATE SCHEMA foreign_stuff;
+
+   IMPORT FOREIGN SCHEMA public 
+   LIMIT TO (table1, table2) 
+   FROM SERVER myserver 
+   INTO foreign_stuff;
+   ```
+
+ - Create a foreign table. Skip if you are importing a schema:
+
+   ```sql
+   CREATE FOREIGN TABLE films (
+       code        char(5) NOT NULL,
+       title       varchar(40) NOT NULL,
+       did         integer NOT NULL,
+       date_prod   date,
+       kind        varchar(10),
+       len         interval hour to minute
+   )
+   SERVER film_server;
+   ```
+
+</Step>
+
+</Steps>
+
+
+A user with the `tsdbadmin` role assigned already has the required `USAGE` permission to create {C.PG} FDWs. You can enable another user, without the `tsdbadmin` role assigned, to query foreign data. To do so, explicitly grant the permission. For example, for a new `grafana` user:
+
+```sql
+CREATE USER grafana;
+       
+GRANT grafana TO tsdbadmin;
+
+CREATE SCHEMA fdw AUTHORIZATION grafana;
+
+CREATE SERVER db1 FOREIGN DATA WRAPPER postgres_fdw 
+OPTIONS (host '<host>', dbname 'tsdb', port '<port>');
+
+CREATE USER MAPPING FOR grafana SERVER db1 
+OPTIONS (user 'tsdbadmin', password '<password>');
+
+GRANT USAGE ON FOREIGN SERVER db1 TO grafana;
+
+SET ROLE grafana;
+
+IMPORT FOREIGN SCHEMA public 
+       FROM SERVER db1 
+       INTO fdw;
+```
+
+</TabItem>
+
+<TabItem label="Self-hosted TimescaleDB">
+
+You create {C.PG} FDWs with the `postgres_fdw` extension. See [documenation][pg-fdw] on how to enable it. 
+
+<Steps>
+
+<Step title="Connect to your database">
+
+Use [`psql`][psql] to connect to your database.
+
+</Step>
+
+<Step title="Create a server">
+
+Run the following command using your [connection details][connection-info]:
+
+```sql
+CREATE SERVER myserver 
+FOREIGN DATA WRAPPER postgres_fdw 
+OPTIONS (host '<host>', dbname '<database_name>', port '<port>');
+```
+
+</Step>
+
+<Step title="Create user mapping">
+
+Run the following command using your [connection details][connection-info]:
+
+```sql
+CREATE USER MAPPING FOR postgres 
+SERVER myserver 
+OPTIONS (user 'postgres', password '<password>');
+```
+
+</Step>
+
+<Step title="Import a foreign schema (recommended) or create a foreign table">
+
+- Import the whole schema:
+
+  ```sql
+  CREATE SCHEMA foreign_stuff;
+
+  IMPORT FOREIGN SCHEMA public 
+  FROM SERVER myserver 
+  INTO foreign_stuff ;
+  ```
+
+- Alternatively, import a limited number of tables:
+
+  ```sql
+  CREATE SCHEMA foreign_stuff;
+
+  IMPORT FOREIGN SCHEMA public 
+  LIMIT TO (table1, table2) 
+  FROM SERVER myserver 
+  INTO foreign_stuff;
+  ```
+
+- Create a foreign table. Skip if you are importing a schema:
+
+  ```sql
+  CREATE FOREIGN TABLE films (
+      code        char(5) NOT NULL,
+      title       varchar(40) NOT NULL,
+      did         integer NOT NULL,
+      date_prod   date,
+      kind        varchar(10),
+      len         interval hour to minute
+  )
+  SERVER film_server;
+  ```
+
+</Step>
+
+</Steps>
+
+</TabItem>
+
+</Tabs>
+
+[connection-info]: /integrations/find-connection-details/
+[in-console-editors]: /getting-started/run-queries-from-console/
+[pg-fdw]: https://www.postgresql.org/docs/current/postgres-fdw.html
+[psql]: /integrations/psql/
+[vpc-peering]: /use-timescale/security/vpc/

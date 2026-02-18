@@ -1,0 +1,70 @@
+import * as C from "../constants";
+import { Steps, Step } from "@stainless-api/docs/components";
+
+import MigrationSetupFirstSteps from "./_migrate_set_up_database_first_steps.mdx";
+import MigrationSetupDBConnectionTimescaleDB from "./_migrate_set_up_align_db_extensions_timescaledb.mdx";
+import MigrationProcedureDumpSchemaMST from "./_migrate_dump_roles_schema_data_mst.mdx";
+import MigrationValidateRestartApp from "./_migrate_validate_and_restart_app.mdx";
+
+## Prepare to migrate
+
+
+<MigrationSetupFirstSteps />
+
+
+
+## Align the version of {C.TIMESCALE_DB} on the source and target
+
+
+<MigrationSetupDBConnectionTimescaleDB />
+
+
+
+## Migrate the roles from {C.TIMESCALE_DB} to your {C.SERVICE_LONG}
+
+Roles manage database access permissions. To migrate your role-based security hierarchy to your {C.SERVICE_LONG}:
+
+
+<MigrationProcedureDumpSchemaMST />
+
+
+
+## Upload your data to the target {C.SERVICE_LONG}
+
+This command uses the [timescaledb_pre_restore] and [timescaledb_post_restore] functions to put your database in the
+correct state.
+
+<Steps>
+
+<Step title="Upload your data">
+
+```bash
+psql $TARGET -v ON_ERROR_STOP=1 --echo-errors \
+-f roles.sql \
+-c "SELECT timescaledb_pre_restore();" \
+-f dump.sql \
+-c "SELECT timescaledb_post_restore();"
+```
+
+</Step>
+
+<Step title="Manually assign passwords to the roles">
+
+MST did not allow you to export passwords with roles. For each role, use the following command to manually
+assign a password to a role:
+
+```bash
+ psql $TARGET -c "ALTER ROLE <role name> WITH PASSWORD '<highly secure password>';"
+ ```
+
+</Step>
+
+</Steps>
+
+## Validate your {C.SERVICE_LONG} and restart your app
+
+
+
+<MigrationValidateRestartApp />
+
+

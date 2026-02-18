@@ -1,0 +1,113 @@
+import * as C from "../constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Steps, Step } from "@stainless-api/docs/components";
+
+import RESTPrereqs from "./_prereqs-cloud-account-only.mdx";
+import CLIINSTALL from "./_devops-cli-install.mdx";
+import CLIREF from "./_devops-cli-reference.mdx";
+
+{C.CLI_LONG} is a command-line interface that you use to manage {C.CLOUD_LONG} resources
+including VPCs, services, read replicas, and related infrastructure. {C.CLI_LONG} calls {C.REST_LONG} to communicate with 
+{C.CLOUD_LONG}. 
+
+This page shows you how to install and set up secure authentication for {C.CLI_LONG}, then create your first 
+service.
+
+## Prerequisites
+
+<RESTPrereqs />
+
+
+## Install and configure {C.CLI_LONG}
+
+
+
+<CLIINSTALL />
+
+
+
+
+## Create your first {C.SERVICE_LONG}
+
+Create a new {C.SERVICE_LONG} using {C.CLI_LONG}:
+
+<Steps>
+
+<Step title={`Submit a ${C.SERVICE_SHORT} creation request`}>
+
+By default, {C.CLI_LONG} creates a {C.SERVICE_SHORT} for you that matches your [{C.PRICING_PLAN}][pricing-plans]:
+* **{C.FREE}**: shared CPU/memory and the `time-series` and `ai` capabilities (only available in `us-east-1` region)
+* **Paid {C.PRICING_PLAN}**: 0.5 CPU and 2 GB memory with the `time-series` capability
+```shell
+tiger service create
+```
+To control the {C.SERVICE_SHORT} configuration, use the [`service create` flags][cli-create-custom-service]. For
+example, to create a free service if you are in a paid {C.PRICING_PLAN}, call
+`tiger service create --memory shared --cpu shared`.
+
+<Callout variant="note">
+Free services with shared CPU/memory are only available in the `us-east-1` region. Paid services can be created in any available AWS or Azure region using the `--region` flag.
+</Callout>
+
+{C.CLOUD_LONG} creates a Development environment for you. That is, no delete protection, high-availability, spooling or
+read replication. You see something like:
+```terminaloutput
+ 🚀 Creating service 'db-11111' (auto-generated name)...
+ ✅ Service creation request accepted!
+ 📋 Service ID: tgrservice 
+ 🔐 Password saved to system keyring for automatic authentication
+ 🎯 Set service 'tgrservice' as default service.
+ ⏳ Waiting for service to be ready (wait timeout: 30m0s)...
+ 🎉 Service is ready and running!
+🔌 Run 'tiger db connect' to connect to your new service
+┌───────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│     PROPERTY      │                                              VALUE                                               │
+├───────────────────┼──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Service ID        │ tgrservice                                                                                       │
+│ Name              │ db-11111                                                                                         │
+│ Status            │ READY                                                                                            │
+│ Type              │ TIMESCALEDB                                                                                      │
+│ Region            │ us-east-1                                                                                        │
+│ CPU               │ 0.5 cores (500m)                                                                                 │
+│ Memory            │ 2 GB                                                                                             │
+│ Direct Endpoint   │ tgrservice.tgrproject.tsdb.cloud.timescale.com:39004                                             │
+│ Created           │ 2025-10-20 20:33:46 UTC                                                                          │
+│ Connection String │ postgresql://tsdbadmin@tgrservice.tgrproject.tsdb.cloud.timescale.com:0007/tsdb?sslmode=require │
+│ Console URL       │ https://console.cloud.timescale.com/dashboard/services/tgrservice                                │
+└───────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+This {C.SERVICE_SHORT} is set as default by the {C.CLI_SHORT}.
+
+</Step>
+
+<Step title={`Check the ${C.CLI_SHORT} configuration`}>
+
+```shell
+tiger config show
+```
+You see something like:
+```terminaloutput
+api_url:     https://console.cloud.timescale.com/public/api/v1
+console_url: https://console.cloud.timescale.com
+gateway_url: https://console.cloud.timescale.com/api
+docs_mcp:       true
+docs_mcp_url:   https://mcp.tigerdata.com/docs
+project_id:  tgrproject
+service_id:  tgrservice
+output:      table
+analytics:   true
+password_storage: keyring
+debug:       false
+config_dir:  /Users/<username>/.config/tiger
+```
+
+</Step>
+
+</Steps>
+
+And that is it, you are ready to use {C.CLI_LONG} to manage your {C.SERVICE_SHORT}s in {C.CLOUD_LONG}.
+
+<CLIREF />
+
+[cli-create-custom-service]: /getting-started/get-started-devops-as-code/#commands
+[pricing-plans]: /about/pricing-and-account-management/

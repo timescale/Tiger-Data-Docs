@@ -1,0 +1,154 @@
+import * as C from "../constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { Steps, Step } from "@stainless-api/docs/components";
+
+<Steps>
+
+<Step title={`Install the latest ${C.PG} packages`}>
+
+<Tabs>
+
+ <TabItem label="Red Hat">
+
+ ```bash
+ sudo yum install https://download.postgresql.org/pub/repos/yum/reporpms/EL-$(rpm -E %{rhel})-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+ ```
+
+ </TabItem>
+
+ <TabItem label="Fedora">
+
+ ```bash
+ sudo yum install https://download.postgresql.org/pub/repos/yum/reporpms/F-$(rpm -E %{fedora})-x86_64/pgdg-fedora-repo-latest.noarch.rpm
+ ```
+
+ </TabItem>
+ </Tabs>
+
+</Step>
+
+<Step title={`Add the ${C.TIMESCALE_DB} repository`}>
+
+<Tabs>
+
+<TabItem label="Red Hat">
+
+```bash
+sudo tee /etc/yum.repos.d/timescale_timescaledb.repo <<EOL
+[timescale_timescaledb]
+name=timescale_timescaledb
+baseurl=https://packagecloud.io/timescale/timescaledb/el/\$releasever/\$basearch
+repo_gpgcheck=1
+gpgcheck=0
+enabled=1
+gpgkey=https://packagecloud.io/timescale/timescaledb/gpgkey
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+metadata_expire=300
+EOL
+```
+
+</TabItem>
+
+<TabItem label="Fedora">
+
+```bash
+sudo tee /etc/yum.repos.d/timescale_timescaledb.repo <<EOL
+[timescale_timescaledb]
+name=timescale_timescaledb
+baseurl=https://packagecloud.io/timescale/timescaledb/el/9/\$basearch
+repo_gpgcheck=1
+gpgcheck=0
+enabled=1
+gpgkey=https://packagecloud.io/timescale/timescaledb/gpgkey
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+metadata_expire=300
+EOL
+```
+
+</TabItem>
+</Tabs>
+
+</Step>
+
+<Step title="Update your local repository list">
+
+```bash
+sudo yum update
+```
+
+</Step>
+
+<Step title="Install TimescaleDB">
+
+To avoid errors, **do not** install {C.TDB_APACHE} and {C.TDB_COMMUNITY} at the same time.
+
+```bash
+sudo yum install timescaledb-2-postgresql-18 postgresql18
+```
+
+<!-- hack until we have bandwidth to rewrite this linting rule -->
+
+<!-- markdownlint-disable TS007 -->
+<Callout variant="note">
+
+On Red Hat Enterprise Linux 8 and later, disable the built-in {C.PG} module:
+
+`sudo dnf -qy module disable postgresql`
+
+</Callout>
+
+<!-- markdownlint-enable TS007 -->
+
+1.  **Initialize the {C.PG} instance**
+
+```bash
+sudo /usr/pgsql-18/bin/postgresql-18-setup initdb
+```
+
+</Step>
+
+<Step title={`Tune your ${C.PG} instance for TimescaleDB`}>
+
+```bash
+sudo timescaledb-tune --pg-config=/usr/pgsql-18/bin/pg_config 
+```   
+
+This script is included with the `timescaledb-tools` package when you install TimescaleDB.
+For more information, see [configuration][config].
+
+</Step>
+
+<Step title={`Enable and start ${C.PG}`}>
+
+```bash
+sudo systemctl enable postgresql-18
+sudo systemctl start postgresql-18
+```
+
+</Step>
+
+<Step title={`Log in to ${C.PG} as \`postgres\``}>
+
+```bash
+sudo -u postgres psql
+```
+You are now in the psql shell.
+
+</Step>
+
+<Step title="Set the password for `postgres`">
+
+```bash
+ \password postgres
+ ```
+
+ When you have set the password, type `\q` to exit psql.
+
+</Step>
+
+</Steps>
+
+[config]: /self-hosted/configuration/

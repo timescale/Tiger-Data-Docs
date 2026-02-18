@@ -1,0 +1,169 @@
+import * as C from "../constants";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { Steps, Step } from "@stainless-api/docs/components";
+
+<Steps>
+
+<Step title={`In ${C.CONSOLE}, open Exporters`} />
+
+<Step title="Click `New exporter`" />
+
+<Step title="Select the data type and specify `AWS CloudWatch` for provider">
+
+![Add CloudWatch data exporter][add-cloudwatch-data-exporter]
+
+</Step>
+
+<Step title="Provide your AWS CloudWatch configuration">
+
+- The AWS region must be the same for your {C.CLOUD_LONG} exporter and AWS CloudWatch Log group.
+- The exporter name appears in {C.CONSOLE}, best practice is to make this name easily understandable.
+- For CloudWatch credentials, either use an [existing CloudWatch Log group][console-cloudwatch-configuration]
+  or [create a new one][console-cloudwatch-create-group]. If you're uncertain, use
+  the default values. For more information, see [Working with log groups and log streams][cloudwatch-log-naming].
+
+</Step>
+
+<Step title="Choose the authentication method to use for the exporter">
+
+![Add CloudWatch authentication][add-cloudwatch-authentication]
+
+<Tabs>
+
+<TabItem label="IAM role">
+
+<Steps>
+
+<Step title="In AWS, navigate to IAM > Identity providers, then click `Add provider`." />
+
+<Step title="Update the new identity provider with your details:">
+
+Set `Provider URL` to the [region where you are creating your exporter][reference].
+
+![oidc provider creation][oidc-provider-creation]
+
+</Step>
+
+<Step title="Click `Add provider`." />
+
+<Step title="In AWS, navigate to IAM > Roles, then click `Create role`." />
+
+<Step title="Add your identity provider as a Web identity role and click `Next`.">
+
+![web identity role creation][web-identity-role-creation]
+
+</Step>
+
+<Step title="Set the following permission and trust policies:">
+
+- Permission policy:
+
+  ```json
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+       {
+           "Effect": "Allow",
+           "Action": [
+               "logs:PutLogEvents",
+               "logs:CreateLogGroup",
+               "logs:CreateLogStream",
+               "logs:DescribeLogStreams",
+               "logs:DescribeLogGroups",
+               "logs:PutRetentionPolicy",
+               "xray:PutTraceSegments",
+               "xray:PutTelemetryRecords",
+               "xray:GetSamplingRules",
+               "xray:GetSamplingTargets",
+               "xray:GetSamplingStatisticSummaries",
+               "ssm:GetParameters"
+           ],
+           "Resource": "*"
+       }
+   ]
+  }      
+  ```
+- Role with a Trust Policy:
+
+  ```json
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::12345678910:oidc-provider/irsa-oidc-discovery-prod.s3.us-east-1.amazonaws.com"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "irsa-oidc-discovery-prod.s3.us-east-1.amazonaws.com:aud": "sts.amazonaws.com"
+                }
+            }
+        },
+        {
+            "Sid": "Statement1",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::12345678910:role/my-exporter-role"
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+  }        
+  ```      
+1. Click `Add role`.
+
+</Step>
+
+</Steps>
+
+ </TabItem>
+
+ <TabItem label="CloudWatch credentials">
+
+ When you use CloudWatch credentials, you link an Identity and Access Management (IAM)
+ user with access to CloudWatch only with your {C.SERVICE_LONG}:
+
+<Steps>
+
+<Step title="Retrieve the user information from IAM > Users in AWS console.">
+
+If you do not have an AWS user with access restricted to CloudWatch only,
+[create one][create-an-iam-user].
+For more information, see [Creating IAM users (console)][aws-access-keys].
+
+</Step>
+
+<Step title="Enter the credentials for the AWS IAM user.">
+
+AWS keys give access to your AWS services. To keep your AWS account secure, restrict users to the minimum required permissions. Always store your keys in a safe location. To avoid this issue, use the IAM role authentication method.
+
+</Step>
+
+</Steps>
+
+ </TabItem>
+
+ </Tabs>
+
+</Step>
+
+<Step title="Select the AWS Region your CloudWatch services run in, then click `Create exporter`." />
+
+</Steps>
+
+[add-cloudwatch-authentication]: ../assets/images/tiger-cloud-console-tiger-cloud-integrations-cloudwatch-authentication.webp
+[add-cloudwatch-data-exporter]: ../assets/images/tiger-cloud-console-tiger-console-integrations-cloudwatch.webp
+[add-id-provider-as-wi-role]: https://console.aws.amazon.com/iam/home#/roles
+[aws-access-keys]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html#id_users_create_console
+[cloudwatch-log-naming]: https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/Working-with-log-groups-and-streams.html
+[console-cloudwatch-configuration]: https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups
+[console-cloudwatch-create-group]: https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/create-log-group
+[console-integrations]: https://console.cloud.timescale.com/dashboard/integrations
+[create-an-iam-id-provider]: https://console.aws.amazon.com/iam/home#/identity_providers
+[create-an-iam-user]: https://console.aws.amazon.com/iam/home#/users/create
+[list-iam-users]: https://console.aws.amazon.com/iam/home#/users
+[oidc-provider-creation]: ../assets/images/aws-create-iam-oicd-provider.webp
+[reference]: /use-timescale/metrics-logging/aws-cloudwatch/#reference
+[web-identity-role-creation]: ../assets/images/aws-create-role-web-identity.webp
