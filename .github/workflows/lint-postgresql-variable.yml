@@ -1,0 +1,115 @@
+# Ensure docs use the PostgreSQL variable (C.PG / C.POSTGRESQL) instead of literal "PostgreSQL" or "Postgres".
+# Posts a PR comment when violations are found and blocks merge until fixed.
+name: Lint PostgreSQL variable
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "src/content/**/*.md"
+      - "src/content/**/*.mdx"
+      - "src/partials/**/*.md"
+      - "src/partials/**/*.mdx"
+  push:
+    branches: [main, master]
+    paths:
+      - "src/content/**/*.md"
+      - "src/content/**/*.mdx"
+      - "src/partials/**/*.md"
+      - "src/partials/**/*.mdx"
+
+concurrency:
+  group: lint-postgresql-variable-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgresql-variable:
+    name: Use PostgreSQL variable
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint PostgreSQL variable
+        id: lint
+        continue-on-error: true
+        run: |
+          pnpm run lint:postgresql-variable 2>&1 | tee lint-output.txt
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Update PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          LINT_EXIT: ${{ steps.lint.outputs.exit_code }}
+        with:
+          script: |
+            const fs = require('fs');
+            const prNumber = context.payload.pull_request.number;
+            const commentMarker = '<!-- lint-postgresql-variable -->';
+
+            let lintOutput = '';
+            try {
+              lintOutput = fs.readFileSync('lint-output.txt', 'utf8');
+            } catch (e) {}
+
+            const lintFailed = process.env.LINT_EXIT !== '0' && process.env.LINT_EXIT !== '';
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            for (const comment of comments) {
+              if (comment.user.type === 'Bot' && comment.body && comment.body.includes(commentMarker)) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+            if (lintFailed && lintOutput) {
+              const escaped = lintOutput
+                .replace(/\\/g, '\\\\')
+                .replace(/`/g, '\\`');
+              const body = `${commentMarker}
+## ⚠️ PostgreSQL variable required
+
+This repo uses a single constant for the database name so it can be changed in one place. Please use the variable instead of literal "PostgreSQL" or "Postgres".
+
+**In MDX:** Add \`import * as C from "@constants";\` at the top (if not already present), then use \`{C.PG}\` in prose (e.g. "Connect to {C.PG}").
+
+<details>
+<summary>Click to expand linter output</summary>
+
+\`\`\`
+${escaped}
+\`\`\`
+
+</details>
+
+Fix the listed files and push. This check must pass before merge.`;
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
+
+      - name: Fail if lint had violations
+        if: steps.lint.outputs.exit_code != '0'
+        run: exit 1

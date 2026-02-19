@@ -2,6 +2,9 @@
 title: "Hierarchical continuous aggregates"
 description: "Create continuous aggregates on top of continuous aggregates to summarize data at different levels of granularity"
 ---
+
+import * as C from "@constants";
+
 The more data you have, the more likely you are to run a more sophisticated analysis on it. When a simple one-level aggregation is not enough, TimescaleDB lets you create continuous aggregates on top of other continuous aggregates. This way, you summarize data at different levels of granularity, while still saving resources with precomputing. For example, you might have an hourly continuous aggregate that summarizes minute-by-minute data. To get a daily summary, you can create a new continuous aggregate on top of your hourly aggregate. This is more efficient than creating the daily aggregate on top of the original hypertable, because you can reuse the calculations from the hourly aggregate.
 
 Create a continuous aggregate on top of another continuous aggregate
@@ -17,7 +20,7 @@ Real-time aggregates always return up-to-date data in response to queries. They 
 -   A non-real-time, or materialized-only, monthly continuous aggregate on the daily continuous aggregate
 -   A real-time yearly continuous aggregate on the monthly continuous aggregate
 
-Queries on the hourly and daily continuous aggregates include real-time, non-materialized data from the source hypertable. Queries on the monthly continuous aggregate only return already-materialized data. Queries on the yearly continuous aggregate return materialized data from the yearly continuous aggregate itself, plus more recent data from the monthly continuous aggregate. However, the data is limited to what is already materialized in the monthly continuous aggregate, and doesn’t get even more recent data from the source hypertable. This happens because the materialized-only continuous aggregate provides a stopping point, and the yearly continuous aggregate is unaware of any layers beyond that stopping point. This is similar to [how stacked views work in Postgres](https://www.postgresql.org/docs/current/rules-views.html). To make queries on the yearly continuous aggregate access all recent data, you can either:
+Queries on the hourly and daily continuous aggregates include real-time, non-materialized data from the source hypertable. Queries on the monthly continuous aggregate only return already-materialized data. Queries on the yearly continuous aggregate return materialized data from the yearly continuous aggregate itself, plus more recent data from the monthly continuous aggregate. However, the data is limited to what is already materialized in the monthly continuous aggregate, and doesn’t get even more recent data from the source hypertable. This happens because the materialized-only continuous aggregate provides a stopping point, and the yearly continuous aggregate is unaware of any layers beyond that stopping point. This is similar to [how stacked views work in {C.PG}](https://www.postgresql.org/docs/current/rules-views.html). To make queries on the yearly continuous aggregate access all recent data, you can either:
 
 -   Make the monthly continuous aggregate real-time, or
 -   Redefine the yearly continuous aggregate on top of the daily continuous aggregate.

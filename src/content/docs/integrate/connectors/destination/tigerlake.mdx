@@ -2,6 +2,9 @@
 title: "Integrate data lakes with Tiger Cloud"
 description: "Unify the Tiger Cloud operational architecture with data lake architectures"
 ---
+
+import * as C from "@constants";
+
 Tiger Lake enables you to build real-time applications alongside efficient data pipeline management within a single system. ![Tiger Lake architecture](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-lake-integration-tiger.svg) Tiger Lake is a native integration enabling synchronization between hypertables and relational tables running in Tiger Cloud services to Iceberg tables running in [Amazon S3 Tables](https://aws.amazon.com/s3/features/tables/) in your AWS account.
 
 Prerequisites
@@ -48,16 +51,16 @@ Records are imported in time order, from oldest to newest. Your hypertable or re
 -   Table snapshot: stream data from a snapshot of the source table to the destination Iceberg table at approximately 300.000 records a second. For larger tables, import speeds are approximately 1 billion records or 100 GB of data an hour. However, these numbers vary on table width and the complexity of the schema.
 -   Table changes: stream changes made to the source table (CDC) after the snapshot is taken to a branch of the destination Iceberg table. This happens at approximately 30.000 events a second. Ingest bursts exceeding this can be handled for a certain amount of time and feathered out over time. This depends on duration of the ingestion burst, and the amount of extra events to be handled.
 
-Once the snapshot is fully imported, the snapshot and CDC Iceberg table branches are merged. Merging takes from a couple of seconds, to ten minutes for larger tables of 5TB or more. During this time, new events are held on the WAL. Once the merge is completed, events in the WAL are CDC’d to Iceberg. This implies eventual consistency of the Iceberg table after you started the the sync. To stream data from a Postgres relational table, or a hypertable in your Tiger Cloud service to your data lake, run the following statement:
+Once the snapshot is fully imported, the snapshot and CDC Iceberg table branches are merged. Merging takes from a couple of seconds, to ten minutes for larger tables of 5TB or more. During this time, new events are held on the WAL. Once the merge is completed, events in the WAL are CDC’d to Iceberg. This implies eventual consistency of the Iceberg table after you started the the sync. To stream data from a {C.PG} relational table, or a hypertable in your Tiger Cloud service to your data lake, run the following statement:
 
 -   `tigerlake.iceberg_sync`: `boolean`, set to `true` to start streaming, or `false` to stop the stream. A stream **cannot** resume after being stopped.
 -   `tigerlake.iceberg_partitionby`: optional property to define a partition specification in Iceberg. By default the Iceberg table is partitioned as `day(<time-column of {HYPERTABLE}>)`. This default behavior is only applicable to hypertables. For more information, see [partitioning](/integrate/connectors/destination/tigerlake#partitioning-intervals).
 -   `tigerlake.iceberg_namespace`: optional property to set a namespace, the default is `timescaledb`.
--   `tigerlake.iceberg_table`: optional property to specify a different table name. If no name is specified the Postgres table name is used.
+-   `tigerlake.iceberg_table`: optional property to specify a different table name. If no name is specified the {C.PG} table name is used.
 
 Partitioning intervals
 
-By default, the partition interval for an Iceberg table is one day(time-column) for a Hypertable. Postgres table sync does not enable any partitioning in Iceberg for non-hypertables. You can set it using [tigerlake.iceberg\_partitionby](/integrate/connectors/destination/tigerlake#sample-code). The following partition intervals and specifications are supported:
+By default, the partition interval for an Iceberg table is one day(time-column) for a Hypertable. {C.PG} table sync does not enable any partitioning in Iceberg for non-hypertables. You can set it using [tigerlake.iceberg\_partitionby](/integrate/connectors/destination/tigerlake#sample-code). The following partition intervals and specifications are supported:
 
 Interval
 
@@ -97,19 +100,19 @@ These partitions define the behavior using the [Iceberg partition specification]
 
 Sample code
 
-The following samples show you how to tune data sync from a hypertable or a Postgres relational table to your data lake:
+The following samples show you how to tune data sync from a hypertable or a {C.PG} relational table to your data lake:
 
 -   **Sync a hypertable with the default one-day partitioning interval on the `ts_column` column** To start syncing data from a hypertable to your data lake using the default one-day chunk interval as the partitioning scheme to the Iceberg table, run the following statement: This is equivalent to `day(ts_column)`.
 -   **Specify a custom partitioning scheme for a hypertable** You use the `tigerlake.iceberg_partitionby` property to specify a different partitioning scheme for the Iceberg table at sync start. For example, to enforce an hourly partition scheme from the chunks on `ts_column` on a hypertable, run the following statement:
--   **Set the partition to sync relational tables** Postgres relational tables do not forward a partitioning scheme to Iceberg, you must specify the partitioning scheme using `tigerlake.iceberg_partitionby` when you start the sync. For example, for a standard Postgres table to sync to the Iceberg table with daily partitioning , run the following statement:
--   **Stop sync to an Iceberg table for a hypertable or a Postgres relational table**
+-   **Set the partition to sync relational tables** {C.PG} relational tables do not forward a partitioning scheme to Iceberg, you must specify the partitioning scheme using `tigerlake.iceberg_partitionby` when you start the sync. For example, for a standard {C.PG} table to sync to the Iceberg table with daily partitioning , run the following statement:
+-   **Stop sync to an Iceberg table for a hypertable or a {C.PG} relational table**
 -   **Update or add the partitioning scheme of an Iceberg table** To change the partitioning scheme of an Iceberg table, you specify the desired partitioning scheme using the `tigerlake.iceberg_partitionby` property. For example. if the `samples` table has an hourly (`hour(ts)`) partition on the `ts` timestamp column, to change to daily partitioning, call the following statement: This statement is also correct for Iceberg tables without a partitioning scheme. When you change the partition, you **do not** have to pause the sync to Iceberg. Apache Iceberg handles the partitioning operation in function of the internal implementation.
 
 **Specify a different namespace** By default, tables are created in the the `timescaledb` namespace. To specify a different namespace when you start the sync, use the `tigerlake.iceberg_namespace` property. For example: **Specify a different Iceberg table name** The table name in Iceberg is the same as the source table in Tiger Cloud. Some services do not allow mixed case, or have other constraints for table names. To define a different table name for the Iceberg table at sync start, use the `tigerlake.iceberg_table` property. For example:
 
 Limitations
 
--   Service requires Postgres 17.6 and above is supported.
+-   Service requires {C.PG} 17.6 and above is supported.
 -   [Amazon S3 Tables Iceberg REST](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-integrating-open-source.html) catalog only is supported.
 -   In order to collect deletes made to data in the columstore, certain columnstore optimizations are disabled for hypertables, this includes [Direct Compress](/use-timescale/:currentVersion:/hypertables/hypertable-crud#speed-up-data-ingestion).
 -   The `TRUNCATE` statement is not supported, and does not truncate data in the corresponding Iceberg table.
