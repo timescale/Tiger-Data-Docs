@@ -9,6 +9,8 @@ The site uses **hover dropdowns** on the main navigation tabs (Learn, Build, Mig
 - An “Overview” link (tab landing page) plus a short description
 - Links for each top-level sidebar section (from the tab’s `sidebar` array)
 
+**Overview description (config-driven):** The line of text under each tab’s “Overview” link in the dropdown comes from that section’s **index.mdx** frontmatter. Add `overviewDescription` to any section index (e.g. `src/content/docs/learn/index.mdx`) to control the text; if missing, it falls back to “Overview and key topics”.
+
 Implementation details:
 
 - **Custom Header** – The Stainless Docs default header is overridden via `experimental.starlightCompat.components.Header` so we can use our own tab bar.
