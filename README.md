@@ -88,6 +88,23 @@ This project uses the `@stainless-api/docs` integration which provides:
 
 Requires `STAINLESS_API_KEY` for API reference generation. See `.env.example`.
 
+## Doc constants (brand and product variables)
+
+The repo uses shared constants so product and database names can be changed in one place. They live in `src/constants.ts` and are imported in MDX, Astro, and TS as `@constants`.
+
+**In MDX (docs and partials):**
+
+1. At the top of the file, add: `import * as C from "@constants";` (if not already present).
+2. Use the constants in **prose** and **headings** with curly braces, e.g. `{C.PG}`, `{C.CLOUD_LONG}`, `{C.TIMESCALE_DB}`.
+
+Examples:
+
+- Prose: `Connect to {C.PG} and run the query.`
+- Headings: `## Using {C.PG} with time-series data`
+- In component props (JS expressions): `` title={`Install ${C.PG}`} ``
+
+The database name is intentionally centralized: use `{C.PG}` or `{C.POSTGRESQL}` instead of literal "PostgreSQL" or "Postgres". The lint script `pnpm run lint:postgresql-variable` (and the CI workflow) enforce this in both prose and headings.
+
 ## Want to learn more?
 
 - [Stainless Docs Platform documentation](https://stainless.com/docs/docs-platform/)

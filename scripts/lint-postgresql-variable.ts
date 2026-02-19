@@ -2,9 +2,10 @@
 /**
  * Lint docs for use of the PostgreSQL/Postgres variable (C.PG or C.POSTGRESQL).
  *
- * All references to the database product in prose should use the constant from
- * @constants (e.g. {C.PG}) so the display name can be changed in one place.
- * Literal "PostgreSQL" or "Postgres" in content blocks will fail this check.
+ * All references to the database product in prose and headings should use the
+ * constant from @constants (e.g. {C.PG}) so the display name can be changed in
+ * one place. Literal "PostgreSQL" or "Postgres" in content or headings will
+ * fail this check.
  *
  * Usage:
  *   pnpm run lint:postgresql-variable   # Check (CI)
@@ -135,7 +136,7 @@ async function main(): Promise<void> {
     console.error(`  ${v.file}:${v.line}`);
     console.error(`    ${v.content}\n`);
   }
-  console.error(`${allViolations.length} violation(s). Add \`import * as C from "@constants";\` and use \`{C.PG}\` in prose.`);
+  console.error(`${allViolations.length} violation(s). Add \`import * as C from "@constants";\` and use \`{C.PG}\` in prose and headings.`);
   process.exit(1);
 }
 
