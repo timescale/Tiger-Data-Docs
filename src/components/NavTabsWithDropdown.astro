@@ -1,0 +1,222 @@
+---
+/**
+ * Navigation tabs with hover dropdowns, similar to the ClickHouse/shadcn-style
+ * "Manage data" menu. Each tab that has a sidebar shows a dropdown of section
+ * links on hover; tabs without sidebar remain simple links.
+ *
+ * Uses the same TABS and route data as the default SecondaryNavTabs so the
+ * dropdown content is derived from your astro.config.ts tab sidebar config.
+ */
+import { Button } from "@stainless-api/ui-primitives";
+import { TABS } from "virtual:stl-docs-virtual-module";
+import type { StarlightRouteData } from "@astrojs/starlight/route-data";
+
+const routeData = Astro.locals.starlightRoute as StarlightRouteData & {
+  _stlDocs?: { activeTabIndex?: number };
+};
+const activeTabIndex = routeData?._stlDocs?.activeTabIndex ?? -1;
+
+const navItems = TABS.map((item, index) => ({
+  ...item,
+  active: index === activeTabIndex,
+})).filter((item) => !item.hidden);
+
+interface SidebarEntryLike {
+  label: string;
+  link?: string;
+  autogenerate?: { directory: string };
+  items?: unknown[];
+}
+/** Resolve a sidebar entry to { label, href } for dropdown links. */
+function getDropdownLinks(sidebar: SidebarEntryLike[] | undefined): { label: string; href: string }[] {
+  if (!sidebar?.length) return [];
+  return sidebar
+    .filter((entry) => typeof entry.link === "string" || entry.autogenerate?.directory)
+    .map((entry) => ({
+      label: entry.label,
+      href: typeof entry.link === "string" ? entry.link : `/${entry.autogenerate!.directory}`,
+    }));
+}
+---
+
+<div class="stl-secondary-nav-tabs stl-nav-tabs-with-dropdown">
+  <ul>
+    {
+      navItems.map((item) => {
+        const sidebar = "sidebar" in item ? item.sidebar : undefined;
+        const dropdownLinks = getDropdownLinks(sidebar);
+        const hasDropdown = dropdownLinks.length > 0;
+
+        return (
+          <li class:list={[item.active && "active"]}>
+            {hasDropdown ? (
+              <div class="nav-dropdown-wrapper">
+                <Button
+                  href={item.link}
+                  variant="ghost"
+                  className={["nav-trigger", item.active && "stl-active-secondary-link"].filter(Boolean).join(" ")}
+                >
+                  <Button.Label>
+                    {item.label}
+                    <span class="nav-chevron" aria-hidden="true">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </span>
+                  </Button.Label>
+                </Button>
+                <div class="nav-dropdown" role="menu">
+                  <a href={item.link} class="nav-dropdown-item nav-dropdown-item--overview" role="menuitem">
+                    <span class="nav-dropdown-item-title">{item.label}</span>
+                    <span class="nav-dropdown-item-desc">Overview and key topics</span>
+                  </a>
+                  {
+                    dropdownLinks.map((link) => (
+                      <a href={link.href} class="nav-dropdown-item" role="menuitem">
+                        <span class="nav-dropdown-item-title">{link.label}</span>
+                      </a>
+                    ))
+                  }
+                </div>
+              </div>
+            ) : (
+              <Button
+                href={item.link}
+                variant="ghost"
+                className={item.active ? "stl-active-secondary-link" : undefined}
+              >
+                <Button.Label>{item.label}</Button.Label>
+              </Button>
+            )}
+          </li>
+        );
+      })
+    }
+  </ul>
+</div>
+
+<style>
+  .stl-nav-tabs-with-dropdown.stl-secondary-nav-tabs {
+    display: none;
+    width: 100%;
+  }
+
+  .stl-nav-tabs-with-dropdown ul {
+    display: flex;
+    align-items: center;
+    padding: 0;
+    list-style: none;
+    margin-bottom: -1px;
+  }
+
+  .stl-nav-tabs-with-dropdown li {
+    padding-bottom: 1px;
+    border-bottom: 2px solid transparent;
+  }
+
+  .stl-nav-tabs-with-dropdown li.active {
+    border-color: var(--stl-color-accent-border-strong);
+  }
+
+  .stl-nav-tabs-with-dropdown .stl-ui-button {
+    border-width: 0;
+    padding: 8px 12px;
+    margin-inline: -12px;
+  }
+
+  .stl-nav-tabs-with-dropdown li:not(:first-child) {
+    margin-inline-start: 12px;
+  }
+
+  .stl-nav-tabs-with-dropdown li:not(:last-child) {
+    margin-inline-end: 12px;
+  }
+
+  /* Dropdown trigger with chevron */
+  .nav-chevron {
+    display: inline-flex;
+    margin-left: 4px;
+    opacity: 0.8;
+  }
+
+  /* Wrapper so dropdown is positioned relative to it */
+  .nav-dropdown-wrapper {
+    position: relative;
+  }
+
+  .nav-dropdown-wrapper .nav-trigger {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Dropdown panel – hidden by default, shown on hover */
+  .nav-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 2px;
+    min-width: 280px;
+    padding: 8px 0;
+    background: light-dark(var(--tiger-white), var(--tiger-grey-900));
+    border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
+    border-radius: var(--tiger-radius-md, 8px);
+    box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition:
+      opacity 0.15s ease,
+      visibility 0.15s ease,
+      transform 0.15s ease;
+    z-index: 50;
+  }
+
+  .nav-dropdown-wrapper:hover .nav-dropdown,
+  .nav-dropdown-wrapper .nav-dropdown:focus-within {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  /* Optional: keep dropdown open when hovering the panel */
+  .nav-dropdown-wrapper:hover .nav-trigger {
+    background: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
+    border-radius: var(--tiger-radius-sm, 6px);
+  }
+
+  .nav-dropdown-item {
+    display: block;
+    padding: 10px 16px;
+    color: inherit;
+    text-decoration: none;
+    transition: background 0.1s ease;
+  }
+
+  .nav-dropdown-item:hover {
+    background: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
+  }
+
+  .nav-dropdown-item--overview {
+    border-bottom: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
+    margin-bottom: 4px;
+  }
+
+  .nav-dropdown-item-title {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9375rem;
+  }
+
+  .nav-dropdown-item-desc {
+    display: block;
+    font-size: 0.8125rem;
+    color: light-dark(var(--tiger-grey-500), var(--tiger-grey-400));
+    margin-top: 2px;
+  }
+
+  @media (min-width: 50rem) {
+    .stl-nav-tabs-with-dropdown.stl-secondary-nav-tabs {
+      display: block;
+    }
+  }
+</style>

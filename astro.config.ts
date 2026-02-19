@@ -44,6 +44,11 @@ export default defineConfig({
       ],
       experimental: {
         aiChat: aiChat(),
+        starlightCompat: {
+          components: {
+            Header: "./src/components/Header.astro",
+          },
+        },
       },
       tabs: [
         // Get Started tab
