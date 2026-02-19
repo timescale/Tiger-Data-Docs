@@ -1,0 +1,48 @@
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+You cannot upgrade {C.TIMESCALE_DB} and {C.PG} at the same time. You upgrade each product in
+the following steps:
+
+<NumberedList>
+
+<NumberedItem title="Upgrade TimescaleDB">
+
+```sql
+psql -X -d $SOURCE -c "ALTER EXTENSION timescaledb UPDATE TO '<version number>';"
+```
+
+</NumberedItem>
+
+<NumberedItem title={`If your migration path dictates it, upgrade ${C.PG}`}>
+
+Follow the procedure in [Upgrade {C.PG}][upgrade-pg]. The version of {C.TIMESCALE_DB} installed
+in your {C.PG} deployment must be the same before and after the {C.PG} upgrade.
+
+</NumberedItem>
+
+<NumberedItem title={`If your migration path dictates it, upgrade ${C.TIMESCALE_DB} again`}>
+
+```sql
+psql -X -d $SOURCE -c "ALTER EXTENSION timescaledb UPDATE TO '<version number>';"
+```
+
+</NumberedItem>
+
+<NumberedItem title="Check that you have upgraded to the correct version of TimescaleDB">
+
+```sql
+ psql -X -d $SOURCE -c "\dx timescaledb;"
+ ```
+{C.PG} returns something like:
+ ```shell
+ Name     | Version | Schema |                                      Description                                      
+ -------------+---------+--------+---------------------------------------------------------------------------------------
+ timescaledb | 2.17.2  | public | Enables scalable inserts and complex queries for time-series data (Community Edition)
+ ```
+
+</NumberedItem>
+
+</NumberedList> 
+
+[upgrade-pg]: /self-hosted/upgrades/upgrade-pg/#plan-your-upgrade-path
