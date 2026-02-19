@@ -131,23 +131,23 @@ ai.loading_uri(
 )
 ```
 
-## Syncing S3 to a Documents Table
+## Syncing S3 to a documents table
 
 If your application treats s3 as the source of truth for documents and therefore doesn't keep track of files in postgres, you can configure [s3 event notifications](https://docs.aws.amazon.com/AmazonS3/latest/userguide/EventNotifications.html) to keep your document table synchronized with S3 when documents are uploaded, modified, or deleted.
 
 The easiest way to handle s3 changes is to create a new AWS lambda function to listen to s3 notifications. AWS will take care of calling your function whenever the bucket content changes. The lambda function can then update the document table in your postgres instance accordingly.
 
-### 1. Create a new lambda function
+### 1. create a new lambda function
 Create a new AWS Lambda function, in this example we are using Python 3.13 as our runtime. You can use the AWS console or the AWS CLI to create the function.
 ![Create Lambda](/pgai/images/s3_sync/create_lambda.png)
 
-### 2. Configure the trigger
+### 2. configure the trigger
 
 Next up add a trigger to your lambda function, choose s3 as the trigger type and select the bucket you want to listen to.
 For event types just make sure you include all object create and delete events. S3 does not differentiate between creates and updates.
 ![Configure Trigger](/pgai/images/s3_sync/trigger_config.png)
 
-### 3. Implement the lambda function
+### 3. implement the lambda function
 Your lambda function then needs to [handle s3 events](https://docs.aws.amazon.com/lambda/latest/dg/with-s3.html) and update the document table accordingly. Here is a simple example of a lambda function that does this for a table that has `uri` and `updated_at` columns:
 ```python
 import json

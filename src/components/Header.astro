@@ -1,0 +1,169 @@
+---
+/**
+ * Custom Header that uses NavTabsWithDropdown for hover dropdowns in the
+ * tab bar. This replaces the default Stainless StackedHeader when
+ * experimental.starlightCompat.components.Header is set to this file.
+ *
+ * Layout and behavior match the default stacked header; only the secondary
+ * nav (tabs) is swapped for the dropdown version.
+ */
+import LanguageSelect from "virtual:starlight/components/LanguageSelect";
+import Search from "virtual:starlight/components/Search";
+import SiteTitle from "virtual:starlight/components/SiteTitle";
+import ThemeSelect from "virtual:starlight/components/ThemeSelect";
+import { HEADER_LINKS, TABS } from "virtual:stl-docs-virtual-module";
+import { Button } from "@stainless-api/ui-primitives";
+import NavTabsWithDropdown from "./NavTabsWithDropdown.astro";
+import SplashMobileMenuToggle from "./SplashMobileMenuToggle.astro";
+
+interface Props {
+  shouldRenderSearch?: boolean;
+}
+
+const { shouldRenderSearch } = Astro.props;
+const { hasSidebar } = Astro.locals.starlightRoute;
+---
+
+<div class="header my-header">
+  <div class="left-group">
+    <div class="title-wrapper sl-flex">
+      <SiteTitle />
+    </div>
+  </div>
+
+  <div class="stl-top-container">
+    {shouldRenderSearch && <Search />}
+    {!hasSidebar && <SplashMobileMenuToggle />}
+  </div>
+
+  <div class={`sl-hidden md:sl-flex print:hidden right-group`}>
+    <ThemeSelect />
+    <div class="header-links">
+      {
+        HEADER_LINKS.map((link, index) => (
+          <Button
+            href={link.link}
+            variant={link.variant || (index === HEADER_LINKS.length - 1 ? "accent" : "outline")}
+            {...(link.attrs || {})}
+          >
+            <Button.Label>{link.label}</Button.Label>
+          </Button>
+        ))
+      }
+    </div>
+    <LanguageSelect />
+  </div>
+</div>
+
+<NavTabsWithDropdown />
+
+<!-- Global header layout: same as default Stainless Header.astro so alignment is preserved -->
+<style is:global>
+  @layer starlight.core {
+    header,
+    header.header {
+      border-color: var(--stl-color-border-faint);
+    }
+
+    .header {
+      display: flex;
+      gap: var(--sl-nav-gap);
+      justify-content: space-between;
+      align-items: center;
+      height: 100%;
+      width: 100%;
+    }
+    .title-wrapper {
+      overflow: clip;
+      padding: 0.25rem;
+      margin: -0.25rem;
+      min-width: 0;
+      max-height: 32px;
+    }
+
+    .default-tabs-container {
+      justify-content: flex-end;
+    }
+
+    .split-tabs-container {
+      display: flex;
+      max-width: 480px;
+      flex: 1;
+    }
+    .split-tabs-container button {
+      max-width: unset;
+      width: 100%;
+      flex: 1;
+    }
+
+    .left-group {
+      display: flex;
+      align-items: center;
+      gap: var(--sl-nav-gap);
+      flex-shrink: 0;
+    }
+
+    .right-group,
+    .social-icons {
+      gap: var(--sl-nav-gap);
+      align-items: center;
+    }
+
+    .right-group > div {
+      gap: var(--sl-nav-gap);
+    }
+
+    @media (min-width: 50rem) {
+      .default-tabs-container {
+        min-width: 540px;
+      }
+    }
+  }
+</style>
+
+<style is:inline>
+  .stl-top-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: end;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  .header-links {
+    display: flex;
+    align-items: center;
+    gap: var(--sl-nav-gap);
+  }
+  @media (min-width: 50rem) {
+    :root {
+      --sl-nav-height: 88px;
+    }
+
+    header.header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.29rem;
+      padding-bottom: 0;
+    }
+
+    .stl-top-container {
+      justify-content: center;
+    }
+  }
+</style>
+
+{
+  TABS.length === 0 && (
+    <style
+      is:inline
+      set:text={`
+        @media (min-width: 50rem) {
+          :root {
+            --sl-nav-height: 56px;
+          }
+        }
+      `}
+    />
+  )
+}
