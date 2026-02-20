@@ -1,0 +1,404 @@
+import { t as __exportAll } from "../chunk-BYypO7fO.js";
+import { useLanguage } from "../contexts/docs.js";
+import "../use-strict-context-L0c8JKg4.js";
+import { useLanguageComponents } from "../contexts/index.js";
+import { useComponents } from "../contexts/use-components.js";
+import style_default from "../style.js";
+import * as React$1 from "react";
+import { Fragment as Fragment$1, jsx, jsxs } from "react/jsx-runtime";
+
+//#region src/languages/java.tsx
+var java_exports = /* @__PURE__ */ __exportAll({
+	Declaration: () => Declaration,
+	MethodSignature: () => MethodSignature,
+	Property: () => Property,
+	Type: () => Type,
+	TypeName: () => TypeName
+});
+function showFullType(type) {
+	return type.kind === "JavaTypeReference" && (type.typeName === "List" || type.typeParameters && type.typeParameters.length > 0);
+}
+const constStyle = {
+	string: style_default.LiteralString,
+	number: style_default.LiteralNumeric,
+	boolean: style_default.LiteralBoolean
+};
+function TypeName({ type, optional }) {
+	const Lang = useLanguageComponents();
+	if (type.kind === "JavaTypeReference" && type.typeName === "List") return "List";
+	return /* @__PURE__ */ jsx(Lang.Type, {
+		type,
+		optional
+	});
+}
+function Type({ type, optional }) {
+	const language = useLanguage();
+	const Lang = useLanguageComponents();
+	const { Join, SDKReference } = useComponents();
+	switch (type.kind) {
+		case "JavaTypeReference": {
+			const name = type.typeName.split(".").at(-1);
+			const params = type.typeParameters?.map((param, key) => /* @__PURE__ */ jsx(Lang.Type, {
+				type: param,
+				optional
+			}, key));
+			return /* @__PURE__ */ jsxs("span", {
+				className: style_default.Type,
+				children: [/* @__PURE__ */ jsx(SDKReference, {
+					stainlessPath: type.$ref,
+					children: name
+				}), params && params.length > 0 ? /* @__PURE__ */ jsxs(Fragment$1, { children: [
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeBracket,
+						children: "<"
+					}),
+					/* @__PURE__ */ jsx(Join, {
+						items: params,
+						limit: 3,
+						children: /* @__PURE__ */ jsx("span", {
+							className: style_default.TextOperator,
+							children: ", "
+						})
+					}),
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeBracket,
+						children: ">"
+					})
+				] }) : null]
+			});
+		}
+		case "JavaTypeClass":
+		case "JavaTypeUnion": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypeKeyword,
+				children: "class"
+			})
+		});
+		case "JavaTypeEnum": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypeKeyword,
+				children: language === "kotlin" ? "enum class" : "enum"
+			})
+		});
+		case "JavaTypeVoid": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypeKeyword,
+				children: language === "kotlin" ? "Nothing?" : "Void"
+			})
+		});
+		case "JavaTypeBoolean": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypeKeyword,
+				children: language === "kotlin" || optional ? "Boolean" : "boolean"
+			})
+		});
+		case "JavaTypeDouble": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypeKeyword,
+				children: language === "kotlin" || optional ? "Double" : "double"
+			})
+		});
+		case "JavaTypeLong": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypeKeyword,
+				children: language === "kotlin" || optional ? "Long" : "long"
+			})
+		});
+		case "JavaTypeString": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypeString,
+				children: "String"
+			})
+		});
+		case "JavaTypeConstant": return /* @__PURE__ */ jsxs("span", {
+			className: style_default.Type,
+			children: [/* @__PURE__ */ jsx("span", {
+				className: style_default.TypeKeyword,
+				children: "JsonValue"
+			}), ";"]
+		});
+	}
+}
+function MethodSignature({ decl }) {
+	const Lang = useLanguageComponents();
+	const language = useLanguage();
+	const { Join, Tooltip } = useComponents();
+	const params = decl.parameters.map((param, i) => /* @__PURE__ */ jsx(React$1.Fragment, { children: /* @__PURE__ */ jsxs(Tooltip, {
+		content: /* @__PURE__ */ jsx(Lang.Type, { type: param.typeAnnotation }),
+		children: [/* @__PURE__ */ jsx("span", {
+			className: style_default.TextIdentifier,
+			children: param.ident
+		}), param.hasDefault && /* @__PURE__ */ jsxs(Fragment$1, { children: [
+			" ",
+			/* @__PURE__ */ jsx("span", {
+				className: style_default.TextOperator,
+				children: "="
+			}),
+			" ",
+			/* @__PURE__ */ jsx(Lang.Type, { type: param.typeAnnotation }),
+			/* @__PURE__ */ jsx("span", {
+				className: style_default.TextOperator,
+				children: "."
+			}),
+			/* @__PURE__ */ jsx("span", {
+				className: style_default.TextIdentifier,
+				children: "none"
+			}),
+			/* @__PURE__ */ jsx("span", {
+				className: style_default.TextOperator,
+				children: "()"
+			})
+		] })]
+	}) }, i));
+	return /* @__PURE__ */ jsx("div", {
+		className: style_default.MethodSignature,
+		children: /* @__PURE__ */ jsxs("span", {
+			className: style_default.SignatureTitle,
+			children: [
+				decl.returnType && language !== "kotlin" && /* @__PURE__ */ jsxs("span", {
+					className: style_default.SignatureReturns,
+					children: [/* @__PURE__ */ jsx(Lang.Type, { type: decl.returnType }), " "]
+				}),
+				decl.qualified && /* @__PURE__ */ jsx("span", {
+					className: style_default.SignatureQualified,
+					children: /* @__PURE__ */ jsx("span", {
+						className: style_default.TextIdentifier,
+						children: decl.qualified?.slice(0, -decl.ident.length)
+					})
+				}),
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.SignatureName,
+					children: /* @__PURE__ */ jsx("span", {
+						className: style_default.TextIdentifier,
+						children: decl.ident
+					})
+				}),
+				/* @__PURE__ */ jsxs("span", {
+					className: style_default.MethodSignature,
+					children: [
+						/* @__PURE__ */ jsx("span", {
+							className: style_default.SignatureParen,
+							children: "("
+						}),
+						/* @__PURE__ */ jsx("span", {
+							className: style_default.SignatureParams,
+							children: /* @__PURE__ */ jsx(Join, {
+								items: params,
+								children: /* @__PURE__ */ jsx("span", {
+									className: style_default.TextOperator,
+									children: ", "
+								})
+							})
+						}),
+						/* @__PURE__ */ jsxs("span", {
+							className: style_default.SignatureParen,
+							children: [")", " "]
+						}),
+						decl.returnType && language === "kotlin" && /* @__PURE__ */ jsxs(Fragment$1, { children: [
+							/* @__PURE__ */ jsx("span", {
+								className: style_default.TextOperator,
+								children: ":"
+							}),
+							" ",
+							/* @__PURE__ */ jsx(Lang.Type, { type: decl.returnType })
+						] })
+					]
+				})
+			]
+		})
+	});
+}
+function Property({ decl, children }) {
+	const Docs = useComponents();
+	const Lang = useLanguageComponents();
+	const language = useLanguage();
+	if (!decl) return null;
+	switch (decl.kind) {
+		case "JavaDeclProperty": {
+			const typeRaw = /* @__PURE__ */ jsx(Lang.Type, {
+				type: decl.type,
+				optional: decl.optional
+			});
+			const typeWrapped = decl.optional ? /* @__PURE__ */ jsxs(Fragment$1, { children: [
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TypeKeyword,
+					children: "Optional"
+				}),
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TypeBracket,
+					children: "<"
+				}),
+				typeRaw,
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TypeBracket,
+					children: ">"
+				})
+			] }) : typeRaw;
+			const badges = /* @__PURE__ */ jsx(Fragment$1, { children: decl.type.kind === "JavaTypeConstant" && /* @__PURE__ */ jsx(Docs.Tooltip, {
+				content: /* @__PURE__ */ jsx("span", {
+					className: style_default.TextIdentifier,
+					children: decl.type.value
+				}),
+				children: /* @__PURE__ */ jsx("span", {
+					className: style_default.TextIdentifier,
+					children: "constant"
+				})
+			}) });
+			return children({
+				name: decl.ident,
+				typeName: /* @__PURE__ */ jsx(Lang.TypeName, {
+					type: decl.type,
+					optional: decl.optional
+				}),
+				type: showFullType(decl.type) && typeWrapped,
+				badges
+			});
+		}
+		case "JavaDeclConst": return children({
+			name: decl.ident,
+			typeName: "const",
+			type: /* @__PURE__ */ jsx("span", {
+				className: constStyle[typeof decl.value],
+				children: JSON.stringify(decl.value)
+			})
+		});
+		case "JavaDeclType": {
+			const typeName = decl.type.kind === "JavaTypeUnion" ? "union" : decl.type.kind === "JavaTypeEnum" ? language === "kotlin" ? "enum class" : "enum" : "class";
+			return children({
+				name: decl.ident,
+				typeName
+			});
+		}
+		case "JavaDeclReference": return children({ type: /* @__PURE__ */ jsx(Lang.Type, { type: decl.type }) });
+	}
+}
+function Declaration({ decl }) {
+	const Docs = useComponents();
+	const Lang = useLanguageComponents();
+	const language = useLanguage();
+	if (!decl) return null;
+	switch (decl.kind) {
+		case "JavaDeclConst": return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+			/* @__PURE__ */ jsx("span", {
+				className: style_default.TextIdentifier,
+				children: decl.ident
+			}),
+			/* @__PURE__ */ jsx("span", {
+				className: style_default.TextPunctuation,
+				children: "("
+			}),
+			JSON.stringify(decl.value),
+			/* @__PURE__ */ jsx("span", {
+				className: style_default.TextPunctuation,
+				children: ")"
+			})
+		] });
+		case "JavaDeclType": {
+			const keyword = decl.type.kind === "JavaTypeEnum" ? language === "kotlin" ? "enum class" : "enum" : "class";
+			return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TextKeyword,
+					children: keyword
+				}),
+				" ",
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TextIdentifier,
+					children: decl.ident
+				}),
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TextPunctuation,
+					children: ":"
+				}),
+				decl.type.kind === "JavaTypeUnion" && /* @__PURE__ */ jsxs(Fragment$1, { children: [
+					" ",
+					/* @__PURE__ */ jsx(Docs.Tooltip, {
+						content: "A class that can be one of several variants.",
+						children: /* @__PURE__ */ jsx(Docs.Badge, {
+							id: "java-union",
+							children: "union"
+						})
+					}),
+					" "
+				] })
+			] });
+		}
+		case "JavaDeclProperty": {
+			const inlineType = /* @__PURE__ */ jsx(Lang.Type, {
+				type: decl.type,
+				optional: decl.optional
+			});
+			const ident = /* @__PURE__ */ jsx("span", {
+				className: style_default.TypePropertyName,
+				children: /* @__PURE__ */ jsx("span", {
+					className: style_default.TextIdentifier,
+					children: decl.ident
+				})
+			});
+			const suffix = decl.type.kind === "JavaTypeConstant" ? /* @__PURE__ */ jsxs(Fragment$1, { children: [" ", /* @__PURE__ */ jsx(Docs.Tooltip, {
+				content: /* @__PURE__ */ jsx("span", {
+					className: style_default.TextIdentifier,
+					children: decl.type.value
+				}),
+				children: /* @__PURE__ */ jsx(Docs.Badge, {
+					id: "java-constant",
+					children: "constant"
+				})
+			})] }) : null;
+			if (language === "kotlin") return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+				ident,
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TextPunctuation,
+					children: ":"
+				}),
+				" ",
+				decl.optional ? /* @__PURE__ */ jsxs(Fragment$1, { children: [
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeReference,
+						children: "Optional"
+					}),
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeBracket,
+						children: "<"
+					}),
+					inlineType,
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeBracket,
+						children: ">"
+					})
+				] }) : inlineType,
+				suffix
+			] });
+			return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+				decl.optional ? /* @__PURE__ */ jsxs(Fragment$1, { children: [
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeReference,
+						children: "Optional"
+					}),
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeBracket,
+						children: "<"
+					}),
+					inlineType,
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeBracket,
+						children: ">"
+					})
+				] }) : inlineType,
+				" ",
+				ident,
+				suffix
+			] });
+		}
+		case "JavaDeclReference": return /* @__PURE__ */ jsx(Lang.Type, { type: decl.type });
+	}
+}
+
+//#endregion
+export { Declaration, MethodSignature, Property, Type, TypeName, java_exports as t };

@@ -1,0 +1,406 @@
+import { useAvailableLanguages, useContentPanelLayout, useDeclaration, useLanguage, useSettings, useSnippetIds, useSnippetResponse, useSpec } from "../contexts/docs.js";
+import "../use-strict-context-L0c8JKg4.js";
+import { useNavigation } from "../contexts/navigation.js";
+import { useLanguageComponents } from "../contexts/index.js";
+import { useComponents } from "../contexts/use-components.js";
+import style_default from "../style.js";
+import { LanguageNames, generateRoute, getLanguageSnippet, parseStainlessPath } from "../routing.js";
+import { CLIIcon, CSharpIcon, CurlIcon, GoIcon, JavaIcon, KotlinIcon, PowershellIcon, PythonIcon, RubyIcon, TerraformIcon, TypescriptIcon } from "./icons.js";
+import * as React$1 from "react";
+import { Fragment as Fragment$1, jsx, jsxs } from "react/jsx-runtime";
+import clsx from "clsx";
+import { BookOpen, Copy, Github } from "lucide-react";
+import { Button, Callout } from "@stainless-api/ui-primitives";
+
+//#region src/components/sdk.tsx
+const PropertyModelContext = React$1.createContext({});
+function usePropertyModel() {
+	return React$1.useContext(PropertyModelContext);
+}
+const ReferenceNestingContext = React$1.createContext([]);
+function useReferenceNesting() {
+	return React$1.useContext(ReferenceNestingContext);
+}
+const SDKSnippetLanguages = {
+	"node.default": { name: "TypeScript" },
+	"typescript.default": { name: "TypeScript" },
+	"python.default": { name: "Python" },
+	"go.default": { name: "Go" },
+	"java.default": { name: "Java" },
+	"kotlin.default": { name: "Kotlin" },
+	"http.curl": { name: "cURL" },
+	"http.powershell": { name: "Powershell" },
+	"terraform.default": { name: "Terraform" },
+	"ruby.default": { name: "Ruby" },
+	"csharp.default": { name: "C#" },
+	"php.default": { name: "PHP" },
+	"cli.default": { name: "CLI tool" }
+};
+function SDKChildren({ paths, expand, depth }) {
+	const Docs = useComponents();
+	return /* @__PURE__ */ jsx("div", {
+		className: style_default.Properties,
+		children: paths.map((path, i) => /* @__PURE__ */ jsx(Docs.SDKDeclaration, {
+			path,
+			expand,
+			depth
+		}, i))
+	});
+}
+function normalizeDeclaration(raw, http) {
+	if (raw.kind === "JavaDeclProperty" && raw.type.kind === "JavaTypeString" && raw.constraints?.format === "binary") return {
+		...raw,
+		type: {
+			kind: "JavaTypeReference",
+			typeName: "InputStream"
+		}
+	};
+	if (http?.kind === "HttpDeclProperty" && http.type.kind === "HttpTypeString" && http.constraints?.format === "binary") switch (raw.kind) {
+		case "CLISchemaProperty":
+		case "CLIFlag":
+		case "HttpDeclProperty": return {
+			...raw,
+			type: {
+				kind: "HttpTypeBinary",
+				contentType: []
+			}
+		};
+		case "RubyDeclProperty": return {
+			...raw,
+			type: {
+				kind: "RubyTypeBinary",
+				contentType: []
+			}
+		};
+	}
+	return raw;
+}
+function SDKDeclaration({ path, expand, depth = 0 }) {
+	const Lang = useLanguageComponents();
+	const Docs = useComponents();
+	const decl = normalizeDeclaration(useDeclaration(path, true), useDeclaration(path.replace(/ > \(schema\)$/, "") + " > (schema)", false, "http"));
+	const settings = useSettings();
+	const model = usePropertyModel();
+	const nesting = useReferenceNesting();
+	const { selectedPath } = useNavigation();
+	if (decl.kind.endsWith("Reference")) {
+		const refId = "type" in decl && decl.type !== void 0 && typeof decl.type !== "string" && "$ref" in decl.type ? decl.type["$ref"] : void 0;
+		if (refId && refId !== path && !nesting.includes(refId)) return /* @__PURE__ */ jsx(ReferenceNestingContext.Provider, {
+			value: [...nesting, refId],
+			children: /* @__PURE__ */ jsx(SDKDeclaration, {
+				path: refId,
+				expand,
+				depth
+			})
+		});
+	}
+	const parsedPath = selectedPath ? parseStainlessPath(selectedPath) : null;
+	const modelPropSetting = settings?.properties?.includeModelProperties;
+	const inlineModelProps = modelPropSetting === "method-page" ? Boolean(parsedPath?.method) : modelPropSetting !== false;
+	const isUnion = "childrenParentSchema" in decl && decl.childrenParentSchema && decl.kind !== "CLIFlag" && decl.kind !== "CLISchemaProperty" && ["enum", "union"].includes(decl.childrenParentSchema);
+	const id = model?.propertyPath ? `${model.propertyPath} + ${path}` : path;
+	const shouldExpand = selectedPath?.startsWith(path) && nesting.length < 1 || settings?.properties?.expandDepth && depth <= settings?.properties?.expandDepth && !isUnion || expand;
+	const hasChildren = "children" in decl && (decl.children?.length ?? 0) > 0 && !decl.children?.includes(path) && !(isUnion && decl.childrenParentSchema === "enum" && decl.children?.length === 1) && (inlineModelProps || !("modelPath" in decl));
+	const content = /* @__PURE__ */ jsx(Lang.Property, {
+		decl,
+		children: ({ ...props }) => /* @__PURE__ */ jsx(Docs.Property, {
+			id,
+			expand: shouldExpand,
+			constraints: "constraints" in decl && decl.kind !== "CLIFlag" && decl.kind !== "CLISchemaProperty" && /* @__PURE__ */ jsx(Docs.SDKConstraints, { constraints: decl["constraints"] }),
+			declaration: /* @__PURE__ */ jsx(Lang.Declaration, { decl }),
+			title: "title" in decl ? decl.title : void 0,
+			description: "docstring" in decl ? decl["docstring"] : void 0,
+			deprecated: decl.deprecated,
+			...props,
+			children: hasChildren && /* @__PURE__ */ jsxs(Fragment$1, { children: [isUnion && /* @__PURE__ */ jsx("div", {
+				className: style_default.PropertyAnnotation,
+				children: "Accepts one of the following:"
+			}), /* @__PURE__ */ jsx(Docs.SDKChildren, {
+				paths: decl.children ?? [],
+				depth: depth + 1
+			})] })
+		})
+	});
+	if ("modelPath" in decl) {
+		const value = {
+			modelPath: decl.modelPath,
+			propertyPath: decl.stainlessPath
+		};
+		return /* @__PURE__ */ jsx(PropertyModelContext.Provider, {
+			value,
+			children: content
+		});
+	}
+	return content;
+}
+function SDKConstraints({ constraints }) {
+	if (constraints) return /* @__PURE__ */ jsx("div", {
+		className: style_default.PropertyConstraints,
+		children: Object.entries(constraints).map(([name, value]) => name === "format" && value === "binary" ? null : /* @__PURE__ */ jsxs("div", {
+			className: style_default.PropertyConstraint,
+			children: [/* @__PURE__ */ jsx("span", {
+				className: style_default.PropertyConstraintName,
+				children: name
+			}), /* @__PURE__ */ jsx("span", {
+				className: style_default.PropertyConstraintValue,
+				children: value
+			})]
+		}, name))
+	});
+}
+const snippetIcons = {
+	"node.default": TypescriptIcon,
+	"typescript.default": TypescriptIcon,
+	"go.default": GoIcon,
+	"python.default": PythonIcon,
+	"terraform.default": TerraformIcon,
+	"http.curl": CurlIcon,
+	"http.powershell": PowershellIcon,
+	"ruby.default": RubyIcon,
+	"java.default": JavaIcon,
+	"kotlin.default": KotlinIcon,
+	"csharp.default": CSharpIcon,
+	"cli.default": CLIIcon,
+	"php.default": CSharpIcon
+};
+function SDKIcon({ language }) {
+	const LangIcon = snippetIcons[language];
+	if (!LangIcon) return null;
+	return /* @__PURE__ */ jsx(LangIcon, { className: clsx(style_default.Icon, language.split(".").shift()) });
+}
+function SDKRequestTitle({ snippetLanguage }) {
+	const languageName = SDKSnippetLanguages[snippetLanguage]?.name;
+	return /* @__PURE__ */ jsxs("span", {
+		className: style_default.SnippetRequestTitleLanguage,
+		children: [
+			/* @__PURE__ */ jsx(SDKIcon, { language: snippetLanguage }),
+			" ",
+			languageName
+		]
+	});
+}
+function SDKExample({ method, transformRequestSnippet }) {
+	const Docs = useComponents();
+	const language = useLanguage();
+	const snippetLanguage = getLanguageSnippet(language);
+	if ((useSnippetIds(method.stainlessPath, language)?.filter((id) => id !== "default")?.length ?? 0) >= 2) return /* @__PURE__ */ jsx(Docs.MultiSnippets, {
+		requestTitle: /* @__PURE__ */ jsx(Docs.SDKRequestTitle, { snippetLanguage }),
+		method
+	});
+	return /* @__PURE__ */ jsx(Docs.Snippet, {
+		requestTitle: /* @__PURE__ */ jsx(Docs.SDKRequestTitle, { snippetLanguage }),
+		method,
+		transformRequestSnippet
+	});
+}
+function SDKMethodHeader({ method }) {
+	const Docs = useComponents();
+	const Lang = useLanguageComponents();
+	const decl = useDeclaration(method.stainlessPath, true);
+	return /* @__PURE__ */ jsx(Docs.MethodHeader, {
+		level: "h1",
+		title: method.summary || method.title,
+		signature: /* @__PURE__ */ jsx(Lang.MethodSignature, { decl }),
+		badges: method.deprecated && /* @__PURE__ */ jsx(Docs.Badge, {
+			id: "deprecated",
+			children: "Deprecated"
+		}),
+		children: /* @__PURE__ */ jsx(Docs.MethodRoute, {
+			httpMethod: method.httpMethod,
+			endpoint: method.endpoint.split(" ", 2).at(-1)
+		})
+	});
+}
+function useStreamingResponse(method) {
+	const tsDecl = useDeclaration(method.stainlessPath, false, "typescript");
+	if (tsDecl?.kind === "TSDeclFunction" && tsDecl.overloads) {
+		for (const e of tsDecl.overloads) if (e.returns.kind === "TSTypeReference" && (e.returns.$ref === "$.typescript.Stream" || e.returns.$ref === "$.node.Stream") && e.returns.typeParameters?.[0]?.kind === "TSTypeReference") {
+			const id = e.returns.typeParameters?.[0].$ref;
+			if (id) return id;
+		}
+	}
+}
+function SDKMethodInfo({ method }) {
+	const Docs = useComponents();
+	const Lang = useLanguageComponents();
+	const decl = useDeclaration(method.stainlessPath, true);
+	const streamingResponse = useStreamingResponse(method);
+	const spec = useSpec();
+	const language = useLanguage();
+	if (Lang.MethodInfo) return /* @__PURE__ */ jsx(Lang.MethodInfo, { decl });
+	function shouldExpand(items) {
+		if (items.length > 1) return false;
+		const item = items[0];
+		if (!item) return false;
+		const decl = spec?.decls?.[language]?.[item];
+		return decl && "children" in decl && decl.children && decl.children.length > 0;
+	}
+	const responseChildren = "responseChildren" in decl && decl.responseChildren && decl.responseChildren.length > 0 ? [...decl.responseChildren] : [];
+	if (streamingResponse) responseChildren.push(streamingResponse);
+	return /* @__PURE__ */ jsx(Docs.MethodInfo, {
+		parameters: "paramsChildren" in decl && Array.isArray(decl.paramsChildren) && decl.paramsChildren.length > 0 && /* @__PURE__ */ jsx(Docs.SDKChildren, {
+			expand: shouldExpand(decl.paramsChildren),
+			paths: decl.paramsChildren
+		}),
+		returns: responseChildren.length > 0 && /* @__PURE__ */ jsx(Docs.SDKChildren, {
+			expand: shouldExpand(responseChildren),
+			paths: responseChildren
+		})
+	});
+}
+function SDKMethodNotImplemented({ method }) {
+	const Docs = useComponents();
+	const languages = useAvailableLanguages(method?.stainlessPath);
+	const language = useLanguage();
+	const { basePath } = useNavigation();
+	const availableLanguageLinks = languages.flatMap((lang) => {
+		const url = generateRoute(basePath ?? "/", lang, method.stainlessPath);
+		return url ? [{
+			url,
+			label: LanguageNames[lang] ?? lang
+		}] : [];
+	});
+	return /* @__PURE__ */ jsxs("div", {
+		className: style_default.Method,
+		children: [/* @__PURE__ */ jsx(Docs.MethodHeader, {
+			level: "h1",
+			title: method.summary || method.title,
+			children: /* @__PURE__ */ jsx(Docs.MethodRoute, {
+				httpMethod: method.httpMethod,
+				endpoint: method.endpoint.split(" ", 2).at(-1)
+			})
+		}), /* @__PURE__ */ jsxs(Callout, {
+			variant: "warning",
+			children: [
+				"The method ",
+				/* @__PURE__ */ jsx("code", { children: method.name }),
+				" is not implemented in ",
+				LanguageNames[language] ?? language,
+				basePath && availableLanguageLinks.length > 0 ? /* @__PURE__ */ jsxs(Fragment$1, { children: [", but it is available in the following languages:", /* @__PURE__ */ jsx("ul", { children: availableLanguageLinks.map(({ url, label }) => {
+					return /* @__PURE__ */ jsx("li", { children: /* @__PURE__ */ jsx("a", {
+						href: url,
+						children: label
+					}) }, url);
+				}) })] }) : "."
+			]
+		})]
+	});
+}
+function SDKMethod({ method, transformRequestSnippet }) {
+	const Docs = useComponents();
+	const decl = useDeclaration(method?.stainlessPath, false);
+	const layout = useContentPanelLayout();
+	const defaultResponses = useSnippetResponse(method.stainlessPath);
+	if (!decl) return /* @__PURE__ */ jsx(SDKMethodNotImplemented, { method });
+	return /* @__PURE__ */ jsxs(Docs.Method, {
+		id: method.stainlessPath,
+		header: /* @__PURE__ */ jsx(Docs.SDKMethodHeader, { method }),
+		className: clsx({
+			[style_default.MethodSinglePane]: layout === "single-pane",
+			[style_default.MethodDoublePane]: layout === "double-pane"
+		}),
+		children: [
+			/* @__PURE__ */ jsxs("div", {
+				className: style_default.MethodContentColumn,
+				children: [/* @__PURE__ */ jsx(Docs.MethodDescription, { description: method.description }), /* @__PURE__ */ jsx(Docs.SDKMethodInfo, { method })]
+			}),
+			/* @__PURE__ */ jsx("div", {
+				className: clsx(style_default.MethodExample, "not-content", "stl-ui-not-prose"),
+				children: /* @__PURE__ */ jsx(Docs.SDKExample, {
+					method,
+					transformRequestSnippet
+				})
+			}),
+			/* @__PURE__ */ jsxs("div", {
+				className: style_default.MethodResponseColumn,
+				children: [/* @__PURE__ */ jsx("h5", { children: "Returns Examples" }), /* @__PURE__ */ jsx(Docs.SnippetResponse, { responses: defaultResponses })]
+			})
+		]
+	});
+}
+function SDKModel({ model }) {
+	const Docs = useComponents();
+	if (!useDeclaration(`${model.stainlessPath} > (schema)`, true)) return null;
+	return /* @__PURE__ */ jsx("div", {
+		className: style_default.Model,
+		tabIndex: 0,
+		children: /* @__PURE__ */ jsx("div", {
+			className: style_default.ResourceContentProperties,
+			children: /* @__PURE__ */ jsx(Docs.SDKDeclaration, { path: `${model.stainlessPath} > (schema)` })
+		})
+	});
+}
+function SDKReference({ stainlessPath, children }) {
+	const Docs = useComponents();
+	if (!stainlessPath || !stainlessPath.endsWith("(schema)")) return children;
+	return /* @__PURE__ */ jsx("span", {
+		className: style_default.TypeReference,
+		children: /* @__PURE__ */ jsx(Docs.Link, {
+			stainlessPath,
+			children
+		})
+	});
+}
+function SDKLanguageBlock({ language, version, install, links }) {
+	const Docs = useComponents();
+	const lang = `${language}.default`;
+	return /* @__PURE__ */ jsxs("div", {
+		className: style_default.LanguageBlock,
+		children: [
+			/* @__PURE__ */ jsxs("div", {
+				className: style_default.LanguageBlockContent,
+				children: [/* @__PURE__ */ jsx("div", {
+					className: style_default.LanguageBlockContentIcon,
+					children: /* @__PURE__ */ jsx(Docs.SDKIcon, {
+						language: lang,
+						size: 24
+					})
+				}), /* @__PURE__ */ jsxs("div", {
+					className: style_default.LanguageBlockContentInfo,
+					children: [/* @__PURE__ */ jsx("div", {
+						className: style_default.LanguageBlockContentInfoLanguage,
+						children: Docs.SDKSnippetLanguages[lang].name
+					}), /* @__PURE__ */ jsx("div", {
+						className: style_default.LanguageBlockContentInfoVersion,
+						children: version
+					})]
+				})]
+			}),
+			/* @__PURE__ */ jsxs("div", {
+				className: style_default.LanguageBlockInstall,
+				"data-stldocs-copy-parent": true,
+				children: [
+					/* @__PURE__ */ jsx("pre", {
+						"data-stldocs-copy-content": true,
+						children: install
+					}),
+					" ",
+					/* @__PURE__ */ jsx(Button, {
+						variant: "ghost",
+						size: "sm",
+						"data-stldocs-snippet-copy": true,
+						children: /* @__PURE__ */ jsx(Copy, {
+							size: 16,
+							className: style_default.Icon
+						})
+					})
+				]
+			}),
+			/* @__PURE__ */ jsxs("div", {
+				className: style_default.LanguageBlockLinks,
+				children: [/* @__PURE__ */ jsx(Button, {
+					href: links.repo,
+					variant: "outline",
+					children: /* @__PURE__ */ jsx(Button.Icon, { icon: Github })
+				}), /* @__PURE__ */ jsxs(Button, {
+					href: links.docs,
+					variant: "outline",
+					children: [/* @__PURE__ */ jsx(Button.Icon, { icon: BookOpen }), /* @__PURE__ */ jsx(Button.Label, { children: "Read Docs" })]
+				})]
+			})
+		]
+	});
+}
+
+//#endregion
+export { PropertyModelContext, ReferenceNestingContext, SDKChildren, SDKConstraints, SDKDeclaration, SDKExample, SDKIcon, SDKLanguageBlock, SDKMethod, SDKMethodHeader, SDKMethodInfo, SDKMethodNotImplemented, SDKModel, SDKReference, SDKRequestTitle, SDKSnippetLanguages, usePropertyModel, useReferenceNesting, useStreamingResponse };

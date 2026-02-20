@@ -1,0 +1,36 @@
+{/* Inlined to avoid FOUC. All theme selects are initialized here */}
+<script is:inline>
+  window.didInitThemePickers = window.didInitThemePickers ?? false;
+
+  // Only run once.
+  if (!window.didInitThemePickers) {
+    window.didInitThemePickers = true;
+
+    // The stored theme will be either 'auto', 'light', 'dark' or null.
+    const storedTheme = typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
+
+    // This theme is either 'light' or 'dark'. It's used for setting the data-theme attribute.
+    const theme =
+      !storedTheme || storedTheme === 'auto'
+        ? window.matchMedia('(prefers-color-scheme: light)').matches
+          ? 'light'
+          : 'dark'
+        : storedTheme;
+
+    document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+
+    const themeSelects = document.querySelectorAll('[data-theme-select]');
+    const selectedThemeValue = storedTheme || 'auto';
+
+    themeSelects.forEach((select) => {
+      const tmpl = select.querySelector(`[data-value="${selectedThemeValue}"] template`);
+      const selectedSlot = select.querySelector('[data-part="trigger-selected"]');
+
+      selectedSlot.innerHTML = '';
+      if (tmpl) {
+        selectedSlot.appendChild(tmpl.content.cloneNode(true));
+        return;
+      }
+    });
+  }
+</script>

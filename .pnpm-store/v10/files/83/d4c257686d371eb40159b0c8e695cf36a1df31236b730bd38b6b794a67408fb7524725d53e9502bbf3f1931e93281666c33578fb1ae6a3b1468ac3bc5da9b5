@@ -1,0 +1,34 @@
+---
+import Default from '@astrojs/starlight/components/TableOfContents.astro';
+---
+
+<Default {...Astro.props} />
+
+<script>
+  /**
+   * Starlight will mark TOC links as active as they are scrolled to. However, it does not mark
+   * a link as active if it cannot be scrolled to on the page. This happens for small sections at
+   * the bottom of the page which are not large enough to scroll to the top of the viewport.
+   *
+   * This script will mark a section as active if its corresponding hash is in the URL, even if
+   * it cannot be scrolled to.
+   */
+  document.addEventListener('DOMContentLoaded', () => {
+    const tocLinks = document.querySelectorAll('starlight-toc a') as NodeListOf<HTMLAnchorElement>;
+
+    function updateAriaCurrent() {
+      const current = decodeURIComponent(window.location.hash || '');
+      tocLinks.forEach((link) => {
+        const linkHash = decodeURIComponent(link.hash || link.getAttribute('href') || '');
+        if (linkHash === current) {
+          link.setAttribute('aria-current', 'true');
+        } else {
+          link.removeAttribute('aria-current');
+        }
+      });
+    }
+
+    window.addEventListener('hashchange', updateAriaCurrent);
+    updateAriaCurrent();
+  });
+</script>

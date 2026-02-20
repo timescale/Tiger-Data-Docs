@@ -1,0 +1,91 @@
+import { n as Model, r as Resource, t as Method } from "./index-ax9-8vsm.js";
+import { DocsLanguage } from "@stainless-api/docs-ui/routing";
+
+//#region src/types.d.ts
+type SearchSettings = {
+  appId: string;
+  searchKey: string;
+  indexName: string;
+  assistant?: string;
+};
+type SearchParams = {
+  query: string;
+  language?: DocsLanguage | null;
+  kind?: QueryKindsType | null;
+};
+declare const QueryKinds: readonly ["all", "guide", "resource", "http_method", "model", "property"];
+type QueryKindsType = (typeof QueryKinds)[number];
+type IndexModel = {
+  kind: 'model';
+  title: string;
+  children?: string[];
+  ident?: string;
+};
+type IndexProperty = {
+  kind: 'property';
+  docstring?: string;
+  type?: string;
+};
+type IndexResource = {
+  kind: 'resource';
+  title: string;
+  Name: string;
+  QualifiedName: string;
+};
+type IndexMethod = Pick<Method, 'kind' | 'summary' | 'description' | 'endpoint' | 'httpMethod'> & {
+  title: string;
+  qualified?: string;
+  ident?: string;
+};
+declare const SearchableAttributes: readonly ["name", "title", "ident", "Name", "qualified", "QualifiedName", "endpoint", "summary", "description", "docstring"];
+declare const SearchableAttributesChat: string[];
+declare const SearchableAttributesProse: string[];
+type SearchAttributeNames = (typeof SearchableAttributes)[number];
+type RoutableJsonNode = Method | Model | Resource;
+type IndexEntry = Pick<RoutableJsonNode, 'name' | 'stainlessPath'> & (IndexProperty | IndexModel | IndexResource | IndexMethod) & {
+  language: DocsLanguage;
+  priority: number;
+  crumbs: string[];
+};
+type ResultRecordType = IndexEntry & {
+  objectID: string;
+  _highlightResult: Record<SearchAttributeNames, {
+    value: string;
+  }>;
+};
+type ResultType = {
+  hits: ResultRecordType[];
+  facets?: Record<string, Record<string, number>>;
+  nbHits: number;
+};
+type GuideResultType = {
+  id: string;
+  score: number;
+  words: number[];
+  data: {
+    excerpt: string;
+    url: string;
+    word_count: number;
+    meta: {
+      title: string;
+    };
+    sub_results: {
+      url: string;
+      title: string;
+      excerpt: string;
+    }[];
+  };
+};
+type ResultData = {
+  items: Array<ResultRecordType | GuideResultType>;
+  counts: Partial<Record<QueryKindsType, number>>;
+};
+type ProseIndexEntry = {
+  id?: string;
+  tag: string;
+  content: string;
+  source?: string;
+  [additional: string]: unknown;
+};
+//#endregion
+export { GuideResultType, IndexEntry, IndexMethod, IndexModel, IndexProperty, IndexResource, ProseIndexEntry, QueryKinds, QueryKindsType, ResultData, ResultRecordType, ResultType, RoutableJsonNode, SearchAttributeNames, SearchParams, SearchSettings, SearchableAttributes, SearchableAttributesChat, SearchableAttributesProse };

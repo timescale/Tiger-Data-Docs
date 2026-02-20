@@ -1,0 +1,83 @@
+import { motion } from 'motion/react';
+import { useEffect, useRef, useState } from 'react';
+
+import styles from './AiChat.module.css';
+import ChatLog from './components/ChatLog';
+import AiChatTrigger from './Trigger';
+import { ChatMessage } from './types';
+
+const borderRadius = 16;
+
+export default function AiChat({
+  chatMessages,
+  sendMessage,
+  rateMessage,
+  onCopyMessage,
+}: {
+  chatMessages: ChatMessage[];
+  sendMessage: (question: string) => void;
+  rateMessage?: (spanId: string, rating: 'up' | 'down') => Promise<boolean>;
+  onCopyMessage?: (spanId: string) => void;
+}) {
+  const baseRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [focused, setFocused] = useState(false);
+  const chatExpanded = focused && chatMessages.length > 0;
+
+  // Manage “focus” state
+  // prettier-ignore
+  useEffect(() => {
+    const ac = new AbortController();
+    // “focus” in/out with click
+    window.addEventListener('click', (e) => {
+      if (!(e.target instanceof Element) || !baseRef.current || !document.contains(e.target)) return;
+      setFocused(baseRef.current.contains(e.target));
+    }, { signal: ac.signal });
+    // leave with escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        setFocused(false);
+        inputRef.current?.blur(); // this is the one case where the input won’t have already lost focus
+      }
+    }, { signal: ac.signal });
+
+    // record focus state when our chat elements receive focus
+    // unfocus when another element outside of our component gets focus (incl. by keyboard)
+    document.addEventListener('focusin', (e) => {
+      if (!(e.target instanceof Element) || !baseRef.current || !document.contains(e.target)) return;
+      setFocused(baseRef.current.contains(e.target));
+    }, { signal: ac.signal });
+    return () => ac.abort();
+  }, []);
+
+  return (
+    <div className={styles['outer-wrapper']} ref={baseRef}>
+      <AiChatTrigger
+        focused={focused}
+        updateFocused={setFocused}
+        sendMessage={sendMessage}
+        inputRef={inputRef}
+        borderRadius={borderRadius}
+      />
+
+      {/* TODO: enter and leave animations */}
+      <motion.div
+        layout
+        className={styles['chat-area-border']}
+        style={{
+          display: chatExpanded ? 'block' : 'none', // Activity doesn’t play nice with framer-motion layout animations
+          borderRadius,
+          boxShadow: '0 8px 20px -6px var(--shadow-color)',
+        }}
+      >
+        <motion.div
+          layout
+          className={styles['chat-area']}
+          style={{ borderRadius, boxShadow: 'inset 0 0 0 1px var(--stl-color-border)' }}
+        >
+          <ChatLog messages={chatMessages} rateMessage={rateMessage} onCopyMessage={onCopyMessage} />
+        </motion.div>
+      </motion.div>
+    </div>
+  );
+}

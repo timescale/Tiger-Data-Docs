@@ -1,0 +1,244 @@
+import { t as __exportAll } from "../chunk-BYypO7fO.js";
+import { useDeclaration } from "../contexts/docs.js";
+import "../use-strict-context-L0c8JKg4.js";
+import { useLanguageComponents } from "../contexts/index.js";
+import { useComponents } from "../contexts/use-components.js";
+import style_default from "../style.js";
+import "react";
+import { Fragment as Fragment$1, jsx, jsxs } from "react/jsx-runtime";
+import clsx from "clsx";
+import { Badge, Callout } from "@stainless-api/ui-primitives";
+
+//#region src/languages/terraform.tsx
+var terraform_exports = /* @__PURE__ */ __exportAll({
+	Declaration: () => Declaration,
+	MethodSignature: () => MethodSignature,
+	Property: () => Property,
+	Resource: () => Resource,
+	TerraformSource: () => TerraformSource,
+	Type: () => Type,
+	TypeName: () => TypeName
+});
+function TypeName({ type }) {
+	return /* @__PURE__ */ jsx(useLanguageComponents().Type, { type });
+}
+function Type({ type }) {
+	const Lang = useLanguageComponents();
+	const { Join } = useComponents();
+	switch (type.category) {
+		case "nested": switch (type.type) {
+			case "ListNested":
+			case "MapNested":
+			case "SetNested": return /* @__PURE__ */ jsxs("span", {
+				className: style_default.Type,
+				children: [
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeArray,
+						children: type.type.replace("Nested", "")
+					}),
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeBracket,
+						children: "["
+					}),
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeReference,
+						children: "Attributes"
+					}),
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeBracket,
+						children: "]"
+					})
+				]
+			});
+			case "SingleNested": return /* @__PURE__ */ jsx("span", {
+				className: style_default.Type,
+				children: /* @__PURE__ */ jsx("span", {
+					className: style_default.TypeReference,
+					children: "Attributes"
+				})
+			});
+			default: return;
+		}
+		case "collection": return /* @__PURE__ */ jsxs("span", {
+			className: style_default.Type,
+			children: [
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TypeArray,
+					children: type.type
+				}),
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TypeBracket,
+					children: "["
+				}),
+				/* @__PURE__ */ jsx(Lang.Type, { type: type.elementType }),
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TypeBracket,
+					children: "]"
+				})
+			]
+		});
+		case "dynamic": {
+			const subtypes = type.allowedSubtypes.length > 0 ? /* @__PURE__ */ jsx(Join, {
+				items: type.allowedSubtypes,
+				children: " | "
+			}) : null;
+			return /* @__PURE__ */ jsx("span", {
+				className: style_default.Type,
+				children: /* @__PURE__ */ jsxs("span", {
+					className: style_default.TypeKeyword,
+					children: ["Dynamic ", subtypes]
+				})
+			});
+		}
+		case "primitive":
+			if (type.type === "String") return /* @__PURE__ */ jsx("span", {
+				className: style_default.Type,
+				children: /* @__PURE__ */ jsx("span", {
+					className: style_default.TypeString,
+					children: "String"
+				})
+			});
+			return /* @__PURE__ */ jsx("span", {
+				className: style_default.Type,
+				children: /* @__PURE__ */ jsx("span", {
+					className: style_default.TypeKeyword,
+					children: type.type
+				})
+			});
+		case "unknown": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypeKeyword,
+				children: "JSON"
+			})
+		});
+	}
+}
+function MethodSignature() {
+	return null;
+}
+const PropGroups = [
+	"required",
+	"optional",
+	"computed"
+];
+function Property({ decl, children }) {
+	if (!decl) return null;
+	switch (decl.kind) {
+		case "TerraformDeclAttribute": return children({ name: decl.name });
+	}
+}
+function TerraformSource({ path, group }) {
+	const Docs = useComponents();
+	const decl = useDeclaration(path, true);
+	if (decl.kind !== "TerraformDeclSource") return;
+	const type = decl.type === "resource" ? "resource" : "data";
+	const badge = type === "resource" ? `success` : `note`;
+	const children = PropGroups.filter((section) => decl[section].length > 0).map((section) => {
+		const propGroupId = `${decl.name}-${section}-${group}`;
+		return /* @__PURE__ */ jsxs("div", {
+			className: style_default.ResourceContentGroup,
+			children: [/* @__PURE__ */ jsxs("h5", {
+				className: style_default.ResourceContentGroupModelTitle,
+				children: [
+					section,
+					" ",
+					/* @__PURE__ */ jsx(Docs.PropertyToggle, { target: propGroupId })
+				]
+			}), /* @__PURE__ */ jsx("div", {
+				className: style_default.ResourceContentProperties,
+				"data-stldocs-property-group": propGroupId,
+				children: /* @__PURE__ */ jsx(Docs.SDKChildren, { paths: decl[section] })
+			})]
+		}, section);
+	});
+	return /* @__PURE__ */ jsx("div", {
+		className: clsx(style_default.Method, style_default.MethodDoublePane),
+		children: /* @__PURE__ */ jsxs("div", {
+			className: style_default.MethodBody,
+			children: [/* @__PURE__ */ jsxs("div", {
+				className: style_default.MethodContentColumn,
+				children: [/* @__PURE__ */ jsxs("h4", {
+					className: style_default.TerraformResourceTitle,
+					children: [
+						/* @__PURE__ */ jsx(Badge, {
+							intent: badge,
+							children: type
+						}),
+						" ",
+						decl.name
+					]
+				}), children]
+			}), /* @__PURE__ */ jsx("div", {
+				className: clsx(style_default.MethodExample, "not-content", "stl-ui-not-prose"),
+				children: /* @__PURE__ */ jsx(Docs.SDKExample, { method: {
+					title: decl.name,
+					stainlessPath: path
+				} })
+			})]
+		})
+	});
+}
+function Declaration({ decl }) {
+	const Lang = useLanguageComponents();
+	if (!decl) return;
+	switch (decl.kind) {
+		case "TerraformDeclAttribute": {
+			const isOptional = decl.configurability === "optional" || decl.configurability === "computed_optional";
+			return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TextIdentifier,
+					children: decl.name
+				}),
+				isOptional && /* @__PURE__ */ jsx("span", {
+					className: style_default.TextPunctuation,
+					children: "?"
+				}),
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TextPunctuation,
+					children: ": "
+				}),
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TextKeyword,
+					children: /* @__PURE__ */ jsx(Lang.Type, { type: decl.type })
+				})
+			] });
+		}
+		case "TerraformDeclServiceNode": {
+			const { resource, dataSource, listDataSource } = decl;
+			return /* @__PURE__ */ jsxs("div", {
+				className: style_default.Method,
+				children: [
+					resource && /* @__PURE__ */ jsx(TerraformSource, {
+						path: resource,
+						group: "resource"
+					}),
+					dataSource && /* @__PURE__ */ jsx(TerraformSource, {
+						path: dataSource,
+						group: "dataSource"
+					}),
+					listDataSource && /* @__PURE__ */ jsx(TerraformSource, {
+						path: listDataSource,
+						group: "listDataSource"
+					})
+				]
+			});
+		}
+	}
+}
+function Resource({ resource }) {
+	const Lang = useLanguageComponents();
+	const decl = useDeclaration(resource.stainlessPath, false);
+	if (decl) return /* @__PURE__ */ jsx(Lang.Declaration, { decl });
+	return /* @__PURE__ */ jsxs(Callout, {
+		variant: "warning",
+		children: [
+			"The resource ",
+			/* @__PURE__ */ jsx("code", { children: resource.name }),
+			" is not supported in Terraform."
+		]
+	});
+}
+
+//#endregion
+export { Declaration, MethodSignature, Property, Resource, TerraformSource, Type, TypeName, terraform_exports as t };

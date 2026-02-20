@@ -2,6 +2,9 @@
 title: "Troubleshoot import and ingest"
 description: "Solutions to common errors when importing data and migrating databases"
 ---
+
+import * as C from "@constants";
+
 This page provides solutions to common errors and frequently asked questions when importing data and migrating databases to Tiger Cloud.
 
 Live import from a database
@@ -40,15 +43,15 @@ Why does live migration log “no tuple identifier” warning?
 
 Live migration logs a warning `WARNING: no tuple identifier for UPDATE in table` when it cannot determine which specific rows should be updated after receiving an `UPDATE` statement from the source database during replication. This occurs when tables in the source database that receive `UPDATE` statements lack either a `PRIMARY KEY` or a `REPLICA IDENTITY` setting. For live migration to successfully replicate `UPDATE` and `DELETE` statements, tables must have either a `PRIMARY KEY` or `REPLICA IDENTITY` set as a prerequisite.
 
-Set REPLICA IDENTITY on Postgres partitioned tables
+Set REPLICA IDENTITY on {C.PG} partitioned tables
 
-If your Postgres tables use native partitioning, setting `REPLICA IDENTITY` on the root (parent) table will not automatically apply it to the partitioned child tables. You must manually set `REPLICA IDENTITY` on each partitioned child table.
+If your {C.PG} tables use native partitioning, setting `REPLICA IDENTITY` on the root (parent) table will not automatically apply it to the partitioned child tables. You must manually set `REPLICA IDENTITY` on each partitioned child table.
 
 Can I use read/failover replicas as source database for live migration?
 
 Live migration does not support replication from read or failover replicas. You must provide a connection string that points directly to your source database for live migration.
 
-Can I use live migration with a Postgres connection pooler like PgBouncer?
+Can I use live migration with a {C.PG} connection pooler like PgBouncer?
 
 Live migration does not support connection poolers. You must provide a connection string that points directly to your source and target databases for live migration to work smoothly.
 
@@ -102,7 +105,7 @@ Common issues
 
 Extension availability
 
-There are a vast number of Postgres extensions available in the wild. Tiger Cloud supports many of the most popular extensions, but not all extensions. Before migrating, check that the extensions you are using are supported on Tiger Cloud. Consult the list of supported extensions.
+There are a vast number of {C.PG} extensions available in the wild. Tiger Cloud supports many of the most popular extensions, but not all extensions. Before migrating, check that the extensions you are using are supported on Tiger Cloud. Consult the list of supported extensions.
 
 TimescaleDB extension in the public schema
 
@@ -114,7 +117,7 @@ Tiger Cloud does not support using custom tablespaces. Providing the `--no-table
 
 Only one database per instance
 
-While Postgres clusters can contain many databases, Tiger Cloud services are limited to a single database. When migrating a cluster with multiple databases to Tiger Cloud, one can either migrate each source database to a separate Tiger Cloud service or “merge” source databases to target schemas.
+While {C.PG} clusters can contain many databases, Tiger Cloud services are limited to a single database. When migrating a cluster with multiple databases to Tiger Cloud, one can either migrate each source database to a separate Tiger Cloud service or “merge” source databases to target schemas.
 
 Superuser privileges
 
@@ -122,4 +125,4 @@ The `tsdbadmin` database user is the most powerful available on Tiger Cloud, but
 
 Migrate partial continuous aggregates
 
-In order to improve the performance and compatibility of continuous aggregates, TimescaleDB v2.7 replaces _partial_ continuous aggregates with _finalized_ continuous aggregates. To test your database for partial continuous aggregates, run the following query: If you have partial continuous aggregates in your database, migrate them from partial to finalized before you migrate your database. If you accidentally migrate partial continuous aggregates across Postgres versions, you see the following error when you query any continuous aggregates:
+In order to improve the performance and compatibility of continuous aggregates, TimescaleDB v2.7 replaces _partial_ continuous aggregates with _finalized_ continuous aggregates. To test your database for partial continuous aggregates, run the following query: If you have partial continuous aggregates in your database, migrate them from partial to finalized before you migrate your database. If you accidentally migrate partial continuous aggregates across {C.PG} versions, you see the following error when you query any continuous aggregates:

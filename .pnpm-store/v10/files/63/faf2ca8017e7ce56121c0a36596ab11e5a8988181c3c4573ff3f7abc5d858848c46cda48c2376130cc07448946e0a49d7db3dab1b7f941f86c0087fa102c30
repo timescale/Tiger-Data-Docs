@@ -1,0 +1,132 @@
+import { mkdir } from 'fs/promises';
+import path from 'path';
+
+import type * as VirtualManifestModule from 'virtual:stainless-apis-manifest';
+
+import { makeAsyncVirtualModPlugin } from '../../shared/virtualModule';
+
+import { NormalizedStainlessStarlightConfig, ResolvedAPIConfigEntry } from '../loadPluginConfig';
+
+import { specCache, SpecCacheResult } from './generateSpec';
+import { AstroIntegrationLogger } from 'astro';
+import type * as SDKJSON from '@stainless/sdk-json';
+
+export type LoadedAPIConfigEntry = Omit<ResolvedAPIConfigEntry, 'loadSpecs'> & {
+  specs: SpecCacheResult[];
+  languages: SDKJSON.SpecLanguage[];
+};
+
+/**
+ * A helper class to manage multiple spec cache results for a single API
+ * An API may have multiple spec cache results if it has multiple languages
+ * Note that one spec may contain multiple languages.
+ * */
+export class SpecComposite {
+  private languages: Set<SDKJSON.SpecLanguage>;
+  private readonly specs: Partial<Record<SDKJSON.SpecLanguage, SpecCacheResult>>;
+
+  public getLanguages() {
+    return Array.from(this.languages);
+  }
+
+  public getByLanguage(language: SDKJSON.SpecLanguage) {
+    const spec = this.specs[language];
+    if (!spec) {
+      throw new Error(`Spec for language ${language} not found`);
+    }
+    return spec;
+  }
+
+  /**
+   * Returns all specs. It will return each spec once, even if it has multiple languages.
+   * */
+  public listUniqueSpecs() {
+    const seen = new Set<SpecCacheResult>();
+    const unique: SpecCacheResult[] = [];
+    for (const spec of Object.values(this.specs)) {
+      if (!seen.has(spec)) {
+        seen.add(spec);
+        unique.push(spec);
+      }
+    }
+    return unique;
+  }
+
+  public listAllLanguagesAndIncludeSpecs() {
+    return this.getLanguages().map((language) => ({
+      language,
+      spec: this.getByLanguage(language),
+    }));
+  }
+
+  constructor(specs: SpecCacheResult[]) {
+    this.languages = new Set<SDKJSON.SpecLanguage>();
+    this.specs = {};
+    for (const spec of specs) {
+      for (const lang of spec.data.languages) {
+        if (this.languages.has(lang)) {
+          throw new Error(`Language appears multiple times in the same API: ${lang}`);
+        }
+        if (lang === 'openapi' || lang === 'sql') continue;
+        this.languages.add(lang);
+        this.specs[lang] = spec;
+      }
+    }
+  }
+}
+
+/** Runs once in the build process */
+export async function startSpecLoader(
+  pluginConfig: NormalizedStainlessStarlightConfig,
+  logger: AstroIntegrationLogger,
+  codegenDir: URL,
+) {
+  const specsDirectory = path.join(codegenDir.pathname, 'specs');
+  await mkdir(specsDirectory, { recursive: true });
+
+  logger.debug(`Setting cache directory to ${specsDirectory}`);
+
+  // 🚨 Important! You cannot call loadSpecs() before setting the cache directory.
+  specCache.setCacheDirectory(specsDirectory);
+
+  async function load() {
+    const specs = await pluginConfig.api.loadSpecs();
+
+    // not awaited since it's just cleanup
+    specCache.cleanupUnusedFiles().then((result) => {
+      if (result.deletedCount > 0) {
+        logger.info(`Cleaned up ${result.deletedCount} unused spec files`);
+      } else {
+        logger.debug(`No unused spec files to clean up`);
+      }
+    });
+
+    return {
+      specComposite: new SpecComposite(specs),
+    };
+  }
+
+  const specPromise = load();
+
+  return {
+    specPromise,
+    // this virtual module only resolves when the spec is generated
+    // this prevents the SSR module from trying to read the spec file before it's generated
+    vitePlugins: [
+      makeAsyncVirtualModPlugin<typeof VirtualManifestModule>('virtual:stainless-apis-manifest', async () => {
+        const api = await specPromise;
+
+        return {
+          api: {
+            languages: api.specComposite.listAllLanguagesAndIncludeSpecs().map((langSpec) => ({
+              language: langSpec.language,
+              sdkJSONFilePath: langSpec.spec.filePath,
+            })),
+          },
+        };
+      }),
+    ],
+  };
+}
+
+export type SpecLoader = Awaited<ReturnType<typeof startSpecLoader>>;

@@ -2,6 +2,9 @@
 title: "Ingest real-time financial data"
 description: "Set up a data pipeline to get data from different financial APIs"
 ---
+
+import * as C from "@constants";
+
 The financial industry is extremely data-heavy and relies on real-time and historical data for decision-making, risk assessment, fraud detection, and market analysis. Tiger Data simplifies management of these large volumes of data, while also providing you with meaningful analytical insights and optimizing storage costs. This tutorial shows you how to ingest real-time time-series data into TimescaleDB using a websocket connection. The tutorial sets up a data pipeline to ingest real-time data from our data partner, [Twelve Data](https://twelvedata.com). Twelve Data provides a number of different financial APIs, including stock, cryptocurrencies, foreign exchanges, and ETFs. It also supports websocket connections in case you want to update your database frequently. With websockets, you need to connect to the server, subscribe to symbols, and you can start receiving data in real-time during market hours. When you complete this tutorial, you’ll have a data pipeline set up that ingests real-time financial data into your Tiger Cloud. This tutorial uses Python and the API [wrapper library](https://github.com/twelvedata/twelvedata-python) provided by Twelve Data. This tutorial covers:
 
 1.  **Set up your dataset**: connect to the Twelve Data websocket server, create hypertables, and ingest real-time cryptocurrency data.
@@ -34,7 +37,7 @@ The financial sector regularly uses [candlestick charts](https://www.investopedi
 
 Ingest data into a service
 
-This tutorial uses a dataset that contains second-by-second cryptocurrency trade data, in a hypertable named `crypto_ticks`. It also includes a separate table of cryptocurrency symbols and names, in a regular Postgres table named `crypto_assets`.
+This tutorial uses a dataset that contains second-by-second cryptocurrency trade data, in a hypertable named `crypto_ticks`. It also includes a separate table of cryptocurrency symbols and names, in a regular {C.PG} table named `crypto_assets`.
 
 Connect to the websocket server
 
@@ -63,23 +66,23 @@ A persistent connection between your computer and the websocket server is used t
 
 Optimize time-series data in a hypertable
 
-Hypertables are Postgres tables in TimescaleDB that automatically partition your time-series data by time. Time-series data represents the way a system, process, or behavior changes over time. Hypertables enable TimescaleDB to work efficiently with time-series data. Each hypertable is made up of child tables called chunks. Each chunk is assigned a range of time, and only contains data from that range. When you run a query, TimescaleDB identifies the correct chunk and runs the query on it, instead of going through the entire table. [Hypercore](/build/columnar-storage/understand-hypercore) is the hybrid row-columnar storage engine in TimescaleDB used by hypertables. Traditional databases force a trade-off between fast inserts (row-based storage) and efficient analytics (columnar storage). Hypercore eliminates this trade-off, allowing real-time analytics without sacrificing transactional capabilities. Hypercore dynamically stores data in the most efficient format for its lifecycle: ![Move from rowstore to columstore in hypercore](https://assets.timescale.com/docs/images/hypercore_intro.svg)
+Hypertables are {C.PG} tables in TimescaleDB that automatically partition your time-series data by time. Time-series data represents the way a system, process, or behavior changes over time. Hypertables enable TimescaleDB to work efficiently with time-series data. Each hypertable is made up of child tables called chunks. Each chunk is assigned a range of time, and only contains data from that range. When you run a query, TimescaleDB identifies the correct chunk and runs the query on it, instead of going through the entire table. [Hypercore](/build/columnar-storage/understand-hypercore) is the hybrid row-columnar storage engine in TimescaleDB used by hypertables. Traditional databases force a trade-off between fast inserts (row-based storage) and efficient analytics (columnar storage). Hypercore eliminates this trade-off, allowing real-time analytics without sacrificing transactional capabilities. Hypercore dynamically stores data in the most efficient format for its lifecycle: ![Move from rowstore to columstore in hypercore](https://assets.timescale.com/docs/images/hypercore_intro.svg)
 
 -   **Row-based storage for recent data**: the most recent chunk (and possibly more) is always stored in the rowstore, ensuring fast inserts, updates, and low-latency single record queries. Additionally, row-based storage is used as a writethrough for inserts and updates to columnar storage.
 -   **Columnar storage for analytical performance**: chunks are automatically compressed into the columnstore, optimizing storage efficiency and accelerating analytical queries.
 
-Unlike traditional columnar databases, hypercore allows data to be inserted or modified at any stage, making it a flexible solution for both high-ingest transactional workloads and real-time analytics—within a single database. Because TimescaleDB is 100% Postgres, you can use all the standard Postgres tables, indexes, stored procedures, and other objects alongside your hypertables. This makes creating and working with hypertables similar to standard Postgres.
+Unlike traditional columnar databases, hypercore allows data to be inserted or modified at any stage, making it a flexible solution for both high-ingest transactional workloads and real-time analytics—within a single database. Because TimescaleDB is 100% {C.PG}, you can use all the standard {C.PG} tables, indexes, stored procedures, and other objects alongside your hypertables. This makes creating and working with hypertables similar to standard {C.PG}.
 
 1.  **Connect to your Tiger Cloud service** In [Tiger Console](https://console.cloud.timescale.com/dashboard/services) open an [SQL editor](/deploy/tiger-cloud/get-started/run-queries-from-console). You can also connect to your service using [psql](/integrate/psql).
 2.  **Create a hypertable to store the real-time cryptocurrency data** Create a [hypertable](/build/time-series/understand-hypertables) for your time-series data using [CREATE TABLE](/api-reference/timescaledb/hypertables/create_table). For [efficient queries](/use-timescale/hypercore/secondary-indexes) on data in the columnstore, remember to `segmentby` the column you will use most often to filter your data: When you create a hypertable using [CREATE TABLE … WITH …](/api-reference/timescaledb/hypertables/create_table), the default partitioning column is automatically the first column with a timestamp data type. Also, TimescaleDB creates a [columnstore policy](/api-reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts your data to the columnstore, after an interval equal to the value of the [chunk\_interval](/api-reference/timescaledb/hypertables/create_table#arguments), defined through `compress_after` in the policy. This columnar format enables fast scanning and aggregation, optimizing performance for analytical workloads while also saving significant storage space. In the columnstore conversion, hypertable chunks are compressed by up to 98%, and organized for efficient, large-scale queries. You can customize this policy later using [alter\_job](/api-reference/timescaledb/jobs-automation/alter_job#samples). However, to change `after` or `created_before`, the compression settings, or the hypertable the policy is acting on, you must [remove the columnstore policy](/api-reference/timescaledb/hypercore/remove_columnstore_policy) and [add a new one](/api-reference/timescaledb/hypercore/add_columnstore_policy). You can also manually [convert chunks](/api-reference/timescaledb/hypercore/convert_to_columnstore) in a hypertable to the columnstore.
 
-Create a standard Postgres table for relational data
+Create a standard {C.PG} table for relational data
 
-When you have relational data that enhances your time-series data, store that data in standard Postgres relational tables.
+When you have relational data that enhances your time-series data, store that data in standard {C.PG} relational tables.
 
 1.  **Add a table to store the asset symbol and name in a relational table**
 
-You now have two tables within your Tiger Cloud service. A hypertable named `crypto_ticks`, and a normal Postgres table named `crypto_assets`. When you ingest data into a transactional database like TimescaleDB, it is more efficient to insert data in batches rather than inserting data row-by-row. Using one transaction to insert multiple rows can significantly increase the overall ingest capacity and speed of your Tiger Cloud service.
+You now have two tables within your Tiger Cloud service. A hypertable named `crypto_ticks`, and a normal {C.PG} table named `crypto_assets`. When you ingest data into a transactional database like TimescaleDB, it is more efficient to insert data in batches rather than inserting data row-by-row. Using one transaction to insert multiple rows can significantly increase the overall ingest capacity and speed of your Tiger Cloud service.
 
 Batching in memory
 
@@ -128,11 +131,11 @@ To visualize the results of your queries, enable Grafana to read the data in you
 2.  **Add your service as a data source**
     
     1.  Open `Connections` > `Data sources`, then click `Add new data source`.
-    2.  Select `PostgreSQL` from the list.
+    2.  Select `{C.PG}` from the list.
     3.  Configure the connection:
         -   `Host URL`, `Database name`, `Username`, and `Password` Configure using your [connection details](/integrate/find-connection-details). `Host URL` is in the format `<host>:<port>`.
         -   `TLS/SSL Mode`: select `require`.
-        -   `PostgreSQL options`: enable `TimescaleDB`.
+        -   `{C.PG} options`: enable `TimescaleDB`.
         -   Leave the default setting for all other fields.
     4.  Click `Save & test`.
     

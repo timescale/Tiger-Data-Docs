@@ -1,0 +1,199 @@
+import Worker from 'web-worker';
+import { Languages, type DocsLanguage } from '@stainless-api/docs-ui/routing';
+import type * as SDKJSON from '@stainless/sdk-json';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+import fs from 'fs/promises';
+import pathutils from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const workerPath = resolve(__dirname, '..', 'vendor', 'preview.worker.docs.js');
+
+type OpenAPIDocument = Record<string, any>;
+export type ParsedConfig = {
+  docs:
+    | {
+        title?: string | undefined;
+        favicon?: string | undefined;
+        logo_icon?: string | undefined;
+        search?:
+          | {
+              algolia?:
+                | {
+                    app_id: string;
+                    index_name: string;
+                    search_key: string;
+                  }
+                | undefined;
+            }
+          | undefined;
+        description?: string | undefined;
+        languages?:
+          | ('node' | 'typescript' | 'python' | 'java' | 'kotlin' | 'go' | 'ruby' | 'terraform' | 'http')[]
+          | undefined;
+        snippets?:
+          | {
+              exclude_languages?: string[] | undefined;
+            }
+          | undefined;
+        show_security?: boolean | undefined;
+        show_readme?: boolean | undefined;
+        base_path?: string | undefined;
+        navigation?:
+          | {
+              menubar?:
+                | {
+                    title: string;
+                    icon?: string;
+                    variant?: string;
+                    href?: string | undefined;
+                    page?: string | undefined;
+                  }[]
+                | undefined;
+              sidebar?:
+                | {
+                    title: string;
+                    icon?: string;
+                    variant?: string;
+                    href?: string | undefined;
+                    page?: string | undefined;
+                  }[]
+                | undefined;
+            }
+          | undefined;
+        pages?: unknown;
+        resources?: unknown[] | undefined;
+      }
+    | undefined;
+  targets: Record<string, { skip?: boolean }>;
+  client_settings: {
+    opts: {
+      [x: string]: {
+        type: 'string' | 'number' | 'boolean' | 'null' | 'integer';
+        nullable: boolean;
+        description?: string | undefined;
+        example?: unknown;
+        default?: unknown;
+        read_env?: string | undefined;
+        auth?:
+          | {
+              security_scheme: string;
+              role?: 'value' | 'password' | 'username' | 'client_id' | 'client_secret' | undefined;
+            }
+          | undefined;
+      };
+    };
+  };
+};
+
+function runJob({ type, signal, data }: { type: string; signal?: AbortSignal; data: any }) {
+  const stainlessWorker = new Worker(workerPath, {
+    type: 'module',
+    name: 'Preview server',
+  });
+
+  return new Promise<any>((resolve, reject) => {
+    stainlessWorker.addEventListener('error', (e) => {
+      e.preventDefault();
+      reject(e);
+    });
+
+    stainlessWorker.addEventListener('messageerror', (e) => {
+      reject(e);
+    });
+
+    stainlessWorker.addEventListener('message', (message) => {
+      if (message.data.type === `${type}_done`) {
+        resolve(message.data);
+      } else if (message.data.type === `${type}_failed`) {
+        const { name, message: errorMessage } = message.data;
+        const err = new Error(errorMessage);
+        err.name = name;
+        reject(err);
+      }
+    });
+
+    if (signal) {
+      signal.onabort = () => reject({ type: 'abort' });
+    }
+
+    if (signal?.aborted) {
+      reject({ type: 'abort' });
+    }
+
+    stainlessWorker.postMessage({ ...data, type });
+  }).finally(() => {
+    stainlessWorker.terminate();
+  });
+}
+
+export async function parseInputs({ oas, config }: { oas: string; config: string }) {
+  const result = await runJob({
+    type: 'parse',
+    data: {
+      oas,
+      config,
+    },
+  });
+
+  return result as {
+    oas: OpenAPIDocument;
+    config: ParsedConfig;
+  };
+}
+
+export async function transformOAS({ oas, config }: { oas: OpenAPIDocument; config: ParsedConfig }) {
+  const result = await runJob({
+    type: 'transform',
+    data: {
+      oas,
+      config,
+    },
+  });
+
+  return result.transformedOAS;
+}
+
+export async function createSDKJSON({
+  oas,
+  config,
+  languages,
+  projectName,
+}: {
+  oas: OpenAPIDocument;
+  config: ParsedConfig;
+  languages: DocsLanguage[];
+  projectName: string;
+}) {
+  const templatePath = resolve(__dirname, '../vendor/templates');
+  const readmeLoader = await Promise.all(
+    Languages.map(async (language) => {
+      const mdfile = pathutils.join(templatePath, `${language}.md`);
+
+      try {
+        const content = await fs.readFile(mdfile);
+        return [language, content.toString()];
+      } catch {
+        return [language, null];
+      }
+    }),
+  );
+
+  const readmeTemplates = Object.fromEntries(readmeLoader);
+
+  const result = await runJob({
+    type: 'preview',
+    data: {
+      oas,
+      config,
+      languages,
+      transform: false,
+      projectName,
+      readmeTemplates,
+    },
+  });
+
+  return result.spec as SDKJSON.Spec;
+}

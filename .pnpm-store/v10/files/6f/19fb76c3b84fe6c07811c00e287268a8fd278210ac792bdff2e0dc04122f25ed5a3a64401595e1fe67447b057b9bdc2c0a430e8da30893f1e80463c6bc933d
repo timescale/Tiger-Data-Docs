@@ -1,0 +1,65 @@
+import React from "react";
+import clsx from "clsx";
+import { jsx, jsxs } from "react/jsx-runtime";
+import { ArrowDownLeftIcon, ArrowUpRightIcon, XIcon } from "lucide-react";
+
+//#region src/components/Badge.tsx
+function BaseBadge({ children, icon = null, intent, size = "md", solid = false, ...props }) {
+	const classes = clsx("stl-ui-badge", intent && `stl-ui-badge--intent-${intent}`, `stl-ui-badge--size-${size}`, solid && "stl-ui-badge--solid", "not-content", "stl-ui-not-prose", props.className);
+	return /* @__PURE__ */ jsxs("span", {
+		...props,
+		className: classes,
+		children: [icon, children && /* @__PURE__ */ jsx("span", {
+			className: "stl-ui-badge__content",
+			children
+		})]
+	});
+}
+const PublicBadge = function Badge({ children, intent = "none", ...props }) {
+	return /* @__PURE__ */ jsx(BaseBadge, {
+		intent,
+		...props,
+		children
+	});
+};
+function isHttpMethod(method) {
+	return method === "GET" || method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE";
+}
+function getHttpMethod(method) {
+	const upper = method?.toUpperCase();
+	return isHttpMethod(upper) ? upper : null;
+}
+function HTTPBadge({ method, iconOnly = false, ...props }) {
+	const classes = clsx("stl-ui-badge--http", `stl-ui-badge--http-${method.toLowerCase()}`, props.className);
+	return /* @__PURE__ */ jsx(BaseBadge, {
+		...props,
+		className: classes,
+		icon: {
+			GET: /* @__PURE__ */ jsx(ArrowDownLeftIcon, {
+				"aria-hidden": !iconOnly,
+				"aria-label": "GET"
+			}),
+			POST: /* @__PURE__ */ jsx(ArrowUpRightIcon, {
+				"aria-hidden": !iconOnly,
+				"aria-label": "POST"
+			}),
+			PUT: /* @__PURE__ */ jsx(ArrowUpRightIcon, {
+				"aria-hidden": !iconOnly,
+				"aria-label": "PUT"
+			}),
+			PATCH: /* @__PURE__ */ jsx(ArrowUpRightIcon, {
+				"aria-hidden": !iconOnly,
+				"aria-label": "PATCH"
+			}),
+			DELETE: /* @__PURE__ */ jsx(XIcon, {
+				"aria-hidden": !iconOnly,
+				"aria-label": "DELETE"
+			})
+		}[method],
+		children: !iconOnly && method
+	});
+}
+const Badge = Object.assign(PublicBadge, { HTTP: HTTPBadge });
+
+//#endregion
+export { Badge, getHttpMethod };
