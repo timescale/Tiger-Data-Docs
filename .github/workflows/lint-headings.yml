@@ -1,0 +1,115 @@
+# Ensure doc headings use sentence case (first word capitalized; rest lowercase except proper nouns/acronyms).
+# Posts a PR comment when violations are found and removes it when they are fixed.
+name: Lint heading case
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "src/content/**/*.md"
+      - "src/content/**/*.mdx"
+  push:
+    branches: [main, master]
+    paths:
+      - "src/content/**/*.md"
+      - "src/content/**/*.mdx"
+
+concurrency:
+  group: lint-headings-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  heading-case:
+    name: Sentence case headings
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint heading case
+        id: lint
+        continue-on-error: true
+        run: |
+          pnpm run lint:headings 2>&1 | tee lint-output.txt
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Update PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          LINT_EXIT: ${{ steps.lint.outputs.exit_code }}
+        with:
+          script: |
+            const fs = require('fs');
+            const prNumber = context.payload.pull_request.number;
+            const commentMarker = '<!-- heading-case-lint -->';
+
+            // Read linter output from workspace (written by previous step)
+            let lintOutput = '';
+            try {
+              lintOutput = fs.readFileSync('lint-output.txt', 'utf8');
+            } catch (e) {
+              // File may be missing if step was skipped
+            }
+
+            const lintFailed = process.env.LINT_EXIT !== '0' && process.env.LINT_EXIT !== '';
+
+            // Get existing comments on this PR
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+
+            // Remove any existing bot comment(s)
+            for (const comment of comments) {
+              if (comment.user.type === 'Bot' && comment.body && comment.body.includes(commentMarker)) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+            if (lintFailed && lintOutput) {
+              // Post a new comment with the violations (escape for markdown code block)
+              const escaped = lintOutput
+                .replace(/\\/g, '\\\\')
+                .replace(/`/g, '\\`');
+              const body = `${commentMarker}
+## ⚠️ Heading case (sentence case required)
+
+Some headings in \`src/content\` are not in sentence case. Please use sentence case: first word capitalized, rest lowercase (except proper nouns and acronyms).
+
+<details>
+<summary>Click to expand linter output</summary>
+
+\`\`\`
+${escaped}
+\`\`\`
+
+</details>
+
+Run \`pnpm run lint:headings -- --fix\` locally to auto-fix many headings, then fix any remaining proper nouns manually.`;
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
+
+      - name: Fail if lint had violations
+        if: steps.lint.outputs.exit_code != '0'
+        run: exit 1

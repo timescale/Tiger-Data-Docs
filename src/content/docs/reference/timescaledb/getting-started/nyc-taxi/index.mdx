@@ -5,11 +5,11 @@ description: >-
   demonstrates how to handle high-volume transportation data with location-based
   analytics and time-series aggregations.
 ---
-# NYC Taxi Data Example
+# NYC taxi data example
 
 Get started with TimescaleDB using New York City taxi trip data. This example demonstrates how to handle high-volume transportation data with location-based analytics and time-series aggregations.
 
-## What You'll Learn
+## What you'll learn
 
 - How to model high-volume transportation data with lat/lon coordinates
 - Time-series aggregations with `time_bucket()`
@@ -23,13 +23,13 @@ Get started with TimescaleDB using New York City taxi trip data. This example de
 - `psql` PostgreSQL client
 - 15-20 minutes
 
-## Quick Start
+## Quick start
 
-### Step 1: Start TimescaleDB
+### Step 1: start TimescaleDB
 
 You have two options to start TimescaleDB:
 
-#### Option 1: One-line install (Recommended)
+#### Option 1: one-line install (Recommended)
 
 The easiest way to get started:
 
@@ -47,7 +47,7 @@ This command:
 - Automatically tunes settings for your environment using timescaledb-tune
 - Sets up a persistent data volume
 
-#### Option 2: Manual Docker command also used for Windows
+#### Option 2: manual Docker command also used for Windows
 
 Alternatively, you can run TimescaleDB directly with Docker:
 
@@ -62,7 +62,7 @@ docker run -d --name timescaledb \
 
 Wait about 1-2 minutes for TimescaleDB to download & initialize.
 
-### Step 2: Connect to TimescaleDB
+### Step 2: connect to TimescaleDB
 
 Connect using `psql`:
 
@@ -86,7 +86,7 @@ Expected output:
 
 **Prefer a GUI?** If you'd rather use a graphical tool instead of the command line, you can download [pgAdmin](https://www.pgadmin.org/download/) and connect to TimescaleDB using the same connection details (host: `localhost`, port: `6543`, user: `postgres`, password: `password`).
 
-### Step 3: Create the Schema
+### Step 3: create the schema
 
 Create the optimized hypertable by running this SQL in your `psql` session:
 
@@ -132,7 +132,7 @@ This creates a `trips` table with:
 - Segmentation by `pickup_boroname` for optimal compression (6 boroughs)
 - Full trip details including fares, distances, and coordinates
 
-### Step 4: Load Sample Data
+### Step 4: load sample data
 
 First, download and decompress the sample data:
 
@@ -148,7 +148,7 @@ gunzip nyc_taxi_sample_nov_dec_2015.csv.gz
 
 We provide two approaches for loading data. Choose based on your needs:
 
-#### Option A: Direct to Columnstore (Recommended - Instant Performance)
+#### Option A: direct to columnstore (Recommended - instant performance)
 
 This approach writes data directly to the columnstore, bypassing the rowstore entirely. You get instant analytical performance.
 
@@ -170,7 +170,7 @@ This command reads the CSV file from your local filesystem and pipes it to Postg
 SELECT COUNT(*) FROM trips;
 ```
 
-#### Option B: Standard COPY (Fallback)
+#### Option B: standard COPY (Fallback)
 
 This approach loads data into the rowstore first. Data will be converted to the columnstore by a background policy (12-24 hours) for faster querying.
 
@@ -203,7 +203,7 @@ BEGIN
 END $$;
 ```
 
-### Step 5: Run Sample Queries
+### Step 5: run sample queries
 
 Now let's explore the data with some analytical queries. Run these in your `psql` session:
 
@@ -289,7 +289,7 @@ GROUP BY distance_category
 ORDER BY trips DESC;
 ```
 
-## What's Happening Behind the Scenes?
+## What's happening behind the scenes?
 
 ### Hypertables
 When you create a table with `tsdb.hypertable`, TimescaleDB automatically:
@@ -297,14 +297,14 @@ When you create a table with `tsdb.hypertable`, TimescaleDB automatically:
 - Manages chunk lifecycle automatically
 - Optimizes queries to scan only relevant chunks
 
-### Columnstore Compression
+### Columnstore compression
 With `tsdb.enable_columnstore=true`:
 - Data is stored in a hybrid row-columnar format
 - Analytical queries only scan the columns they need (massive speedup)
 - Typical compression ratios: 90%+ for time-series data
 - Compression happens transparently - no changes to your queries
 
-### Direct to Columnstore
+### Direct to columnstore
 When you use `SET timescaledb.enable_direct_compress_copy = on`:
 - Data loads directly into compressed columnstore format
 - Bypasses the rowstore entirely
@@ -319,14 +319,14 @@ The `tsdb.segmentby='pickup_boroname'` setting:
 - Better cardinality than vendor_id (6 values vs 2) for optimal compression
 - Automatically optimized without manual tuning
 
-### time_bucket() Function
+### time_bucket() function
 TimescaleDB's `time_bucket()` is like PostgreSQL's `date_trunc()` but more powerful:
 - Works with any interval: `5 minutes`, `1 hour`, `1 day`, etc.
 - Optimized for time-series queries
 - Integrates seamlessly with continuous aggregates
 - Essential for time-series analytics
 
-## Sample Queries Explained
+## Sample queries explained
 
 See [`nyc-taxi-queries.sql`](nyc-taxi-queries.sql) for the complete set of queries. Each query demonstrates:
 
@@ -337,7 +337,7 @@ See [`nyc-taxi-queries.sql`](nyc-taxi-queries.sql) for the complete set of queri
 5. **Daily statistics** - Multi-dimensional aggregation (time + borough)
 6. **Distance categories** - CASE statement with aggregations
 
-## Schema Design Choices
+## Schema design choices
 
 ### Why these settings?
 
@@ -357,7 +357,7 @@ See [`nyc-taxi-queries.sql`](nyc-taxi-queries.sql) for the complete set of queri
 - Optimizes for "latest trips" queries
 - Improves query performance for time-range scans
 
-## Continuous Aggregates (Advanced)
+## Continuous aggregates (Advanced)
 
 For real-time dashboards, you can create continuous aggregates that automatically update:
 
@@ -407,7 +407,7 @@ Now you can query `trips_hourly` for instant results on pre-aggregated data.
 - Increase Docker memory allocation
 - Consider loading data in smaller time-range batches
 
-## Use Cases
+## Use cases
 
 This NYC Taxi example demonstrates patterns applicable to:
 
@@ -418,7 +418,7 @@ This NYC Taxi example demonstrates patterns applicable to:
 - **Urban planning** - Traffic patterns, popular routes, demand forecasting
 - **Logistics** - Shipment tracking, route efficiency, cost analysis
 
-## Clean Up
+## Clean up
 
 When you're done experimenting:
 
@@ -434,7 +434,7 @@ docker rm timescaledb-ha-pg18-quickstart
 # Remove the persistent data volume
 docker volume rm timescaledb_data
 
-# (Optional) Remove the Docker image
+# (Optional) remove the Docker image
 docker rmi timescale/timescaledb-ha:pg18
 ```
 
@@ -447,7 +447,7 @@ docker stop timescaledb
 # Remove the container
 docker rm timescaledb
 
-# (Optional) Remove the Docker image
+# (Optional) remove the Docker image
 docker rmi timescale/timescaledb-ha:pg18
 ```
 
