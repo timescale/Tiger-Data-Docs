@@ -108,10 +108,6 @@ export default defineConfig({
               autogenerate: { directory: "build/data-management" },
             },
             {
-              label: "Time-Series / Hypertables",
-              autogenerate: { directory: "build/time-series" },
-            },
-            {
               label: "Continuous Aggregates",
               collapsed: true,
               autogenerate: { directory: "build/continuous-aggregates" },
@@ -122,19 +118,9 @@ export default defineConfig({
               autogenerate: { directory: "build/columnar-storage" },
             },
             {
-              label: "Tiered Storage",
-              collapsed: true,
-              autogenerate: { directory: "build/tiered-storage" },
-            },
-            {
               label: "Performance Optimization",
               collapsed: true,
               autogenerate: { directory: "build/performance-optimization" },
-            },
-            {
-              label: "Tips and Tricks",
-              collapsed: true,
-              autogenerate: { directory: "build/tips-and-tricks" },
             },
             {
               label: "Cost Optimization",
@@ -142,24 +128,9 @@ export default defineConfig({
               autogenerate: { directory: "build/cost-optimization" },
             },
             {
-              label: "Migration",
+              label: "Tips and Tricks",
               collapsed: true,
-              autogenerate: { directory: "build/migration" },
-            },
-            {
-              label: "Operations",
-              collapsed: true,
-              autogenerate: { directory: "build/operations" },
-            },
-            {
-              label: "Cookbooks",
-              collapsed: true,
-              autogenerate: { directory: "build/cookbooks" },
-            },
-            {
-              label: "Troubleshooting",
-              collapsed: true,
-              autogenerate: { directory: "build/troubleshooting" },
+              autogenerate: { directory: "build/tips-and-tricks" },
             },
           ],
         },
