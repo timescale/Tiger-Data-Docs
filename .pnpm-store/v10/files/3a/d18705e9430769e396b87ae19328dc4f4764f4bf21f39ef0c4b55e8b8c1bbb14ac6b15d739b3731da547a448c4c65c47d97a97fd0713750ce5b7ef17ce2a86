@@ -1,0 +1,49 @@
+import { useLanguage } from "./docs.js";
+import * as React$1 from "react";
+import { jsx } from "react/jsx-runtime";
+
+//#region src/contexts/markdown.tsx
+const HighlightLanguageMappings = {
+	node: "typescript",
+	http: "bash",
+	cli: "bash"
+};
+const MarkdownContext = React$1.createContext({
+	highlight: (content) => content,
+	render: (content) => content
+});
+const useMarkdownContext = () => React$1.useContext(MarkdownContext);
+function useRenderMarkdown(content) {
+	const { render } = React$1.useContext(MarkdownContext);
+	return React$1.useMemo(() => {
+		if (!content) return void 0;
+		const rendered = render(content);
+		return typeof rendered === "string" ? rendered : React$1.use(rendered);
+	}, [content, render]);
+}
+function useHighlight(content, language) {
+	const { highlight } = React$1.useContext(MarkdownContext);
+	const defaultLanguage = useLanguage();
+	const lang = language ?? defaultLanguage;
+	return React$1.useMemo(() => {
+		if (lang === "none") return content;
+		const rendered = highlight(content, HighlightLanguageMappings[lang] ?? lang);
+		return typeof rendered === "string" ? rendered : React$1.use(rendered);
+	}, [
+		content,
+		highlight,
+		lang
+	]);
+}
+function MarkdownProvider({ render, highlight, children }) {
+	return /* @__PURE__ */ jsx(MarkdownContext.Provider, {
+		value: {
+			render,
+			highlight
+		},
+		children
+	});
+}
+
+//#endregion
+export { MarkdownContext, MarkdownProvider, useHighlight, useMarkdownContext, useRenderMarkdown };

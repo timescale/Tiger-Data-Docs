@@ -1,0 +1,47 @@
+import remend from 'remend';
+import Markdown from 'react-markdown';
+import { motion } from 'motion/react';
+
+import highlightCodeComponent from './CodeBlock';
+import tableComponent from './Table';
+
+import clsx from 'clsx';
+import styles from '../AiChat.module.css';
+import remarkGfm from 'remark-gfm';
+
+export default function ChatMessage({
+  children,
+  role,
+  isStreaming = false,
+  isMarkdown = false,
+}: {
+  children: string;
+  role: 'user' | 'assistant' | 'error';
+  isStreaming?: boolean;
+  isMarkdown?: boolean;
+}) {
+  return (
+    <motion.li
+      layout="position"
+      data-message-role={role}
+      className={clsx(styles['chat-message'], 'stl-ui-prose', 'smaller-headings')}
+      style={{ borderRadius: 16 }}
+    >
+      {/* inner div provides scale correction while outer container transforms */}
+      {isMarkdown ? (
+        <Markdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            ...highlightCodeComponent,
+            ...tableComponent,
+          }}
+        >
+          {/* repair incomplete markdown syntax during streaming to ensure proper rendering */}
+          {isStreaming ? remend(children) : children}
+        </Markdown>
+      ) : (
+        <p>{children}</p>
+      )}
+    </motion.li>
+  );
+}

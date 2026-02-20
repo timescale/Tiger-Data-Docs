@@ -1,0 +1,80 @@
+import "../use-strict-context-L0c8JKg4.js";
+import { code, fence, heading, item, list, paragraph, parse, strong, text } from "./md.js";
+import { getDecl, getSnippet, stripMarkup } from "./utils.js";
+import { declaration as declaration$1, methodSignature, t as printer_exports } from "./printer.js";
+import Markdoc from "@markdoc/markdoc";
+
+//#region src/markdown/index.ts
+function declaration(env, decl) {
+	const content = declaration$1(env.language, decl);
+	return paragraph(code(stripMarkup(content)));
+}
+function renderChildren(env, children, nesting = []) {
+	return list(...children.map((child) => renderDecl(env, child, nesting)));
+}
+function renderDecl(env, path, nesting = []) {
+	const decl = getDecl(env, path);
+	const item$1 = item(declaration(env, decl));
+	const hasChildren = "children" in decl && decl.children && decl.children.length > 0;
+	const showModelProps = !("modelPath" in decl && decl["modelPath"]) || env.options.includeModelProperties;
+	if ("docstring" in decl && decl.docstring) item$1.children.push(...parse(decl.docstring));
+	if (hasChildren && showModelProps && !nesting.includes(path)) item$1.push(renderChildren(env, decl.children ?? [], [...nesting, path]));
+	return item$1;
+}
+function renderMethod(env, method) {
+	const decl = getDecl(env, method.stainlessPath);
+	if (!decl) return [paragraph(text("The method "), code(method.name), text(" is not available in this language."))];
+	const signature = methodSignature(env.language, decl);
+	const [httpMethod, endpoint] = method.endpoint.split(" ");
+	const output = [
+		heading(2, method.title),
+		...env.language === "http" ? [] : [paragraph(code(stripMarkup(signature)))],
+		paragraph(strong(text(httpMethod)), text(" "), code(endpoint))
+	];
+	if (method.description) output.push(...parse(method.description));
+	if (env.language === "http") {
+		const p = "paramsChildren" in decl && typeof decl.paramsChildren === "object" ? decl.paramsChildren : {};
+		for (const [location, value] of Object.entries(p)) {
+			if (value.length < 1) continue;
+			output.push(heading(3, [
+				text(location.at(0)?.toUpperCase() ?? ""),
+				text(location.slice(1)),
+				text(" Parameters")
+			]), renderChildren(env, value));
+		}
+		const bp = "bodyParamsChildren" in decl ? decl.bodyParamsChildren?.["application/json"] : [];
+		if (bp && bp.length > 0) output.push(heading(3, "Body Parameters"), renderChildren(env, bp));
+	}
+	if ("paramsChildren" in decl && Array.isArray(decl.paramsChildren) && decl.paramsChildren.length > 0) output.push(heading(3, "Parameters"), renderChildren(env, decl.paramsChildren));
+	if ("responseChildren" in decl && decl.responseChildren && decl.responseChildren.length > 0) output.push(heading(3, "Returns"), renderChildren(env, decl.responseChildren));
+	const snippet = getSnippet(env, method.stainlessPath);
+	if (snippet) output.push(heading(3, "Example"), fence(env.language, snippet));
+	return output;
+}
+function renderModel(env, model) {
+	return [heading(3, model.title), list(renderDecl(env, `${model.stainlessPath} > (schema)`))];
+}
+function renderResource(env, resource) {
+	const methods = Object.values(resource.methods).filter((method) => getDecl(env, method.stainlessPath)).flatMap((method) => renderMethod(env, method));
+	const models = Object.values(resource.models).filter((model) => getDecl(env, `${model.stainlessPath} > (schema)`)).flatMap((model) => renderModel(env, model));
+	const doc = [heading(1, resource.title), ...methods];
+	if (models.length > 0) doc.push(heading(2, "Domain Types"), ...models);
+	if (!env.options.renderNestedResources) return doc;
+	const children = Object.values(resource.subresources ?? {}).flatMap((resource) => renderResource(env, resource));
+	return [...doc, ...children];
+}
+function render(env, node) {
+	switch (node.kind) {
+		case "resource": return renderResource(env, node);
+		case "http_method": return renderMethod(env, node);
+		case "model": return renderModel(env, node);
+	}
+}
+function renderMarkdown(env, node) {
+	const content = render(env, node);
+	const doc = new Markdoc.Ast.Node("document", {}, content);
+	return Markdoc.format(doc);
+}
+
+//#endregion
+export { declaration, printer_exports as printer, render, renderMarkdown };

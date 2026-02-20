@@ -1,0 +1,36 @@
+import { createFilter } from "vite";
+import esbuild from "esbuild";
+function prebundleWorkers(options) {
+  if (!options.include && !options.exclude) {
+    return { name: "vite-plugin-prebundle-workers" };
+  }
+  const filter = createFilter(options.include, options.exclude);
+  const configure = options.configureEsBuild ?? ((_, x) => x);
+  return {
+    name: "vite-plugin-prebundle-workers",
+    async load(id) {
+      var _a, _b;
+      if (!filter(id)) {
+        return void 0;
+      }
+      const result = await esbuild.build(
+        configure(id, {
+          entryPoints: [id],
+          bundle: true,
+          format: "iife",
+          platform: "browser",
+          write: false,
+          outfile: "out.js"
+        })
+      );
+      if (((_a = result.outputFiles) == null ? void 0 : _a.length) !== 1) {
+        const numFiles = (_b = result.outputFiles) == null ? void 0 : _b.length;
+        throw new Error(`Expected 1 output file, got ${numFiles}.`);
+      }
+      return result.outputFiles[0].text;
+    }
+  };
+}
+export {
+  prebundleWorkers as default
+};

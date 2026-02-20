@@ -2,6 +2,9 @@
 title: "Analyze Bitcoin blockchain"
 description: "Query and analyze blockchain transactions to discover insights about fees, mining revenue, and market trends"
 ---
+
+import * as C from "@constants";
+
 The financial industry is extremely data-heavy and relies on real-time and historical data for decision-making, risk assessment, fraud detection, and market analysis. Tiger Data simplifies management of these large volumes of data, while also providing you with meaningful analytical insights and optimizing storage costs. In this tutorial, you use Tiger Cloud to ingest, store, and analyze transactions on the Bitcoin blockchain. [Blockchains](https://www.pcmag.com/encyclopedia/term/blockchain) are, at their essence, a distributed database. The [transactions](https://www.pcmag.com/encyclopedia/term/bitcoin-transaction) in a blockchain are an example of time-series data. You can use TimescaleDB to query transactions on a blockchain, in exactly the same way as you might query time-series transactions in any other database. This tutorial uses a sample Bitcoin dataset and covers:
 
 1.  **Ingest data**: set up and connect to a Tiger Cloud service, create tables and hypertables, and ingest data.
@@ -23,12 +26,12 @@ This tutorial uses a dataset that contains Bitcoin blockchain data for the past 
 
 Optimize time-series data using hypertables
 
-Hypertables are Postgres tables in TimescaleDB that automatically partition your time-series data by time. Time-series data represents the way a system, process, or behavior changes over time. Hypertables enable TimescaleDB to work efficiently with time-series data. Each hypertable is made up of child tables called chunks. Each chunk is assigned a range of time, and only contains data from that range. When you run a query, TimescaleDB identifies the correct chunk and runs the query on it, instead of going through the entire table. [Hypercore](/build/columnar-storage/understand-hypercore) is the hybrid row-columnar storage engine in TimescaleDB used by hypertables. Traditional databases force a trade-off between fast inserts (row-based storage) and efficient analytics (columnar storage). Hypercore eliminates this trade-off, allowing real-time analytics without sacrificing transactional capabilities. Hypercore dynamically stores data in the most efficient format for its lifecycle: ![Move from rowstore to columstore in hypercore](https://assets.timescale.com/docs/images/hypercore_intro.svg)
+Hypertables are {C.PG} tables in TimescaleDB that automatically partition your time-series data by time. Time-series data represents the way a system, process, or behavior changes over time. Hypertables enable TimescaleDB to work efficiently with time-series data. Each hypertable is made up of child tables called chunks. Each chunk is assigned a range of time, and only contains data from that range. When you run a query, TimescaleDB identifies the correct chunk and runs the query on it, instead of going through the entire table. [Hypercore](/build/columnar-storage/understand-hypercore) is the hybrid row-columnar storage engine in TimescaleDB used by hypertables. Traditional databases force a trade-off between fast inserts (row-based storage) and efficient analytics (columnar storage). Hypercore eliminates this trade-off, allowing real-time analytics without sacrificing transactional capabilities. Hypercore dynamically stores data in the most efficient format for its lifecycle: ![Move from rowstore to columstore in hypercore](https://assets.timescale.com/docs/images/hypercore_intro.svg)
 
 -   **Row-based storage for recent data**: the most recent chunk (and possibly more) is always stored in the rowstore, ensuring fast inserts, updates, and low-latency single record queries. Additionally, row-based storage is used as a writethrough for inserts and updates to columnar storage.
 -   **Columnar storage for analytical performance**: chunks are automatically compressed into the columnstore, optimizing storage efficiency and accelerating analytical queries.
 
-Unlike traditional columnar databases, hypercore allows data to be inserted or modified at any stage, making it a flexible solution for both high-ingest transactional workloads and real-time analytics—within a single database. Because TimescaleDB is 100% Postgres, you can use all the standard Postgres tables, indexes, stored procedures, and other objects alongside your hypertables. This makes creating and working with hypertables similar to standard Postgres.
+Unlike traditional columnar databases, hypercore allows data to be inserted or modified at any stage, making it a flexible solution for both high-ingest transactional workloads and real-time analytics—within a single database. Because TimescaleDB is 100% {C.PG}, you can use all the standard {C.PG} tables, indexes, stored procedures, and other objects alongside your hypertables. This makes creating and working with hypertables similar to standard {C.PG}.
 
 1.  Connect to your Tiger Cloud service In [Tiger Console](https://console.cloud.timescale.com/dashboard/services) open an [SQL editor](/deploy/tiger-cloud/get-started/run-queries-from-console). The in-Console editors display the query speed. You can also connect to your service using [psql](/integrate/psql#connect-to-your-service).
 2.  Create a [hypertable](/build/time-series/understand-hypertables) for your time-series data using [CREATE TABLE](/api-reference/timescaledb/hypertables/create_table). For [efficient queries](/use-timescale/hypercore/secondary-indexes) on data in the columnstore, remember to `segmentby` the column you will use most often to filter your data: When you create a hypertable using [CREATE TABLE … WITH …](/api-reference/timescaledb/hypertables/create_table), the default partitioning column is automatically the first column with a timestamp data type. Also, TimescaleDB creates a [columnstore policy](/api-reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts your data to the columnstore, after an interval equal to the value of the [chunk\_interval](/api-reference/timescaledb/hypertables/create_table#arguments), defined through `compress_after` in the policy. This columnar format enables fast scanning and aggregation, optimizing performance for analytical workloads while also saving significant storage space. In the columnstore conversion, hypertable chunks are compressed by up to 98%, and organized for efficient, large-scale queries. You can customize this policy later using [alter\_job](/api-reference/timescaledb/jobs-automation/alter_job#samples). However, to change `after` or `created_before`, the compression settings, or the hypertable the policy is acting on, you must [remove the columnstore policy](/api-reference/timescaledb/hypercore/remove_columnstore_policy) and [add a new one](/api-reference/timescaledb/hypercore/add_columnstore_policy). You can also manually [convert chunks](/api-reference/timescaledb/hypercore/convert_to_columnstore) in a hypertable to the columnstore.
@@ -55,11 +58,11 @@ To visualize the results of your queries, enable Grafana to read the data in you
 2.  **Add your service as a data source**
     
     1.  Open `Connections` > `Data sources`, then click `Add new data source`.
-    2.  Select `PostgreSQL` from the list.
+    2.  Select `{C.PG}` from the list.
     3.  Configure the connection:
         -   `Host URL`, `Database name`, `Username`, and `Password` Configure using your [connection details](/integrate/find-connection-details). `Host URL` is in the format `<host>:<port>`.
         -   `TLS/SSL Mode`: select `require`.
-        -   `PostgreSQL options`: enable `TimescaleDB`.
+        -   `{C.PG} options`: enable `TimescaleDB`.
         -   Leave the default setting for all other fields.
     4.  Click `Save & test`.
     
@@ -99,7 +102,7 @@ In this procedure, you use a more complicated query to return the five most rece
 
 Analyze the data
 
-In this section, you use [TimescaleDB hyperfunctions](/api-reference/timescaledb/hyperfunctions) to construct analytical queries that are not possible in standard Postgres. You create continuous aggregates to simplify and speed up your queries, then use them to answer these questions:
+In this section, you use [TimescaleDB hyperfunctions](/api-reference/timescaledb/hyperfunctions) to construct analytical queries that are not possible in standard {C.PG}. You create continuous aggregates to simplify and speed up your queries, then use them to answer these questions:
 
 -   Is there any connection between the number of transactions and the transaction fees?
 -   Does the transaction volume affect the BTC-USD rate?

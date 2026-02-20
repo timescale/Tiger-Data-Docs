@@ -1,0 +1,332 @@
+import { QueryKinds } from "./types.js";
+import { useSearch, useSearchContext } from "./context.js";
+import { guideSearch } from "./providers/pagefind.js";
+import { createElement, useEffect, useRef, useState } from "react";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+import { BookOpenText, Box, Code, Folder, Search, Wrench } from "lucide-react";
+import { useLanguage } from "@stainless-api/docs-ui/contexts";
+import { useComponents } from "@stainless-api/docs-ui/contexts/use-components";
+import style from "@stainless-api/docs-ui/style";
+import { Button } from "@stainless-api/ui-primitives";
+
+//#region src/results.tsx
+const QueryKindDisplay = {
+	all: {
+		name: "Results",
+		icon: Search
+	},
+	resource: {
+		name: "Resources",
+		icon: Folder
+	},
+	http_method: {
+		name: "Methods",
+		icon: Box
+	},
+	model: {
+		name: "Types",
+		icon: Code
+	},
+	property: {
+		name: "Properties",
+		icon: Wrench
+	},
+	guide: {
+		name: "Guide",
+		icon: BookOpenText
+	}
+};
+function Highlight({ result, name }) {
+	const value = result._highlightResult[name]?.value;
+	if (value) return /* @__PURE__ */ jsx("span", { dangerouslySetInnerHTML: { __html: value } });
+}
+function SearchResultBreadcrumb({ result }) {
+	const Docs = useComponents();
+	const Icon = QueryKindDisplay[result.kind].icon;
+	const items = result.crumbs?.map((crumb) => /* @__PURE__ */ jsx("span", {
+		className: style.SearchBreadcrumbItem,
+		children: crumb
+	}, crumb));
+	return /* @__PURE__ */ jsxs("div", {
+		className: style.SearchBreadcrumb,
+		children: [/* @__PURE__ */ jsx(Icon, {
+			className: style.Icon,
+			size: 14
+		}), Array.isArray(result.crumbs) && /* @__PURE__ */ jsx(Docs.Join, {
+			items,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style.SearchBreadcrumbDivider,
+				children: "›"
+			})
+		})]
+	});
+}
+function SearchResult({ result }) {
+	return /* @__PURE__ */ jsxs("div", {
+		className: style.SearchResult,
+		"data-stldocs-search-result": result.kind,
+		children: [/* @__PURE__ */ jsx(SearchResultBreadcrumb, { result }), /* @__PURE__ */ jsx(SearchResultContent, { result })]
+	});
+}
+function GuideResult({ result }) {
+	const Docs = useComponents();
+	const Icon = QueryKindDisplay["guide"].icon;
+	const path = result.data.url.slice(1, -1).split("/").map((crumb) => /* @__PURE__ */ jsx("span", {
+		className: style.SearchBreadcrumbItem,
+		children: crumb
+	}, crumb));
+	const crumbs = path.length > 1 ? path : [/* @__PURE__ */ jsx("span", {
+		className: style.SearchBreadcrumbItem,
+		children: "Overview"
+	}, "overview")];
+	return /* @__PURE__ */ jsxs("div", {
+		className: style.SearchResult,
+		"data-stldocs-search-result": "guide",
+		children: [
+			/* @__PURE__ */ jsxs("div", {
+				className: style.SearchBreadcrumb,
+				children: [/* @__PURE__ */ jsx(Icon, {
+					className: style.Icon,
+					size: 14
+				}), /* @__PURE__ */ jsx(Docs.Join, {
+					items: crumbs,
+					children: /* @__PURE__ */ jsx("span", {
+						className: style.SearchBreadcrumbDivider,
+						children: "›"
+					})
+				})]
+			}),
+			/* @__PURE__ */ jsx("h3", {
+				className: style.SearchResultGuideTitle,
+				children: result.data.meta.title
+			}),
+			/* @__PURE__ */ jsx("div", {
+				className: style.SearchResultGuideExcerpt,
+				dangerouslySetInnerHTML: { __html: result.data.excerpt }
+			})
+		]
+	});
+}
+function SearchResultContent({ result }) {
+	const Docs = useComponents();
+	const language = useLanguage();
+	switch (result.kind) {
+		case "http_method": return /* @__PURE__ */ jsxs(Fragment, { children: [/* @__PURE__ */ jsx(Docs.MethodHeader, {
+			level: "h5",
+			title: /* @__PURE__ */ jsx(Highlight, {
+				result,
+				name: result.summary ? "summary" : "title"
+			}),
+			signature: result["qualified"] && /* @__PURE__ */ jsx(Highlight, {
+				result,
+				name: "qualified"
+			}),
+			children: /* @__PURE__ */ jsx(Docs.MethodRoute, {
+				httpMethod: result.httpMethod,
+				endpoint: /* @__PURE__ */ jsx(Highlight, {
+					result,
+					name: "endpoint"
+				})
+			})
+		}), /* @__PURE__ */ jsx("div", {
+			className: `${style.MethodDescription} ${style.Content}`,
+			children: /* @__PURE__ */ jsx(Highlight, {
+				result,
+				name: "description"
+			})
+		})] });
+		case "model": {
+			const properties = result.children?.map((child, index) => /* @__PURE__ */ jsx("span", {
+				className: style.TextIdentifier,
+				children: child
+			}, index)) ?? [];
+			return /* @__PURE__ */ jsxs("div", {
+				className: style.Property,
+				"data-stldocs-language": language,
+				children: [/* @__PURE__ */ jsx("div", {
+					className: style.PropertyHeader,
+					children: /* @__PURE__ */ jsx("span", {
+						className: style.PropertyName,
+						children: /* @__PURE__ */ jsx(Highlight, {
+							result,
+							name: result.title ? "title" : "name"
+						})
+					})
+				}), /* @__PURE__ */ jsxs("span", {
+					className: style.PropertyDeclaration,
+					children: [
+						/* @__PURE__ */ jsx(Highlight, {
+							result,
+							name: "ident"
+						}),
+						":",
+						" ",
+						/* @__PURE__ */ jsx(Docs.Join, {
+							items: properties,
+							limit: 3,
+							children: /* @__PURE__ */ jsx("span", {
+								className: style.TextPunctuation,
+								children: ", "
+							})
+						})
+					]
+				})]
+			});
+		}
+		case "resource": return /* @__PURE__ */ jsxs("div", {
+			className: style.SearchResultResourceInfo,
+			children: [/* @__PURE__ */ jsx("span", {
+				className: style.SearchResultResourceTitle,
+				children: /* @__PURE__ */ jsx(Highlight, {
+					result,
+					name: "title"
+				})
+			}), /* @__PURE__ */ jsx("span", {
+				className: style.SearchResultResourcePath,
+				children: /* @__PURE__ */ jsx(Highlight, {
+					result,
+					name: "QualifiedName"
+				})
+			})]
+		});
+		case "property": return /* @__PURE__ */ jsxs("div", {
+			className: style.Property,
+			"data-stldocs-language": language,
+			children: [/* @__PURE__ */ jsxs("div", {
+				className: style.PropertyHeader,
+				children: [/* @__PURE__ */ jsx("span", {
+					className: style.PropertyName,
+					children: /* @__PURE__ */ jsx(Highlight, {
+						result,
+						name: "name"
+					})
+				}), /* @__PURE__ */ jsx("span", {
+					className: style.PropertyTypeName,
+					children: /* @__PURE__ */ jsx("span", { dangerouslySetInnerHTML: { __html: result.type ?? "" } })
+				})]
+			}), result.docstring && /* @__PURE__ */ jsx("span", {
+				className: style.PropertyDescription,
+				children: /* @__PURE__ */ jsx(Highlight, {
+					result,
+					name: "docstring"
+				})
+			})]
+		});
+	}
+}
+
+//#endregion
+//#region src/form.tsx
+function SearchForm() {
+	const Docs = useComponents();
+	const search = useSearch();
+	const language = useLanguage();
+	const { onSelect, pageFind } = useSearchContext();
+	const [results, setResults] = useState(null);
+	const [filterKind, setFilterKind] = useState("all");
+	const [searchQuery, setSearchQuery] = useState("");
+	const inputRef = useRef(null);
+	useEffect(() => {
+		const guideLimit = 25;
+		const apiKindFilter = ["all", "guide"].includes(filterKind) ? void 0 : filterKind;
+		const ac = new AbortController();
+		Promise.all([pageFind ? guideSearch(pageFind, searchQuery, guideLimit) : [], search({
+			query: searchQuery,
+			kind: apiKindFilter,
+			language
+		})]).then(([guideResults, apiResults]) => {
+			if (ac.signal.aborted) return;
+			setResults({
+				items: filterKind === "guide" ? guideResults : filterKind === "all" ? [
+					...guideResults.slice(0, 5),
+					...apiResults?.hits ?? [],
+					...guideResults.slice(5)
+				] : apiResults?.hits ?? [],
+				counts: {
+					...apiResults?.facets?.["kind"],
+					guide: guideResults.length,
+					all: (apiResults?.nbHits ?? 0) + guideResults.length
+				}
+			});
+		}).catch(() => {});
+		return () => ac.abort();
+	}, [
+		searchQuery,
+		filterKind,
+		language,
+		search,
+		pageFind
+	]);
+	return /* @__PURE__ */ jsxs("div", {
+		className: style.SearchForm,
+		children: [
+			/* @__PURE__ */ jsx(Docs.Input, {
+				ref: inputRef,
+				autoFocus: true,
+				onChange: (ev) => setSearchQuery(ev.target.value),
+				left: /* @__PURE__ */ jsx(Search, {
+					size: 16,
+					className: style.Icon
+				}),
+				value: searchQuery,
+				placeholder: "Search"
+			}),
+			/* @__PURE__ */ jsx(SearchFilter, {
+				results,
+				filterKind,
+				onChange: (filterKind) => setFilterKind(filterKind)
+			}),
+			/* @__PURE__ */ jsx(Docs.ListView, {
+				items: results?.items ?? [],
+				itemDelegate: (item) => "kind" in item ? /* @__PURE__ */ jsx(SearchResult, { result: item }) : /* @__PURE__ */ jsx(GuideResult, { result: item }),
+				onSelectListItem: (item) => onSelect?.(item["data"]?.["url"] ?? item["stainlessPath"])
+			})
+		]
+	});
+}
+function SearchFilter({ results, filterKind, onChange }) {
+	const { pageFind } = useSearchContext();
+	const toggles = pageFind ? QueryKinds : QueryKinds.filter((k) => k !== "guide");
+	return /* @__PURE__ */ jsx("div", {
+		className: style.SearchFilter,
+		children: toggles.map((kind, index) => /* @__PURE__ */ jsxs(Button, {
+			variant: filterKind === kind ? "accent" : "outline",
+			onClick: () => onChange?.(kind),
+			children: [
+				createElement(QueryKindDisplay[kind].icon, {
+					size: 16,
+					className: style.Icon
+				}),
+				/* @__PURE__ */ jsx("span", {
+					className: style.SearchFilterLabel,
+					children: QueryKindDisplay[kind].name
+				}),
+				/* @__PURE__ */ jsx("span", {
+					className: style.SearchFilterCount,
+					children: results?.counts?.[kind] ?? 0
+				})
+			]
+		}, index))
+	});
+}
+function SearchModal({ id, open: isOpen }) {
+	const [open, setOpen] = useState(isOpen ?? false);
+	useEffect(() => {
+		if (open) document.body.style.overflow = "hidden";
+		else document.body.style.overflow = "";
+		return () => {
+			document.body.style.overflow = "";
+		};
+	}, [open]);
+	return /* @__PURE__ */ jsx("div", {
+		id,
+		onToggle: (ev) => setOpen(ev.newState === "open"),
+		className: style.SearchModal,
+		popover: "auto",
+		"data-stldocs-modal-open": open,
+		children: open && /* @__PURE__ */ jsx(SearchForm, {})
+	});
+}
+
+//#endregion
+export { SearchFilter, SearchForm, SearchModal };

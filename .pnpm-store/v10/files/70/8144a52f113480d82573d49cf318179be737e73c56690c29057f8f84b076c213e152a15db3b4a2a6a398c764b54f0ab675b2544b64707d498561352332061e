@@ -1,0 +1,85 @@
+import type { StarlightRouteData } from '@astrojs/starlight/route-data';
+import type starlight from '@astrojs/starlight';
+
+// file is required because of build errors when importing from index.ts in the replaceSidebarPlaceholderMiddleware.ts file
+const INTERNAL_REFERENCE_ENTRY_MARKER = 'STL_STARLIGHT_API_REFERENCE_ITEMS_PLACEHOLDER';
+
+export function makePlaceholderItems(id: number) {
+  return [
+    {
+      label: 'API Reference',
+      link: '/', // this gets replaced during plugin initialization
+      attrs: {
+        // we hack-ily use/abuse the about attribute to identify the placeholder item
+        // using "about" was sort of a random choice, but it seems good enough
+        about: INTERNAL_REFERENCE_ENTRY_MARKER,
+        'data-stldocs-sidebar-id': id,
+      },
+    },
+  ];
+}
+
+type StarlightConfig = Parameters<typeof starlight>[0];
+
+export type SidebarConfigEntry = Exclude<StarlightConfig['sidebar'], undefined>[number];
+
+export function getAPIReferencePlaceholderItemFromSidebarConfig(
+  sidebar: SidebarConfigEntry[],
+): SidebarConfigEntry[] {
+  const items: SidebarConfigEntry[] = [];
+
+  function recursiveGetPlaceholderItems(entries: SidebarConfigEntry[]) {
+    for (const item of entries) {
+      if (typeof item === 'string') {
+        continue;
+      }
+      if ('attrs' in item && item.attrs?.about === INTERNAL_REFERENCE_ENTRY_MARKER) {
+        items.push(item);
+      }
+      if ('items' in item) {
+        recursiveGetPlaceholderItems(item.items);
+      }
+    }
+  }
+
+  recursiveGetPlaceholderItems(sidebar);
+
+  return items;
+}
+
+type SidebarEntry = StarlightRouteData['sidebar'][number];
+
+type PlaceholderItemResult = {
+  index: number;
+  group: SidebarEntry[];
+  placeholder: SidebarEntry;
+  sidebarId: number;
+};
+
+function recursiveGetPlaceholderItems(
+  sidebar: SidebarEntry[],
+  items: PlaceholderItemResult[],
+): PlaceholderItemResult[] {
+  for (let i = 0; i < sidebar.length; i++) {
+    const entry = sidebar[i]!;
+    if ('attrs' in entry && entry.attrs?.about === INTERNAL_REFERENCE_ENTRY_MARKER) {
+      items.push({
+        index: i,
+        group: sidebar,
+        placeholder: entry,
+        sidebarId: entry.attrs?.['data-stldocs-sidebar-id'],
+      });
+    }
+    if (entry.type === 'group') {
+      const foundEntries = getAPIReferencePlaceholderItems(entry.entries);
+      if (foundEntries) {
+        items.push(...foundEntries);
+      }
+    }
+  }
+  return items;
+}
+
+export function getAPIReferencePlaceholderItems(sidebar: SidebarEntry[]): PlaceholderItemResult[] {
+  return recursiveGetPlaceholderItems(sidebar, []);
+}

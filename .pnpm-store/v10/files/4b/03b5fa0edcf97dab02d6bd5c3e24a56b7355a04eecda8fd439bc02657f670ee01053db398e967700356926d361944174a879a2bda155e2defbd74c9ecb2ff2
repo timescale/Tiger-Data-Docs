@@ -1,0 +1,112 @@
+import type * as SDKJSON from '@stainless/sdk-json';
+import { Languages } from '@stainless-api/docs-ui/routing';
+import { createSDKJSON, ParsedConfig, parseInputs, transformOAS } from './worker';
+import { LanguageGenerateQuery } from '../loadPluginConfig';
+import { FileCache } from './FileCache';
+import previewWorkerCode from '../vendor/preview.worker.docs.js?raw';
+
+function getLanguagesFromStainlessConfig(config: ParsedConfig): SDKJSON.SpecLanguage[] {
+  // if the Stainless config has a list of docs languages, use that
+  if (config.docs?.languages) {
+    return config.docs.languages;
+  }
+
+  // otherwise, just loop over all targets in the config + use the ones that are not skipped
+  return Object.entries(config.targets)
+    .filter(([name, target]) => {
+      if (!Languages.includes(name)) return false; // not  a valid language
+      if (target.skip) return false; // config says to skip this language
+      return true;
+    })
+    .map(([name]) => name) as SDKJSON.SpecLanguage[];
+}
+
+// These inputs contain everything needed to generate a spec
+// Combined with the source of the preview workers, we can make a hash to cache the resulting spec
+export type GenerateSpecRawInputs = {
+  oasStr: string;
+  configStr: string;
+  languageOverrides: LanguageGenerateQuery | null;
+  stainlessProject: string;
+  versionInfo: Record<SDKJSON.SpecLanguage, string> | null;
+};
+
+function applyLanguageOverrides(
+  initialLanguages: SDKJSON.SpecLanguage[],
+  languageOverrides: LanguageGenerateQuery | null,
+) {
+  if (!languageOverrides) return initialLanguages;
+  if (languageOverrides.mode === 'exclude') {
+    return initialLanguages.filter((language) => !languageOverrides.list.includes(language));
+  }
+  return languageOverrides.list;
+}
+
+async function generateSpecFromStrings({
+  oasStr,
+  configStr,
+  stainlessProject,
+  languageOverrides,
+  versionInfo,
+}: GenerateSpecRawInputs) {
+  const { oas, config } = await parseInputs({
+    oas: oasStr,
+    config: configStr,
+  });
+
+  const transformedOAS = await transformOAS({ oas, config });
+
+  let languagesToGenerate = getLanguagesFromStainlessConfig(config);
+  // by default, we should generate the HTTP spec (unless it's explicitly excluded)
+  if (!languagesToGenerate.includes('http')) {
+    languagesToGenerate.push('http');
+  }
+
+  languagesToGenerate = applyLanguageOverrides(languagesToGenerate, languageOverrides);
+
+  // SDKJSON has weird behavior where it will create a spec with HTTP, even if it's not in the languages list
+  const sdkJson = await createSDKJSON({
+    oas: transformedOAS,
+    config,
+    // if language overrides are provided, use them, otherwise use the languages from the Stainless config
+    languages: languagesToGenerate,
+    projectName: stainlessProject,
+  });
+
+  let languages = sdkJson.docs?.languages;
+
+  if (!languages) {
+    throw new Error(`SDKJSON created without any languages`);
+  }
+
+  // if language overrides are provided, filter the languages to only include the ones that are in the overrides
+  languages = languages.filter((language) => languagesToGenerate.includes(language));
+
+  if (versionInfo) {
+    for (const [lang, version] of Object.entries(versionInfo)) {
+      const meta = sdkJson.metadata[lang as SDKJSON.SpecLanguage];
+      if (meta?.version) meta.version = version;
+    }
+  }
+
+  const opts = Object.entries(config.client_settings.opts).map(([k, v]) => ({ name: k, ...v }));
+  return {
+    sdkJson,
+    languages,
+    auth: sdkJson.security_schemes.map((scheme) => ({
+      ...scheme,
+      opts: opts.filter((opt) => opt.auth?.security_scheme === scheme.name),
+    })),
+  };
+}
+
+export const specCache = new FileCache({
+  generate: generateSpecFromStrings,
+  globalHashBits: previewWorkerCode, // you can change this as a last resort to invalidate the cache
+});
+
+export type SpecCacheResult = Awaited<ReturnType<typeof specCache.get>>;
+
+export type GenerateSpecFn = typeof generateSpecFromStrings;
+
+export type SpecWithAuth = Awaited<ReturnType<GenerateSpecFn>>;

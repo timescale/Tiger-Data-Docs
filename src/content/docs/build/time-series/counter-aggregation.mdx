@@ -2,9 +2,12 @@
 title: "Monitor application performance"
 description: "Collect counter data with counter aggregation functions that handle resets and interruptions"
 ---
+
+import * as C from "@constants";
+
 When you are monitoring application performance, there are two main types of metrics that you can collect: gauges, and counters. Gauges fluctuate up and down, like temperature or speed, while counters always increase, like the total number of miles travelled in a vehicle. When you process counter data, it is usually assumed that if the value of the counter goes down, the counter has been reset. For example, if you wanted to count the total number of miles travelled in a vehicle, you would expect the values to continuously increase: 1, 2, 3, 4, and so on. If the counter reset to 0, you would expect that this was a new trip, or an entirely new vehicle. This can become a problem if you want to continue counting from where you left off, rather than resetting to 0. A reset could occur if you have had a short server outage, or any number of other reasons. To get around this, you can analyze counter data by looking at the change over time, which accounts for resets. Accounting for resets can be difficult to do in SQL, so TimescaleDB has developed aggregate and accessor functions that handle calculations for counters in a more practical way.
 
-Counter aggregates can be used in continuous aggregates, even though they are not parallelizable in Postgres. For more information, see the section on [parallelism and ordering](#parallelism-and-ordering).
+Counter aggregates can be used in continuous aggregates, even though they are not parallelizable in {C.PG}. For more information, see the section on [parallelism and ordering](#parallelism-and-ordering).
 
 For more information about counter aggregation API calls, see the [hyperfunction API documentation](/api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg).
 
@@ -43,4 +46,4 @@ Your counter aggregate might be more useful if you make a continuous aggregate o
 
 Parallelism and ordering
 
-The counter reset calculations require a strict ordering of inputs, which means they are not parallelizable in Postgres. This is because Postgres handles parallelism by issuing rows randomly to workers. However, if your parallelism can guarantee sets of rows that are disjointed in time, the algorithm can be parallelized, as long as it is within a time range, and all rows go to the same worker. This is the case for both continuous aggregates and for distributed hypertables, as long as the partitioning keys are in the `group by`, even though the aggregate itself doesn’t really make sense otherwise. For more information about parallelism and ordering, see the [developer documentation](https://github.com/timescale/timescaledb-toolkit/blob/main/docs/counter_agg.md#counter-agg-ordering).
+The counter reset calculations require a strict ordering of inputs, which means they are not parallelizable in {C.PG}. This is because {C.PG} handles parallelism by issuing rows randomly to workers. However, if your parallelism can guarantee sets of rows that are disjointed in time, the algorithm can be parallelized, as long as it is within a time range, and all rows go to the same worker. This is the case for both continuous aggregates and for distributed hypertables, as long as the partitioning keys are in the `group by`, even though the aggregate itself doesn’t really make sense otherwise. For more information about parallelism and ordering, see the [developer documentation](https://github.com/timescale/timescaledb-toolkit/blob/main/docs/counter_agg.md#counter-agg-ordering).

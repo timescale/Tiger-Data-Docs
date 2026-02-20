@@ -1,0 +1,270 @@
+import { t as __exportAll } from "../chunk-BYypO7fO.js";
+import "../use-strict-context-L0c8JKg4.js";
+import { useLanguageComponents } from "../contexts/index.js";
+import { useComponents } from "../contexts/use-components.js";
+import style_default from "../style.js";
+import * as React$1 from "react";
+import { Fragment as Fragment$1, jsx, jsxs } from "react/jsx-runtime";
+
+//#region src/languages/python.tsx
+var python_exports = /* @__PURE__ */ __exportAll({
+	Declaration: () => Declaration,
+	MethodSignature: () => MethodSignature,
+	Property: () => Property,
+	Type: () => Type,
+	TypeName: () => TypeName
+});
+const constStyle = {
+	string: style_default.LiteralString,
+	number: style_default.LiteralNumeric,
+	boolean: style_default.LiteralBoolean
+};
+function showFullType(type) {
+	if (type.kind !== "PythonTypeReference") return false;
+	return type.typeName === "Optional" ? showFullType(type.typeParameters[0]) : type.typeParameters.length > 0;
+}
+function TypeName({ type }) {
+	const Lang = useLanguageComponents();
+	if (type.kind === "PythonTypeReference") switch (type.typeName) {
+		case "Optional": return /* @__PURE__ */ jsx(Lang.TypeName, { type: type.typeParameters[0] });
+		case "List":
+		case "Iterable":
+		case "Literal":
+		case "Union": return type.typeName.toLowerCase();
+	}
+	return /* @__PURE__ */ jsx(Lang.Type, { type });
+}
+function Type({ type }) {
+	const Lang = useLanguageComponents();
+	const { Join, SDKReference } = useComponents();
+	switch (type.kind) {
+		case "PythonTypeAny":
+		case "PythonTypeUnknown":
+		case "PythonTypeInt":
+		case "PythonTypeFloat":
+		case "PythonTypeBool": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypeKeyword,
+				children: type.kind.slice(10).toLowerCase()
+			})
+		});
+		case "PythonTypeString": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypeString,
+				children: "str"
+			})
+		});
+		case "PythonTypeLiteral": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: constStyle[typeof type.literal.value],
+				children: JSON.stringify(type.literal.value)
+			})
+		});
+		case "PythonTypeArray": return /* @__PURE__ */ jsxs("span", {
+			className: style_default.Type,
+			children: [
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TypeArray,
+					children: "Array<"
+				}),
+				/* @__PURE__ */ jsx(Lang.Type, { type: type.elementType }),
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TypeArray,
+					children: ">"
+				})
+			]
+		});
+		case "PythonTypeClass": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypeKeyword,
+				children: "class"
+			})
+		});
+		case "PythonTypeMap": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypeKeyword,
+				children: "Dict"
+			})
+		});
+		case "PythonTypeReference": {
+			const params = type.typeParameters?.map((param, key) => /* @__PURE__ */ jsx(Lang.Type, { type: param }, key));
+			return /* @__PURE__ */ jsxs("span", {
+				className: style_default.Type,
+				children: [/* @__PURE__ */ jsx("span", {
+					className: type.typeName === "Optional" ? style_default.TypeArray : "",
+					children: /* @__PURE__ */ jsx(SDKReference, {
+						stainlessPath: type.$ref,
+						children: type.typeName
+					})
+				}), params && params.length > 0 && /* @__PURE__ */ jsxs(Fragment$1, { children: [
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeBracket,
+						children: "["
+					}),
+					/* @__PURE__ */ jsx(Join, {
+						items: params,
+						limit: 3,
+						children: /* @__PURE__ */ jsx("span", {
+							className: style_default.TextOperator,
+							children: ", "
+						})
+					}),
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeBracket,
+						children: "]"
+					})
+				] })]
+			});
+		}
+	}
+}
+function MethodSignature({ decl }) {
+	const Lang = useLanguageComponents();
+	const { Join, Tooltip } = useComponents();
+	const params = decl.parameters.map((param, i) => /* @__PURE__ */ jsx(React$1.Fragment, { children: /* @__PURE__ */ jsx(Tooltip, {
+		content: /* @__PURE__ */ jsx(Lang.Type, { type: param.type }),
+		children: /* @__PURE__ */ jsx("span", {
+			className: style_default.TextIdentifier,
+			children: param.ident
+		})
+	}) }, i));
+	return /* @__PURE__ */ jsx("div", {
+		className: style_default.MethodSignature,
+		children: /* @__PURE__ */ jsxs("span", {
+			className: style_default.SignatureTitle,
+			children: [
+				decl.async && /* @__PURE__ */ jsx("span", {
+					className: style_default.TextKeyword,
+					children: "async "
+				}),
+				decl.qualified && /* @__PURE__ */ jsx("span", {
+					className: style_default.SignatureQualified,
+					children: /* @__PURE__ */ jsx("span", {
+						className: style_default.TextIdentifier,
+						children: decl.qualified?.slice(0, -decl.ident.length)
+					})
+				}),
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.SignatureName,
+					children: /* @__PURE__ */ jsx("span", {
+						className: style_default.TextIdentifier,
+						children: decl.ident
+					})
+				}),
+				/* @__PURE__ */ jsxs("span", {
+					className: style_default.MethodSignature,
+					children: [
+						/* @__PURE__ */ jsx("span", {
+							className: style_default.SignatureParen,
+							children: "("
+						}),
+						/* @__PURE__ */ jsx("span", {
+							className: style_default.SignatureParams,
+							children: /* @__PURE__ */ jsx(Join, {
+								items: params,
+								children: /* @__PURE__ */ jsx("span", {
+									className: style_default.TextOperator,
+									children: ", "
+								})
+							})
+						}),
+						/* @__PURE__ */ jsxs("span", {
+							className: style_default.SignatureParen,
+							children: [")", " "]
+						}),
+						decl.returns && /* @__PURE__ */ jsxs(Fragment$1, { children: [/* @__PURE__ */ jsx("span", {
+							className: style_default.TextOperator,
+							children: " -> "
+						}), /* @__PURE__ */ jsx(Lang.Type, { type: decl.returns })] })
+					]
+				})
+			]
+		})
+	});
+}
+function Property({ decl, children }) {
+	const Lang = useLanguageComponents();
+	if (!decl) return;
+	switch (decl.kind) {
+		case "PythonDeclProperty": return children({
+			name: decl.ident,
+			typeName: /* @__PURE__ */ jsx(Lang.TypeName, { type: decl.type }),
+			type: showFullType(decl.type) && /* @__PURE__ */ jsx(Lang.Type, { type: decl.type })
+		});
+		case "PythonDeclClass": return children({
+			name: decl.ident,
+			typeName: "class"
+		});
+		case "PythonDeclType": return children({
+			name: decl.ident,
+			typeName: "type",
+			type: /* @__PURE__ */ jsx(Lang.Type, { type: decl.type })
+		});
+		case "PythonDeclReference": return children({ type: /* @__PURE__ */ jsx(Lang.Type, { type: decl.type }) });
+	}
+}
+function Declaration({ decl }) {
+	const Lang = useLanguageComponents();
+	if (!decl) return;
+	switch (decl.kind) {
+		case "PythonDeclProperty": {
+			const nullable = decl.type.kind === "PythonTypeReference" && decl.type.typeName === "Optional" && (decl.type.typeParameters ?? []).length > 0;
+			return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TypePropertyName,
+					children: /* @__PURE__ */ jsx("span", {
+						className: style_default.TextIdentifier,
+						children: decl.ident
+					})
+				}),
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TextPunctuation,
+					children: ": "
+				}),
+				decl.optional && !nullable ? /* @__PURE__ */ jsxs(Fragment$1, { children: [
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypePlain,
+						children: "Optional"
+					}),
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeBracket,
+						children: "["
+					}),
+					/* @__PURE__ */ jsx(Lang.Type, { type: decl.type }),
+					/* @__PURE__ */ jsx("span", {
+						className: style_default.TypeBrace,
+						children: "]"
+					})
+				] }) : /* @__PURE__ */ jsx(Lang.Type, { type: decl.type })
+			] });
+		}
+		case "PythonDeclClass": return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+			/* @__PURE__ */ jsx("span", {
+				className: style_default.TextKeyword,
+				children: "class "
+			}),
+			/* @__PURE__ */ jsx("span", {
+				className: style_default.TextIdentifier,
+				children: decl.ident
+			}),
+			/* @__PURE__ */ jsx("span", {
+				className: style_default.TextPunctuation,
+				children: ": "
+			}),
+			/* @__PURE__ */ jsx("span", {
+				className: `${style_default.TypePreviewContent} ${style_default.TextPunctuation}`,
+				children: "…"
+			})
+		] });
+		case "PythonDeclType": return /* @__PURE__ */ jsx(Fragment$1, { children: /* @__PURE__ */ jsx(Lang.Type, { type: decl.type }) });
+		case "PythonDeclReference": return /* @__PURE__ */ jsx(Lang.Type, { type: decl.type });
+	}
+}
+
+//#endregion
+export { Declaration, MethodSignature, Property, Type, TypeName, python_exports as t };

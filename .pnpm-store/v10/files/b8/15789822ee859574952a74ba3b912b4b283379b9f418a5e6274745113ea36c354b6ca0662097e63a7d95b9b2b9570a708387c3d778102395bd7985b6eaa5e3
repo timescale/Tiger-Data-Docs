@@ -1,0 +1,289 @@
+import starlight from '@astrojs/starlight';
+import react from '@astrojs/react';
+import type { StarlightPlugin } from '@astrojs/starlight/types';
+import { disableCalloutSyntaxStarlightPlugin } from './disableCalloutSyntax';
+
+import type { AstroIntegration } from 'astro';
+
+import { normalizeRedirects, type NormalizedRedirectConfig } from './redirects';
+import { join } from 'path';
+import { mkdirSync, writeFileSync } from 'fs';
+import {
+  parseStlDocsConfig,
+  type Defined,
+  type NormalizedStainlessDocsConfig,
+  type StainlessDocsUserConfig,
+  type StarlightConfigDefined,
+  type StarlightSidebarConfig,
+} from './loadStlDocsConfig';
+import { buildVirtualModuleString } from '../shared/virtualModule';
+import type * as StlDocsVirtualModule from 'virtual:stl-docs-virtual-module';
+import { resolveSrcFile } from '../resolveSrcFile';
+import { stainlessDocsMarkdownRenderer } from './proseMarkdown/proseMarkdownIntegration';
+import { setSharedLogger } from '../shared/getSharedLogger';
+import { stainlessDocsAlgoliaProseIndexing, stainlessDocsVectorProseIndexing } from './proseSearchIndexing';
+import { stainlessStarlight } from '../plugin';
+import { getFontRoles, flattenFonts } from './fonts';
+
+export * from '../plugin';
+
+const COMPONENTS_FOLDER = '/stl-docs/components';
+
+function stainlessDocsStarlightIntegration(config: NormalizedStainlessDocsConfig) {
+  // We transform our tabs into a Starlight sidebar
+  // This gives them all the built-in features of Starlight (eg. auto-generated entries by directory)
+  // In our middleware, we pull the appropriate group for the current tab and remove the others
+  let sidebar: Defined<StarlightSidebarConfig> = [];
+
+  if (config.splitTabsEnabled) {
+    config.tabs.forEach((tab, index) => {
+      // force unwrap bc we know we have a sidebar
+      sidebar.push({
+        label: index.toString(),
+        items: tab.sidebar ?? [],
+      });
+    });
+  } else if (config.sidebar) {
+    sidebar = config.sidebar;
+  }
+
+  type ComponentOverrides = StarlightConfigDefined['components'];
+  const componentOverrides: ComponentOverrides = {
+    PageFrame: resolveSrcFile(COMPONENTS_FOLDER, './PageFrame.astro'),
+
+    Head: resolveSrcFile(COMPONENTS_FOLDER, './Head.astro'),
+    Header: resolveSrcFile(COMPONENTS_FOLDER, './Header.astro'),
+    ThemeProvider: resolveSrcFile(COMPONENTS_FOLDER, './ThemeProvider.astro'),
+    ThemeSelect: resolveSrcFile(COMPONENTS_FOLDER, './ThemeSelect.astro'),
+
+    Sidebar: resolveSrcFile(COMPONENTS_FOLDER, './sidebars/BaseSidebar.astro'),
+    ContentPanel: resolveSrcFile(COMPONENTS_FOLDER, './content-panel/ContentPanel.astro'),
+    TableOfContents: resolveSrcFile(COMPONENTS_FOLDER, './TableOfContents.astro'),
+
+    PageTitle: resolveSrcFile(COMPONENTS_FOLDER, './PageTitle.astro'),
+    Pagination: resolveSrcFile(COMPONENTS_FOLDER, './pagination/Pagination.astro'),
+  };
+
+  const plugins: StarlightPlugin[] = [
+    // Disable starlight callout syntax in favor of our own component
+    disableCalloutSyntaxStarlightPlugin,
+  ];
+
+  if (config.apiReference !== null) {
+    plugins.push(
+      stainlessStarlight({
+        ...config.apiReference,
+        contextMenu: config.contextMenu,
+        experimentalPrerender:
+          config.apiReference.experimentalPrerender === undefined
+            ? config.starlightPassThrough.prerender
+            : config.apiReference.experimentalPrerender,
+      }),
+    );
+    componentOverrides.Sidebar = resolveSrcFile(COMPONENTS_FOLDER, './sidebars/SDKSelectSidebar.astro');
+    componentOverrides.Search = resolveSrcFile('/plugin/components/search/Search.astro');
+  }
+
+  plugins.push(...config.starlightCompat.plugins, ...config.plugins.map((p) => p(config)));
+
+  // TODO: re-add once we figure out what to do with the client router
+  // if (config.enableClientRouter) {
+  //   // logger.info(`Client router is enabled`);
+  //   componentOverrides.Head = '@stainless-api/docs/head';
+  // } else {
+  //   // logger.info(`Client router is disabled`);
+  // }
+
+  const userExpressiveCode = typeof config.expressiveCode === 'object' ? config.expressiveCode : {};
+
+  return starlight({
+    ...config.starlightPassThrough,
+    sidebar,
+    components: {
+      ...componentOverrides,
+      ...config.starlightCompat.components,
+    },
+    head: [
+      ...config.head,
+      {
+        tag: 'script',
+        content: `
+        function setupNavLinksInitial(){
+          let mode = localStorage.getItem("stl-nav-links-mode");
+          // initial guess
+          if(mode === null){
+            mode = window.innerWidth < 1000 ? "mobile" : "desktop";
+          }
+          document.documentElement.classList.add("stl-nav-links-mode-" + mode)
+        }
+        setupNavLinksInitial();
+      `,
+      },
+    ],
+    routeMiddleware: [
+      ...config.starlightCompat.routeMiddleware,
+      resolveSrcFile('/stl-docs/tabsMiddleware.ts'),
+    ],
+    customCss: [resolveSrcFile('/theme.css'), ...config.customCss],
+
+    expressiveCode: {
+      ...userExpressiveCode,
+      themes: userExpressiveCode.themes ?? ['github-light', 'github-dark'],
+      styleOverrides: {
+        ...userExpressiveCode.styleOverrides,
+        textMarkers: {
+          insBackground: 'var(--stl-color-green-muted-background)',
+          insBorderColor: 'var(--stl-color-green-border)',
+          insDiffIndicatorColor: 'var(--stl-color-green-foreground-reduced)',
+
+          delBackground: 'var(--stl-color-red-muted-background)',
+          delBorderColor: 'var(--stl-color-red-border)',
+          delDiffIndicatorColor: 'var(--stl-color-red-foreground-reduced)',
+
+          markBackground: 'var(--stl-color-blue-muted-background)',
+          markBorderColor: 'var(--stl-color-blue-border)',
+          ...userExpressiveCode.styleOverrides?.textMarkers,
+        },
+      },
+    },
+    plugins,
+  });
+}
+
+function stainlessDocsIntegration(
+  config: NormalizedStainlessDocsConfig,
+  apiReferenceBasePath: string | null,
+): AstroIntegration {
+  // The '\0' prefix tells Vite “this is a virtual module” and prevents it from being resolved again.
+  const resolveVirtualModuleId = (id: string) => `\0${id}`;
+  let redirects: NormalizedRedirectConfig | null = null;
+
+  return {
+    name: 'stl-docs-astro',
+    hooks: {
+      'astro:config:setup': ({ updateConfig, command, config: astroConfig }) => {
+        // we only handle redirects for builds
+        // in dev, Astro handles them for us
+        if (command === 'build' && astroConfig.redirects) {
+          redirects = normalizeRedirects(astroConfig.redirects);
+        }
+
+        const virtualModules = new Map(
+          Object.entries({
+            'virtual:stl-docs-virtual-module': buildVirtualModuleString({
+              TABS: config.tabs,
+              SPLIT_TABS_ENABLED: config.splitTabsEnabled,
+              HEADER_LINKS: config.header.links,
+              HEADER_LAYOUT: config.header.layout,
+              ENABLE_CLIENT_ROUTER: config.enableClientRouter,
+              API_REFERENCE_BASE_PATH: apiReferenceBasePath ?? '/api',
+              ENABLE_PROSE_MARKDOWN_RENDERING: config.enableProseMarkdownRendering,
+              ENABLE_CONTEXT_MENU: config.contextMenu, // TODO: do not duplicate this between both virtual modules
+              RENDER_PAGE_DESCRIPTIONS: config.renderPageDescriptions,
+              FONTS: getFontRoles(config.fonts),
+            } satisfies typeof StlDocsVirtualModule),
+
+            'virtual:stl-docs/components/AiChat.tsx': `
+        ${
+          config.aiChat
+            ? `export { default } from ${JSON.stringify(config.aiChat.chatComponentPath)};`
+            : // export null when no AI chat component is provided
+              `export default null;`
+        }
+        export const STAINLESS_PROJECT = ${config.apiReference ? JSON.stringify(config.apiReference.stainlessProject) : 'undefined'};
+      `,
+          }),
+        );
+
+        updateConfig({
+          experimental: {
+            fonts: [...flattenFonts(config.fonts), ...(astroConfig.experimental?.fonts ?? [])],
+          },
+          vite: {
+            plugins: [
+              {
+                name: 'stl-docs-vite',
+                resolveId(id) {
+                  if (virtualModules.has(id)) return resolveVirtualModuleId(id);
+                },
+                load(id) {
+                  const bare = id.replace(/^\0/, '');
+                  if (virtualModules.has(bare)) return virtualModules.get(bare);
+                },
+              },
+            ],
+            optimizeDeps: {
+              include: config.aiChat
+                ? [
+                    '@stainless-api/docs-ai-chat > @stainless-api/ai-chat > lucide-react',
+                    '@stainless-api/docs-ai-chat > @stainless-api/ai-chat > motion',
+                    '@stainless-api/docs-ai-chat > @stainless-api/ai-chat > motion > framer-motion',
+                    '@stainless-api/docs-ai-chat > @stainless-api/ai-chat > react-markdown',
+                    '@stainless-api/docs-ai-chat > @stainless-api/ai-chat > react-syntax-highlighter',
+                    '@stainless-api/docs-ai-chat > @stainless-api/ai-chat > remark-gfm',
+                  ]
+                : [],
+            },
+          },
+          build: {
+            ...astroConfig.build,
+            redirects: false,
+          },
+        });
+      },
+      'astro:build:done': ({ dir }) => {
+        if (redirects !== null) {
+          const stainlessDir = join(dir.pathname, '_stainless');
+          mkdirSync(stainlessDir, { recursive: true });
+          const outputPath = join(stainlessDir, 'redirects.json');
+          writeFileSync(outputPath, JSON.stringify(redirects, null, 2), {
+            encoding: 'utf-8',
+          });
+        }
+      },
+    },
+  };
+}
+
+function sharedLoggerIntegration(): AstroIntegration {
+  return {
+    name: 'stainless',
+    hooks: {
+      'astro:config:setup': ({ logger }) => {
+        setSharedLogger(logger);
+      },
+    },
+  };
+}
+
+export function stainlessDocs(config: StainlessDocsUserConfig): StarlightPlugin[] {
+  const normalizedConfigResult = parseStlDocsConfig(config);
+  if (normalizedConfigResult.result === 'error') {
+    // TODO: would be good to use the astro logger somehow
+    console.error(normalizedConfigResult.message);
+    process.exit(1);
+  }
+  const normalizedConfig = normalizedConfigResult.config;
+
+  // TODO: need to refactor this, but this allows us to get the base path for the API reference _if_ it exists
+  // if it doesn't exist, the value of basePath is null.
+  // the stl-starlight virtual module has base path, but it's not available when there's no API reference
+  const hasApiReference = normalizedConfig.apiReference !== null;
+  let apiReferenceBasePath: string | null = null;
+  if (hasApiReference) {
+    apiReferenceBasePath = normalizedConfig.apiReference?.basePath ?? '/api';
+  }
+
+  return [
+    sharedLoggerIntegration(), // this **must** be first so it can set the shared logger used by our other integrations
+    react(),
+    stainlessDocsStarlightIntegration(normalizedConfig),
+    stainlessDocsIntegration(normalizedConfig, apiReferenceBasePath),
+    stainlessDocsMarkdownRenderer({
+      enabled: normalizedConfig.enableProseMarkdownRendering,
+      apiReferenceBasePath,
+    }),
+    stainlessDocsAlgoliaProseIndexing({ apiReferenceBasePath }),
+    stainlessDocsVectorProseIndexing(normalizedConfig, apiReferenceBasePath),
+  ];
+}

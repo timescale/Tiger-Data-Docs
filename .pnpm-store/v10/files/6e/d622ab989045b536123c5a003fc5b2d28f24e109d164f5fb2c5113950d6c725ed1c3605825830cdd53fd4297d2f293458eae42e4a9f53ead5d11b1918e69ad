@@ -1,0 +1,77 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { EXCLUDE_LANGUAGES } from 'virtual:stl-starlight-virtual-module';
+import { RenderLibraries, RenderSpecOverview, type SpecMetadata } from '../react/Routing';
+import { getSDKJSONInSSR } from '../specs/fetchSpecSSR';
+import { api } from 'virtual:stainless-apis-manifest';
+
+const spec = await getSDKJSONInSSR('http');
+
+const langTargets = api.languages
+  .map((l) => l.language)
+  .filter((l) => !EXCLUDE_LANGUAGES.includes(l))
+  .filter((l) => l !== 'http');
+
+const langsWithSpecs = await Promise.all(
+  langTargets.map(async (language) => {
+    const spec = await getSDKJSONInSSR(language);
+    return {
+      language,
+      spec,
+    };
+  }),
+);
+
+const metadata: SpecMetadata = langsWithSpecs.map(({ language, spec }) => [
+  language,
+  spec.metadata[language]!,
+]);
+
+// PageTitle override will skip rendering the default Starlight title
+Astro.locals._stlStarlightPage = {
+  hasMarkdownRoute: false,
+};
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'API Reference',
+    pagefind: false,
+    tableOfContents: false,
+  }}
+>
+  <div class="stl-overview">
+    <h3>Libraries</h3>
+
+    <div class="stldocs-root language-blocks stl-ui-not-prose not-content">
+      <RenderLibraries metadata={metadata} />
+    </div>
+
+    <h3>API Overview</h3>
+
+    <div class="stldocs-root api-overview stl-ui-not-prose">
+      <RenderSpecOverview spec={spec} language="http" />
+    </div>
+  </div>
+</StarlightPage>
+
+<style>
+  .language-blocks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2rem;
+
+    .stldocs-language-block {
+      width: 350px;
+    }
+  }
+
+  .api-overview {
+    .stldocs-resource-content {
+      padding: 0 !important;
+    }
+  }
+</style>
+
+<script src="../globalJs/copy.ts"></script>

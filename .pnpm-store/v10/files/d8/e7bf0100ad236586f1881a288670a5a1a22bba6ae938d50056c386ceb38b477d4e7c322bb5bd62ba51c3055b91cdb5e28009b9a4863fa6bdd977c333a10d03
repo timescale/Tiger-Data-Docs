@@ -1,0 +1,78 @@
+import clsx from "clsx";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+import { CheckIcon, ExternalLink } from "lucide-react";
+
+//#region src/components/dropdown/DropdownMenu.tsx
+function Menu({ className, ...props }) {
+	return /* @__PURE__ */ jsx("div", {
+		...props,
+		role: "menu",
+		"data-state": "closed",
+		"data-part": "menu",
+		className: clsx("stl-ui-dropdown-menu", className)
+	});
+}
+function MenuItemText({ className, subtle, ...props }) {
+	return /* @__PURE__ */ jsx("span", {
+		...props,
+		"data-part": "item-text",
+		className: clsx(`stl-ui-dropdown-menu__item-text`, { "stl-ui-dropdown-menu__item-text--subtle": subtle }, className)
+	});
+}
+function MenuItem({ children, value, href, isExternalLink, isSelected, ...props }) {
+	const inner = /* @__PURE__ */ jsxs(Fragment, { children: [
+		/* @__PURE__ */ jsx("div", {
+			className: "stl-ui-dropdown-menu__item-content",
+			children
+		}),
+		isSelected && /* @__PURE__ */ jsx("div", {
+			className: "stl-ui-dropdown-menu__item-icon",
+			"data-part": "item-selected-icon",
+			children: /* @__PURE__ */ jsx(CheckIcon, { size: 16 })
+		}),
+		isExternalLink && /* @__PURE__ */ jsx("div", {
+			className: "stl-ui-dropdown-menu__item-subtle-icon",
+			"data-part": "item-external-link-icon",
+			children: /* @__PURE__ */ jsx(ExternalLink, { size: 16 })
+		})
+	] });
+	if (href) return /* @__PURE__ */ jsx("a", {
+		role: "menuitem",
+		"data-part": "item",
+		"data-value": value,
+		"aria-selected": isSelected,
+		href,
+		...props,
+		className: clsx("stl-ui-dropdown-menu__item", "stl-ui-dropdown-menu__item-link", props.className),
+		children: inner
+	});
+	return /* @__PURE__ */ jsx("button", {
+		...props,
+		role: "menuitem",
+		"data-part": "item",
+		"data-value": value,
+		"aria-selected": isSelected,
+		className: clsx("stl-ui-dropdown-menu__item", props.className),
+		children: inner
+	});
+}
+/**
+* A template component that defines the content to be displayed in the dropdown trigger
+* when a menu item is selected. This template is used to customize the appearance of
+* the selected item in the trigger button.
+*
+* @param props - Standard HTML template element props
+* @returns A template element marked with the "selected-template" data part
+*/
+function MenuItemTemplate({ ...props }) {
+	return /* @__PURE__ */ jsx("template", {
+		"data-part": "selected-template",
+		...props
+	});
+}
+Menu.Item = MenuItem;
+Menu.ItemText = MenuItemText;
+Menu.ItemTemplate = MenuItemTemplate;
+
+//#endregion
+export { Menu as t };

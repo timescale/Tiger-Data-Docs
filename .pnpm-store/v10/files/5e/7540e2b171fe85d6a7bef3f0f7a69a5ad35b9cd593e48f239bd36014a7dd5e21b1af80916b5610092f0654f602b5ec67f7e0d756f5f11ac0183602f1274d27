@@ -1,0 +1,52 @@
+import "../use-strict-context-L0c8JKg4.js";
+import { useNavigation } from "../contexts/navigation.js";
+import "../contexts/index.js";
+import { isResourceEmpty } from "../utils.js";
+import { StlSidebar } from "./stl-sidebar.js";
+import * as React$1 from "react";
+import { jsx } from "react/jsx-runtime";
+import { Badge, getHttpMethod } from "@stainless-api/ui-primitives";
+
+//#region src/components/sdk-sidebar.tsx
+function resourceToEntry(resource, selectedPath) {
+	const result = {
+		type: "group",
+		collapsed: false,
+		label: resource.title,
+		entries: [],
+		target: {
+			type: "stainlessPath",
+			stainlessPath: resource.stainlessPath
+		},
+		isCurrent: selectedPath === resource.stainlessPath
+	};
+	for (const method of Object.values(resource.methods)) {
+		const httpMethod = getHttpMethod(method.httpMethod);
+		result.entries.push({
+			type: "link",
+			target: {
+				type: "stainlessPath",
+				stainlessPath: method.stainlessPath
+			},
+			label: method.title,
+			isCurrent: selectedPath === method.stainlessPath,
+			icon: httpMethod ? /* @__PURE__ */ jsx(Badge.HTTP, {
+				method: httpMethod,
+				iconOnly: true,
+				size: "sm"
+			}) : void 0
+		});
+	}
+	for (const subresource of Object.values(resource.subresources ?? {})) result.entries.push(resourceToEntry(subresource, selectedPath));
+	return result;
+}
+/**
+* Given some SDKJSON.Resources, calls into StlSidebar with the appropriate sidebar entries.
+*/
+function SDKSidebar({ resources }) {
+	const { selectedPath } = useNavigation();
+	return /* @__PURE__ */ jsx(StlSidebar, { entries: React$1.useMemo(() => resources.filter((resource) => !isResourceEmpty(resource)).map((resource) => resourceToEntry(resource, selectedPath)), [resources, selectedPath]) });
+}
+
+//#endregion
+export { SDKSidebar };

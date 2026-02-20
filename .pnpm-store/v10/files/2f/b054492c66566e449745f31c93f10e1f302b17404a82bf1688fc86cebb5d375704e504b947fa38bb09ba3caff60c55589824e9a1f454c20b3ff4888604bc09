@@ -1,0 +1,122 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { getReadmeContent, buildPageNavigation, RenderSpec, astroMarkdownRender } from '../react/Routing';
+import { getResourceFromSpec } from '@stainless-api/docs-ui/utils';
+import { parseRoute, parseStainlessPath } from '@stainless-api/docs-ui/routing';
+import {
+  CONTENT_PANEL_LAYOUT,
+  MIDDLEWARE,
+  EXPERIMENTAL_REQUEST_BUILDER,
+  RESOLVED_API_REFERENCE_PATH,
+} from 'virtual:stl-starlight-virtual-module';
+import { generateDocsRoutes } from '../helpers/generateDocsRoutes';
+import { StainlessIslands } from '../components/StainlessIslands';
+import { getSDKJSONInSSR } from '../specs/fetchSpecSSR';
+
+const language = parseRoute(RESOLVED_API_REFERENCE_PATH, Astro.url.pathname)?.language;
+
+const spec = await getSDKJSONInSSR(language);
+
+export type Props = Awaited<ReturnType<typeof generateDocsRoutes>>[number]['props'] | Record<string, never>;
+
+const props =
+  'language' in Astro.props
+    ? // In prod, we pass the props down to this page
+      Astro.props
+    : // In the dev server, we skip the DocsStatic wrapper so we need to find the props ourselves
+      generateDocsRoutes(spec).find((r) => r.params.slug === Astro.params.slug)?.props;
+if (!props) throw new Error(`Could not find a route for slug '${Astro.params.slug}'`);
+
+// PageTitle override will skip rendering the default Starlight title
+Astro.locals._stlStarlightPage = {
+  skipRenderingStarlightTitle: props.kind === 'readme' ? false : true,
+};
+
+const readmeContent = await getReadmeContent(spec, props.language);
+const readme = props.kind === 'readme' ? await astroMarkdownRender(readmeContent ?? '') : null;
+
+const resource = props.stainlessPath ? getResourceFromSpec(props.stainlessPath, spec) : null;
+
+const pageNav =
+  props.kind === 'resource' && resource
+    ? buildPageNavigation(resource)
+    : props.kind === 'readme' && readme?.metadata
+      ? readme?.metadata.headings
+      : [];
+
+Astro.locals.language = props.language;
+
+// Use first heading in README as page title
+if (readme) {
+  const repo = spec.metadata?.[props.language]?.code_url;
+  readme.code = readme.code.replace(/<a href="(?!(?:https?:\/\/|\/\/))([^"]+)"/g, `<a href="${repo}/$1"`);
+  props.title = readme.metadata.headings[0]!.text ?? 'Overview';
+}
+
+// use summary for the page title of method pages
+if (props.kind === 'http_method' && props.stainlessPath) {
+  const parsed = parseStainlessPath(props.stainlessPath);
+  const resource = getResourceFromSpec(props.stainlessPath, spec);
+  if (parsed?.method && resource?.methods[parsed.method]) {
+    const method = resource.methods[parsed.method];
+    props.title = method?.summary ?? method?.title ?? props.title;
+  }
+}
+---
+
+<StarlightPage
+  headings={pageNav}
+  frontmatter={{
+    title: props.title,
+    pagefind: false,
+    tableOfContents:
+      props.kind === 'readme' || (props.kind === 'resource' && props.language !== 'terraform')
+        ? { maxHeadingLevel: 6 }
+        : false,
+  }}
+>
+  {
+    resource && props.stainlessPath && props.kind ? (
+      <div class="not-content">
+        <RenderSpec
+          spec={spec}
+          kind={props.kind}
+          path={props.stainlessPath}
+          language={props.language}
+          currentPath={Astro.url.pathname}
+          contentPanelLayout={CONTENT_PANEL_LAYOUT}
+          transformRequestSnippet={MIDDLEWARE.transformRequestSnippet}
+        />
+      </div>
+    ) : (
+      <>
+        <Fragment set:html={readme?.code} />
+        <style
+          is:inline
+          set:text={`
+            .sl-markdown-content h1:first-of-type {
+              display: none;
+            }
+
+            .sl-markdown-content img {
+              display: inline-block;
+              vertical-align: text-bottom;
+            }
+
+            .sl-markdown-content code {
+              white-space: pre-wrap;
+            }
+          `}
+        />
+      </>
+    )
+  }
+</StarlightPage>
+
+{EXPERIMENTAL_REQUEST_BUILDER && <StainlessIslands client:load />}
+
+<script src="../globalJs/navigation.ts"></script>
+<script src="../globalJs/copy.ts"></script>
+<script src="../globalJs/tooltip.ts"></script>
+<script src="../globalJs/code-snippets.ts"></script>
+<script src="../globalJs/method-descriptions.ts"></script>

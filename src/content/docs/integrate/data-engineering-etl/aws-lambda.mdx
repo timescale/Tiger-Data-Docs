@@ -2,6 +2,9 @@
 title: "Integrate AWS Lambda with Tiger Cloud"
 description: "Run serverless code to process and store your data without managing infrastructure"
 ---
+
+import * as C from "@constants";
+
 [AWS Lambda](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html) is a serverless computing service provided by Amazon Web Services (AWS) that allows you to run code without provisioning or managing servers, scaling automatically as needed. This page shows you how to integrate AWS Lambda with Tiger Cloud service to process and store time-series data efficiently.
 
 Prerequisites
@@ -21,14 +24,14 @@ Prepare your service to ingest data from AWS Lambda
 Create a table in Tiger Cloud service to store time-series data.
 
 1.  **Connect to your Tiger Cloud service** For Tiger Cloud, open an [SQL editor](/deploy/tiger-cloud/get-started/run-queries-from-console) in [Tiger Console](https://console.cloud.timescale.com/dashboard/services). For self-hosted TimescaleDB, use [`psql`](/integrate/query-administration/psql).
-2.  **Create a hypertable to store sensor data** [Hypertables](/build/time-series/understand-hypertables) are Postgres tables that automatically partition your data by time. You interact with hypertables in the same way as regular Postgres tables, but with extra features that make managing your time-series data much easier. When you create a hypertable using [CREATE TABLE … WITH …](/api-reference/timescaledb/hypertables/create_table), the default partitioning column is automatically the first column with a timestamp data type. Also, TimescaleDB creates a [columnstore policy](/api-reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts your data to the columnstore, after an interval equal to the value of the [chunk\_interval](/api-reference/timescaledb/hypertables/create_table#arguments), defined through `compress_after` in the policy. This columnar format enables fast scanning and aggregation, optimizing performance for analytical workloads while also saving significant storage space. In the columnstore conversion, hypertable chunks are compressed by up to 98%, and organized for efficient, large-scale queries. You can customize this policy later using [alter\_job](/api-reference/timescaledb/jobs-automation/alter_job#samples). However, to change `after` or `created_before`, the compression settings, or the hypertable the policy is acting on, you must [remove the columnstore policy](/api-reference/timescaledb/hypercore/remove_columnstore_policy) and [add a new one](/api-reference/timescaledb/hypercore/add_columnstore_policy). You can also manually [convert chunks](/api-reference/timescaledb/hypercore/convert_to_columnstore) in a hypertable to the columnstore.
+2.  **Create a hypertable to store sensor data** [Hypertables](/build/time-series/understand-hypertables) are {C.PG} tables that automatically partition your data by time. You interact with hypertables in the same way as regular {C.PG} tables, but with extra features that make managing your time-series data much easier. When you create a hypertable using [CREATE TABLE … WITH …](/api-reference/timescaledb/hypertables/create_table), the default partitioning column is automatically the first column with a timestamp data type. Also, TimescaleDB creates a [columnstore policy](/api-reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts your data to the columnstore, after an interval equal to the value of the [chunk\_interval](/api-reference/timescaledb/hypertables/create_table#arguments), defined through `compress_after` in the policy. This columnar format enables fast scanning and aggregation, optimizing performance for analytical workloads while also saving significant storage space. In the columnstore conversion, hypertable chunks are compressed by up to 98%, and organized for efficient, large-scale queries. You can customize this policy later using [alter\_job](/api-reference/timescaledb/jobs-automation/alter_job#samples). However, to change `after` or `created_before`, the compression settings, or the hypertable the policy is acting on, you must [remove the columnstore policy](/api-reference/timescaledb/hypercore/remove_columnstore_policy) and [add a new one](/api-reference/timescaledb/hypercore/add_columnstore_policy). You can also manually [convert chunks](/api-reference/timescaledb/hypercore/convert_to_columnstore) in a hypertable to the columnstore.
 
 Create the code to inject data into a service
 
 Write an AWS Lambda function in a Node.js project that processes and inserts time-series data into a Tiger Cloud service.
 
 1.  **Initialize a new Node.js project to hold your Lambda function**
-2.  **Install the Postgres client library in your project**
+2.  **Install the {C.PG} client library in your project**
 3.  **Write a Lambda Function that inserts data into your Tiger Cloud service** Create a file named `index.js`, then add the following code:
 
 Deploy your Node project to AWS Lambda

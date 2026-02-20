@@ -1,0 +1,109 @@
+import { CheckIcon, CopyIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
+import { motion } from 'motion/react';
+import { startTransition, useCallback, useOptimistic, useState } from 'react';
+
+import type { AssistantTextMessage } from '../types';
+
+import { Button } from '@stainless-api/ui-primitives';
+import clsx from 'clsx';
+import styles from '../AiChat.module.css';
+
+export default function MessageFeedbackButtons({
+  spanId,
+  messages,
+  rateMessage,
+  onCopyMessage,
+}: {
+  spanId: string;
+  messages: AssistantTextMessage[];
+  rateMessage?: (spanId: string, rating: 'up' | 'down') => Promise<boolean>;
+  onCopyMessage?: (spanId: string) => void;
+}) {
+  // Copy response as markdown
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    onCopyMessage?.(spanId);
+    const combinedText = messages.map((msg) => msg.content).join('\n\n');
+    navigator.clipboard
+      .writeText(combinedText)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        setCopied(false);
+      });
+  }, [messages, spanId, onCopyMessage]);
+
+  // Provide message rating
+  const [rating, setRating] = useState<'up' | 'down' | null>(null);
+  const [optimisticRating, setOptimisticRating] = useOptimistic(
+    rating,
+    (current, newRating: NonNullable<typeof rating>) => newRating,
+  );
+  const handleRate = useCallback(
+    (newRating: 'up' | 'down') => {
+      if (!rateMessage) {
+        return;
+      }
+
+      startTransition(async () => {
+        setOptimisticRating(newRating);
+        const success = await rateMessage(spanId, newRating).catch(() => false);
+        if (success) setRating(newRating);
+      });
+    },
+    [spanId, setOptimisticRating, rateMessage],
+  );
+
+  return (
+    <motion.li
+      layout="position"
+      data-message-role="assistant"
+      className={clsx(styles['chat-message'], styles['feedback-buttons'])}
+    >
+      {rateMessage != null && (
+        <>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => handleRate('up')}
+            className={clsx(optimisticRating === 'up' && styles.active)}
+            aria-label="Thumbs up"
+          >
+            <Button.Icon icon={ThumbsUpIcon} size={15} />
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => handleRate('down')}
+            className={clsx(optimisticRating === 'down' && styles.active)}
+            aria-label="Thumbs down"
+          >
+            <Button.Icon icon={ThumbsDownIcon} size={15} />
+          </Button>
+        </>
+      )}
+
+      {messages.length > 0 && messages.some((msg) => msg.content.trim().length) && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleCopy}
+          className={clsx(copied && styles.active)}
+          aria-label={copied ? 'Copied' : 'Copy response'}
+        >
+          <Button.Icon
+            // TODO: nicer cross-fade transition
+            icon={copied ? CheckIcon : CopyIcon}
+            size={15}
+          />
+        </Button>
+      )}
+    </motion.li>
+  );
+}
