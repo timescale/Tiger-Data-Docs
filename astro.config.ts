@@ -103,6 +103,11 @@ export default defineConfig({
               link: "/build",
             },
             {
+              label: "Data Management",
+              collapsed: true,
+              autogenerate: { directory: "build/data-management" },
+            },
+            {
               label: "Time-Series / Hypertables",
               autogenerate: { directory: "build/time-series" },
             },
@@ -125,6 +130,11 @@ export default defineConfig({
               label: "Performance Optimization",
               collapsed: true,
               autogenerate: { directory: "build/performance-optimization" },
+            },
+            {
+              label: "Tips and Tricks",
+              collapsed: true,
+              autogenerate: { directory: "build/tips-and-tricks" },
             },
             {
               label: "Cost Optimization",
