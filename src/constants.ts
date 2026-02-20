@@ -26,8 +26,8 @@ export const FREE = 'Free';
 // Products
 
 export const CLOUD_LONG = `${PRODUCT_PREFIX} Cloud`;
-export const LAKE_LONG = `${PRODUCT_PREFIX} Lake`;
-export const LAKE_SHORT = `${PRODUCT_PREFIX} Lake`;
+export const LAKE_LONG = `${CLOUD_LONG} Iceberg connector`;
+export const LAKE_SHORT = 'Iceberg connector';
 export const TIMESCALE_DB = 'TimescaleDB';
 export const PRODUCTS_ALL = `${COMPANY} products`;
 export const PRODUCTS_CL_DB = `${CLOUD_LONG} and ${TIMESCALE_DB}`;
@@ -121,6 +121,7 @@ export const PAR_COPY_CAP = 'Parallel copy';
 export const PAR_COPY = 'parallel copy';
 export const PG_VECTORIZER = 'PgVectorizer';
 export const DATA_MODE = 'Data view';
+export const OPS_MODE = 'Ops view';
 export const VPC = 'VPC';
 export const IO_BOOST = 'I/O boost';
 export const PG_CONNECTOR = `source ${PG} connector`;
