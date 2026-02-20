@@ -1,0 +1,163 @@
+---
+import { Button } from '@stainless-api/ui-primitives';
+import { buildNavLinks } from './buildNavLinks';
+import NavDropdown from './NavDropdown.astro';
+import clsx from 'clsx';
+
+const navLinks = buildNavLinks(Astro.locals.starlightRoute);
+---
+
+<div id="nav-links-container" class="nav-links-container">
+  <div class="desktop-nav-links-container">
+    <ul class="nav-links" id="nav-links-list">
+      {
+        navLinks.map((item) => (
+          <li data-desktop-only>
+            <Button
+              href={item.link}
+              className={clsx('nav-link')}
+              variant={item.active ? 'accent-muted' : 'ghost'}
+            >
+              <span>{item.label}</span>
+            </Button>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+  <div class="mobile-nav-dropdown" data-mobile-only>
+    <NavDropdown />
+  </div>
+</div>
+
+<script>
+  import { getPageLoadEvent } from '../../../plugin/helpers/getPageLoadEvent';
+
+  // We need to measure the nav links to see if they fit. We create an offscreen hidden clone for measurement.
+  function createOffscreenClone(element: HTMLElement): HTMLElement {
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.removeAttribute('id');
+    clone.id = 'cloned-nav-links-measurement';
+    clone.style.position = 'absolute';
+    clone.style.visibility = 'hidden';
+    clone.style.top = '0';
+    clone.style.left = '0';
+    clone.style.width = 'auto';
+    clone.style.whiteSpace = 'nowrap';
+    clone.style.pointerEvents = 'none';
+    clone.style.zIndex = '-9999';
+
+    clone.querySelectorAll('[data-desktop-only], [data-mobile-only]').forEach((el) => {
+      el.removeAttribute('data-desktop-only');
+    });
+
+    document.body.appendChild(clone);
+    return clone;
+  }
+
+  function initNavbar() {
+    const navLinksContainer = document.getElementById('nav-links-container');
+    if (!navLinksContainer) {
+      console.error(`NavTabs: #nav-links-container not found`);
+      return;
+    }
+
+    const navLinksList = document.getElementById('nav-links-list');
+    if (!navLinksList) {
+      console.error(`NavTabs: #nav-links-list not found`);
+      return;
+    }
+
+    const measurementClone = createOffscreenClone(navLinksList);
+    const requiredWidth = measurementClone.clientWidth;
+
+    let currentMode: 'desktop' | 'mobile' | null = null;
+
+    function checkIfFits() {
+      if (!navLinksContainer) return;
+
+      // 16px buffer helps it feel less crowded before switching modes
+      const bufferSpace = 16;
+      const availableWidth = navLinksContainer.clientWidth;
+      const canFit = availableWidth - bufferSpace >= requiredWidth;
+
+      const mode = canFit ? 'desktop' : 'mobile';
+
+      // Only update if mode actually changed
+      if (mode === currentMode) return;
+
+      currentMode = mode;
+
+      localStorage.setItem('stl-nav-links-mode', mode);
+
+      document.documentElement.classList.remove('stl-nav-links-mode-desktop', 'stl-nav-links-mode-mobile');
+      document.documentElement.classList.add('stl-nav-links-mode-' + mode);
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      checkIfFits();
+    });
+
+    resizeObserver.observe(navLinksContainer);
+    checkIfFits();
+  }
+
+  // Initialize all dropdowns on the page
+  document.addEventListener(getPageLoadEvent(), () => {
+    initNavbar();
+  });
+</script>
+
+<style is:global>
+  .stl-nav-links-mode-desktop [data-desktop-only] {
+    display: block;
+  }
+
+  .stl-nav-links-mode-desktop [data-mobile-only] {
+    display: none;
+  }
+
+  .stl-nav-links-mode-mobile [data-mobile-only] {
+    display: block;
+  }
+
+  .stl-nav-links-mode-mobile [data-desktop-only] {
+    display: none;
+  }
+</style>
+
+<style>
+  .nav-links-container {
+    flex-grow: 1;
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+
+  .desktop-nav-links-container {
+    display: flex;
+    flex-grow: 1;
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+
+  .nav-links {
+    display: flex;
+    list-style: none;
+    gap: 4px;
+    padding: 0;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .mobile-nav-dropdown {
+    flex-grow: 1;
+  }
+
+  @media (min-width: 50rem) {
+    .desktop-nav-links-container {
+      display: flex;
+      visibility: visible;
+    }
+  }
+</style>

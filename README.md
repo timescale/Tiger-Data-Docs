@@ -103,7 +103,7 @@ Examples:
 - Headings: `## Using {C.PG} with time-series data`
 - In component props (JS expressions): `` title={`Install ${C.PG}`} ``
 
-The database name is intentionally centralized: use `{C.PG}` or `{C.POSTGRESQL}` instead of literal "PostgreSQL" or "Postgres". The lint script `pnpm run lint:postgresql-variable` (and the CI workflow) enforce this in both prose and headings.
+The database name is intentionally centralized: use `{C.PG}` or `{C.POSTGRESQL}` instead of literal "PostgreSQL" or "Postgres" in prose and headings. The lint script `pnpm run lint:postgresql-variable` (and the CI workflow) enforce this. **Exceptions:** literal "PostgreSQL"/"Postgres" is allowed inside URLs (e.g. `https://postgresql.org`) and inside backticks (UI elements, code, file paths, commands).
 
 ## Want to learn more?
 

@@ -1,0 +1,27 @@
+import { readFile } from 'fs/promises';
+
+import { api } from 'virtual:stainless-apis-manifest';
+import { SpecWithAuth } from './generateSpec';
+import { DocsLanguage } from '@stainless-api/docs-ui/routing';
+
+const cachedSpecWithAuth: Record<string, SpecWithAuth> = {};
+
+async function getSpecWithAuthInSSR(filePath: string) {
+  if (cachedSpecWithAuth[filePath]) {
+    return cachedSpecWithAuth[filePath];
+  }
+  const specStr = await readFile(filePath, 'utf8');
+  const json = JSON.parse(specStr) as SpecWithAuth;
+  cachedSpecWithAuth[filePath] = json;
+  return json;
+}
+
+export async function getSDKJSONInSSR(language: DocsLanguage) {
+  const filePath = api.languages.find((l) => l.language === language)?.sdkJSONFilePath;
+  if (!filePath) {
+    throw new Error(`No SDK JSON file path for language: ${language}`);
+  }
+
+  const specWithAuth = await getSpecWithAuthInSSR(filePath);
+  return specWithAuth.sdkJson;
+}

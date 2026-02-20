@@ -1,0 +1,42 @@
+import AiChat from '@stainless-api/ai-chat/src/AiChat.tsx';
+import type { DocsLanguage } from '@stainless-api/docs-ui/routing';
+import { setResponseMetadata, submitResponseFeedback } from './api';
+import { useChat } from './hook';
+
+export default function DocsChat({
+  projectId,
+  language,
+  siteTitle,
+}: {
+  projectId: string;
+  language: DocsLanguage | undefined;
+  siteTitle: string | undefined;
+}) {
+  const { chatMessages, sendMessage } = useChat({
+    projectId,
+    language: language ?? 'http',
+    siteTitle,
+  });
+
+  const rateMessage = async (spanId: string, rating: 'up' | 'down'): Promise<boolean> => {
+    try {
+      const { success } = await submitResponseFeedback(spanId, { up: 1 as const, down: 0 as const }[rating]);
+      return success;
+    } catch {
+      return false;
+    }
+  };
+
+  const onCopyMessage = (spanId: string) => {
+    setResponseMetadata(spanId, { copied_to_clipboard: 'true' }).catch(() => {});
+  };
+
+  return (
+    <AiChat
+      chatMessages={chatMessages}
+      sendMessage={sendMessage}
+      rateMessage={rateMessage}
+      onCopyMessage={onCopyMessage}
+    />
+  );
+}

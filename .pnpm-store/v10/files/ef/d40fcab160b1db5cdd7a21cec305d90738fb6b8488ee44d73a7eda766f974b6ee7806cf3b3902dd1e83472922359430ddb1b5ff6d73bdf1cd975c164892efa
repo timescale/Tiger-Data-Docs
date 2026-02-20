@@ -1,0 +1,91 @@
+import * as React$1 from "react";
+import { jsx } from "react/jsx-runtime";
+
+//#region src/contexts/docs.tsx
+const DocsContextDefaults = {
+	settings: {},
+	language: "node",
+	spec: null
+};
+const DocsContext = React$1.createContext(DocsContextDefaults);
+function useDocs() {
+	return React$1.use(DocsContext);
+}
+function useSpec() {
+	return useDocs().spec;
+}
+function useSettings() {
+	return useDocs().settings;
+}
+function useSnippets(stainlessPath, language) {
+	const defaultLanguage = useLanguage();
+	const lang = language ?? defaultLanguage;
+	const snippetLanguage = lang === "http" ? "http.curl" : `${lang}.default`;
+	return useSpec()?.snippets?.[snippetLanguage]?.[stainlessPath];
+}
+function useSnippetIds(stainlessPath, language) {
+	const snippets = useSnippets(stainlessPath, language);
+	if (!snippets) return void 0;
+	return Object.keys(snippets).flatMap((key) => {
+		const customPrefix = "custom:";
+		if (key.startsWith(customPrefix)) return `${customPrefix}${key.slice(7)}`;
+		if (key === "default") return "default";
+		return [];
+	});
+}
+/** Find a custom snippet named Default (case-insensitive); otherwise use the generated default */
+function getDefaultSnippet(snippets) {
+	return Object.entries(snippets).find(([key]) => key.toLowerCase() === "custom:default")?.[1] ?? snippets.default;
+}
+function useSnippet(stainlessPath, language, snippetId) {
+	const snippets = useSnippets(stainlessPath, language);
+	if (!snippets) return void 0;
+	if (!snippetId) return getDefaultSnippet(snippets)?.content;
+	return snippets?.[snippetId]?.content;
+}
+function useSnippetResponse(stainlessPath, snippetId) {
+	const responses = useSpec()?.snippetResponses.http[stainlessPath];
+	if (!responses) return void 0;
+	if (!snippetId) return getDefaultSnippet(responses);
+	return responses[snippetId];
+}
+function useDeclaration(stainlessPath, required, language) {
+	const defaultLanguage = useLanguage();
+	const decl = useSpec()?.decls?.[language ?? defaultLanguage]?.[stainlessPath];
+	if (required && !decl) throw new Error(`Declaration not found for '${stainlessPath}'`);
+	return decl;
+}
+function useAvailableLanguages(stainlessPath) {
+	const spec = useSpec();
+	return Object.keys(spec?.decls ?? {}).filter((lang) => spec?.decls?.[lang]?.[stainlessPath] !== void 0);
+}
+function useIgnoredResources() {
+	return ["(resource) webhooks > (model) unwrap_webhook_event > (schema)"];
+}
+function useResource(name) {
+	return useSpec()?.resources?.[name];
+}
+function useLanguage() {
+	return useDocs().language;
+}
+function useContentPanelLayout() {
+	return useDocs().settings?.contentPanelLayout ?? "double-pane";
+}
+function DocsProvider({ spec, language, settings, children }) {
+	return /* @__PURE__ */ jsx(DocsContext, {
+		value: React$1.useMemo(() => ({
+			...DocsContextDefaults,
+			spec,
+			settings: settings ?? DocsContextDefaults.settings,
+			language: language ?? DocsContextDefaults.language
+		}), [
+			spec,
+			language,
+			settings
+		]),
+		children
+	});
+}
+
+//#endregion
+export { DocsProvider, useAvailableLanguages, useContentPanelLayout, useDeclaration, useDocs, useIgnoredResources, useLanguage, useResource, useSettings, useSnippet, useSnippetIds, useSnippetResponse, useSnippets, useSpec };

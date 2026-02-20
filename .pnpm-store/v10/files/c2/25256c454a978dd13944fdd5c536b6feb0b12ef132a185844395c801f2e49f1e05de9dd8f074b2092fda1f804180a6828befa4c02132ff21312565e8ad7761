@@ -1,0 +1,60 @@
+import type { ViteUserConfig } from 'astro';
+
+export type VitePlugin = NonNullable<ViteUserConfig['plugins']>[number];
+
+export function buildVirtualModuleString<T extends Record<string, unknown>>(vars: T) {
+  return Object.entries(vars)
+    .map(([key, value]) => {
+      return `export const ${key} = ${JSON.stringify(value)};`;
+    })
+    .join('\n');
+}
+
+export function makeVirtualModPlugin(bareId: string, content: string): VitePlugin {
+  return {
+    name: `stl-virtual-module-loader-${bareId}`,
+    resolveId(id) {
+      // The '\0' prefix tells Vite “this is a virtual module” and prevents it from being resolved again.
+      if (id === bareId) {
+        return `\0${bareId}`;
+      }
+    },
+    load(id) {
+      if (id === `\0${bareId}`) {
+        return content;
+      }
+    },
+  };
+}
+
+export function makeAsyncVirtualModPlugin<T extends Record<string, unknown>>(
+  bareId: string,
+  contentLoader: () => Promise<T | string>,
+): VitePlugin {
+  return {
+    name: `stl-virtual-module-loader-${bareId}`,
+    resolveId(id) {
+      // The '\0' prefix tells Vite “this is a virtual module” and prevents it from being resolved again.
+      if (id === bareId) {
+        return `\0${bareId}`;
+      }
+    },
+    async load(id) {
+      if (id === `\0${bareId}`) {
+        const content = await contentLoader();
+        if (typeof content === 'string') {
+          return content;
+        }
+        return buildVirtualModuleString(content);
+      }
+    },
+  };
+}
+
+export function virtualModule(id: string) {
+  return {
+    fromString: (content: string) => makeVirtualModPlugin(id, content),
+    fromObject: <T extends Record<string, unknown>>(content: T) =>
+      makeVirtualModPlugin(id, buildVirtualModuleString(content)),
+  };
+}

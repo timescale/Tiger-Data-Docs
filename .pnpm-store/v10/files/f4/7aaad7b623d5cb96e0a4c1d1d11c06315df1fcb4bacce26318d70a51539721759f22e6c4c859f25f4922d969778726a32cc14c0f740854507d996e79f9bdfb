@@ -1,0 +1,184 @@
+import { useDeclaration, useLanguage, useSnippet, useSnippetIds, useSnippetResponse } from "../contexts/docs.js";
+import "../use-strict-context-L0c8JKg4.js";
+import { useHighlight } from "../contexts/markdown.js";
+import "../contexts/index.js";
+import { useComponents } from "../contexts/use-components.js";
+import style_default from "../style.js";
+import * as React$1 from "react";
+import { jsx, jsxs } from "react/jsx-runtime";
+import clsx from "clsx";
+import { CheckIcon, CircleAlertIcon, CopyIcon } from "lucide-react";
+import { Badge, Button, getHttpMethod } from "@stainless-api/ui-primitives";
+
+//#region src/components/snippets.tsx
+function SnippetCode({ content, language }) {
+	const lang = useLanguage();
+	const highlighted = useHighlight(content, language || lang);
+	return /* @__PURE__ */ jsx("div", {
+		className: style_default.SnippetCode,
+		"data-stldocs-copy-content": true,
+		dangerouslySetInnerHTML: { __html: highlighted }
+	});
+}
+function SnippetContainer({ children, className, ...props }) {
+	return /* @__PURE__ */ jsx("div", {
+		className: clsx(style_default.Snippet, className),
+		...props,
+		children
+	});
+}
+function SnippetRequestContainer({ children }) {
+	return /* @__PURE__ */ jsx("div", { children });
+}
+function Snippet({ requestTitle, method, snippet, transformRequestSnippet }) {
+	const Docs = useComponents();
+	const language = useLanguage();
+	const originalSnippetContent = useSnippet(method.stainlessPath, void 0, snippet);
+	const snippetResponses = useSnippetResponse(method.stainlessPath, snippet);
+	const decl = useDeclaration(method.stainlessPath, false);
+	const signature = decl && "qualified" in decl ? decl.qualified : void 0;
+	if (!originalSnippetContent) {
+		console.warn(`Snippet not found for method '${method.stainlessPath}'`);
+		return null;
+	}
+	const snippetContent = transformRequestSnippet ? transformRequestSnippet({
+		snippet: originalSnippetContent,
+		language
+	}) : originalSnippetContent;
+	const httpMethod = getHttpMethod(method.httpMethod);
+	return /* @__PURE__ */ jsxs(Docs.SnippetContainer, {
+		signature,
+		method,
+		children: [snippetContent && /* @__PURE__ */ jsx(Docs.SnippetRequestContainer, {
+			signature,
+			children: /* @__PURE__ */ jsxs("div", {
+				className: style_default.SnippetRequest,
+				"data-stldocs-copy-parent": true,
+				children: [
+					/* @__PURE__ */ jsxs("div", {
+						className: style_default.SnippetRequestTitle,
+						children: [
+							/* @__PURE__ */ jsxs("div", {
+								className: style_default.SnippetRequestTitleMethod,
+								children: [httpMethod && /* @__PURE__ */ jsx(Badge.HTTP, {
+									method: httpMethod,
+									iconOnly: true
+								}), /* @__PURE__ */ jsx("h3", { children: method.summary || method.title })]
+							}),
+							/* @__PURE__ */ jsx("div", {
+								className: style_default.SnippetRequestTitleContent,
+								children: requestTitle
+							}),
+							/* @__PURE__ */ jsx(Docs.SnippetButtons, { content: snippetContent })
+						]
+					}),
+					/* @__PURE__ */ jsx(Docs.SnippetCode, {
+						content: snippetContent,
+						signature
+					}),
+					/* @__PURE__ */ jsx(Docs.SnippetFooter, {})
+				]
+			})
+		}), /* @__PURE__ */ jsx(Docs.SnippetResponse, { responses: snippetResponses })]
+	});
+}
+function MultiSnippets({ requestTitle, method }) {
+	const snippetIds = useSnippetIds(method.stainlessPath)?.filter((id) => id !== "default");
+	const radioId = React$1.useId();
+	const Docs = useComponents();
+	if (!snippetIds) return null;
+	return /* @__PURE__ */ jsxs("div", {
+		className: style_default.SnippetMulti,
+		"data-stldocs-multi-snippet-container": true,
+		children: [/* @__PURE__ */ jsx("div", {
+			className: style_default.SnippetMultiTabs,
+			"data-stldocs-multi-snippet-tabs": true,
+			children: snippetIds.map((snid, idx) => /* @__PURE__ */ jsxs("label", {
+				className: style_default.SnippetMultiTab,
+				children: [/* @__PURE__ */ jsx("input", {
+					type: "radio",
+					name: `snippet-example-radio-${radioId}`,
+					value: idx,
+					defaultChecked: idx === 0
+				}), /* @__PURE__ */ jsx("span", { children: snid.slice(7) })]
+			}, `snippet-example-${idx}`))
+		}), /* @__PURE__ */ jsx("div", {
+			className: style_default.SnippetMultiContent,
+			children: snippetIds.map((snid, idx) => {
+				return /* @__PURE__ */ jsx("div", {
+					className: clsx(style_default.SnippetMultiPane, idx === 0 && style_default.SnippetMultiPaneActive),
+					"data-stldocs-multi-snippet-id": idx,
+					children: /* @__PURE__ */ jsx(Docs.Snippet, {
+						method,
+						snippet: snid,
+						requestTitle
+					})
+				}, `snippet-example-content-${idx}`);
+			})
+		})]
+	});
+}
+function SnippetButtons({ content }) {
+	const [CopyButtonIcon, setCopyIcon] = React$1.useState(CopyIcon);
+	async function handleCopy() {
+		try {
+			await navigator.clipboard.writeText(content);
+			setCopyIcon(CheckIcon);
+		} catch {
+			setCopyIcon(CircleAlertIcon);
+		}
+		setTimeout(() => setCopyIcon(CopyIcon), 1e3);
+	}
+	return /* @__PURE__ */ jsx(Button, {
+		variant: "outline",
+		"data-stldocs-snippet-copy": true,
+		children: /* @__PURE__ */ jsx(CopyButtonIcon, {
+			size: 16,
+			className: style_default.Icon,
+			onClick: handleCopy
+		})
+	});
+}
+function SnippetFooter() {
+	return null;
+}
+function SnippetResponse({ responses }) {
+	const Docs = useComponents();
+	if (!responses || responses.length === 0) return null;
+	const tabs = responses.map(({ status }, index) => ({
+		status,
+		index,
+		label: status ? `${status} example` : null
+	}));
+	const hasTabs = tabs.length > 1 || tabs.some((tab) => tab.label);
+	return /* @__PURE__ */ jsx("div", {
+		className: style_default.SnippetMultiResponse,
+		children: /* @__PURE__ */ jsxs("div", {
+			className: clsx(style_default.Snippet),
+			children: [hasTabs && /* @__PURE__ */ jsx("div", {
+				className: clsx(style_default.SnippetResponseTab, tabs.length === 1 && style_default.SnippetResponseTabSingleReturn),
+				children: tabs.map(({ status, label }, index) => /* @__PURE__ */ jsx("div", {
+					"data-snippet-response-tab-id": `snippet-response-tab-${status}-${index}`,
+					className: clsx(style_default.SnippetResponseTabItem, index === 0 && style_default.SnippetResponseTabItemActive),
+					children: /* @__PURE__ */ jsx(Button, {
+						disabled: responses.length === 1,
+						variant: "ghost",
+						children: label ?? `Example ${index + 1}`
+					})
+				}, `snippet-response-tab-item-${status}-${index}`))
+			}), responses.map(({ status, content, contentType }, index) => {
+				return typeof content === "string" ? /* @__PURE__ */ jsx("div", {
+					className: clsx(style_default.SnippetResponsePane, index === 0 && style_default.SnippetResponsePaneActive),
+					"data-snippet-response-pane-id": `snippet-response-tab-${status}-${index}`,
+					children: /* @__PURE__ */ jsx(Docs.SnippetCode, {
+						content,
+						language: contentType === "application/json" || !contentType ? "json" : "none"
+					})
+				}, `snippet-response-${status}-${index}`) : null;
+			})]
+		})
+	});
+}
+
+//#endregion
+export { MultiSnippets, Snippet, SnippetButtons, SnippetCode, SnippetContainer, SnippetFooter, SnippetRequestContainer, SnippetResponse };

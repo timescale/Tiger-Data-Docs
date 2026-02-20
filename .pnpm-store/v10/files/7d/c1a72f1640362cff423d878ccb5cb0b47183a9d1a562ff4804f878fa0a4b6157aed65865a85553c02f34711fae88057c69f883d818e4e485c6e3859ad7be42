@@ -1,0 +1,167 @@
+import { t as __exportAll } from "../chunk-BYypO7fO.js";
+import "../use-strict-context-L0c8JKg4.js";
+import { useLanguageComponents } from "../contexts/index.js";
+import { useComponents } from "../contexts/use-components.js";
+import style_default from "../style.js";
+import { Type as Type$1, TypeName as TypeName$1 } from "./http.js";
+import React from "react";
+import { Fragment as Fragment$1, jsx, jsxs } from "react/jsx-runtime";
+
+//#region src/languages/cli.tsx
+var cli_exports = /* @__PURE__ */ __exportAll({
+	Declaration: () => Declaration,
+	MethodSignature: () => MethodSignature,
+	Property: () => Property,
+	Type: () => Type,
+	TypeName: () => TypeName
+});
+const ComplexTypes = {
+	HttpTypeUnion: "union",
+	HttpTypeIntersection: "intersection"
+};
+const constStyle = {
+	string: style_default.LiteralString,
+	number: style_default.LiteralNumeric,
+	boolean: style_default.LiteralBoolean
+};
+function TypeName(props) {
+	return TypeName$1(props);
+}
+function Type({ type }) {
+	switch (type.kind) {
+		case "HttpTypeBinary": return /* @__PURE__ */ jsx("span", {
+			className: style_default.Type,
+			children: /* @__PURE__ */ jsx("span", {
+				className: style_default.TypePlain,
+				children: "file path"
+			})
+		});
+		default: return Type$1({ type });
+	}
+}
+function MethodSignature({ decl }) {
+	const { Join } = useComponents();
+	const params = decl.arguments?.map((arg, i) => /* @__PURE__ */ jsxs(React.Fragment, { children: [
+		/* @__PURE__ */ jsx("span", {
+			className: style_default.TextOperator,
+			children: "<"
+		}),
+		/* @__PURE__ */ jsx("span", {
+			className: style_default.TextIdentifier,
+			children: arg.value
+		}),
+		/* @__PURE__ */ jsx("span", {
+			className: style_default.TextOperator,
+			children: ">"
+		})
+	] }, i));
+	return /* @__PURE__ */ jsxs("div", {
+		className: style_default.MethodSignature,
+		children: [
+			/* @__PURE__ */ jsx("span", {
+				className: style_default.TextOperator,
+				children: "$ "
+			}),
+			/* @__PURE__ */ jsx("span", {
+				className: style_default.SignatureName,
+				children: /* @__PURE__ */ jsx("span", {
+					className: style_default.TextIdentifier,
+					children: decl.invocation.join(" ")
+				})
+			}),
+			params && /* @__PURE__ */ jsxs("span", {
+				className: style_default.MethodSignature,
+				children: [" ", /* @__PURE__ */ jsx(Join, {
+					items: params,
+					children: " "
+				})]
+			}),
+			decl.options && decl.options.length > 0 ? /* @__PURE__ */ jsx("span", {
+				className: style_default.TextOperator,
+				children: " [options]"
+			}) : null
+		]
+	});
+}
+function renderVariantInfo(type) {
+	if (type.kind === "HttpTypeUnion" && type.types.every((t) => t.kind === "HttpTypeObject" || t.kind === "HttpTypeReference")) return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+		"One of the following ",
+		type.types.length,
+		" object variants:"
+	] });
+}
+function Property({ decl, children }) {
+	const Lang = useLanguageComponents();
+	if (!decl) return;
+	switch (decl.kind) {
+		case "CLIFlag":
+		case "CLISchemaProperty": {
+			const variants = decl.type ? renderVariantInfo(decl.type) : void 0;
+			return children({
+				name: /* @__PURE__ */ jsxs(Fragment$1, { children: [decl.kind === "CLIFlag" && "--", flagName(decl)] }),
+				typeName: decl.type ? /* @__PURE__ */ jsx(Lang.TypeName, { type: decl.type }) : void 0,
+				type: decl.type && decl.type.kind in ComplexTypes && !variants && /* @__PURE__ */ jsx(Lang.Type, { type: decl.type })
+			});
+		}
+		case "CLIFunction": return children({
+			name: decl.name,
+			typeName: "function"
+		});
+		case "CLIStdin": return children({ name: "stdin" });
+		case "CLICommand": return children({
+			name: decl.invocation.join(" "),
+			typeName: "command"
+		});
+	}
+}
+function flagName(node) {
+	if (node.kind === "CLIFlag" && node.flag) return typeof node.flag === "string" ? node.flag : node.flag.name || "";
+	return node.name ?? node.ident ?? "unknown";
+}
+function Declaration({ decl }) {
+	const Lang = useLanguageComponents();
+	if (!decl) return;
+	switch (decl.kind) {
+		case "CLICommand": return /* @__PURE__ */ jsx("span", {
+			className: style_default.TextIdentifier,
+			children: `$ ${decl.invocation.join(" ")}`
+		});
+		case "CLISchemaProperty":
+		case "CLIFlag":
+			if ("value" in decl) return /* @__PURE__ */ jsx("span", {
+				className: constStyle[typeof decl.value],
+				children: JSON.stringify(decl.value)
+			});
+			return /* @__PURE__ */ jsxs(Fragment$1, { children: [/* @__PURE__ */ jsx("span", {
+				className: style_default.PropertyName,
+				children: /* @__PURE__ */ jsxs("span", {
+					className: style_default.TextIdentifier,
+					children: [decl.kind === "CLIFlag" && "--", flagName(decl)]
+				})
+			}), decl.type && /* @__PURE__ */ jsxs(Fragment$1, { children: [
+				/* @__PURE__ */ jsx("span", {
+					className: style_default.TextPunctuation,
+					children: ": "
+				}),
+				decl.optional && /* @__PURE__ */ jsx("span", {
+					className: style_default.TextPunctuation,
+					children: "optional "
+				}),
+				typeof decl.type === "string" ? /* @__PURE__ */ jsx("span", {
+					className: style_default.TextKeyword,
+					children: decl.type
+				}) : /* @__PURE__ */ jsx(Lang.Type, { type: decl.type })
+			] })] });
+		case "CLIFunction": return /* @__PURE__ */ jsx(Fragment$1, { children: /* @__PURE__ */ jsxs("span", {
+			className: style_default.TextIdentifier,
+			children: [decl.name, "()"]
+		}) });
+		case "CLIStdin": return /* @__PURE__ */ jsx(Fragment$1, { children: /* @__PURE__ */ jsx("span", {
+			className: style_default.TextIdentifier,
+			children: "stdin"
+		}) });
+	}
+}
+
+//#endregion
+export { Declaration, MethodSignature, Property, Type, TypeName, cli_exports as t };

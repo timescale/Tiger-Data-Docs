@@ -1,0 +1,36 @@
+import { generateIndex } from "./indexer.js";
+import { parseStainlessPath } from "@stainless-api/docs-ui/routing";
+import { renderMarkdown } from "@stainless-api/docs-ui/markdown";
+import { getResourceFromSpec } from "@stainless-api/docs-ui/utils";
+
+//#region src/mcp.ts
+function consolidate(results) {
+	const resources = /* @__PURE__ */ new Set();
+	const methods = /* @__PURE__ */ new Set();
+	for (const entry of results) {
+		const parsed = parseStainlessPath(entry.stainlessPath);
+		if (parsed.method) methods.add(parsed.routable);
+		else resources.add(parsed.routable);
+	}
+	const filtered = Array.from(methods).filter((path) => !resources.has(path.split(" >").at(0)));
+	return [...resources, ...filtered];
+}
+function render(spec, language, items, includeModelProperties) {
+	const env = {
+		spec,
+		language,
+		options: {
+			renderNestedResources: false,
+			includeModelProperties
+		}
+	};
+	const output = consolidate(items).map((entry) => {
+		const parsed = parseStainlessPath(entry);
+		const resource = getResourceFromSpec(parsed.resource, spec);
+		return [entry, renderMarkdown(env, parsed.method ? resource.methods[parsed.method] : resource)];
+	});
+	return Object.fromEntries(output);
+}
+
+//#endregion
+export { generateIndex, render };

@@ -1,0 +1,252 @@
+import { useLanguage, useSettings } from "../contexts/docs.js";
+import "../use-strict-context-L0c8JKg4.js";
+import { useNavigation } from "../contexts/navigation.js";
+import { useRenderMarkdown } from "../contexts/markdown.js";
+import "../contexts/index.js";
+import style_default from "../style.js";
+import { generateRoute } from "../routing.js";
+import { Fragment, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { jsx, jsxs } from "react/jsx-runtime";
+import clsx from "clsx";
+import { MinusIcon, PlusIcon } from "lucide-react";
+
+//#region src/components/primitives.tsx
+function Join({ items, limit, children }) {
+	return (limit && items.length > limit + 1 ? [...items.slice(0, limit), /* @__PURE__ */ jsxs("span", {
+		className: style_default.Truncation,
+		children: [items.length - limit, " more"]
+	}, "truncation")] : items).map((item, index) => /* @__PURE__ */ jsxs(Fragment, { children: [!!index && children, item] }, `iterator:${index}`));
+}
+function Expander({ id, open, summary, virtual, muted, children }) {
+	const virtualExpanders = useSettings()?.virtualExpanders;
+	if (virtual || virtualExpanders) return /* @__PURE__ */ jsx(VirtualExpander, {
+		summary,
+		open,
+		muted,
+		id,
+		children
+	}, open ? "open" : "closed");
+	return /* @__PURE__ */ jsxs("details", {
+		className: style_default.Expander,
+		open,
+		"data-stldocs-expander-muted": muted,
+		"data-stldocs-expander-initial-state": open,
+		children: [/* @__PURE__ */ jsxs("summary", {
+			className: style_default.ExpanderSummary,
+			children: [/* @__PURE__ */ jsxs("div", {
+				className: style_default.ExpanderSummaryIcon,
+				children: [/* @__PURE__ */ jsx(PlusIcon, {
+					size: 16,
+					strokeWidth: 1,
+					className: style_default.Icon
+				}), /* @__PURE__ */ jsx(MinusIcon, {
+					size: 16,
+					strokeWidth: 1,
+					className: style_default.Icon
+				})]
+			}), /* @__PURE__ */ jsx("div", {
+				className: style_default.ExpanderSummaryContent,
+				children: summary
+			})]
+		}), /* @__PURE__ */ jsx("div", {
+			className: style_default.ExpanderContent,
+			id,
+			children
+		})]
+	});
+}
+function VirtualExpander({ id, open: isOpen, muted, summary, children }) {
+	const [open, setOpen] = useState(isOpen ?? false);
+	return /* @__PURE__ */ jsxs("div", {
+		className: style_default.Expander,
+		"data-open": open,
+		"data-stldocs-expander-muted": muted,
+		"data-stldocs-expander-initial-state": open,
+		children: [/* @__PURE__ */ jsxs("div", {
+			className: style_default.ExpanderSummary,
+			onClick: () => setOpen(!open),
+			children: [/* @__PURE__ */ jsxs("div", {
+				className: style_default.ExpanderSummaryIcon,
+				children: [/* @__PURE__ */ jsx(PlusIcon, {
+					size: 16,
+					className: style_default.Icon
+				}), /* @__PURE__ */ jsx(MinusIcon, {
+					size: 16,
+					className: style_default.Icon
+				})]
+			}), /* @__PURE__ */ jsx("div", {
+				className: style_default.ExpanderSummaryContent,
+				children: summary
+			})]
+		}), open && /* @__PURE__ */ jsx("div", {
+			className: style_default.ExpanderContent,
+			id,
+			children
+		})]
+	});
+}
+function Markdown({ content }) {
+	const rendered = useRenderMarkdown(content);
+	return rendered && /* @__PURE__ */ jsx("div", {
+		className: clsx(style_default.Markdown, style_default.Content, "stl-ui-prose"),
+		dangerouslySetInnerHTML: { __html: rendered }
+	});
+}
+function Badge({ id, children }) {
+	return /* @__PURE__ */ jsx("span", {
+		className: style_default.Badge,
+		"data-badge-id": id,
+		children: children ?? id
+	});
+}
+const TooltipNestingContext = createContext(false);
+function Tooltip({ content, children }) {
+	if (useContext(TooltipNestingContext)) return children;
+	return /* @__PURE__ */ jsxs("span", {
+		className: style_default.Tooltip,
+		children: [/* @__PURE__ */ jsx("span", {
+			className: style_default.TooltipContent,
+			children: /* @__PURE__ */ jsx(TooltipNestingContext.Provider, {
+				value: true,
+				children: content
+			})
+		}), /* @__PURE__ */ jsx("span", {
+			className: style_default.TooltipHost,
+			children
+		})]
+	});
+}
+function Link({ stainlessPath, scroll = true, children, ...props }) {
+	const { basePath, onNavigate } = useNavigation();
+	const language = useLanguage();
+	const href = useMemo(() => {
+		if (props.href) return props.href;
+		if (stainlessPath && basePath) return generateRoute(basePath, language, stainlessPath);
+	}, [
+		basePath,
+		language,
+		stainlessPath,
+		props.href
+	]);
+	const handleClick = useCallback((e) => {
+		if (props.onClick) props.onClick(e);
+		if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+		if (href && stainlessPath) onNavigate?.(e, {
+			href,
+			language,
+			stainlessPath,
+			scroll
+		});
+	}, [
+		href,
+		scroll,
+		onNavigate,
+		language,
+		props,
+		stainlessPath
+	]);
+	if (!href) return children;
+	return /* @__PURE__ */ jsx("a", {
+		href,
+		onClick: handleClick,
+		...props,
+		children
+	});
+}
+function Input({ left, right, ref, className, ...props }) {
+	return /* @__PURE__ */ jsxs("div", {
+		className: clsx(style_default.Input, props.disabled && style_default.InputDisabled, className),
+		children: [
+			left,
+			/* @__PURE__ */ jsx("input", {
+				...props,
+				ref,
+				className: style_default.InputTextField
+			}),
+			right
+		]
+	});
+}
+function ToggleButton({ children, selected, ref, ...props }) {
+	return /* @__PURE__ */ jsx("button", {
+		...props,
+		ref,
+		className: style_default.ToggleButton,
+		"data-stldocs-toggle-selected": selected,
+		children
+	});
+}
+function ListView({ items, itemDelegate, onSelectListItem, ...rest }) {
+	const [selectedIndex, setSelectedIndex] = useState(0);
+	const [keyboardIndex, setKeyboardIndex] = useState(0);
+	const listRef = useRef(null);
+	const itemRef = useRef(null);
+	const handleSelect = useCallback(() => {
+		const item = items[selectedIndex];
+		if (item) onSelectListItem?.(item);
+	}, [
+		items,
+		selectedIndex,
+		onSelectListItem
+	]);
+	useEffect(() => {
+		const ac = new AbortController();
+		document.addEventListener("keydown", (ev) => {
+			switch (ev.key) {
+				case "ArrowUp": {
+					ev.preventDefault();
+					const value = Math.max(0, selectedIndex - 1);
+					setSelectedIndex(value);
+					setKeyboardIndex(value);
+					break;
+				}
+				case "ArrowDown": {
+					ev.preventDefault();
+					const value = Math.min(items.length, selectedIndex + 1);
+					setSelectedIndex(value);
+					setKeyboardIndex(value);
+					break;
+				}
+				case "Enter":
+					ev.preventDefault();
+					handleSelect();
+					break;
+			}
+		}, { signal: ac.signal });
+		return () => ac.abort();
+	}, [
+		items,
+		selectedIndex,
+		handleSelect
+	]);
+	useEffect(() => {
+		if (!keyboardIndex || !itemRef.current || !listRef.current) {
+			listRef?.current?.scroll(0, 0);
+			return;
+		}
+		const selectedBounds = itemRef.current.getBoundingClientRect();
+		const listBounds = listRef.current.getBoundingClientRect();
+		if (selectedBounds.top < listBounds.top || selectedBounds.bottom > listBounds.bottom) itemRef.current.scrollIntoView({ block: "nearest" });
+	}, [
+		keyboardIndex,
+		items,
+		listRef
+	]);
+	return /* @__PURE__ */ jsx("div", {
+		ref: listRef,
+		className: style_default.ListView,
+		tabIndex: 0,
+		...rest,
+		children: items.map((item, index) => /* @__PURE__ */ jsx("div", {
+			ref: index === selectedIndex ? itemRef : null,
+			className: style_default.ListViewItem,
+			"data-stldocs-listview-selected": index === selectedIndex,
+			onClick: handleSelect,
+			onMouseEnter: () => setSelectedIndex(index),
+			children: itemDelegate(item, index === selectedIndex)
+		}, index))
+	});
+}
+
+//#endregion
+export { Badge, Expander, Input, Join, Link, ListView, Markdown, ToggleButton, Tooltip, VirtualExpander };

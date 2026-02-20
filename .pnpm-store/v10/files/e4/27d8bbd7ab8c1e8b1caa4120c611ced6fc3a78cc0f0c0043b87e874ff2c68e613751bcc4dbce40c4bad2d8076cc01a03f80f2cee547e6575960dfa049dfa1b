@@ -1,0 +1,192 @@
+import type { StarlightRouteData } from '@astrojs/starlight/route-data';
+import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
+
+import { SPLIT_TABS_ENABLED, TABS } from 'virtual:stl-docs-virtual-module';
+import clsx from 'clsx';
+import path from 'path';
+
+// this fn is loaded in the plugin via addRouteMiddleware
+
+type SidebarEntry = StarlightRouteData['sidebar'][number];
+
+function recursiveGetLinks(entry: SidebarEntry[]) {
+  const links = new Set<string>();
+
+  for (const e of entry) {
+    if (e.type === 'link') {
+      let href = e.href;
+
+      if (href.endsWith('/') && href !== '/') {
+        href = href.slice(0, -1);
+      }
+
+      links.add(href);
+    }
+
+    if (e.type === 'group') {
+      recursiveGetLinks(e.entries).forEach((link) => links.add(link));
+    }
+  }
+  return links;
+}
+
+function getLinksByTab(sidebarEntries: SidebarEntry[]) {
+  const linksByTab = new Map<string, string>();
+
+  for (const entry of sidebarEntries) {
+    if (entry.type === 'group') {
+      const linksForTab = recursiveGetLinks(entry.entries);
+      for (const link of linksForTab) {
+        linksByTab.set(link, entry.label);
+      }
+    }
+  }
+
+  // we have to manually add the hrefs from the tab links to the linksByTab map
+  TABS.forEach((tab, index) => {
+    const indexStr = String(index);
+    linksByTab.set(tab.link, indexStr);
+  });
+
+  return linksByTab;
+}
+
+function getTabIndexForSlug(
+  linksByTab: Map<string, string>,
+  slug: string,
+): {
+  index: number;
+  match: 'exact' | 'prefix';
+} | null {
+  // ↓ exact match eg. slug = "/blog" and there is a link containing "/blog"
+  const tab = linksByTab.get(slug)!;
+  if (typeof tab === 'string') {
+    return {
+      match: 'exact',
+      index: Number(tab),
+    };
+  }
+
+  // ↓ matching prefix, eg. slug = "/blog/posts/intro" and there is a link containing "/blog"
+
+  // All links in order of longest to shortest
+  // This way our matches will be the most specific possible
+  const linksArr = Array.from(linksByTab.keys()).sort((a, b) => b.length - a.length);
+
+  for (const link of linksArr) {
+    if (slug.startsWith(link)) {
+      const tab = linksByTab.get(link)!; // force unwrap bc we know its in the map
+      return {
+        match: 'prefix',
+        index: Number(tab),
+      };
+    }
+  }
+  return null;
+}
+
+function getNonSplitLinksByTab() {
+  const linksByTab = new Map<string, string>();
+
+  for (let i = 0; i < TABS.length; i++) {
+    const tab = TABS[i]!;
+    linksByTab.set(tab.link, String(i));
+  }
+
+  return linksByTab;
+}
+
+export interface StarlightRouteWithStlDocs extends StarlightRouteData {
+  _stlDocs?: {
+    activeTabIndex: number;
+  };
+}
+
+export const onRequest = defineRouteMiddleware(async (context) => {
+  // if using content collection schema, use: context.locals.starlightRoute.entry.data.stainlessStarlight
+  // this worked without collections but relied on hijacking starlightRoute: context.props.frontmatter.stainlessStarlight
+
+  const slug = path.posix.join(import.meta.env.BASE_URL ?? '', context.locals.starlightRoute.id); // same as .slug but not deprecated
+
+  /*
+    In the index of our starlight plugin, we transform our "tabs" into a plain old Starlight sidebar.
+    Eg: tabs = [
+      {
+        label: "API Reference",
+        link: "/api",
+        items: [],
+      },
+      {
+        label: "Guides",
+        link: "/guides",
+        items: [],
+      },
+    ];
+    becomes a Starlight sidebar with the items for each tab in groups "0" and "1" (corresponding to the idx of the tab)
+    we do this bc Starlight has many advanced features (eg. auto-generated entries by directory) that we want to reuse
+
+    Once we get to middleware, our basic job is:
+    - find the appropriate tab given the current slug
+    - replace the sidebar with just the items for that tab
+  */
+
+  const linksByTab = SPLIT_TABS_ENABLED
+    ? getLinksByTab(context.locals.starlightRoute.sidebar)
+    : getNonSplitLinksByTab();
+
+  const activeTabIndex = getTabIndexForSlug(linksByTab, slug);
+
+  if (activeTabIndex === null) {
+    return;
+  }
+
+  // handling a very rare case where a page has no sidebar and we match a prefix
+  // a good example case is a splash page at a route like "/splash"
+  // if "/splash" isn't a nav link or an entry in a sidebar BUT there is a nav link for "/", it would be a prefix match
+  // in that case, we'd be highlighting the nav item for "/" which isn't the expected behavior
+  // so we just return early and there is no active tab index
+  if (activeTabIndex.match === 'prefix' && !context.locals.starlightRoute.hasSidebar) {
+    return;
+  }
+
+  // We store the active tab index so we can use it in our nav tabs component
+  const routeData: StarlightRouteWithStlDocs = context.locals.starlightRoute;
+  routeData._stlDocs = {
+    activeTabIndex: activeTabIndex.index,
+  };
+
+  // if split tabs are not enabled, we don't need to do anything else
+  // we can leave the sidebar as-is
+  if (!SPLIT_TABS_ENABLED) {
+    return;
+  }
+
+  const matchingGroup = context.locals.starlightRoute.sidebar.find((group) => {
+    return group.label === String(activeTabIndex.index);
+  });
+
+  if (!matchingGroup || matchingGroup.type !== 'group') {
+    return;
+  }
+
+  const hasEntries = matchingGroup.entries && matchingGroup.entries.length > 0;
+
+  const mobileLinks: SidebarEntry[] = TABS.map((tab, index) => ({
+    type: 'link' as const,
+    label: tab.label,
+    href: tab.link,
+    badge: undefined,
+    isCurrent: tab.link === slug,
+    attrs: {
+      class: clsx(
+        'stl-mobile-only-sidebar-item',
+        hasEntries && index === TABS.length - 1 && 'stl-mobile-only-sidebar-item-last',
+      ),
+    },
+  }));
+
+  matchingGroup?.entries.unshift(...mobileLinks);
+
+  (context.locals._stlStarlightPage ??= {}).fullSidebar = context.locals.starlightRoute.sidebar;
+  context.locals.starlightRoute.sidebar = matchingGroup.entries;
+});

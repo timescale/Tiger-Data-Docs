@@ -1,0 +1,76 @@
+import style_default from "../style.js";
+import * as React$1 from "react";
+import { jsx, jsxs } from "react/jsx-runtime";
+
+//#region src/components/MaskedInput.tsx
+const getMaskedParts = (text) => {
+	if (!text) return {
+		prefix: "",
+		maskedSecret: ""
+	};
+	const percentLength = Math.min(Math.floor(text.length * .3), 8);
+	const nonAlphaMatches = [...text.substring(0, percentLength).matchAll(/[^a-zA-Z0-9]/g)];
+	let prefixEnd = 0;
+	if (nonAlphaMatches.length > 0) prefixEnd = nonAlphaMatches.at(-1).index + 1;
+	else prefixEnd = percentLength;
+	return {
+		prefix: text.substring(0, prefixEnd),
+		maskedSecret: "•".repeat(text.length - prefixEnd)
+	};
+};
+const MaskedInput = function Input({ left, right, defaultValue, value, ref, ...props }) {
+	const initialValue = (value ?? defaultValue ?? "").toString();
+	const [displayValue, setDisplayValue] = React$1.useState(initialValue);
+	const inputRef = React$1.useRef(null);
+	React$1.useImperativeHandle(ref, () => inputRef.current);
+	const updateDisplayValue = () => {
+		if (inputRef.current) setDisplayValue(inputRef.current.value);
+	};
+	const handleBlur = (e) => {
+		updateDisplayValue();
+		inputRef.current?.scrollTo({
+			behavior: "instant",
+			left: 0,
+			top: 0
+		});
+		props.onBlur?.(e);
+	};
+	const { prefix, maskedSecret } = getMaskedParts(displayValue);
+	return /* @__PURE__ */ jsxs("div", {
+		className: style_default.Input,
+		children: [
+			left,
+			/* @__PURE__ */ jsxs("div", {
+				className: style_default.MaskedInputWrapper,
+				children: [/* @__PURE__ */ jsx("input", {
+					...props,
+					ref: inputRef,
+					defaultValue,
+					value,
+					onBlur: handleBlur,
+					onScroll: (e) => {
+						if (!e.currentTarget.matches(":focus")) {
+							e.preventDefault();
+							inputRef.current?.scrollTo({
+								behavior: "instant",
+								left: 0,
+								top: 0
+							});
+						}
+					}
+				}), /* @__PURE__ */ jsxs("div", {
+					className: style_default.MaskedInputDisplay,
+					"aria-hidden": "true",
+					children: [prefix, /* @__PURE__ */ jsx("span", {
+						className: style_default.MaskedInputObscured,
+						children: maskedSecret
+					})]
+				})]
+			}),
+			right
+		]
+	});
+};
+
+//#endregion
+export { MaskedInput };

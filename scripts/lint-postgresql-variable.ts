@@ -7,10 +7,14 @@
  * one place. Literal "PostgreSQL" or "Postgres" in content or headings will
  * fail this check.
  *
+ * Exceptions (literal is allowed):
+ * - Inside URLs (e.g. https://postgresql.org/...) or URL-like paths
+ * - Inside backticks (UI elements, code, file paths, command names)
+ *
  * Usage:
  *   pnpm run lint:postgresql-variable   # Check (CI)
  *
- * Exits 0 if all content uses the variable (or is allowlisted), 1 otherwise.
+ * Exits 0 if all content uses the variable (or is allowlisted/excepted), 1 otherwise.
  */
 
 import * as fs from "fs";
@@ -73,9 +77,73 @@ function toggleCodeBlock(line: string, inCodeBlock: boolean): boolean {
   return inCodeBlock;
 }
 
+/** Regex for literal "PostgreSQL" or "Postgres" (word boundary). */
+const LITERAL_REGEX = /\b(PostgreSQL|Postgres)\b/g;
+
 /** Check if line contains literal "PostgreSQL" or "Postgres" (word boundary). */
 function hasLiteral(line: string): boolean {
-  return /\bPostgreSQL\b/.test(line) || /\bPostgres\b/.test(line);
+  LITERAL_REGEX.lastIndex = 0;
+  return LITERAL_REGEX.test(line);
+}
+
+/**
+ * Return start indices of backtick-delimited spans (odd indices = inside backticks).
+ * e.g. "See `PostgreSQL` and connect" -> backtick positions, so "PostgreSQL" is in [start, end) of an odd segment.
+ */
+function backtickSpans(line: string): Array<[number, number]> {
+  const spans: Array<[number, number]> = [];
+  let start = 0;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === "`") {
+      spans.push([start, i]);
+      start = i + 1;
+    }
+  }
+  if (start <= line.length) spans.push([start, line.length]);
+  return spans;
+}
+
+/** True if position is inside an odd-indexed backtick span (i.e. inside backticks). */
+function isInsideBackticks(position: number, spans: Array<[number, number]>): boolean {
+  for (let i = 1; i < spans.length; i += 2) {
+    const [s, e] = spans[i];
+    if (position >= s && position < e) return true;
+  }
+  return false;
+}
+
+/** URL or path pattern: http(s)://, Unix path, or Windows path containing postgres. */
+const URL_OR_PATH_REGEX =
+  /https?:\/\/[^\s`]+|\/[\w./-]*(?:[Pp]ostgres(?:ql)?)[\w./-]*|(?:[A-Za-z]:)?\\[^\\s`]*(?:[Pp]ostgres(?:ql)?)[^\\s`]*/gi;
+
+/** True if the substring [start, end) of line is part of a URL or path. */
+function isInsideUrlOrPath(line: string, start: number, end: number): boolean {
+  URL_OR_PATH_REGEX.lastIndex = 0;
+  const matches = line.matchAll(URL_OR_PATH_REGEX);
+  for (const m of matches) {
+    const mStart = m.index ?? 0;
+    const mEnd = mStart + (m[0].length ?? 0);
+    if (start >= mStart && end <= mEnd) return true;
+  }
+  return false;
+}
+
+/**
+ * Whether the line has a violation: it contains a literal that is NOT only inside
+ * backticks and NOT inside a URL/path.
+ */
+function hasUnallowedLiteral(line: string): boolean {
+  const spans = backtickSpans(line);
+  LITERAL_REGEX.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = LITERAL_REGEX.exec(line)) !== null) {
+    const start = m.index;
+    const end = start + (m[0].length ?? 0);
+    if (isInsideBackticks(start, spans)) continue;
+    if (isInsideUrlOrPath(line, start, end)) continue;
+    return true; // this occurrence is in prose/heading and not allowed
+  }
+  return false;
 }
 
 function lintFile(filePath: string): Violation[] {
@@ -98,6 +166,7 @@ function lintFile(filePath: string): Violation[] {
     if (usesVariable(line)) continue;
     if (isInAllowlist(line)) continue;
     if (matchesSkipPattern(line)) continue;
+    if (!hasUnallowedLiteral(line)) continue; // literal only in backticks or URL/path
 
     violations.push({
       file: relPath,
@@ -136,7 +205,7 @@ async function main(): Promise<void> {
     console.error(`  ${v.file}:${v.line}`);
     console.error(`    ${v.content}\n`);
   }
-  console.error(`${allViolations.length} violation(s). Add \`import * as C from "@constants";\` and use \`{C.PG}\` in prose and headings.`);
+  console.error(`${allViolations.length} violation(s). Add \`import * as C from "@constants";\` and use \`{C.PG}\` in prose and headings (literal is OK in URLs and in backticks).`);
   process.exit(1);
 }
 

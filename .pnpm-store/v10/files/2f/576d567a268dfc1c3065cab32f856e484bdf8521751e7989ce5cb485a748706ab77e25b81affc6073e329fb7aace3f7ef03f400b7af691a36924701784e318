@@ -1,0 +1,146 @@
+import { DocsLanguage } from '@stainless-api/docs-ui/routing';
+import { readFile } from 'fs/promises';
+import { AstroIntegrationLogger } from 'astro';
+import { bold } from '../../shared/terminalUtils';
+import type { LanguageGenerateQuery, LoadedApiKey } from '../loadPluginConfig';
+import Stainless, { APIError } from '@stainless-api/sdk';
+import { GenerateSpecRawInputs } from './generateSpec';
+
+export type SpecInputResolver = {
+  resolve: (context: { apiKey: LoadedApiKey | null }) => Promise<GenerateSpecRawInputs>;
+  printError: (error: Error, logger: AstroIntegrationLogger) => void;
+};
+
+function fromFiles({
+  oasPath,
+  configPath,
+  languageOverrides,
+  stainlessProject,
+}: {
+  oasPath: string;
+  configPath: string;
+  languageOverrides: LanguageGenerateQuery | null;
+  stainlessProject: string;
+}): SpecInputResolver {
+  return {
+    resolve: async () => {
+      const oasStr = await readFile(oasPath, 'utf8');
+      const configStr = await readFile(configPath, 'utf8');
+      return {
+        oasStr,
+        configStr,
+        versionInfo: null,
+        languageOverrides,
+        stainlessProject,
+      };
+    },
+    printError: (error: Error, logger: AstroIntegrationLogger) => {
+      logger.error(bold('Failed to resolve spec inputs from files:'));
+      logger.error(error.message);
+    },
+  };
+}
+
+async function fetchVersionInfo(project: string, apiKey: string): Promise<Record<DocsLanguage, string>> {
+  const data = await fetch(`https://api.stainless.com/api/projects/${project}/package-versions`, {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+
+  const content = await data.text();
+  return JSON.parse(content) as Record<DocsLanguage, string>;
+}
+
+function redactApiKey(apiKey: string) {
+  return apiKey
+    .split('')
+    .map((char, index) => (index < 10 ? char : '*'))
+    .join('');
+}
+
+function fromStainlessApi(inputs: {
+  stainlessProject: string;
+  branch: string;
+  apiKey?: LoadedApiKey;
+  languageOverrides: LanguageGenerateQuery | null;
+}): SpecInputResolver {
+  let apiKey: string | undefined;
+  return {
+    async resolve(context) {
+      apiKey = context.apiKey?.value ?? inputs.apiKey?.value;
+
+      if (!apiKey) {
+        throw new Error('No API key provided');
+      }
+
+      const client = new Stainless({ apiKey });
+      const configs = await client.projects.configs.retrieve({
+        project: inputs.stainlessProject,
+        branch: inputs.branch,
+        include: 'openapi',
+      });
+      const versionInfo = await fetchVersionInfo(inputs.stainlessProject, apiKey);
+
+      const configYML = Object.values(configs)[0] as { content: unknown };
+      const oasJson = Object.values(configs)[1] as { content: unknown };
+      const oasStr = oasJson['content'];
+      const configStr = configYML['content'];
+
+      if (typeof oasStr !== 'string' || typeof configStr !== 'string') {
+        throw new Error('Received invalid OAS or config from Stainless');
+      }
+
+      return {
+        oasStr,
+        configStr,
+        versionInfo,
+        languageOverrides: inputs.languageOverrides,
+        stainlessProject: inputs.stainlessProject,
+      };
+    },
+    printError: (error: Error, logger: AstroIntegrationLogger) => {
+      if (error instanceof APIError && error.status >= 400 && error.status < 500) {
+        logger.error(`Requested project slug: "${inputs.stainlessProject}"`);
+        if (apiKey) {
+          logger.error(`API key: "${redactApiKey(apiKey)}"`);
+        }
+        logger.error(
+          `This error can usually be corrected by re-authenticating with the Stainless.  Use the CLI (stl auth login) or verify that the Stainless API key you're using can access the project mentioned above.`,
+        );
+      }
+    },
+  };
+}
+
+function fromStrings({
+  oasStr,
+  configStr,
+  languageOverrides,
+  stainlessProject,
+}: {
+  oasStr: string;
+  configStr: string;
+  languageOverrides: LanguageGenerateQuery | null;
+  stainlessProject: string;
+}): SpecInputResolver {
+  return {
+    async resolve() {
+      return {
+        oasStr,
+        configStr,
+        versionInfo: null,
+        languageOverrides,
+        stainlessProject,
+      };
+    },
+    printError(error: Error, logger: AstroIntegrationLogger) {
+      logger.error(bold('Failed to resolve spec inputs from strings:'));
+      logger.error(error.message);
+    },
+  };
+}
+
+export const resolveSpec = {
+  fromFiles,
+  fromStainlessApi,
+  fromStrings,
+} satisfies Record<string, (...args: never[]) => SpecInputResolver>;

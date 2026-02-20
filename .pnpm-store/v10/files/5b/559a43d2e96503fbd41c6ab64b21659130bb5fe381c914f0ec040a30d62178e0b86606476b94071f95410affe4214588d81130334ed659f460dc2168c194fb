@@ -1,0 +1,82 @@
+---
+import {
+  ENABLE_PROSE_MARKDOWN_RENDERING,
+  ENABLE_CONTEXT_MENU,
+  RENDER_PAGE_DESCRIPTIONS,
+} from 'virtual:stl-docs-virtual-module';
+import type { StarlightRouteData } from '@astrojs/starlight/route-data';
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+import { ContentBreadcrumbs } from './ContentBreadcrumbs';
+import { AIDropdown } from './AIDropdown';
+
+function sidebarHasEntry(sidebarEntry: StarlightRouteData['sidebar'], currentPath?: string) {
+  if (!currentPath) return false;
+  const normalizePath = (path: string) => {
+    return path.endsWith('/') ? path : path + '/';
+  };
+
+  const normalizedCurrent = normalizePath(currentPath);
+
+  for (const entry of sidebarEntry) {
+    if (entry.type === 'link') {
+      const normalizedHref = normalizePath(entry.href);
+      if (normalizedHref === normalizedCurrent) {
+        return true;
+      }
+    } else if (entry.type === 'group') {
+      const hasInGroup = sidebarHasEntry(entry.entries, currentPath);
+      if (hasInGroup) return true;
+    }
+  }
+
+  return false;
+}
+
+const skipRenderingStarlightTitle = Astro.locals._stlStarlightPage?.skipRenderingStarlightTitle ?? false;
+
+const hasMarkdownRoute = Astro.locals._stlStarlightPage?.hasMarkdownRoute ?? true;
+// ⬆️ hopefully this is temporary. But for now, we don't have a markdown representation of the API reference overview page
+
+const currentPath = Astro.url.pathname;
+
+function shouldShowAIDropdown() {
+  // Hide if there is no associated sidebar entry. This applies to pages like the 404 page.
+  const hasSidebarEntry = sidebarHasEntry(Astro.locals.starlightRoute.sidebar, currentPath);
+  if (!hasSidebarEntry) return false;
+
+  if (!hasMarkdownRoute) return false;
+
+  if (!ENABLE_PROSE_MARKDOWN_RENDERING) return false;
+  if (!ENABLE_CONTEXT_MENU) return false;
+
+  return true;
+}
+
+const showAIDropdown = shouldShowAIDropdown();
+
+const description = Astro.locals.starlightRoute.entry.data.description;
+const shouldRenderDescription = RENDER_PAGE_DESCRIPTIONS;
+---
+
+{
+  skipRenderingStarlightTitle ? null : (
+    <>
+      <div class="stl-ui-not-prose stl-page-nav-container stl-prose-page-nav-container" data-pagefind-ignore>
+        <ContentBreadcrumbs currentPath={currentPath} sidebarEntry={Astro.locals.starlightRoute.sidebar} />
+        {showAIDropdown && <AIDropdown />}
+      </div>
+      <Default />
+      {!!description && shouldRenderDescription && <p class="description">{description}</p>}
+    </>
+  )
+}
+
+<style>
+  p.description {
+    font-size: var(--stl-typography-scale-xl);
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: -0.02em;
+    margin-top: 0.4em;
+  }
+</style>

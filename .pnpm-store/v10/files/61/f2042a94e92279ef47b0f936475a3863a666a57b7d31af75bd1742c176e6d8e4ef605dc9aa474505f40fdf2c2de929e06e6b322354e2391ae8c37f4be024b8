@@ -1,0 +1,113 @@
+import type { DocsLanguage } from '@stainless-api/docs-ui/routing';
+import { JSONParser } from '@streamparser/json-whatwg';
+import {
+  type RequestBody,
+  responseChunk,
+  type FeedbackRequestBody,
+  feedbackResponseBody,
+  type MetadataRequestBody,
+  metadataResponseBody,
+} from './schemas';
+import { streamAsyncIterator } from './util';
+import { getClientId } from './client-id';
+
+export const API_URL = new URL('https://app.stainless.com/api/');
+export const CHAT_ENDPOINT = new URL('ai/get-agentic-help', API_URL);
+
+export const FEEDBACK_ENDPOINT = (spanId: string) => new URL(`ai/agentic-help/${spanId}/score`, API_URL);
+export const METADATA_ENDPOINT = (spanId: string) => new URL(`ai/agentic-help/${spanId}/metadata`, API_URL);
+
+/** Context on what the user is currently viewing to pass to the agent */
+function getPageContext({ siteTitle }: { siteTitle: string | undefined }) {
+  const { href } = window.location;
+  const markdownUrl = `${href.replace(/\/$/, '')}/index.md`;
+  const pageTitle = document.querySelector('h1')?.textContent;
+  return [
+    `The user is viewing a documentation page${siteTitle ? ` for ${siteTitle}` : ''}.`,
+    `- Content URL: ${markdownUrl}`,
+    pageTitle && `- Page title: “${pageTitle}”`,
+    // TODO: include stainless path here? does the agent know how to use it?
+    // TODO: pass more of the page content into context without the agent having to retrieve it
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+/**
+ * Stream chat response from the server
+ */
+export async function* getChatResponse(
+  {
+    query,
+    project,
+    language,
+    sessionId,
+    siteTitle,
+  }: {
+    query: string;
+    project: string;
+    language: DocsLanguage;
+    sessionId: string | undefined;
+    siteTitle: string | undefined;
+  },
+  abortSignal: AbortSignal,
+) {
+  const res = await fetch(CHAT_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query,
+      sdk: { project, language },
+      stream: true,
+      session_id: sessionId,
+      additionalContext: {
+        intent: getPageContext({ siteTitle }),
+      },
+      browser_id: getClientId(),
+    } satisfies RequestBody),
+
+    signal: abortSignal,
+  });
+
+  if (!res.ok || !res.body) throw new Error(`Chat request failed with status ${res.status}`);
+
+  const parser = new JSONParser({ separator: '\n', paths: ['$'] });
+  for await (const chunk of streamAsyncIterator(res.body.pipeThrough(parser))) {
+    const chunkParsed = responseChunk.safeParse(chunk.value);
+    if (chunkParsed.success) yield chunkParsed.data;
+  }
+}
+
+/**
+ * Attach a score to a response
+ */
+export async function submitResponseFeedback(spanId: string, score: 0 | 1) {
+  const res = await fetch(FEEDBACK_ENDPOINT(spanId), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ score } satisfies FeedbackRequestBody),
+  });
+
+  if (!res.ok) throw new Error(`Feedback request failed with status ${res.status}`);
+  return feedbackResponseBody.parse(await res.json());
+}
+
+/**
+ * Attach a score to a response
+ */
+export async function setResponseMetadata(spanId: string, metadata: Record<string, string>) {
+  const res = await fetch(METADATA_ENDPOINT(spanId), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ metadata } satisfies MetadataRequestBody),
+  });
+
+  if (!res.ok) throw new Error(`Metadata request failed with status ${res.status}`);
+  return metadataResponseBody.parse(await res.json());
+}

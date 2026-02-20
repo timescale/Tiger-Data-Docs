@@ -1,0 +1,72 @@
+import type { DocsLanguage } from '@stainless-api/docs-ui/routing';
+import KotlinIcon from './assets/languages/kotlin.svg';
+import RubyIcon from './assets/languages/ruby.svg';
+import TerraformIcon from './assets/languages/terraform.svg';
+import TypescriptIcon from './assets/languages/typescript.svg';
+import PythonIcon from './assets/languages/python.svg';
+import JavaIcon from './assets/languages/java.svg';
+import GoIcon from './assets/languages/go.svg';
+import CurlIcon from './assets/languages/curl.svg';
+import CSharpIcon from './assets/languages/csharp.svg';
+import CLIIcon from './assets/languages/cli.svg';
+
+export const Languages: Record<
+  DocsLanguage,
+  {
+    name: string;
+    icon: ((_props: astroHTML.JSX.SVGAttributes) => any) & ImageMetadata;
+    alt: string;
+  }
+> = {
+  node: { name: 'TypeScript', icon: TypescriptIcon, alt: 'Node.js logo' },
+  typescript: {
+    name: 'TypeScript',
+    icon: TypescriptIcon,
+    alt: 'TypeScript logo',
+  },
+  python: { name: 'Python', icon: PythonIcon, alt: 'Python logo' },
+  go: { name: 'Go', icon: GoIcon, alt: 'Go logo' },
+  java: { name: 'Java', icon: JavaIcon, alt: 'Java logo' },
+  kotlin: { name: 'Kotlin', icon: KotlinIcon, alt: 'Kotlin logo' },
+  http: { name: 'HTTP', icon: CurlIcon, alt: 'HTTP logo' },
+  terraform: { name: 'Terraform', icon: TerraformIcon, alt: 'Terraform logo' },
+  ruby: { name: 'Ruby', icon: RubyIcon, alt: 'Ruby logo' },
+  csharp: { name: 'C#', icon: CSharpIcon, alt: 'C# logo' },
+  cli: { name: 'CLI Tool', icon: CLIIcon, alt: 'CLI logo' },
+  php: { name: 'PHP', icon: CSharpIcon, alt: 'PHP logo' }, // TODO update PHP icon
+};
+
+export function generatePrefix(basePath: string, language: string) {
+  return language === 'http' ? basePath : [basePath, language].join('/');
+}
+
+export function applyLanguageToLinks(basePath?: string, defaultLanguage?: string) {
+  const language = localStorage.getItem('stldocs-selected-language') ?? defaultLanguage;
+
+  if (!basePath || !language || language === 'http') return;
+
+  const links = document.querySelectorAll(
+    `[data-stldocs-overview],[data-stldocs-method],a.nav-link[href^='${basePath}']`,
+  );
+
+  for (const link of links) {
+    const href = link.getAttribute('href');
+    const prefix = generatePrefix(basePath, language);
+    if (href?.startsWith(basePath) && !href?.startsWith(prefix)) {
+      const rest = href.slice(basePath.length);
+      link.setAttribute('href', prefix + rest);
+    }
+  }
+}
+
+export function updateSelectedLanguage(
+  basePath: string,
+  previousLanguage: string | undefined,
+  newValue: string,
+) {
+  const previous = generatePrefix(basePath, previousLanguage ?? 'http');
+  const current = generatePrefix(basePath, newValue ?? 'http');
+  const rest = window.location.pathname.slice(previous.length);
+  localStorage.setItem('stldocs-selected-language', newValue);
+  return current + rest;
+}

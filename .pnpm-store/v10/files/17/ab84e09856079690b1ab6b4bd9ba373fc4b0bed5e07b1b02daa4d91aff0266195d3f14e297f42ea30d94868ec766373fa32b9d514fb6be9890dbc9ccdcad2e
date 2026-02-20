@@ -1,0 +1,15 @@
+//#region src/providers/pagefind.ts
+async function loadPagefind(path) {
+	return await import(new URL(path, import.meta.url).href);
+}
+async function guideSearch(loadPath, query, limit) {
+	const response = await (await loadPagefind(loadPath)).search(query);
+	const items = limit ? response.results.slice(0, limit) : response.results;
+	return Promise.all(items.map((result) => result.data().then((data) => ({
+		...result,
+		data
+	}))));
+}
+
+//#endregion
+export { guideSearch };
