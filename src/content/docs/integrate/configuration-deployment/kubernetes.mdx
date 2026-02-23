@@ -1,36 +1,71 @@
 ---
-title: "Integrate Kubernetes with Tiger Cloud"
-description: "Automate deployment, scaling, and management of your containerized workloads"
+title: "Connect Kubernetes workloads to Tiger Cloud"
+description: "Connect workloads in your Kubernetes cluster to Tiger Cloud"
 ---
-[Kubernetes](https://kubernetes.io/) is an open-source container orchestration system that automates the deployment, scaling, and management of containerized applications. You can connect Kubernetes to Tiger Cloud, and deploy TimescaleDB within your Kubernetes clusters. This guide explains how to connect a Kubernetes cluster to Tiger Cloud, configure persistent storage, and deploy TimescaleDB in your kubernetes cluster.
 
-Prerequisites
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+[Kubernetes](https://kubernetes.io/) is an open-source container orchestration system that automates the deployment, scaling, and management of containerized applications. You can run workloads in your Kubernetes cluster that connect to a {C.CLOUD_LONG} service (your database runs in {C.CLOUD_LONG}; your apps run in the cluster).
+
+This guide explains how to connect your Kubernetes cluster to {C.CLOUD_LONG} so that workloads in the cluster (pods, deployments) can reach your {C.CLOUD_LONG} service. It does not cover deploying TimescaleDB itself onto Kubernetes; for that, see [self-hosted installation](/deploy/self-hosted/install-and-update/install-self-hosted).
+
+## Prerequisites
 
 To follow the steps on this page:
 
--   Install [self-managed Kubernetes](https://kubernetes.io/docs/setup/) or sign up for a Kubernetes [Turnkey Cloud Solution](https://kubernetes.io/docs/setup/production-environment/turnkey-solutions/).
--   Install [kubectl](https://kubernetes.io/docs/tasks/tools/) for command-line interaction with your cluster.
+- Install [self-managed Kubernetes](https://kubernetes.io/docs/setup/) or sign up for a Kubernetes [Turnkey Cloud Solution](https://kubernetes.io/docs/setup/production-environment/turnkey-solutions/).
+- Install [kubectl](https://kubernetes.io/docs/tasks/tools/) for command-line interaction with your cluster.
 
-Integrate TimescaleDB in a Kubernetes cluster
+## Connect your Kubernetes cluster to Tiger Cloud
 
-To connect your Kubernetes cluster to your Tiger Cloud service:
+To let workloads in your cluster connect to your {C.CLOUD_LONG} service:
 
-1.  **Create a default namespace for your Tiger Cloud components**
-    
-    1.  Create a namespace:
-    2.  Set this namespace as the default for your session:
-    
-    For more information, see [Kubernetes Namespaces](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/).
-2.  **Create a Kubernetes secret that stores your Tiger Cloud service credentials** Update the following command with your [connection details](/integrate/find-connection-details), then run it:
-3.  **Configure network access to Tiger Cloud**
-    -   **Managed Kubernetes**: outbound connections to external databases like Tiger Cloud work by default. Make sure your cluster’s security group or firewall rules allow outbound traffic to Tiger Cloud IP.
-    -   **Self-hosted Kubernetes**: If your cluster is behind a firewall or running on-premise, you may need to allow egress traffic to Tiger Cloud. Test connectivity using your [connection details](/integrate/find-connection-details): If the connection fails, check your firewall rules.
-4.  **Create a Kubernetes deployment that can access your Tiger Cloud** Run the following command to apply the deployment:
-5.  **Test the connection**
-    
-    1.  Create and run a pod that uses the [connection details](/integrate/find-connection-details) you added to `timescale-secret` in the `timescale` namespace:
-    2.  Launch a psql shell in the `test-pod` you just created:
-    
-    You start a `psql` session connected to your Tiger Cloud service.
+<NumberedList>
 
-You have successfully integrated Kubernetes with Tiger Cloud.
+<NumberedItem title={`Create a default namespace for your ${C.CLOUD_LONG} components`}>
+
+<ol type="a">
+  <li>Create a namespace (for example, <code>timescale</code>).</li>
+  <li>Set this namespace as the default for your session.</li>
+</ol>
+
+For more information, see [Kubernetes Namespaces](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) documentation on the Kubernetes website.
+
+</NumberedItem>
+
+<NumberedItem title="Create a Kubernetes secret that stores your Tiger Cloud service credentials">
+
+Update the secret manifest or command with your [connection details](/integrate/find-connection-details), then apply it so your cluster can use the credentials to connect to {C.CLOUD_LONG}.
+
+</NumberedItem>
+
+<NumberedItem title="Configure network access to Tiger Cloud">
+
+<ol type="a">
+  <li><strong>Managed Kubernetes</strong>: Outbound connections to external databases like {C.CLOUD_LONG} work by default. Ensure your cluster’s security group or firewall rules allow outbound traffic to {C.CLOUD_LONG}.</li>
+  <li><strong>Self-hosted Kubernetes</strong>: If your cluster is behind a firewall or on-premises, you may need to allow egress traffic to {C.CLOUD_LONG}. Test connectivity using your [connection details](/integrate/find-connection-details); if the connection fails, check your firewall rules.</li>
+</ol>
+
+</NumberedItem>
+
+<NumberedItem title="Create a Kubernetes deployment that can access your Tiger Cloud">
+
+Apply a deployment that uses the secret you created so your workloads can connect to your {C.CLOUD_LONG} service (use your [connection details](/integrate/find-connection-details) for host, port, and credentials in the deployment or ConfigMap).
+
+</NumberedItem>
+
+<NumberedItem title="Test the connection">
+
+<ol type="a">
+  <li>Create and run a pod that uses the [connection details](/integrate/find-connection-details) you added to <code>timescale-secret</code> in the <code>timescale</code> namespace.</li>
+  <li>Launch a <code>psql</code> shell in the test pod you created.</li>
+</ol>
+
+You should have a <code>psql</code> session connected to your {C.CLOUD_LONG} service.
+
+</NumberedItem>
+
+</NumberedList>
+
+You have successfully integrated Kubernetes with {C.CLOUD_LONG}.
