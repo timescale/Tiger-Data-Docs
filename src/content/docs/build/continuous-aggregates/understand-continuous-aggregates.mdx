@@ -2,13 +2,16 @@
 title: "Understand continuous aggregates"
 description: "Continuous aggregates automatically precompute and store aggregate data for lightning-fast queries on time-series data in TimescaleDB"
 ---
-In modern applications, data usually grows very quickly. This means that aggregating it into useful summaries can become very slow. If you are collecting data very frequently, you might want to aggregate your data into minutes or hours instead. For example, if an IoT device takes temperature readings every second, you might want to find the average temperature for each hour. Every time you run this query, the database needs to scan the entire table and recalculate the average. TimescaleDB makes aggregating data lightning fast, accurate, and easy with continuous aggregates. ![Reduced data calls with continuous aggregates](https://assets.timescale.com/docs/images/continuous-aggregate.png) Continuous aggregates in TimescaleDB are a kind of hypertable that is refreshed automatically in the background as new data is added, or old data is modified. Changes to your dataset are tracked, and the hypertable behind the continuous aggregate is automatically updated in the background. Continuous aggregates have a much lower maintenance burden than regular Postgres materialized views, because the whole view is not created from scratch on each refresh. This means that you can get on with working your data instead of maintaining your database. Because continuous aggregates are based on hypertables, you can query them in exactly the same way as your other tables. This includes continuous aggregates in the rowstore, compressed into the [columnstore](/build/columnar-storage/understand-hypercore), or [tiered to object storage](/deploy/tiger-cloud/storage/manage-storage-tiers). You can even create [continuous aggregates on top of your continuous aggregates](/build/continuous-aggregates/hierarchical-continuous-aggregates), for an even more fine-tuned aggregation. [Real-time aggregation](/build/continuous-aggregates/real-time-aggregates) enables you to combine pre-aggregated data from the materialized view with the most recent raw data. This gives you up-to-date results on every query.
+
+import * as C from "@constants";
+
+In modern applications, data usually grows very quickly. This means that aggregating it into useful summaries can become very slow. If you are collecting data very frequently, you might want to aggregate your data into minutes or hours instead. For example, if an IoT device takes temperature readings every second, you might want to find the average temperature for each hour. Every time you run this query, the database needs to scan the entire table and recalculate the average. TimescaleDB makes aggregating data lightning fast, accurate, and easy with continuous aggregates. ![Reduced data calls with continuous aggregates](https://assets.timescale.com/docs/images/continuous-aggregate.png) Continuous aggregates in TimescaleDB are a kind of hypertable that is refreshed automatically in the background as new data is added, or old data is modified. Changes to your dataset are tracked, and the hypertable behind the continuous aggregate is automatically updated in the background. Continuous aggregates have a much lower maintenance burden than regular {C.PG} materialized views, because the whole view is not created from scratch on each refresh. This means that you can get on with working your data instead of maintaining your database. Because continuous aggregates are based on hypertables, you can query them in exactly the same way as your other tables. This includes continuous aggregates in the rowstore, compressed into the [columnstore](/build/columnar-storage/understand-hypercore), or [tiered to object storage](/deploy/tiger-cloud/storage/manage-storage-tiers). You can even create [continuous aggregates on top of your continuous aggregates](/build/continuous-aggregates/hierarchical-continuous-aggregates), for an even more fine-tuned aggregation. [Real-time aggregation](/build/continuous-aggregates/real-time-aggregates) enables you to combine pre-aggregated data from the materialized view with the most recent raw data. This gives you up-to-date results on every query.
 
 Types of aggregation
 
 There are three main ways to make aggregation easier: materialized views, continuous aggregates, and real-time aggregates.
 
--   [Materialized views](https://www.postgresql.org/docs/current/rules-materializedviews.html) are a standard Postgres function. They are used to cache the result of a complex query so that you can reuse it later on. Materialized views do not update regularly, although you can manually refresh them as required.
+-   [Materialized views](https://www.postgresql.org/docs/current/rules-materializedviews.html) are a standard {C.PG} function. They are used to cache the result of a complex query so that you can reuse it later on. Materialized views do not update regularly, although you can manually refresh them as required.
 -   [Continuous aggregates](/build/continuous-aggregates/understand-continuous-aggregates) are a TimescaleDB-only feature. They work in a similar way to a materialized view, but they are updated automatically in the background, as new data is added to your database. Continuous aggregates are updated continuously and incrementally, which means they are less resource intensive to maintain than materialized views. Continuous aggregates are based on hypertables, and you can query them in the same way as you do your other tables.
 -   [Real-time aggregates](/build/continuous-aggregates/real-time-aggregates) are a TimescaleDB-only feature. They are the same as continuous aggregates, but they add the most recent raw data to the previously aggregated data to provide accurate and up-to-date results, without needing to aggregate data as it is being written.
 
@@ -27,14 +30,14 @@ Continuous aggregates support the following JOIN features:
 | INNER JOIN | ❌ | ✅ | ✅ |
 | LEFT JOIN | ❌ | ❌ | ✅ |
 | LATERAL JOIN | ❌ | ❌ | ✅ |
-| Joins between **ONE** hypertable and **ONE** standard Postgres table | ❌ | ✅ | ✅ |
-| Joins between **ONE** hypertable and **MANY** standard Postgres tables | ❌ | ❌ | ✅ |
+| Joins between **ONE** hypertable and **ONE** standard {C.PG} table | ❌ | ✅ | ✅ |
+| Joins between **ONE** hypertable and **MANY** standard {C.PG} tables | ❌ | ❌ | ✅ |
 | Join conditions must be equality conditions, and there can only be **ONE** `JOIN` condition | ❌ | ✅ | ✅ |
 | Any join conditions | ❌ | ❌ | ✅ |
 
 JOINs in TimescaleDB must meet the following conditions:
 
--   Only the changes to the hypertable are tracked, and they are updated in the continuous aggregate when it is refreshed. Changes to standard Postgres tables are not tracked.
+-   Only the changes to the hypertable are tracked, and they are updated in the continuous aggregate when it is refreshed. Changes to standard {C.PG} tables are not tracked.
 -   You can use `INNER`, `LEFT`, and `LATERAL` joins; no other join type is supported.
 -   Joins on the materialized hypertable of a continuous aggregate are not supported.
 -   Hierarchical continuous aggregates can be created on top of a continuous aggregate with a `JOIN` clause, but cannot themselves have a `JOIN` clause.
@@ -48,13 +51,13 @@ Given the following schema: When you create a hypertable using [CREATE TABLE …
 -   `INNER JOIN` on a single equality condition specified in `WHERE` clause:
 -   `INNER JOIN` on multiple equality conditions: TimescaleDB v2.16.x and higher.
 -   `INNER JOIN` with a single equality condition specified in `WHERE` clause can be combined with further conditions in the `WHERE` clause: TimescaleDB v2.16.x and higher.
--   `INNER JOIN` between a hypertable and multiple Postgres tables: TimescaleDB v2.16.x and higher.
--   `LEFT JOIN` between a hypertable and a Postgres table: TimescaleDB v2.16.x and higher.
+-   `INNER JOIN` between a hypertable and multiple {C.PG} tables: TimescaleDB v2.16.x and higher.
+-   `LEFT JOIN` between a hypertable and a {C.PG} table: TimescaleDB v2.16.x and higher.
 -   `LATERAL JOIN` between a hypertable and a subquery: TimescaleDB v2.16.x and higher.
 
 Function support
 
-In TimescaleDB v2.7 and later, continuous aggregates support all Postgres aggregate functions. This includes both parallelizable aggregates, such as `SUM` and `AVG`, and non-parallelizable aggregates, such as `RANK`. In TimescaleDB v2.10.0 and later, the `FROM` clause supports `JOINs`, with some restrictions. For more information, see the [JOIN support section](#continuous-aggregates-with-joins). In older versions of TimescaleDB, continuous aggregates only support [aggregate functions that can be parallelized by Postgres](https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-AGGREGATION). You can work around this by aggregating the other parts of your query in the continuous aggregate, then [using the window function to query the aggregate](/build/continuous-aggregates/setup-continuous-aggregates#use-continuous-aggregates-with-window-functions). The following table summarizes the aggregate functions supported in continuous aggregates:
+In TimescaleDB v2.7 and later, continuous aggregates support all {C.PG} aggregate functions. This includes both parallelizable aggregates, such as `SUM` and `AVG`, and non-parallelizable aggregates, such as `RANK`. In TimescaleDB v2.10.0 and later, the `FROM` clause supports `JOINs`, with some restrictions. For more information, see the [JOIN support section](#continuous-aggregates-with-joins). In older versions of TimescaleDB, continuous aggregates only support [aggregate functions that can be parallelized by {C.PG}](https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-AGGREGATION). You can work around this by aggregating the other parts of your query in the continuous aggregate, then [using the window function to query the aggregate](/build/continuous-aggregates/setup-continuous-aggregates#use-continuous-aggregates-with-window-functions). The following table summarizes the aggregate functions supported in continuous aggregates:
 
 Function, clause, or feature
 

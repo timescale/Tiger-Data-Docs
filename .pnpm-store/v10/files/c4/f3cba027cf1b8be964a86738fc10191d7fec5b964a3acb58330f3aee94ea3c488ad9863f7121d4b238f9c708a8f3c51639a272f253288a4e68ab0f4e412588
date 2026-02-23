@@ -1,0 +1,505 @@
+import * as React from 'react';
+import { marked, Tokens } from 'marked';
+import { getDocsLanguages } from '../helpers/multiSpec';
+
+import {
+  createMarkdownProcessor,
+  CreateShikiHighlighterOptions,
+  type MarkdownProcessor,
+} from '@astrojs/markdown-remark';
+import remarkGfmAlerts from 'remark-github-alerts';
+
+import type { MarkdownHeading } from 'astro';
+import type { StarlightRouteData } from '@astrojs/starlight/route-data';
+import type * as SDKJSON from '@stainless/sdk-json';
+import { LanguageNames, SupportedLanguageSyntaxes, type DocsLanguage } from '@stainless-api/docs-ui/routing';
+
+import {
+  generateRoute,
+  parseStainlessPath,
+  walkTree,
+  getLanguageSnippet,
+} from '@stainless-api/docs-ui/routing';
+
+import {
+  DocsProvider,
+  MarkdownProvider,
+  NavigationProvider,
+  useSpec,
+  type ContentPanelLayout,
+} from '@stainless-api/docs-ui/contexts';
+
+import { flatResources, getResourceFromSpec } from '@stainless-api/docs-ui/utils';
+
+import {
+  SDKMethod,
+  SDKResource,
+  type SDKRequestTitleProps,
+  SDKBreadcrumbs,
+  SDKIcon,
+  SDKOverview,
+  SDKLanguageBlock,
+} from '@stainless-api/docs-ui/components';
+
+import { Dropdown } from '@stainless-api/docs/components';
+
+import {
+  RESOLVED_API_REFERENCE_PATH,
+  EXPAND_RESOURCES,
+  HIGHLIGHT_THEMES,
+  BREADCRUMB_CONFIG,
+  PROPERTY_SETTINGS,
+  ENABLE_CONTEXT_MENU,
+  EXPERIMENTAL_COLLAPSIBLE_METHOD_DESCRIPTIONS,
+} from 'virtual:stl-starlight-virtual-module';
+import style from '@stainless-api/docs-ui/style';
+import { BundledTheme, createHighlighter, HighlighterGeneric, type BundledLanguage } from 'shiki';
+import {
+  SnippetCode,
+  SnippetContainer,
+  SnippetButtons,
+  SnippetFooter,
+  SnippetResponse,
+} from '../components/SnippetCode';
+import type { StlStarlightMiddleware } from '../middlewareBuilder/stainlessMiddleware';
+import { ComponentProvider } from '@stainless-api/docs-ui/contexts/component';
+import { AIDropdown } from '../../stl-docs/components/AIDropdown';
+import { ChevronsUpDownIcon } from 'lucide-react';
+import { MethodDescription } from '../components/MethodDescription';
+
+function isResourceNonEmpty(resource: SDKJSON.Resource) {
+  return (
+    Object.keys(resource.methods ?? {}).length > 0 ||
+    Object.keys(resource.subresources ?? {}).length > 0 ||
+    Object.keys(resource.models ?? {}).length > 0
+  );
+}
+
+type SidebarEntry = StarlightRouteData['sidebar'][number];
+
+export function buildSidebar(
+  basePath: string,
+  language: DocsLanguage,
+  current: string,
+  spec: SDKJSON.Spec,
+  resources?: Record<string, SDKJSON.Resource>,
+  nested?: boolean,
+): StarlightRouteData['sidebar'] {
+  const totalRoutes = Array.from(walkTree(spec, false)).filter(
+    (item) => item.data.kind === 'http_method',
+  ).length;
+
+  return Object.values(resources ?? spec.resources ?? [])
+    .filter((resource) => isResourceNonEmpty(resource))
+    .sort((a, b) => (a.name.startsWith('$') === b.name.startsWith('$') ? 0 : a.name.startsWith('$') ? 1 : -1))
+    .map((resource) => {
+      const subs = buildSidebar(basePath, language, current, spec, resource.subresources, true);
+
+      const overview: SidebarEntry = {
+        type: 'link',
+        isCurrent: current === resource.stainlessPath,
+        attrs: { 'data-stldocs-overview': resource.name },
+        label: 'Overview',
+        href: generateRoute(basePath, language, resource.stainlessPath) ?? basePath,
+        badge: undefined,
+      };
+
+      const meths: SidebarEntry[] = Object.values(resource.methods ?? [])
+        .filter((method) => spec.decls?.[language]?.[method.stainlessPath])
+        .map((method) => ({
+          type: 'link',
+          isCurrent: current === method.stainlessPath,
+          attrs: { 'data-stldocs-method': method.httpMethod },
+          label: method.summary ?? method.name,
+          href: generateRoute(basePath, language, method.stainlessPath) ?? basePath,
+          badge: undefined,
+        }));
+
+      const shouldExpand = EXPAND_RESOURCES ?? totalRoutes < 20;
+
+      return {
+        type: 'group',
+        label: resource.title,
+        badge: undefined,
+        collapsed: !shouldExpand || nested === true,
+        entries: [...(resources ? [] : [overview]), ...meths, ...subs],
+      };
+    });
+}
+
+export function buildPageNavigation(resource: SDKJSON.Resource, depth: number = 2): MarkdownHeading[] {
+  const output: MarkdownHeading[] = [{ depth, slug: resource.stainlessPath, text: resource.title }];
+
+  const subs = Object.values(resource.subresources ?? {}).flatMap((sub) =>
+    buildPageNavigation(sub, depth + 1),
+  );
+
+  return [...output, ...subs];
+}
+
+async function renderMarkdown(content: string) {
+  const highlighter = await astroHighlight();
+
+  const renderer = {
+    code({ text, lang }: Tokens.Code) {
+      return shikiHighlight({
+        highlighter,
+        content: text,
+        language: lang,
+      });
+    },
+  };
+
+  marked.use({ renderer });
+  return marked.parse(content, {
+    gfm: true,
+  }) as string;
+}
+
+function shikiHighlight({
+  highlighter,
+  content,
+  language,
+  themes,
+}: {
+  highlighter: HighlighterGeneric<BundledLanguage, BundledTheme>;
+  content: string;
+  language?: string;
+  themes?: CreateShikiHighlighterOptions['themes'] | Record<string, 'stainless-docs-json'>;
+}) {
+  let _themes = themes;
+  if (!themes && language === 'json') {
+    _themes = {
+      light: 'stainless-docs-json',
+      dark: 'stainless-docs-json',
+    };
+  }
+
+  if (!_themes) {
+    _themes = HIGHLIGHT_THEMES;
+  }
+  return highlighter.codeToHtml(content, {
+    lang: language ?? 'javascript',
+    themes: _themes || {},
+  });
+}
+
+async function highlight(content: string, language?: string) {
+  const highlighter = await astroHighlight();
+  return shikiHighlight({ highlighter, content, language });
+}
+
+export function SDKSelectReactComponent({
+  selected,
+  languages,
+  className,
+  ...rest
+}: {
+  selected: DocsLanguage;
+  languages: DocsLanguage[];
+  className?: string;
+} & Omit<React.ComponentProps<'div'>, 'children'>) {
+  return (
+    <Dropdown data-current-value={selected} className={className} {...rest}>
+      <Dropdown.Trigger>
+        <Dropdown.TriggerSelectedItem>
+          <Dropdown.Icon>
+            <SDKIcon language={getLanguageSnippet(selected)} />
+          </Dropdown.Icon>
+          <span className="stl-snippet-dropdown-button-text">{LanguageNames[selected]}</span>
+        </Dropdown.TriggerSelectedItem>
+        <Dropdown.TriggerIcon>
+          <ChevronsUpDownIcon size={16} />
+        </Dropdown.TriggerIcon>
+      </Dropdown.Trigger>
+      <Dropdown.Menu
+        className="dropdown-menu stl-sdk-select-dropdown-menu"
+        aria-labelledby="stl-docs-snippet-title-button"
+      >
+        {languages.map((item) => (
+          <Dropdown.MenuItem key={item} value={item} isSelected={item === selected}>
+            <Dropdown.Icon>
+              <SDKIcon language={getLanguageSnippet(item)} size={16} />
+            </Dropdown.Icon>
+            <Dropdown.MenuItemText>{LanguageNames[item]}</Dropdown.MenuItemText>
+            <Dropdown.MenuItemTemplate>
+              <Dropdown.Icon>
+                <SDKIcon language={getLanguageSnippet(item)} size={16} />
+              </Dropdown.Icon>
+              <span className="stl-snippet-dropdown-button-text">{LanguageNames[item]}</span>
+            </Dropdown.MenuItemTemplate>
+          </Dropdown.MenuItem>
+        ))}
+      </Dropdown.Menu>
+    </Dropdown>
+  );
+}
+
+function SDKRequestTitle({ snippetLanguage }: SDKRequestTitleProps) {
+  const selected = snippetLanguage.split('.').at(0) as DocsLanguage;
+  const languages = getDocsLanguages();
+
+  return (
+    <SDKSelectReactComponent
+      selected={selected || 'http'}
+      languages={languages}
+      data-stldocs-snippet-select
+      className="stl-sdk-select stl-ui-not-prose"
+    />
+  );
+}
+
+export type SpecMetadata = [
+  DocsLanguage,
+  {
+    repo_url?: string;
+    code_url?: string;
+    package_title?: string;
+    version?: string;
+    install?: string;
+  },
+][];
+
+const componentOverrides = {
+  SDKRequestTitle,
+  SnippetCode,
+  SnippetContainer,
+  SnippetButtons,
+  SnippetFooter,
+  SnippetResponse,
+  ...(EXPERIMENTAL_COLLAPSIBLE_METHOD_DESCRIPTIONS ? { MethodDescription } : {}),
+} satisfies React.ComponentProps<typeof ComponentProvider>['components'];
+
+export function RenderLibraries({ metadata }: { metadata: SpecMetadata }) {
+  return (
+    <ComponentProvider components={componentOverrides}>
+      {metadata.map(([language, data]) => (
+        <SDKLanguageBlock
+          key={language}
+          language={language}
+          version={data.version || ''}
+          install={data.install || ''}
+          links={{ repo: data.repo_url || '#', docs: `${RESOLVED_API_REFERENCE_PATH}/${language}` }}
+        />
+      ))}
+    </ComponentProvider>
+  );
+}
+
+export function RenderSpecOverview({ spec, language }: { spec: SDKJSON.Spec; language: DocsLanguage }) {
+  const resources = React.useMemo(() => flatResources(spec.resources, []), [spec]);
+
+  return (
+    <DocsProvider spec={spec} language={language ?? 'node'}>
+      <ComponentProvider components={componentOverrides}>
+        <NavigationProvider basePath={RESOLVED_API_REFERENCE_PATH}>
+          <MarkdownProvider render={renderMarkdown} highlight={highlight}>
+            <div className={style.Overview}>
+              {resources
+                .filter(({ resource }) => !resource.name.startsWith('$'))
+                .map(({ resource, parents }) => (
+                  <SDKResource
+                    key={resource.stainlessPath}
+                    resource={resource}
+                    parents={parents}
+                    showModels={false}
+                  />
+                ))}
+            </div>
+          </MarkdownProvider>
+        </NavigationProvider>
+      </ComponentProvider>
+    </DocsProvider>
+  );
+}
+
+export function RenderSpec({
+  spec,
+  kind,
+  path,
+  language,
+  currentPath,
+  contentPanelLayout = 'double-pane',
+  transformRequestSnippet,
+}: {
+  spec: SDKJSON.Spec;
+  kind: string;
+  path: string;
+  language: DocsLanguage;
+  currentPath: string;
+  contentPanelLayout?: ContentPanelLayout;
+  transformRequestSnippet?: StlStarlightMiddleware['transformRequestSnippet'];
+}) {
+  const parsed = parseStainlessPath(path);
+  const resource = getResourceFromSpec(path, spec);
+
+  if (!resource || !parsed) {
+    console.warn(`Could not find resource or parsed path for '${path}'`);
+    return null;
+  }
+
+  return (
+    <DocsProvider
+      spec={spec as SDKJSON.Spec}
+      language={language ?? 'node'}
+      settings={{
+        contentPanelLayout,
+        properties: PROPERTY_SETTINGS,
+      }}
+    >
+      <ComponentProvider components={componentOverrides}>
+        <NavigationProvider basePath={RESOLVED_API_REFERENCE_PATH} selectedPath={path}>
+          <MarkdownProvider render={renderMarkdown} highlight={highlight}>
+            {
+              <div className="stldocs-root stl-ui-not-prose">
+                <div className="stl-page-nav-container">
+                  <SDKBreadcrumbs
+                    spec={spec as SDKJSON.Spec}
+                    currentPath={currentPath}
+                    basePath={RESOLVED_API_REFERENCE_PATH}
+                    config={BREADCRUMB_CONFIG}
+                  />
+                  {ENABLE_CONTEXT_MENU && <AIDropdown />}
+                </div>
+                {kind === 'http_method' ? (
+                  <SDKMethod
+                    method={resource.methods[parsed.method!]!}
+                    transformRequestSnippet={transformRequestSnippet}
+                  />
+                ) : (
+                  <SDKOverview resource={resource} />
+                )}
+              </div>
+            }
+          </MarkdownProvider>
+        </NavigationProvider>
+      </ComponentProvider>
+    </DocsProvider>
+  );
+}
+
+export function RenderMethod({ path }: { path: string }) {
+  const spec = useSpec();
+  if (!spec) return null;
+
+  const parsed = parseStainlessPath(path);
+  const resource = getResourceFromSpec(path, spec);
+
+  if (!resource || !parsed) {
+    console.warn(`Could not find resource or parsed path for '${path}'`);
+    return null;
+  }
+
+  const method = resource.methods[parsed.method!]!;
+  return <SDKMethod method={method} />;
+}
+
+export async function getReadmeContent(spec: SDKJSON.Spec, language: DocsLanguage) {
+  const repoUrl = spec.metadata?.[language]?.repo_url;
+
+  try {
+    if (repoUrl) {
+      const rawUrl = repoUrl.replace('www.github.com', 'raw.githubusercontent.com');
+
+      const response = await fetch(`${rawUrl}/refs/heads/main/README.md`);
+      if (response && response.ok) return response.text();
+    }
+  } catch {
+    // ignore
+  }
+
+  return spec.readme[language];
+}
+
+let astroShikiHighlighter:
+  | HighlighterGeneric<BundledLanguage, BundledTheme>
+  | Promise<HighlighterGeneric<BundledLanguage, BundledTheme>>
+  | null = null;
+
+async function astroHighlight() {
+  if (astroShikiHighlighter) {
+    return astroShikiHighlighter;
+  }
+
+  astroShikiHighlighter = createHighlighter({
+    themes: [
+      'github-light',
+      'github-dark',
+      {
+        name: 'stainless-docs-json',
+        colors: {
+          'editor.background': 'var(--stl-color-background)',
+          'editor.foreground': 'var(--stl-color-foreground)',
+        },
+
+        tokenColors: [
+          {
+            scope: ['comment', 'punctuation.definition.comment'],
+            settings: { foreground: 'var(--stl-color-foreground-muted)' },
+          },
+          // numbers, booleans, null
+          {
+            scope: ['constant.numeric', 'constant.language'],
+            settings: { foreground: 'var(--stl-color-orange-foreground)' },
+          },
+          // strings
+          {
+            scope: ['string', 'string.quoted', 'string.template'],
+            settings: { foreground: 'var(--stl-color-green-foreground)' },
+          },
+          // Keys, brackets
+          {
+            scope: ['support.type', 'meta'],
+            settings: { foreground: 'var(--stl-color-foreground)' },
+          },
+          // brackets
+          {
+            scope: ['meta'],
+            settings: { foreground: 'var(--stl-color-foreground-muted)' },
+          },
+          // built-in types
+          {
+            scope: ['support.type.builtin'],
+            settings: { foreground: 'var(--stl-color-purple-foreground)' },
+          },
+        ],
+      },
+    ],
+    langs: SupportedLanguageSyntaxes,
+  });
+
+  return astroShikiHighlighter;
+}
+
+// Astro's markdown processor is a singleton
+// Need to cache it instead of instantiating per request
+let astroMarkdownProcessor: MarkdownProcessor;
+async function astroMarkdown() {
+  if (!astroMarkdownProcessor) {
+    astroMarkdownProcessor = await createMarkdownProcessor({
+      gfm: true,
+      remarkPlugins: [remarkGfmAlerts],
+      shikiConfig: {
+        themes: HIGHLIGHT_THEMES,
+      },
+    });
+  }
+
+  return astroMarkdownProcessor;
+}
+
+export async function astroMarkdownRender(content: string) {
+  const md = await astroMarkdown();
+  const output = await md.render(content);
+
+  // Map GFM callouts to the closest Starlight equivalent
+  output.code = output.code
+    .replaceAll('markdown-alert-caution', 'markdown-alert-danger')
+    .replaceAll('markdown-alert-warning', 'markdown-alert-caution')
+    .replaceAll('markdown-alert-important', 'markdown-alert-caution')
+    .replaceAll('markdown-alert-title', 'starlight-aside__title')
+    .replaceAll('markdown-alert-', 'starlight-aside--')
+    .replaceAll('markdown-alert', 'starlight-aside');
+
+  return output;
+}

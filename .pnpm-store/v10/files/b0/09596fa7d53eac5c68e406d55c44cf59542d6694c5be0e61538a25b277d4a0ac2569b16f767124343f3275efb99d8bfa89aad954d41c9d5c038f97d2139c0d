@@ -1,0 +1,97 @@
+import "../use-strict-context-L0c8JKg4.js";
+import { useComponents } from "../contexts/use-components.js";
+import style_default from "../style.js";
+import { PropertyToggle } from "./properties.js";
+import "react";
+import { jsx, jsxs } from "react/jsx-runtime";
+import clsx from "clsx";
+import { Badge, getHttpMethod } from "@stainless-api/ui-primitives";
+import { FunctionIcon } from "@stainless-api/ui-primitives/icons";
+
+//#region src/components/method.tsx
+function MethodHeader({ title, badges, signature, children, level }) {
+	const Heading = level ?? "h5";
+	return /* @__PURE__ */ jsxs("div", {
+		className: style_default.MethodHeader,
+		children: [
+			/* @__PURE__ */ jsx(Heading, {
+				className: style_default.MethodTitle,
+				children: title
+			}),
+			badges && /* @__PURE__ */ jsx("div", {
+				className: style_default.MethodBadges,
+				children: badges
+			}),
+			signature,
+			children
+		]
+	});
+}
+function MethodRoute({ httpMethod, endpoint, iconOnly }) {
+	const httpMethodTyped = getHttpMethod(httpMethod);
+	return /* @__PURE__ */ jsxs("div", {
+		className: style_default.MethodRoute,
+		children: [httpMethod ? httpMethodTyped && /* @__PURE__ */ jsx(Badge.HTTP, {
+			method: httpMethodTyped,
+			iconOnly,
+			size: "sm"
+		}) : /* @__PURE__ */ jsx(Badge, {
+			size: "sm",
+			icon: /* @__PURE__ */ jsx(FunctionIcon, {}),
+			intent: "info",
+			children: !iconOnly && "Function"
+		}), endpoint && /* @__PURE__ */ jsx("span", {
+			className: style_default.MethodRouteEndpoint,
+			children: endpoint
+		})]
+	});
+}
+function MethodDescription({ description }) {
+	const { Markdown } = useComponents();
+	if (description) return /* @__PURE__ */ jsx("div", {
+		className: style_default.MethodDescription,
+		children: /* @__PURE__ */ jsx(Markdown, { content: description })
+	});
+}
+function MethodInfo({ children, parameters, returns }) {
+	return /* @__PURE__ */ jsxs("div", {
+		className: style_default.MethodInfo,
+		children: [
+			children && /* @__PURE__ */ jsx("div", {
+				className: style_default.MethodContent,
+				children
+			}),
+			parameters && /* @__PURE__ */ jsxs("div", {
+				className: style_default.MethodInfoSection,
+				children: [/* @__PURE__ */ jsxs("h5", { children: ["Parameters", /* @__PURE__ */ jsx(PropertyToggle, { target: "parameters" })] }), /* @__PURE__ */ jsx("div", {
+					className: style_default.MethodParameters,
+					"data-stldocs-property-group": "parameters",
+					children: parameters
+				})]
+			}),
+			returns && /* @__PURE__ */ jsxs("div", {
+				className: style_default.MethodInfoSection,
+				children: [/* @__PURE__ */ jsxs("h5", { children: ["Returns", /* @__PURE__ */ jsx(PropertyToggle, { target: "returns" })] }), /* @__PURE__ */ jsx("div", {
+					className: style_default.MethodReturns,
+					"data-stldocs-property-group": "returns",
+					children: returns
+				})]
+			})
+		]
+	});
+}
+function Method({ id, header, children, className, ...props }) {
+	return /* @__PURE__ */ jsxs("div", {
+		id,
+		className: clsx(style_default.Method, className),
+		tabIndex: 0,
+		...props,
+		children: [header, /* @__PURE__ */ jsx("div", {
+			className: style_default.MethodBody,
+			children
+		})]
+	});
+}
+
+//#endregion
+export { Method, MethodDescription, MethodHeader, MethodInfo, MethodRoute };

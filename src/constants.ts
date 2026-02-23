@@ -12,7 +12,11 @@
 export const PRODUCT_PREFIX = 'Tiger';
 export const COMPANY = `${PRODUCT_PREFIX} Data`;
 export const COMPANY_URL = 'https://www.tigerdata.com';
-export const PG = 'Postgres';
+
+/** Canonical display name for the database (use this constant everywhere so it can be changed in one place). */
+export const POSTGRESQL = 'PostgreSQL';
+/** Alias for POSTGRESQL; used in prose and component strings. */
+export const PG = POSTGRESQL;
 
 // Pricing
 

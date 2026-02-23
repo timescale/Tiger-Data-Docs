@@ -1,0 +1,71 @@
+import type { StarlightRouteData } from '@astrojs/starlight/route-data';
+import { getCollection } from 'astro:content';
+
+export type SidebarEntry = StarlightRouteData['sidebar'][number];
+export type SidebarLink = Extract<SidebarEntry, { type: 'link' }>;
+export type SidebarGroup = Extract<SidebarEntry, { type: 'group' }>;
+
+export const flattenSidebar = (sidebar: SidebarEntry[]): SidebarLink[] =>
+  sidebar.flatMap((e) => (e.type === 'group' ? flattenSidebar(e.entries) : e));
+
+function findParentOfSidebarEntry(sidebar: SidebarEntry[], targetEntry: SidebarEntry): SidebarGroup | null {
+  for (const entry of sidebar) {
+    if (entry.type === 'group') {
+      if (entry.entries.includes(targetEntry)) {
+        return entry;
+      }
+      const foundInChild = findParentOfSidebarEntry(entry.entries, targetEntry);
+      if (foundInChild) {
+        return foundInChild;
+      }
+    }
+  }
+  return null;
+}
+
+export async function getPrevNextPage(page: StarlightRouteData, paginationEnabled: boolean) {
+  // TODO: respect user `next` / `prev` config from frontmatter the way starlight does
+
+  if (!paginationEnabled) return null;
+
+  const docsContent = await getCollection('docs');
+  const findSidebarLinkInContent = (link: SidebarLink) =>
+    docsContent.find((doc) => {
+      if (doc.id === 'index' && link.href === '/') return true;
+      return doc.id === link.href.replace(/^\//, '').replace(/\/$/, '');
+    });
+
+  const currentSidebar = page.sidebar;
+
+  const paginationSequence: (SidebarLink & { description?: string })[] = flattenSidebar(currentSidebar)
+    // Remove injected stl-mobile-only-sidebar-item links - TODO: better solution for this
+    .filter((link) => !(link.attrs.class ?? '').trim().split(/\s+/).includes('stl-mobile-only-sidebar-item'))
+    // Remove data-stldocs-method links from pagination sequence
+    .filter((link) => !link.attrs['data-stldocs-method'])
+    // Map data-stldocs-overview=readme links so that their name is not just “Overview”
+    .map((link) => {
+      if (link.attrs['data-stldocs-overview'] && link.label === 'Overview') {
+        const parent = findParentOfSidebarEntry(currentSidebar, link);
+        if (parent) return { ...link, label: parent.label };
+      }
+      return link;
+    })
+    .map((link) => {
+      const contentEntry = findSidebarLinkInContent(link);
+      if (contentEntry) return { ...link, description: contentEntry.data.description };
+      return link;
+    });
+
+  const currentIndex = paginationSequence.findIndex((e) => e.isCurrent);
+  if (currentIndex === -1) return null;
+
+  const prevIndex = currentIndex > 0 ? currentIndex - 1 : null;
+  const nextIndex = currentIndex < paginationSequence.length - 1 ? currentIndex + 1 : null;
+  const prevSidebarEntry = prevIndex !== null ? (paginationSequence[prevIndex] ?? null) : null;
+  const nextSidebarEntry = nextIndex !== null ? (paginationSequence[nextIndex] ?? null) : null;
+
+  return {
+    prev: prevSidebarEntry,
+    next: nextSidebarEntry,
+  };
+}

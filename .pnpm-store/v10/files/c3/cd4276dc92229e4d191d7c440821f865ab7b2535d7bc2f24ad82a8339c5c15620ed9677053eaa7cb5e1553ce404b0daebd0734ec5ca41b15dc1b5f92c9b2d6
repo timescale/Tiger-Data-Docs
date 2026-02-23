@@ -1,0 +1,205 @@
+import { t as __exportAll } from "./chunk-BYypO7fO.js";
+
+//#region src/routing.ts
+var routing_exports = /* @__PURE__ */ __exportAll({
+	LanguageNames: () => LanguageNames,
+	Languages: () => Languages,
+	SupportedLanguageSyntaxes: () => SupportedLanguageSyntaxes,
+	expandToElement: () => expandToElement,
+	findNavigationPath: () => findNavigationPath,
+	generateMissingRouteList: () => generateMissingRouteList,
+	generateRoute: () => generateRoute,
+	generateRouteList: () => generateRouteList,
+	getLanguageSnippet: () => getLanguageSnippet,
+	getResource: () => getResource,
+	isSupportedLanguage: () => isSupportedLanguage,
+	parseRoute: () => parseRoute,
+	parseStainlessPath: () => parseStainlessPath,
+	scrollToPath: () => scrollToPath,
+	trimStainlessPath: () => trimStainlessPath,
+	updateHistory: () => updateHistory,
+	walkTree: () => walkTree
+});
+const Languages = [
+	"http",
+	"node",
+	"python",
+	"go",
+	"typescript",
+	"terraform",
+	"ruby",
+	"java",
+	"kotlin",
+	"csharp",
+	"php",
+	"cli"
+];
+const SupportedLanguageSyntaxes = [
+	"http",
+	"javascript",
+	"python",
+	"go",
+	"typescript",
+	"terraform",
+	"ruby",
+	"java",
+	"kotlin",
+	"csharp",
+	"bash"
+];
+const LanguageNames = {
+	http: "HTTP",
+	node: "TypeScript",
+	typescript: "TypeScript",
+	python: "Python",
+	go: "Go",
+	ruby: "Ruby",
+	java: "Java",
+	kotlin: "Kotlin",
+	terraform: "Terraform",
+	csharp: "C#",
+	php: "PHP",
+	cli: "CLI Tool"
+};
+function getLanguageSnippet(language) {
+	return language === "http" ? "http.curl" : `${language}.default`;
+}
+function isSupportedLanguage(language) {
+	return Languages.includes(language);
+}
+const DefaultLanguage = "http";
+const StainlessPathPattern = /(\(resource\) (?<resource>[^\s]+))( > (\(method\) (?<method>[^\s]+)|\(model\) (?<model>[^\s]+))?)?/;
+function parseStainlessPath(stainlessPath) {
+	const match = stainlessPath.match(StainlessPathPattern);
+	if (!match?.groups) return null;
+	return {
+		resource: match.groups.resource?.split(".") ?? null,
+		method: match.groups.method ?? null,
+		model: match.groups.model ?? null,
+		routable: match.groups.model ? match[1] : match[0]
+	};
+}
+function trimStainlessPath(stainlessPath) {
+	return stainlessPath.replace(/ > \([^\s]+\)$/, "");
+}
+function getResource(stainlessPath) {
+	return parseStainlessPath(stainlessPath)?.resource?.[0];
+}
+function parseRoute(basePath, route) {
+	if (!route.startsWith(basePath)) return {
+		stainlessPath: "",
+		language: DefaultLanguage
+	};
+	if (basePath && route.startsWith(basePath)) route = route.slice(basePath.length);
+	let stainlessPath = "";
+	let elements = route.slice(1).split("/");
+	let language = DefaultLanguage;
+	if (elements[0] && Languages.includes(elements[0])) {
+		language = elements[0];
+		elements = elements.slice(1);
+	}
+	while (elements.length > 0) switch (elements.shift()) {
+		case "resources":
+			stainlessPath += `(resource) ${elements.shift()}`;
+			break;
+		case "subresources":
+			stainlessPath += `.${elements.shift()}`;
+			break;
+		case "methods":
+			stainlessPath += ` > (method) ${elements.shift()}`;
+			break;
+	}
+	return {
+		stainlessPath,
+		language
+	};
+}
+function generateRoute(basePath, language, stainlessPath) {
+	const parsedPath = parseStainlessPath(stainlessPath);
+	if (!parsedPath) return null;
+	const path = [basePath.endsWith("/") ? basePath.slice(0, -1) : basePath];
+	if (language && language !== DefaultLanguage) path.push(language);
+	const resources = parsedPath.resource.flatMap((name, index) => [index > 0 ? "subresources" : "resources", name]);
+	const resourcePath = parsedPath.model ? resources.slice(0, 2) : resources;
+	path.push(...resourcePath);
+	if (parsedPath.method) path.push("methods", parsedPath.method);
+	return stainlessPath.length > parsedPath.routable.length ? `${path.join("/")}#${encodeURIComponent(stainlessPath)}` : path.join("/");
+}
+function* walkResource(resource, path, includeModels) {
+	yield {
+		data: resource,
+		path
+	};
+	for (const data of Object.values(resource.methods)) yield {
+		data,
+		path: [
+			...path,
+			"methods",
+			data.name
+		]
+	};
+	if (includeModels) for (const data of Object.values(resource.models)) yield {
+		data,
+		path: [
+			...path,
+			"models",
+			data.name
+		]
+	};
+	for (const data of Object.values(resource.subresources ?? {})) yield* walkResource(data, [
+		...path,
+		"subresources",
+		data.name
+	]);
+}
+function* walkTree(spec, includeModels) {
+	for (const data of Object.values(spec.resources)) yield* walkResource(data, ["resources", data.name], includeModels);
+}
+function generateRouteList({ spec, languages, excludeLanguages = [] }) {
+	const entries = Array.from(walkTree(spec));
+	return (languages ?? spec.docs?.languages ?? ["http"]).filter((lang) => Languages.includes(lang)).filter((lang) => !excludeLanguages?.includes(lang)).flatMap((language) => entries.map(({ path, data: { title, kind, stainlessPath } }) => ({
+		title,
+		kind,
+		language,
+		stainlessPath,
+		slug: (language === "http" ? path : [language, ...path]).join("/")
+	})));
+}
+function generateMissingRouteList({ spec, basePath }) {
+	const entries = Array.from(walkTree(spec));
+	return (spec.docs?.languages ?? ["http"]).filter((lang) => Languages.includes(lang)).flatMap((language) => entries.filter(({ data: { stainlessPath, ...rest } }) => {
+		if (spec.decls?.[language]?.[stainlessPath] === void 0) return rest.kind === "http_method";
+		return false;
+	}).map(({ path }) => `${basePath.endsWith("/") ? basePath.slice(0, -1) : basePath}/${language === "http" ? path.join("/") : [language, ...path].join("/")}`));
+}
+function findNavigationPath(items, target) {
+	for (const item of Object.values(items)) {
+		if (item.stainlessPath === target) return [item.stainlessPath];
+		if (item.kind === "http_method") continue;
+		const path = findNavigationPath([...Object.values(item.methods ?? {}), ...Object.values(item.subresources ?? {})], target);
+		if (path) return [item.stainlessPath, ...path];
+	}
+}
+function expandToElement(el) {
+	while (el) {
+		if (el instanceof HTMLDetailsElement) el.open = true;
+		el = el.parentElement;
+	}
+}
+function scrollToPath(stainlessPath) {
+	const el = document.getElementById(stainlessPath);
+	if (el) {
+		expandToElement(el);
+		el.scrollIntoView({ behavior: "smooth" });
+	}
+}
+function updateHistory(basePath, language, stainlessPath) {
+	const path = generateRoute(basePath, language, stainlessPath);
+	window.history.pushState({
+		stainlessPath,
+		language
+	}, "", path);
+}
+
+//#endregion
+export { LanguageNames, Languages, SupportedLanguageSyntaxes, expandToElement, findNavigationPath, generateMissingRouteList, generateRoute, generateRouteList, getLanguageSnippet, getResource, isSupportedLanguage, parseRoute, parseStainlessPath, scrollToPath, routing_exports as t, trimStainlessPath, updateHistory, walkTree };

@@ -1,0 +1,97 @@
+---
+import { DocsSearch } from './SearchIsland';
+import { Button } from '@stainless-api/ui-primitives';
+import { SearchIcon, XIcon } from 'lucide-react';
+---
+
+<site-search>
+  <Button
+    popoverTarget="stldocs-search"
+    data-open-modal
+    aria-label={Astro.locals.t('search.label')}
+    aria-keyshortcuts="Control+K"
+    variant="outline"
+    className="stl-algolia-search"
+  >
+    <SearchIcon className="icon-search" size={14} />
+    <XIcon className="icon-close" size={14} />
+    <span class="sl-hidden md:sl-block" aria-hidden="true">{Astro.locals.t('search.label')}</span>
+    <kbd class="sl-hidden md:sl-flex" style="display: none;">
+      <kbd>{Astro.locals.t('search.ctrlKey')}</kbd><kbd>K</kbd>
+    </kbd>
+  </Button>
+
+  <DocsSearch
+    client:only="react"
+    currentPath={Astro.url.pathname}
+    settings={{
+      searchKey: import.meta.env['PUBLIC_ALGOLIA_SEARCH_KEY'],
+      indexName: import.meta.env['PUBLIC_ALGOLIA_INDEX'],
+      assistant: import.meta.env['PUBLIC_ALGOLIA_ASSISTANT'],
+      appId: import.meta.env['PUBLIC_ALGOLIA_APP_ID'],
+    }}
+  />
+</site-search>
+
+<script is:inline>
+  function setupShortcut() {
+    const openBtn = document.querySelector('button[data-open-modal]');
+    const shortcut = openBtn?.querySelector('kbd');
+
+    if (!openBtn || !(shortcut instanceof HTMLElement)) return;
+
+    const platformKey = shortcut.querySelector('kbd');
+    if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+      platformKey.textContent = '⌘';
+      openBtn.setAttribute('aria-keyshortcuts', 'Meta+K');
+    }
+
+    shortcut.style.display = '';
+  }
+  document.addEventListener('astro:page-load', setupShortcut);
+  setupShortcut();
+
+  // important: this fn should not be called inside astro:page-load
+  window.addEventListener('keydown', (e) => {
+    if ((e.metaKey === true || e.ctrlKey === true) && e.key === 'k') {
+      document.getElementById('stldocs-search')?.togglePopover();
+      e.preventDefault();
+    }
+  });
+</script>
+
+<style is:inline>
+  .default-tabs-container .stl-algolia-search {
+    max-width: unset;
+    width: unset;
+    flex-grow: 1;
+  }
+  .stl-algolia-search {
+    padding: 0;
+  }
+  @media (min-width: 50rem) {
+    .stl-algolia-search {
+      padding: 8px 10px;
+    }
+  }
+
+  .stl-algolia-search {
+    .icon-search {
+      display: inline;
+    }
+
+    .icon-close {
+      display: none;
+    }
+  }
+
+  site-search:has(#stldocs-search[data-stldocs-modal-open='true']) .stl-algolia-search {
+    .icon-search {
+      display: none;
+    }
+
+    .icon-close {
+      display: inline;
+    }
+  }
+</style>

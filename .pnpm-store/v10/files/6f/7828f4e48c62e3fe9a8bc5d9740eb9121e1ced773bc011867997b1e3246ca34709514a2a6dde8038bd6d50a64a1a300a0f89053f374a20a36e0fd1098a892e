@@ -1,0 +1,19 @@
+import { generateIndex } from "../indexer.js";
+import { SearchableAttributes } from "../types.js";
+import Fuse from "fuse.js";
+
+//#region src/providers/fuse.ts
+function buildIndex(spec, language) {
+	const idx = Array.from(generateIndex(spec, void 0, false));
+	const content = language ? idx.filter((entry) => entry.language === language) : idx;
+	return {
+		content,
+		index: Fuse.createIndex([...SearchableAttributes], content)
+	};
+}
+function search({ content, index }, query, limit = 100) {
+	return new Fuse(content, { keys: [...SearchableAttributes] }, index).search(query).slice(0, limit);
+}
+
+//#endregion
+export { buildIndex, search };

@@ -1,0 +1,243 @@
+import { initDropdownButton } from '@stainless-api/ui-primitives/scripts';
+import { getPageLoadEvent } from '../helpers/getPageLoadEvent';
+
+export type DropdownIcon = 'markdown' | 'copy' | 'claude' | 'chatgpt' | 'gemini' | 'cursor';
+
+interface DropdownOptionInputProps {
+  onClick: () => void;
+  icon: DropdownIcon;
+  primaryAction?: boolean;
+  clientHidden?: boolean;
+  external: boolean;
+}
+
+function option(label: string[] | string, props: DropdownOptionInputProps) {
+  const labelArr = typeof label === 'string' ? [label] : label;
+  return {
+    ...props,
+    label: labelArr,
+    primaryAction: props.primaryAction ?? false,
+    clientHidden: props.clientHidden ?? false,
+    id: labelArr.join('').toLowerCase().replace(/ /g, '-'),
+  };
+}
+
+type DropdownOption = ReturnType<typeof option>;
+
+function getMarkdownUrl(type: 'relative' | 'absolute') {
+  const currentUrl = new URL(window.location.href);
+  const hasTrailingSlash = currentUrl.pathname.endsWith('/');
+
+  const markdownUrl = [
+    type === 'absolute' ? currentUrl.origin : '',
+    currentUrl.pathname,
+    hasTrailingSlash ? '' : '/',
+    'index.md',
+  ].join('');
+
+  return markdownUrl;
+}
+
+function getURLEncodedPrompt() {
+  const mdUrl = getMarkdownUrl('absolute');
+  const aiPrompt = encodeURIComponent(
+    `Load the contents of ${mdUrl} into this chat's context so we can discuss it.`,
+  );
+  return aiPrompt;
+}
+
+function openDeepLink({ deepLinkUrl, fallbackUrl }: { deepLinkUrl: string; fallbackUrl: string }) {
+  if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrom')) {
+    // safari doesn't let us detect if the deep link worked
+    window.open(fallbackUrl, '_blank');
+    return;
+  }
+
+  const controller = new AbortController();
+  let frame: HTMLIFrameElement | null;
+
+  // We are using a native deep link with a fallback web url.
+  if (navigator.userAgent.includes('Chrom')) {
+    // In Chrome, load it in a hidden frame, this shows the "Do you want to open ...?" prompt, but unlike
+    // top level navigation this preserves our userActivation, so we can open the fallback if it fails.
+    frame = Object.assign(document.createElement('iframe'), { src: deepLinkUrl });
+    document.head.append(frame);
+  } else {
+    // In Firefox do the opposite.
+    location.href = deepLinkUrl;
+  }
+
+  // The popup (in non-Safari browsers) fires a `blur` event.
+  window.addEventListener(
+    'blur',
+    () => {
+      controller.abort();
+    },
+    controller,
+  );
+
+  // If it's been 300ms with no popup, open the fallback web url.
+  const timeout = setTimeout(() => {
+    window.open(fallbackUrl, '_blank');
+  }, 300);
+
+  controller.signal.addEventListener('abort', () => {
+    clearTimeout(timeout);
+    frame?.remove();
+  });
+}
+
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
+const hasMobileUserAgent = navigator.userAgent.includes('Mobi');
+
+// 2d array of dropdown options
+// each sub-array is a group, separated by a horizontal rule in the UI
+const aiDropdownOptions: DropdownOption[][] = [
+  [
+    option(['Open in ', 'Claude'], {
+      onClick: () => {
+        window.open(`https://claude.ai/new?q=${getURLEncodedPrompt()}`, '_blank');
+      },
+      icon: 'claude',
+      primaryAction: false,
+      external: true,
+    }),
+    option(['Open in ', 'ChatGPT'], {
+      onClick: () => {
+        window.open(`https://chatgpt.com/?hints=search&prompt=${getURLEncodedPrompt()}`, '_blank');
+      },
+      icon: 'chatgpt',
+      primaryAction: false,
+      external: true,
+    }),
+    option(['Open in ', 'Cursor'], {
+      onClick: () => {
+        const aiPrompt = getURLEncodedPrompt();
+        openDeepLink({
+          deepLinkUrl: `cursor://anysphere.cursor-deeplink/prompt?text=${aiPrompt}`,
+          fallbackUrl: `https://cursor.com/link/prompt?text=${aiPrompt}`,
+        });
+      },
+      clientHidden: hasMobileUserAgent,
+      icon: 'cursor',
+      primaryAction: false,
+      external: true,
+    }),
+  ],
+  [
+    option('Copy Markdown', {
+      onClick: () => {
+        // Source: https://wolfgangrittner.dev/how-to-use-clipboard-api-in-firefox/
+        const markdownUrl = getMarkdownUrl('relative');
+        // ClipboardItem doesn't exist in every browser
+        // eslint-disable-next-line no-constant-binary-expression
+        if (typeof ClipboardItem && navigator.clipboard.write) {
+          // NOTE: Safari locks down the clipboard API to only work when triggered
+          //   by a direct user interaction. You can't use it async in a promise.
+          //   But! You can wrap the promise in a ClipboardItem, and give that to
+          //   the clipboard API.
+          //   Found this on https://developer.apple.com/forums/thread/691873
+          const text = new ClipboardItem({
+            'text/plain': fetch(markdownUrl)
+              .then((response) => response.text())
+              .then((text) => new Blob([text], { type: 'text/plain' })),
+          });
+          navigator.clipboard.write([text]);
+        } else {
+          // NOTE: Firefox has support for ClipboardItem and navigator.clipboard.write,
+          //   but those are behind `dom.events.asyncClipboard.clipboardItem` preference.
+          //   Good news is that other than Safari, Firefox does not care about
+          //   Clipboard API being used async in a Promise.
+          fetch(markdownUrl)
+            .then((response) => response.text())
+            .then((text) => navigator.clipboard.writeText(text));
+        }
+      },
+      icon: 'copy',
+      primaryAction: true,
+      external: false,
+    }),
+    option('View as Markdown', {
+      onClick: () => {
+        window.open(getMarkdownUrl('absolute'), '_blank');
+      },
+      icon: 'markdown',
+      primaryAction: false,
+      external: true,
+    }),
+  ],
+];
+
+// TODO: Add support for more LLMs
+// {
+//   label: ['Open in ', 'Gemini'],
+//   onClick: () => {
+//     openInLLM('https://gemini.google.com?prompt_action=prefill&prompt_text=');
+//   },
+//   icon: 'gemini',
+//   primaryAction: false,
+// },
+
+export function getAIDropdownOptions() {
+  const renderedOptions = aiDropdownOptions.map((group, index) => {
+    return {
+      options: group,
+      isLast: index === aiDropdownOptions.length - 1,
+      reactKey: index,
+    };
+  });
+
+  const allOptions = renderedOptions.flatMap((group) => group.options);
+  const primaryAction = allOptions.find((o) => o.primaryAction) ?? allOptions[0]!;
+
+  return {
+    primaryAction,
+    groups: renderedOptions,
+  };
+}
+
+export function wireAIDropdown() {
+  const { primaryAction, groups } = getAIDropdownOptions();
+  const flatOptions = groups.flatMap((group) => group.options);
+  function triggerOption(id: string) {
+    const option = flatOptions.find((option) => option.id === id);
+    if (!option) return;
+    option.onClick();
+  }
+
+  document.addEventListener(getPageLoadEvent(), () => {
+    // we hide the Cursor option on non-desktop devices
+    for (const option of flatOptions) {
+      if (option.clientHidden === true) {
+        const el = document.querySelector(
+          `[data-dropdown-id="ai-dropdown-button"] [data-value="${option.id}"]`,
+        );
+        if (el) {
+          el.remove();
+        }
+      }
+    }
+
+    const dropdowns = document.querySelectorAll('[data-dropdown-id="ai-dropdown-button"]');
+
+    dropdowns.forEach((dropdown) => {
+      initDropdownButton({
+        dropdown: dropdown,
+        onSelect: (value) => {
+          triggerOption(value);
+        },
+        onPrimaryAction: (el) => {
+          triggerOption(primaryAction.id);
+          const span = el.querySelector('[data-part="primary-action-text"]');
+          if (span) {
+            const originalContent = span.textContent;
+            span.textContent = 'Copied!';
+            setTimeout(() => {
+              span.textContent = originalContent;
+            }, 2000);
+          }
+        },
+      });
+    });
+  });
+}

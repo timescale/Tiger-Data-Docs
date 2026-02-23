@@ -1,0 +1,99 @@
+import crypto from 'crypto';
+import path from 'path';
+import { readdir, readFile, rm, writeFile } from 'fs/promises';
+
+type CacheResultSource = 'memory' | 'disk' | 'generation';
+
+export type CacheGetResult<T> = {
+  resultSource: CacheResultSource;
+  data: T;
+  filePath: string;
+};
+
+export class FileCache<Inputs extends Record<string, unknown>, Output> {
+  private memoryCache: Map<string, Output> = new Map();
+
+  private cacheDirectory: string | null = null;
+
+  public setCacheDirectory(cacheDirectory: string) {
+    this.cacheDirectory = cacheDirectory;
+  }
+  public getCacheDirectory() {
+    if (!this.cacheDirectory) {
+      console.error(`Tried to retrieve entry from cache, but no cache directory was set.`);
+      process.exit(1);
+    }
+    return this.cacheDirectory;
+  }
+
+  private hashInputs(inputs: Inputs): string {
+    return crypto
+      .createHash('sha256')
+      .update(JSON.stringify(inputs) + this.config.globalHashBits)
+      .digest('hex')
+      .slice(0, 10);
+  }
+
+  private getFileName(hash: string) {
+    return `${hash}.json`;
+  }
+
+  public async cleanupUnusedFiles() {
+    const allFiles = await readdir(this.getCacheDirectory());
+    const usedFiles = Array.from(this.memoryCache.keys()).map((key) => this.getFileName(key));
+    const unusedFiles = allFiles.filter((file) => !usedFiles.includes(file));
+    await Promise.all(unusedFiles.map((file) => rm(path.join(this.getCacheDirectory(), file))));
+    return {
+      deletedCount: unusedFiles.length,
+    };
+  }
+
+  public async get(inputs: Inputs): Promise<CacheGetResult<Output>> {
+    const hash = this.hashInputs(inputs);
+    const filePath = path.join(this.getCacheDirectory(), this.getFileName(hash));
+
+    const memoryCacheResult = this.memoryCache.get(hash);
+    if (memoryCacheResult) {
+      return {
+        resultSource: 'memory',
+        data: memoryCacheResult,
+        filePath,
+      };
+    }
+
+    const getFromFileOrGenerate = async () => {
+      try {
+        const fileContents = await readFile(filePath, 'utf8');
+        return {
+          resultSource: 'disk' as const,
+          data: JSON.parse(fileContents) as Output,
+          filePath,
+        };
+      } catch {
+        const data = await this.config.generate(inputs);
+        await writeFile(filePath, JSON.stringify(data), 'utf8');
+        return {
+          resultSource: 'generation' as const,
+          data,
+          filePath,
+        };
+      }
+    };
+
+    const result = await getFromFileOrGenerate();
+    this.memoryCache.set(hash, result.data);
+    return result;
+  }
+
+  constructor(
+    private config: {
+      /**
+       * Additional information to include in the hash of the inputs.
+       * This is useful for cases where the inputs are the same, but the global state is different.
+       * Eg: The preview worker source can be used here.
+       */
+      globalHashBits: string;
+      generate: (inputs: Inputs) => Promise<Output>;
+    },
+  ) {}
+}

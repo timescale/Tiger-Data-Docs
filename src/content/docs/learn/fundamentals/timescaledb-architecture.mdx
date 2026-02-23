@@ -2,7 +2,10 @@
 title: "The TimescaleDB architecture"
 description: "A whitepaper detailing the architectural choices and optimizations for real-time analytics that power TimescaleDB and Tiger Cloud"
 ---
-Tiger Data has created a powerful application database for real-time analytics on time-series data. It integrates seamlessly with the Postgres ecosystem and enhances it with automatic time-based partitioning, hybrid row-columnar storage, and vectorized execution—enabling high-ingest performance, sub-second queries, and full SQL support at scale. Tiger Cloud offers managed database services that provide a stable and reliable environment for your applications. Each service is based on a Postgres database instance and the TimescaleDB extension. By making use of incrementally updated materialized views and advanced analytical functions, TimescaleDB reduces compute overhead and improves query efficiency. Developers can continue using familiar SQL workflows and tools, while benefiting from a database purpose-built for fast, scalable analytics. This document outlines the architectural choices and optimizations that power TimescaleDB and Tiger Cloud’s performance and scalability while preserving Postgres’s reliability and transactional guarantees. Want to read this whitepaper from the comfort of your own computer?
+
+import * as C from "@constants";
+
+Tiger Data has created a powerful application database for real-time analytics on time-series data. It integrates seamlessly with the {C.PG} ecosystem and enhances it with automatic time-based partitioning, hybrid row-columnar storage, and vectorized execution—enabling high-ingest performance, sub-second queries, and full SQL support at scale. Tiger Cloud offers managed database services that provide a stable and reliable environment for your applications. Each service is based on a {C.PG} database instance and the TimescaleDB extension. By making use of incrementally updated materialized views and advanced analytical functions, TimescaleDB reduces compute overhead and improves query efficiency. Developers can continue using familiar SQL workflows and tools, while benefiting from a database purpose-built for fast, scalable analytics. This document outlines the architectural choices and optimizations that power TimescaleDB and Tiger Cloud’s performance and scalability while preserving {C.PG}’s reliability and transactional guarantees. Want to read this whitepaper from the comfort of your own computer?
 
 Introduction
 
@@ -23,9 +26,9 @@ Real-time analytics isn’t just about reacting to the latest data, although tha
 -   **Seamless access to both recent and historical data** ensures fast queries across time, whether analyzing live, streaming data, or running deep historical queries on days or months of information.
 -   **Query flexibility** provides full SQL support, allowing for complex queries with joins, filters, aggregations, and analytical functions.
 
-Tiger Cloud: real-time analytics from Postgres
+Tiger Cloud: real-time analytics from {C.PG}
 
-Tiger Cloud is a high-performance database that brings real-time analytics to applications. It combines fast queries, high ingest performance, and full SQL support—all while ensuring scalability and reliability. Tiger Cloud extends Postgres with the TimescaleDB extension. It enables sub-second queries on vast amounts of incoming data while providing optimizations designed for continuously updating datasets. Tiger Cloud achieves this through the following optimizations:
+Tiger Cloud is a high-performance database that brings real-time analytics to applications. It combines fast queries, high ingest performance, and full SQL support—all while ensuring scalability and reliability. Tiger Cloud extends {C.PG} with the TimescaleDB extension. It enables sub-second queries on vast amounts of incoming data while providing optimizations designed for continuously updating datasets. Tiger Cloud achieves this through the following optimizations:
 
 -   **Efficient data partitioning:** automatically and transparently partitioning data into chunks, ensuring fast queries, minimal indexing overhead, and seamless scalability
 -   **Row-columnar storage:** providing the flexibility of a row store for transactions and the performance of a column store for analytics
@@ -34,15 +37,15 @@ Tiger Cloud is a high-performance database that brings real-time analytics to ap
 -   \*\*Cloud-native operation: \*\*compute/compute separation, elastic usage-based storage, horizontal scale out, data tiering to object storage
 -   \*\*Operational simplicity: \*\*offering high availability, connection pooling, and automated backups for reliable and scalable real-time applications
 
-With Tiger Cloud, developers can build low-latency, high-concurrency applications that seamlessly handle streaming data, historical queries, and real-time analytics while leveraging the familiarity and power of Postgres.
+With Tiger Cloud, developers can build low-latency, high-concurrency applications that seamlessly handle streaming data, historical queries, and real-time analytics while leveraging the familiarity and power of {C.PG}.
 
 Data model
 
-Today’s applications demand a database that can handle real-time analytics and transactional queries without sacrificing speed, flexibility, or SQL compatibility (including joins between tables). TimescaleDB achieves this with **hypertables**, which provide an automatic partitioning engine, and **hypercore**, a hybrid row-columnar storage engine designed to deliver high-performance queries and efficient compression (up to 95%) within Postgres.
+Today’s applications demand a database that can handle real-time analytics and transactional queries without sacrificing speed, flexibility, or SQL compatibility (including joins between tables). TimescaleDB achieves this with **hypertables**, which provide an automatic partitioning engine, and **hypercore**, a hybrid row-columnar storage engine designed to deliver high-performance queries and efficient compression (up to 95%) within {C.PG}.
 
 Efficient data partitioning
 
-TimescaleDB provides hypertables, a table abstraction that automatically partitions data into chunks in real time (using time stamps or incrementing IDs) to ensure fast queries and predictable performance as datasets grow. Unlike traditional relational databases that require manual partitioning, hypertables automate all aspects of partition management, keeping locking minimal even under high ingest load. At ingest time, hypertables ensure that Postgres can deal with a constant stream of data without suffering from table bloat and index degradation by automatically partitioning data across time. Because each chunk is ordered by time and has its own indexes and storage, writes are usually isolated to small, recent chunks—keeping index sizes small, improving cache locality, and reducing the overhead of vacuum and background maintenance operations. This localized write pattern minimizes write amplification and ensures consistently high ingest performance, even as total data volume grows. At query time, hypertables efficiently exclude irrelevant chunks from the execution plan when the partitioning column is used in a `WHERE` clause. This architecture ensures fast query execution, avoiding the gradual slowdowns that affect non-partitioned tables as they accumulate millions of rows. Chunk-local indexes keep indexing overhead minimal, ensuring index operations scans remain efficient regardless of dataset size. ! Hypertables are the foundation for all of TimescaleDB’s real-time analytics capabilities. They enable seamless data ingestion, high-throughput writes, optimized query execution, and chunk-based lifecycle management—including automated data retention (drop a chunk) and data tiering (move a chunk to object storage).
+TimescaleDB provides hypertables, a table abstraction that automatically partitions data into chunks in real time (using time stamps or incrementing IDs) to ensure fast queries and predictable performance as datasets grow. Unlike traditional relational databases that require manual partitioning, hypertables automate all aspects of partition management, keeping locking minimal even under high ingest load. At ingest time, hypertables ensure that {C.PG} can deal with a constant stream of data without suffering from table bloat and index degradation by automatically partitioning data across time. Because each chunk is ordered by time and has its own indexes and storage, writes are usually isolated to small, recent chunks—keeping index sizes small, improving cache locality, and reducing the overhead of vacuum and background maintenance operations. This localized write pattern minimizes write amplification and ensures consistently high ingest performance, even as total data volume grows. At query time, hypertables efficiently exclude irrelevant chunks from the execution plan when the partitioning column is used in a `WHERE` clause. This architecture ensures fast query execution, avoiding the gradual slowdowns that affect non-partitioned tables as they accumulate millions of rows. Chunk-local indexes keep indexing overhead minimal, ensuring index operations scans remain efficient regardless of dataset size. ! Hypertables are the foundation for all of TimescaleDB’s real-time analytics capabilities. They enable seamless data ingestion, high-throughput writes, optimized query execution, and chunk-based lifecycle management—including automated data retention (drop a chunk) and data tiering (move a chunk to object storage).
 
 Row-columnar storage
 
@@ -59,13 +62,13 @@ TimescaleDB’s columnar storage layout optimizes analytical query performance b
 
 Columnar batches
 
-TimescaleDB uses columnar collocation and columnar compression within row-based storage to optimize analytical query performance while maintaining full Postgres compatibility. This approach ensures efficient storage, high compression ratios, and rapid query execution. ! A rowstore chunk is converted to a columnstore chunk by successfully grouping together sets of rows (typically up to 1000) into a single batch, then converting the batch into columnar form. Each compressed batch does the following:
+TimescaleDB uses columnar collocation and columnar compression within row-based storage to optimize analytical query performance while maintaining full {C.PG} compatibility. This approach ensures efficient storage, high compression ratios, and rapid query execution. ! A rowstore chunk is converted to a columnstore chunk by successfully grouping together sets of rows (typically up to 1000) into a single batch, then converting the batch into columnar form. Each compressed batch does the following:
 
 -   Encapsulates columnar data in compressed arrays of up to 1,000 values per column, stored as a single entry in the underlying compressed table
 -   Uses a column-major format within the batch, enabling efficient scans by co-locating values of the same column and allowing the selection of individual columns without reading the entire batch
 -   Applies advanced compression techniques at the column level, including run-length encoding, delta encoding, and Gorilla compression, to significantly reduce storage footprint (by up to 95%) and improve I/O performance.
 
-While the chunk interval of rowstore and columnstore batches usually remains the same, TimescaleDB can also combine columnstore batches so they use a different chunk interval. This architecture provides the benefits of columnar storage—optimized scans, reduced disk I/O, and improved analytical performance—while seamlessly integrating with Postgres’s row-based execution model.
+While the chunk interval of rowstore and columnstore batches usually remains the same, TimescaleDB can also combine columnstore batches so they use a different chunk interval. This architecture provides the benefits of columnar storage—optimized scans, reduced disk I/O, and improved analytical performance—while seamlessly integrating with {C.PG}’s row-based execution model.
 
 Segmenting and ordering data
 
@@ -110,9 +113,9 @@ Secondary partition exclusion (columnar)
 
 Min/max metadata allows queries filtering on correlated dimensions (e.g., `order_id` or secondary timestamps) to exclude chunks that don’t contain relevant data. !
 
-Postgres indexes (row and columnar)
+{C.PG} indexes (row and columnar)
 
-Unlike many databases, TimescaleDB supports standard Postgres indexes on columnstore data (B-tree and hash currently, when using the hypercore table access method), allowing queries to efficiently locate specific values within both row-based and compressed columnar storage. These indexes enable fast lookups, range queries, and filtering operations that further reduce unnecessary data scans. !
+Unlike many databases, TimescaleDB supports standard {C.PG} indexes on columnstore data (B-tree and hash currently, when using the hypercore table access method), allowing queries to efficiently locate specific values within both row-based and compressed columnar storage. These indexes enable fast lookups, range queries, and filtering operations that further reduce unnecessary data scans. !
 
 Batch-level filtering (columnar)
 
