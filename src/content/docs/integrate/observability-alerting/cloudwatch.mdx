@@ -2,218 +2,202 @@
 title: "Integrate Amazon CloudWatch with Tiger Cloud"
 description: "Export telemetry data to monitor and analyze your service performance and health"
 ---
-[Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) is a monitoring and observability service designed to help collect, analyze, and act on data from applications, infrastructure, and services running in AWS and on-premises environments. You can export telemetry data from your Tiger Cloud services with the time-series and analytics capability enabled to CloudWatch. The available metrics include CPU usage, RAM usage, and storage. This integration is available for [Scale and Enterprise](/about/pricing-and-account-management#features-included-in-each-plan) pricing tiers. This pages explains how to export telemetry data from your Tiger Cloud service into CloudWatch by creating a Tiger Cloud data exporter, then attaching it to the service.
 
-Prerequisites
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+[Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) is a monitoring and observability service designed to help collect, analyze, and act on data from applications, infrastructure, and services running in AWS and on-premises environments.
+
+You can export telemetry data from your {C.CLOUD_LONG} services with the time-series and analytics capability enabled to CloudWatch. The available metrics include CPU usage, RAM usage, and storage. This integration is available for [Scale and Enterprise](/deploy/tiger-cloud/understand/pricing-and-account-management#features-included-in-each-plan) pricing tiers.
+
+This page explains how to export telemetry data from your {C.CLOUD_LONG} service into CloudWatch by creating a {C.CLOUD_LONG} data exporter, then attaching it to the service.
+
+## Prerequisites
 
 To follow the steps on this page:
 
--   Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled. You need your [connection details](/integrate/find-connection-details).
+- Create a target [{C.SERVICE_LONG}](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled. You need your [connection details](/integrate/find-connection-details).
+- Sign up for [Amazon CloudWatch](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/GettingSetup.html).
 
--   Sign up for [Amazon CloudWatch](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/GettingSetup.html).
+<Callout variant="note">
+This feature is currently not supported for {C.CLOUD_LONG} on Microsoft Azure.
+</Callout>
 
-This feature is currently not supported for Tiger Cloud on Microsoft Azure.
+## Create a data exporter
 
-Create a data exporter
+A {C.CLOUD_LONG} data exporter sends telemetry data from a {C.CLOUD_LONG} service to a third-party monitoring tool. You create an exporter on the [{C.CLOUD_LONG} project level](/deploy/tiger-cloud/secure-access/configure-role-based-access), in the same AWS region as your service:
 
-A Tiger Cloud data exporter sends telemetry data from a Tiger Cloud service to a third-party monitoring tool. You create an exporter on the [Tiger Cloud project level](/deploy/tiger-cloud/secure-access/configure-role-based-access), in the same AWS region as your service:
+<NumberedList>
 
-1.  **In Tiger Console, open [Exporters](https://console.cloud.timescale.com/dashboard/integrations)**
-2.  **Click `New exporter`**
-3.  **Select the data type and specify `AWS CloudWatch` for provider** ![Add CloudWatch data exporter](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-cloud-integrations-cloudwatch.png)
-4.  **Provide your AWS CloudWatch configuration**
-    -   The AWS region must be the same for your Tiger Cloud exporter and AWS CloudWatch Log group.
-    -   The exporter name appears in Tiger Console, best practice is to make this name easily understandable.
-    -   For CloudWatch credentials, either use an [existing CloudWatch Log group](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups) or [create a new one](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/create-log-group). If you’re uncertain, use the default values. For more information, see [Working with log groups and log streams](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/Working-with-log-groups-and-streams.html).
-5.  **Choose the authentication method to use for the exporter** ![Add CloudWatch authentication](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-cloud-integrations-cloudwatch-authentication.png)
-    
-    1.  In AWS, navigate to [IAM > Identity providers](https://console.aws.amazon.com/iam/home#/identity_providers), then click `Add provider`.
-    2.  Update the new identity provider with your details: Set `Provider URL` to the [region where you are creating your exporter](#reference). ![oidc provider creation](https://assets.timescale.com/docs/images/aws-create-iam-oicd-provider.png)
-    3.  Click `Add provider`.
-    4.  In AWS, navigate to [IAM > Roles](https://console.aws.amazon.com/iam/home#/roles), then click `Create role`.
-    5.  Add your identity provider as a Web identity role and click `Next`. ![web identity role creation](https://assets.timescale.com/docs/images/aws-create-role-web-identity.png)
-    6.  Set the following permission and trust policies:
-        -   Permission policy:
-        -   Role with a Trust Policy:
-    7.  Click `Add role`.
-    
-6.  Select the AWS Region your CloudWatch services run in, then click `Create exporter`.
+<NumberedItem title={`In ${C.CONSOLE}, open Exporters`}>
+Open the [Exporters](https://console.cloud.timescale.com/dashboard/integrations) page, under the integrations section of your Tiger Data console dashboard.
+</NumberedItem>
 
-Attach a data exporter to a Tiger Cloud service
+<NumberedItem title="Click New exporter">
+</NumberedItem>
 
-To send telemetry data to an external monitoring tool, you attach a data exporter to your . You can attach only one exporter to a . To attach an exporter:
+<NumberedItem title="Select the data type and specify AWS CloudWatch for provider">
 
-1.  **In , choose the**
-2.  **Click `Operations` > `Exporters`**
-3.  **Select the exporter, then click `Attach exporter`**
-4.  **If you are attaching a first `Logs` data type exporter, restart the**
+![Add CloudWatch data exporter](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-cloud-integrations-cloudwatch.png)
 
-Monitor Tiger Cloud service metrics
+</NumberedItem>
 
-You can now monitor your metrics. Use the following metrics to check the service is running correctly:
+<NumberedItem title="Provide your AWS CloudWatch configuration">
 
--   `timescale.cloud.system.cpu.usage.millicores`
--   `timescale.cloud.system.cpu.total.millicores`
--   `timescale.cloud.system.memory.usage.bytes`
--   `timescale.cloud.system.memory.total.bytes`
--   `timescale.cloud.system.disk.usage.bytes`
--   `timescale.cloud.system.disk.total.bytes`
+When doing so, your AWS region must be the same for your {C.CLOUD_LONG} exporter and AWS CloudWatch Log group.
 
-Additionally, use the following tags to filter your results.
+The exporter name appears in {C.CONSOLE}; best practice is to make this name easily understandable.
 
-Tag
+For CloudWatch credentials, either use an [existing CloudWatch Log group](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups) or [create a new one](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/create-log-group). If you're uncertain, use the default values. 
 
-Example variable
+For more information, see [Working with log groups and log streams](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/Working-with-log-groups-and-streams.html) within the Amazon CloudWatch documentation.
 
-Description
+</NumberedItem>
 
-`host`
+<NumberedItem title="Choose the authentication method to use for the exporter">
 
-`us-east-1.timescale.cloud`
+![Add CloudWatch authentication](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-cloud-integrations-cloudwatch-authentication.png)
 
-`project-id`
+<ol type="a">
+  <li>In AWS, navigate to [IAM &gt; Identity providers](https://console.aws.amazon.com/iam/home#/identity_providers), then click `Add provider`.</li>
+  <li>Update the new identity provider with your details: set `Provider URL` to the [region where you are creating your exporter](#reference).</li>
+</ol>
 
-`service-id`
+![OIDC provider creation](https://assets.timescale.com/docs/images/aws-create-iam-oicd-provider.png)
 
-`region`
+<ol type="a" start="3">
+  <li>Click `Add provider`.</li>
+  <li>In AWS, navigate to [IAM &gt; Roles](https://console.aws.amazon.com/iam/home#/roles), then click `Create role`.</li>
+  <li>Add your identity provider as a Web identity role and click `Next`.</li>
+</ol>
 
-`us-east-1`
+![Web identity role creation](https://assets.timescale.com/docs/images/aws-create-role-web-identity.png)
 
-AWS region
+<ol type="a" start="6">
+  <li>Set the following permission and trust policies as required by CloudWatch (see [AWS documentation](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/GettingSetup.html) for policy examples).</li>
+  <li>Click `Add role`.</li>
+</ol>
 
-`role`
+</NumberedItem>
 
-`replica` or `primary`
+<NumberedItem title="Select the AWS region and create the exporter">
+Select the AWS region your CloudWatch services run in, then click `Create exporter`.
+</NumberedItem>
 
-For with replicas
+</NumberedList>
 
-`node-id`
+## Attach a data exporter to a Tiger Cloud service
 
-For multi-node services
+To send telemetry data to an external monitoring tool, you attach a data exporter to your {C.CLOUD_LONG} service. You can attach only one exporter to a service.
 
-Edit a data exporter
+To attach an exporter:
+
+<NumberedList>
+
+<NumberedItem title={`In ${C.CONSOLE}, choose the service`}>
+</NumberedItem>
+
+<NumberedItem title="Click Operations > Exporters">
+</NumberedItem>
+
+<NumberedItem title="Select the exporter from the list, then click Attach exporter">
+</NumberedItem>
+
+<NumberedItem title="Restart the service if attaching a first Logs exporter">
+If you are attaching a first `Logs` data type exporter, the service will need to be restarted.
+</NumberedItem>
+
+</NumberedList>
+
+## Monitor Tiger Cloud service metrics
+
+You can now monitor your service metrics. Use the following metrics to check the service is running correctly:
+
+- `timescale.cloud.system.cpu.usage.millicores`
+- `timescale.cloud.system.cpu.total.millicores`
+- `timescale.cloud.system.memory.usage.bytes`
+- `timescale.cloud.system.memory.total.bytes`
+- `timescale.cloud.system.disk.usage.bytes`
+- `timescale.cloud.system.disk.total.bytes`
+
+Additionally, use the following tags to filter your results:
+
+| Tag          | Example variable          | Description               |
+| ------------ | ------------------------- | ------------------------- |
+| `host`       | `us-east-1.timescale.cloud` | Host identifier           |
+| `project-id` | —                         | Project identifier        |
+| `service-id` | —                         | Service identifier        |
+| `region`     | `us-east-1`               | AWS region                |
+| `role`       | `replica` or `primary`    | For services with replicas |
+| `node-id`    | —                         | For multi-node services   |
+
+## Edit a data exporter
 
 To update a data exporter:
 
-1.  **In , open [Exporters](https://console.cloud.timescale.com/dashboard/integrations)**
-2.  **Next to the exporter you want to edit, click the menu > `Edit`**
-3.  **Edit the exporter fields and save your changes**
+<NumberedList>
 
-You cannot change fields such as the provider or the AWS region.
+<NumberedItem title={`In ${C.CONSOLE}, open Exporters`}>
+Open the [Exporters](https://console.cloud.timescale.com/dashboard/integrations) page.
+</NumberedItem>
 
-Delete a data exporter
+<NumberedItem title="Next to the exporter you want to edit, click the menu > Edit">
+</NumberedItem>
+
+<NumberedItem title="Edit the exporter fields and save your changes">
+</NumberedItem>
+</NumberedList>
+
+<Callout variant="warning">
+NOTE: You cannot change fields such as the provider or the AWS region.
+</Callout>
+
+## Delete a data exporter
 
 To remove a data exporter that you no longer need:
 
-1.  **Disconnect the data exporter from your s**
-    
-    1.  In , choose the .
-    2.  Click `Operations` > `Exporters`.
-    3.  Click the trash can icon.
-    4.  Repeat for every attached to the exporter you want to remove.
-    
-    The data exporter is now unattached from all s. However, it still exists in your project.
-2.  **Delete the exporter on the project level**
-    1.  In , open [Exporters](https://console.cloud.timescale.com/dashboard/integrations)
-    2.  Next to the exporter you want to edit, click menu > `Delete`
-    3.  Confirm that you want to delete the data exporter.
+<NumberedList>
 
-Reference
+<NumberedItem title={`Disconnect the data exporter from your ${C.CLOUD_LONG} services`}>
+
+<ol type="a">
+  <li>In {C.CONSOLE}, choose the service.</li>
+  <li>Click `Operations` &gt; `Exporters`.</li>
+  <li>Click the trash can icon.</li>
+  <li>Repeat for every service attached to the exporter you want to remove.</li>
+</ol>
+
+The data exporter is now unattached from all services. However, it still exists in your project.
+
+</NumberedItem>
+
+<NumberedItem title="Delete the exporter on the project level">
+
+<ol type="a">
+  <li>In {C.CONSOLE}, open [Exporters](https://console.cloud.timescale.com/dashboard/integrations).</li>
+  <li>Next to the exporter you want to remove, click menu &gt; `Delete`.</li>
+  <li>Confirm that you want to delete the data exporter.</li>
+</ol>
+
+</NumberedItem>
+
+</NumberedList>
+
+## Reference
 
 When you create the IAM OIDC provider, the URL must match the region you create the exporter in. It must be one of the following:
 
-Region
-
-Zone
-
-Location
-
-URL
-
-`ap-southeast-1`
-
-Asia Pacific
-
-Singapore
-
-`irsa-oidc-discovery-prod-ap-southeast-1.s3.ap-southeast-1.amazonaws.com`
-
-`ap-southeast-2`
-
-Asia Pacific
-
-Sydney
-
-`irsa-oidc-discovery-prod-ap-southeast-2.s3.ap-southeast-2.amazonaws.com`
-
-`ap-northeast-1`
-
-Asia Pacific
-
-Tokyo
-
-`irsa-oidc-discovery-prod-ap-northeast-1.s3.ap-northeast-1.amazonaws.com`
-
-`ca-central-1`
-
-Canada
-
-Central
-
-`irsa-oidc-discovery-prod-ca-central-1.s3.ca-central-1.amazonaws.com`
-
-`eu-central-1`
-
-Europe
-
-Frankfurt
-
-`irsa-oidc-discovery-prod-eu-central-1.s3.eu-central-1.amazonaws.com`
-
-`eu-west-1`
-
-Europe
-
-Ireland
-
-`irsa-oidc-discovery-prod-eu-west-1.s3.eu-west-1.amazonaws.com`
-
-`eu-west-2`
-
-Europe
-
-London
-
-`irsa-oidc-discovery-prod-eu-west-2.s3.eu-west-2.amazonaws.com`
-
-`sa-east-1`
-
-South America
-
-São Paulo
-
-`irsa-oidc-discovery-prod-sa-east-1.s3.sa-east-1.amazonaws.com`
-
-`us-east-1`
-
-United States
-
-North Virginia
-
-`irsa-oidc-discovery-prod.s3.us-east-1.amazonaws.com`
-
-`us-east-2`
-
-United States
-
-Ohio
-
-`irsa-oidc-discovery-prod-us-east-2.s3.us-east-2.amazonaws.com`
-
-`us-west-2`
-
-United States
-
-Oregon
-
-`irsa-oidc-discovery-prod-us-west-2.s3.us-west-2.amazonaws.com`
+| Region         | Zone          | Location       | URL                                                                     |
+| -------------- | ------------- | -------------- | ----------------------------------------------------------------------- |
+| `ap-southeast-1` | Asia Pacific  | Singapore      | `irsa-oidc-discovery-prod-ap-southeast-1.s3.ap-southeast-1.amazonaws.com` |
+| `ap-southeast-2` | Asia Pacific  | Sydney         | `irsa-oidc-discovery-prod-ap-southeast-2.s3.ap-southeast-2.amazonaws.com` |
+| `ap-northeast-1` | Asia Pacific  | Tokyo          | `irsa-oidc-discovery-prod-ap-northeast-1.s3.ap-northeast-1.amazonaws.com` |
+| `ca-central-1`   | Canada        | Central        | `irsa-oidc-discovery-prod-ca-central-1.s3.ca-central-1.amazonaws.com`   |
+| `eu-central-1`   | Europe        | Frankfurt      | `irsa-oidc-discovery-prod-eu-central-1.s3.eu-central-1.amazonaws.com`   |
+| `eu-west-1`      | Europe        | Ireland        | `irsa-oidc-discovery-prod-eu-west-1.s3.eu-west-1.amazonaws.com`         |
+| `eu-west-2`      | Europe        | London         | `irsa-oidc-discovery-prod-eu-west-2.s3.eu-west-2.amazonaws.com`         |
+| `sa-east-1`      | South America | São Paulo      | `irsa-oidc-discovery-prod-sa-east-1.s3.sa-east-1.amazonaws.com`          |
+| `us-east-1`      | United States | North Virginia | `irsa-oidc-discovery-prod.s3.us-east-1.amazonaws.com`                   |
+| `us-east-2`      | United States | Ohio           | `irsa-oidc-discovery-prod-us-east-2.s3.us-east-2.amazonaws.com`         |
+| `us-west-2`      | United States | Oregon         | `irsa-oidc-discovery-prod-us-west-2.s3.us-west-2.amazonaws.com`         |
