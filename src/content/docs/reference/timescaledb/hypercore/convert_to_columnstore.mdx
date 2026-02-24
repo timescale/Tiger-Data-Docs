@@ -1,0 +1,72 @@
+---
+title: convert_to_columnstore()
+description: Manually add a chunk to the columnstore
+license: community
+type: procedure
+topics: [hypercore, columnstore, rowstore]
+keywords: [columnstore, rowstore, hypercore]
+tags: [chunks, hypercore]
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+import { Callout } from '@stainless-api/docs/components';
+
+import ReturnsVoid from '/snippets/reference/timescaledb/_returns-void.mdx';
+
+<TagIcon iconType="duotone" /> Since [2.18.0][tsdb-2.18.0]
+
+<Tag>Community</Tag>
+
+<Callout variant="info">
+  `convert_to_columnstore()` replaces `compress_chunk()`, deprecated in 2.18.0.
+</Callout>
+
+Manually convert a specific {C.CHUNK} in the {C.HYPERTABLE} {C.ROWSTORE} to the {C.COLUMNSTORE}.
+
+Although `convert_to_columnstore` gives you more fine-grained control, best practice is to use
+[`add_columnstore_policy`][add_columnstore_policy]. You can also add {C.CHUNK}s to the {C.COLUMNSTORE} at a specific time
+[running the job associated with your {C.COLUMNSTORE} policy][run-job] manually.
+
+To move a {C.CHUNK} from the {C.COLUMNSTORE} back to the {C.ROWSTORE}, use [`convert_to_rowstore`][convert_to_rowstore].
+
+## Samples
+
+To convert a single {C.CHUNK} to {C.COLUMNSTORE}:
+
+```sql
+CALL convert_to_columnstore('_timescaledb_internal._hyper_1_2_chunk');
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+CALL convert_to_columnstore(
+    chunk = '<chunk_name>',
+    if_not_columnstore = true | false,
+    recompress = true | false
+);
+```
+
+| Name                 | Type | Default | Required | Description                                                                                                                                        |
+|----------------------|--|---------|--|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| `chunk`         | REGCLASS | -       |✔| Name of the {C.CHUNK} to add to the {C.COLUMNSTORE}.                                                                                                      |
+| `if_not_columnstore` | BOOLEAN | `true`  |✖| Set to `false` so this call fails with an error rather than a warning if `chunk` is already in the {C.COLUMNSTORE}.                                    |
+| `recompress`         | BOOLEAN | `false` |✖| Set to `true` to recompress. In-memory recompression is attempted first; it falls back to internal decompress/compress. |
+
+## Returns
+
+<ReturnsVoid />
+
+[add_columnstore_policy]: /api-reference/timescaledb/hypercore/add_columnstore_policy
+
+[convert_to_rowstore]: /api-reference/timescaledb/hypercore/convert_to_rowstore
+
+[run-job]: /api-reference/timescaledb/jobs-automation/run_job
+
+[tsdb-2.18.0]: https://github.com/timescale/timescaledb/releases/tag/2.18.0

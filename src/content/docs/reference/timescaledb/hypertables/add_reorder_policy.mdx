@@ -1,0 +1,78 @@
+---
+title: add_reorder_policy()
+description: Add a policy to reorder rows in hypertable chunks
+topics: [hypertables, jobs]
+keywords: [hypertables, chunks, policies]
+tags: [reorder]
+license: community
+type: function
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<Tag>Community</Tag>
+
+<TagIcon iconType="duotone" /> Since [1.2.0][tsdb-1.2.0]
+
+Create a policy to reorder the rows of a {C.HYPERTABLE}'s {C.CHUNK}s on a specific index. The policy reorders the rows for
+all {C.CHUNK}s except the two most recent ones, because these are still getting writes. By default, the policy runs every
+24 hours. To change the schedule, call [alter\_job][alter_job] and adjust `schedule_interval`.
+
+You can have only one reorder policy on each {C.HYPERTABLE}.
+
+For manual reordering of individual {C.CHUNK}s, see [reorder\_chunk][reorder_chunk].
+
+<Callout variant="note">
+  When a {C.CHUNK}'s rows have been reordered by a policy, they are not reordered
+  by subsequent runs of the same policy. If you write significant amounts of data into older {C.CHUNK}s that have
+  already been reordered, re-run [reorder\_chunk][reorder_chunk] on them. If you have changed a lot of older {C.CHUNK}s, it
+  is better to drop and recreate the policy.
+</Callout>
+
+## Samples
+
+```sql
+SELECT add_reorder_policy('conditions', 'conditions_device_id_time_idx');
+```
+
+Creates a policy to reorder {C.CHUNK}s by the existing `(device_id, time)` index every 24 hours.
+This applies to all {C.CHUNK}s except the two most recent ones.
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT add_reorder_policy(
+    hypertable = '<hypertable_name>',
+    index_name = '<index_name>',
+    if_not_exists = true | false,
+    initial_start = <timestamptz>,
+    timezone = '<timezone>'
+);
+```
+
+|Name|Type| Default | Required | Description                                                  |
+|-|-|-|-|--------------------------------------------------------------|
+|`hypertable`|REGCLASS| - | ✔ | {C.HYPERTABLE_CAP} to create the policy for                          |
+|`index_name`|TEXT| - | ✔ | Existing {C.HYPERTABLE} index by which to order the rows on disk |
+|`if_not_exists`|BOOLEAN| `false` | ✖ | Set to `true` to avoid an error if the `reorder_policy` already exists. A notice is issued instead. Defaults to `false`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+|`initial_start`|TIMESTAMPTZ| `NULL` | ✖ | Controls when the policy first runs and how its future run schedule is calculated. <ul><li>If omitted or set to <code>NULL</code> (default): <ul><li>The first run is scheduled at <code>now()</code> + <code>schedule\_interval</code> (defaults to 24 hours).</li><li>The next run is scheduled at one full <code>schedule\_interval</code> after the end of the previous run.</li></ul></li><li>If set: <ul><li>The first run is at the specified time.</li><li>The next run is scheduled as <code>initial\_start</code> + <code>schedule\_interval</code> regardless of when the previous run ends.</li></ul></li></ul> |
+|`timezone`|TEXT| `NULL` | ✖ | A valid time zone. If `initial_start` is also specified, subsequent runs of the reorder policy are aligned on its initial start. However, daylight savings time (DST) changes might shift this alignment. Set to a valid time zone if this is an issue you want to mitigate. If omitted, UTC bucketing is performed. Defaults to `NULL`.                                                                                                                                                                                                                                                                                |
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+|`job_id`|INTEGER|{C.TIMESCALE_DB} background job ID created to implement this policy|
+
+[alter_job]: /api-reference/timescaledb/jobs-automation/alter_job
+
+[reorder_chunk]: /api-reference/timescaledb/hypertables/reorder_chunk
+
+[tsdb-1.2.0]: https://github.com/timescale/timescaledb/releases/tag/1.2.0

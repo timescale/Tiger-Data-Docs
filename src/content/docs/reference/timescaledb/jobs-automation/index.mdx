@@ -1,0 +1,111 @@
+---
+title: Jobs and automation overview
+sidebarTitle: Overview
+description: TimescaleDB API reference for jobs. Includes SQL functions for adding, altering, deleting, and running a job
+keywords: [jobs]
+tags: [background jobs, scheduled jobs, automation framework]
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Community
+
+{C.JOB_CAP}s allow you to run functions and procedures implemented in a
+language of your choice on a schedule within Timescale. This allows
+automatic periodic tasks that are not covered by existing policies and
+even enhancing existing policies with additional functionality.
+
+The following APIs and views allow you to manage the {C.JOB}s that you create and
+get details around automatic {C.JOB}s used by other {C.TIMESCALE_DB} functions like
+{C.CAGG} refresh policies and data retention policies. To view the
+policies that you set or the policies that already exist, see
+[informational views][informational-views].
+
+## Samples
+
+### Create a job that runs every hour
+
+Create a procedure and schedule it to run automatically:
+
+```sql
+CREATE OR REPLACE PROCEDURE cleanup_old_data(job_id int, config jsonb)
+LANGUAGE PLPGSQL AS
+$$
+BEGIN
+  DELETE FROM metrics WHERE time < NOW() - INTERVAL '90 days';
+  RAISE NOTICE 'Cleanup completed for job %', job_id;
+END
+$$;
+
+SELECT add_job('cleanup_old_data', '1 hour');
+```
+
+### Create a job with configuration parameters
+
+Pass configuration to your job using JSONB:
+
+```sql
+CREATE OR REPLACE PROCEDURE aggregate_metrics(job_id int, config jsonb)
+LANGUAGE PLPGSQL AS
+$$
+DECLARE
+  threshold int := config->>'threshold';
+BEGIN
+  INSERT INTO daily_summary
+  SELECT time_bucket('1 day', time), location, AVG(value)
+  FROM metrics
+  WHERE value > threshold
+  GROUP BY 1, 2;
+END
+$$;
+
+SELECT add_job(
+  'aggregate_metrics',
+  '1 day',
+  config => '{"threshold": 100}'
+);
+```
+
+### Alter a job schedule
+
+Change when a job runs:
+
+```sql
+SELECT alter_job(1000, schedule_interval => INTERVAL '2 hours');
+```
+
+### Manually run a job
+
+Trigger a job immediately outside of its schedule:
+
+```sql
+CALL run_job(1000);
+```
+
+### Delete a job
+
+Remove a job from the scheduler:
+
+```sql
+SELECT delete_job(1000);
+```
+
+## Available functions
+
+- [`add_job()`][add_job]: add a job to run a function or procedure automatically
+- [`alter_job()`][alter_job]: alter a job that is scheduled to run automatically
+- [`delete_job()`][delete_job]: delete a job from the automatic scheduler
+- [`run_job()`][run_job]: manually run a job
+
+[add_job]: /api-reference/timescaledb/jobs-automation/add_job
+
+[alter_job]: /api-reference/timescaledb/jobs-automation/alter_job
+
+[delete_job]: /api-reference/timescaledb/jobs-automation/delete_job
+
+[informational-views]: /api-reference/timescaledb/informational-views/jobs
+
+[run_job]: /api-reference/timescaledb/jobs-automation/run_job

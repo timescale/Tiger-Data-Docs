@@ -1,0 +1,103 @@
+---
+title: Administrative functions
+sidebarTitle: Overview
+description: Administration functions help you manage your service before and after recovery, as well as keeping track of your data
+keywords: [administration]
+tags: [backup, restore, set up]
+products: [cloud, mst, self_hosted]
+license: apache
+---
+
+import * as C from "@constants";
+
+Administrative APIs help you prepare a database before and after a restore event. They also help you keep track of your
+{C.TIMESCALE_DB} setup data.
+
+## Samples
+
+### Prepare database for restore
+
+Before restoring a database backup, prepare the database:
+
+```sql
+SELECT timescaledb_pre_restore();
+```
+
+Then perform your restore operation:
+
+```bash
+psql -d your_database < backup.sql
+```
+
+### Complete restore operation
+
+After restoring a database backup, complete the restore:
+
+```sql
+SELECT timescaledb_post_restore();
+```
+
+### View telemetry report
+
+Check what telemetry data is being collected and sent:
+
+```sql
+SELECT get_telemetry_report();
+```
+
+### Full backup and restore workflow
+
+Complete workflow for backing up and restoring a TimescaleDB database:
+
+```bash
+# On source database
+psql -d source_db -c "SELECT timescaledb_pre_restore();"
+pg_dump -Fc -f backup.dump source_db
+
+# On target database
+createdb target_db
+psql -d target_db -c "CREATE EXTENSION IF NOT EXISTS timescaledb;"
+psql -d target_db -c "SELECT timescaledb_pre_restore();"
+pg_restore -d target_db backup.dump
+psql -d target_db -c "SELECT timescaledb_post_restore();"
+```
+
+### Check TimescaleDB version and installation
+
+Verify the TimescaleDB extension is installed and check version:
+
+```sql
+SELECT default_version, installed_version
+FROM pg_available_extensions
+WHERE name = 'timescaledb';
+
+SELECT extversion
+FROM pg_extension
+WHERE extname = 'timescaledb';
+```
+
+## Dump TimescaleDB meta data
+
+To help when asking for support and reporting bugs, {C.TIMESCALE_DB} includes an SQL dump script. It outputs metadata from
+the internal {C.TIMESCALE_DB} tables, along with version information.
+
+This script is available in the source distribution in `scripts/`. To use it, run:
+
+```bash
+psql [your connect flags] -d your_timescale_db < dump_meta_data.sql > dumpfile.txt
+```
+
+Inspect `dumpfile.txt` before sending it together with a bug report or support question.
+
+## Available functions
+
+- [`get_telemetry_report()`][get_telemetry_report]: view the background telemetry string sent to Timescale
+- [`timescaledb_post_restore()`][timescaledb_post_restore]: perform required operations after finishing a database
+  restore
+- [`timescaledb_pre_restore()`][timescaledb_pre_restore]: prepare the database for a restore operation
+
+[get_telemetry_report]: /api-reference/timescaledb/administration/get_telemetry_report
+
+[timescaledb_post_restore]: /api-reference/timescaledb/administration/timescaledb_post_restore
+
+[timescaledb_pre_restore]: /api-reference/timescaledb/administration/timescaledb_pre_restore

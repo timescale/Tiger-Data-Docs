@@ -1,0 +1,131 @@
+---
+title: Continuous aggregates overview
+sidebarTitle: Overview
+description: TimescaleDB reference for calculating continuous aggregates on your data. Includes SQL functions and views related to creating, altering, and dropping continuous aggregates
+keywords: [hypertables, chunks]
+products: [cloud, self_hosted, mst]
+---
+
+import * as C from "@constants";
+
+import CaggsIntro from '@partials/_caggs-intro.mdx';
+
+<CaggsIntro />
+
+For more information about using {C.CAGG}s, see the documentation in [Use {C.CAGG}s][cagg-docs].
+
+## Samples
+
+### Create a continuous aggregate
+
+Create a {C.CAGG} that calculates hourly average temperature:
+
+```sql
+CREATE MATERIALIZED VIEW conditions_hourly
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('1 hour', time) AS bucket,
+  location,
+  AVG(temperature) AS avg_temp,
+  MAX(temperature) AS max_temp,
+  MIN(temperature) AS min_temp
+FROM conditions
+GROUP BY bucket, location;
+```
+
+### Add a refresh policy
+
+Automatically refresh the {C.CAGG} to keep it up to date:
+
+```sql
+SELECT add_continuous_aggregate_policy('conditions_hourly',
+  start_offset => INTERVAL '3 hours',
+  end_offset => INTERVAL '1 hour',
+  schedule_interval => INTERVAL '1 hour');
+```
+
+### Manually refresh a continuous aggregate
+
+Refresh a specific time range in the {C.CAGG}:
+
+```sql
+CALL refresh_continuous_aggregate('conditions_hourly',
+  '2024-01-01', '2024-02-01');
+```
+
+### Query a continuous aggregate
+
+Query the {C.CAGG} just like a regular table:
+
+```sql
+SELECT bucket, location, avg_temp
+FROM conditions_hourly
+WHERE bucket >= NOW() - INTERVAL '7 days'
+  AND location = 'office'
+ORDER BY bucket DESC;
+```
+
+## Available functions
+
+### Create and modify continuous aggregates
+
+- [`CREATE MATERIALIZED VIEW (Continuous Aggregate)`][create_materialized_view]: create a {C.CAGG} on a {C.HYPERTABLE} or
+  another {C.CAGG}
+- [`ALTER MATERIALIZED VIEW (Continuous Aggregate)`][alter_materialized_view]: change an existing {C.CAGG}
+- [`DROP MATERIALIZED VIEW (Continuous Aggregate)`][drop_materialized_view]: drop a {C.CAGG} view
+- [`cagg_migrate()`][cagg_migrate]: migrate a {C.CAGG} from the old format to the new format introduced in {C.TIMESCALE_DB}
+  2.7
+
+### Refresh continuous aggregates
+
+- [`refresh_continuous_aggregate()`][refresh_continuous_aggregate]: manually refresh a {C.CAGG}
+
+### Manage policies
+
+- [`add_continuous_aggregate_policy()`][add_continuous_aggregate_policy]: add policy to schedule automatic refresh of a
+
+{C.CAGG}
+
+- [`remove_continuous_aggregate_policy()`][remove_continuous_aggregate_policy]: remove a refresh policy from a {C.CAGG}
+
+### Experimental policy management
+
+- [`add_policies()`][add_policies]: add refresh, compression, and data retention policies on a {C.CAGG}
+- [`alter_policies()`][alter_policies]: alter refresh, compression, or data retention policies on a {C.CAGG}
+- [`remove_policies()`][remove_policies]: remove refresh, compression, or data retention policies from a {C.CAGG}
+- [`remove_all_policies()`][remove_all_policies]: remove all policies from a {C.CAGG}
+- [`show_policies()`][show_policies]: show all policies that are currently set on a {C.CAGG}
+
+[add_continuous_aggregate_policy]: /api-reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy
+
+[add_policies]: /api-reference/timescaledb/continuous-aggregates/add_policies
+
+[alter_materialized_view]: /api-reference/timescaledb/continuous-aggregates/alter_materialized_view
+
+[alter_policies]: /api-reference/timescaledb/continuous-aggregates/alter_policies
+
+[cagg-docs]: /use-timescale/latest/continuous-aggregates/
+
+[cagg_migrate]: /api-reference/timescaledb/continuous-aggregates/cagg_migrate
+
+[create_materialized_view]: /api-reference/timescaledb/continuous-aggregates/create_materialized_view
+
+[data-tiering]: /use-timescale/latest/data-tiering/
+
+[drop_materialized_view]: /api-reference/timescaledb/continuous-aggregates/drop_materialized_view
+
+[hierarchical-caggs]: /use-timescale/latest/continuous-aggregates/hierarchical-continuous-aggregates/
+
+[hypercore]: /use-timescale/latest/hypercore/
+
+[real-time-aggregation]: /use-timescale/latest/continuous-aggregates/real-time-aggregates/
+
+[refresh_continuous_aggregate]: /api-reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate
+
+[remove_all_policies]: /api-reference/timescaledb/continuous-aggregates/remove_all_policies
+
+[remove_continuous_aggregate_policy]: /api-reference/timescaledb/continuous-aggregates/remove_continuous_aggregate_policy
+
+[remove_policies]: /api-reference/timescaledb/continuous-aggregates/remove_policies
+
+[show_policies]: /api-reference/timescaledb/continuous-aggregates/show_policies

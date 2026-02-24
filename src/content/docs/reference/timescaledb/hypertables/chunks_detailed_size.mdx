@@ -1,0 +1,71 @@
+---
+title: chunks_detailed_size()
+description: Get detailed information about disk space used by chunks
+topics: [hypertables]
+keywords: [chunks, hypertables, size, information]
+tags: [disk space, schemas]
+license: community
+type: function
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+import ReturnsNullIfNotHypertable from '/snippets/reference/timescaledb/_returns-null-if-not-hypertable.mdx';
+
+<TagIcon iconType="duotone" /> Since [0.2.0][tsdb-0.2.0]
+
+Get information about the disk space used by the {C.CHUNK}s belonging to a
+{C.HYPERTABLE}, returning size information for each {C.CHUNK} table, any
+indexes on the {C.CHUNK}, any toast tables, and the total size associated
+with the {C.CHUNK}. All sizes are reported in bytes.
+
+If the function is executed on a distributed {C.HYPERTABLE}, it returns
+disk space usage information as a separate row per node. The access
+node is not included since it doesn't have any local {C.CHUNK} data.
+
+Additional metadata associated with a {C.CHUNK} can be accessed
+via the `timescaledb_information.chunks` view.
+
+## Samples
+
+```sql
+SELECT * FROM chunks_detailed_size('dist_table')
+  ORDER BY chunk_name, node_name;
+
+     chunk_schema      |      chunk_name       | table_bytes | index_bytes | toast_bytes | total_bytes |       node_name
+-----------------------+-----------------------+-------------+-------------+-------------+-------------+-----------------------
+ _timescaledb_internal | _dist_hyper_1_1_chunk |        8192 |       32768 |           0 |       40960 | data_node_1
+ _timescaledb_internal | _dist_hyper_1_2_chunk |        8192 |       32768 |           0 |       40960 | data_node_2
+ _timescaledb_internal | _dist_hyper_1_3_chunk |        8192 |       32768 |           0 |       40960 | data_node_3
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT * FROM chunks_detailed_size('<hypertable_name>');
+```
+
+| Name | Type | Default | Required | Description |
+|---|---|---|-|---|
+| `hypertable` | REGCLASS | - | ✔ | Name of the hypertable |
+
+## Returns
+
+|Column|Type|Description|
+|---|---|---|
+|chunk\_schema| TEXT | Schema name of the {C.CHUNK} |
+|chunk\_name| TEXT | Name of the {C.CHUNK}|
+|table\_bytes|BIGINT | Disk space used by the {C.CHUNK} table|
+|index\_bytes|BIGINT | Disk space used by indexes|
+|toast\_bytes|BIGINT | Disk space of toast tables|
+|total\_bytes|BIGINT | Total disk space used by the {C.CHUNK}, including all indexes and TOAST data|
+|node\_name| TEXT | Node for which size is reported, applicable only to distributed {C.HYPERTABLE}s|
+
+<ReturnsNullIfNotHypertable />
+
+[tsdb-0.2.0]: https://github.com/timescale/timescaledb/releases/tag/0.2.0

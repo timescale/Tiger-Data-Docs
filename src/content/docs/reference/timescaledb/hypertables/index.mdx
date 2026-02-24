@@ -1,0 +1,201 @@
+---
+title: Hypertables and chunks
+sidebarTitle: Overview
+description: SQL commands and functions for creating and managing hypertables and chunks
+topics: [hypertables, chunks]
+license: apache
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { Callout } from '@stainless-api/docs/components';
+
+import HypertableIntro from '@partials/_hypertable-intro.mdx';
+import CreateHypertableColumnstorePolicyNote from '@partials/_create-hypertable-columnstore-policy-note.mdx';
+import OldCreateHypertable from '@partials/_old-api-create-hypertable.mdx';
+
+<HypertableIntro />
+
+For more information about using {C.HYPERTABLE}s, including {C.CHUNK} size partitioning, see the [hypertable
+documentation][hypertable-docs].
+
+## Create a hypertable
+
+To create a {C.HYPERTABLE} for your time-series data, use [`CREATE TABLE`][create_table]. For efficient queries on data in
+the {C.COLUMNSTORE}, remember to `segmentby` the column you will use most often to filter your data. For example:
+
+```sql
+CREATE TABLE conditions (
+  time        TIMESTAMPTZ       NOT NULL,
+  location    TEXT              NOT NULL,
+  device      TEXT              NOT NULL,
+  temperature DOUBLE PRECISION  NULL,
+  humidity    DOUBLE PRECISION  NULL
+) WITH (
+  tsdb.hypertable,
+  tsdb.segmentby = 'device',
+  tsdb.orderby = 'time DESC'
+);
+```
+
+<CreateHypertableColumnstorePolicyNote />
+
+<Callout variant="note">
+  <OldCreateHypertable />
+</Callout>
+
+## Samples
+
+### Create a hypertable
+
+Create a {C.HYPERTABLE} using the `CREATE TABLE` syntax with {C.HYPERCORE} for optimal performance:
+
+```sql
+CREATE TABLE conditions (
+  time        TIMESTAMPTZ       NOT NULL,
+  location    TEXT              NOT NULL,
+  device      TEXT              NOT NULL,
+  temperature DOUBLE PRECISION  NULL,
+  humidity    DOUBLE PRECISION  NULL
+) WITH (
+  tsdb.hypertable,
+  tsdb.segmentby = 'device',
+  tsdb.orderby = 'time DESC'
+);
+```
+
+### Drop old chunks
+
+Remove {C.CHUNK}s older than 3 months to manage storage:
+
+```sql
+SELECT drop_chunks('conditions', INTERVAL '3 months');
+```
+
+### View chunk information
+
+Get detailed information about {C.CHUNK}s for a {C.HYPERTABLE}:
+
+```sql
+SELECT show_chunks('conditions');
+```
+
+### Add a space dimension
+
+Add a second partitioning dimension for multi-dimensional data:
+
+```sql
+SELECT add_dimension('conditions', 'location', number_partitions => 4);
+```
+
+## Available functions
+
+### Table creation
+
+- [`CREATE TABLE`][create_table]: create a {C.HYPERTABLE} using standard SQL syntax with {C.HYPERCORE}
+
+### Chunk management
+
+- [`show_chunks()`][show_chunks]: display {C.CHUNK}s associated with {C.HYPERTABLE}s
+- [`drop_chunks()`][drop_chunks]: remove {C.CHUNK}s from {C.HYPERTABLE}s
+- [`move_chunk()`][move_chunk]: move a {C.CHUNK} to a different tablespace
+- [`reorder_chunk()`][reorder_chunk]: reorder a single {C.CHUNK} by an index
+- [`merge_chunks()`][merge_chunks]: merge multiple {C.CHUNK}s into a single {C.CHUNK}
+- [`split_chunk()`][split_chunk]: split a {C.CHUNK} into multiple {C.CHUNK}s
+- [`attach_chunk()`][attach_chunk]: attach a table as a {C.CHUNK} to a {C.HYPERTABLE}
+- [`detach_chunk()`][detach_chunk]: detach a {C.CHUNK} from a {C.HYPERTABLE}
+- [`set_chunk_time_interval()`][set_chunk_time_interval]: set the time interval for {C.CHUNK} creation
+- [`set_integer_now_func()`][set_integer_now_func]: set function to compute current time for integer-based times
+
+### Dimension management
+
+- [`add_dimension()`][add_dimension]: add a space-partitioning dimension to a {C.HYPERTABLE}
+
+### Size and statistics
+
+- [`hypertable_size()`][hypertable_size]: get the total disk space used by a {C.HYPERTABLE}
+- [`hypertable_detailed_size()`][hypertable_detailed_size]: get detailed disk space usage for a {C.HYPERTABLE}
+- [`hypertable_index_size()`][hypertable_index_size]: get the total size of indexes on a {C.HYPERTABLE}
+- [`hypertable_approximate_size()`][hypertable_approximate_size]: get an approximate total size of a {C.HYPERTABLE}
+- [`hypertable_approximate_detailed_size()`][hypertable_approximate_detailed_size]: get approximate detailed size
+  information
+- [`chunks_detailed_size()`][chunks_detailed_size]: get detailed size information for {C.CHUNK}s
+
+### Tablespace management
+
+- [`attach_tablespace()`][attach_tablespace]: attach a tablespace to a {C.HYPERTABLE}
+- [`detach_tablespace()`][detach_tablespace]: detach a tablespace from a {C.HYPERTABLE}
+- [`detach_tablespaces()`][detach_tablespaces]: detach all tablespaces from a {C.HYPERTABLE}
+- [`show_tablespaces()`][show_tablespaces]: show tablespaces attached to a {C.HYPERTABLE}
+
+### Reordering and policies
+
+- [`add_reorder_policy()`][add_reorder_policy]: add a policy to automatically reorder {C.CHUNK}s
+- [`remove_reorder_policy()`][remove_reorder_policy]: remove an automatic {C.CHUNK} reordering policy
+
+### Query optimization
+
+- [`enable_chunk_skipping()`][enable_chunk_skipping]: enable {C.CHUNK} skipping for a {C.HYPERTABLE}
+- [`disable_chunk_skipping()`][disable_chunk_skipping]: disable {C.CHUNK} skipping for a {C.HYPERTABLE}
+
+### Legacy functions
+
+For backward compatibility, {C.TIMESCALE_DB} also provides [`create_hypertable()`][create_hypertable], which was the
+original function for creating {C.HYPERTABLE}s. Use [`CREATE TABLE`][create_table] for new {C.HYPERTABLE}s.
+
+[add_dimension]: /api-reference/timescaledb/hypertables/add_dimension
+
+[add_reorder_policy]: /api-reference/timescaledb/hypertables/add_reorder_policy
+
+[attach_chunk]: /api-reference/timescaledb/hypertables/attach_chunk
+
+[attach_tablespace]: /api-reference/timescaledb/hypertables/attach_tablespace
+
+[chunks_detailed_size]: /api-reference/timescaledb/hypertables/chunks_detailed_size
+
+[create_hypertable]: /api-reference/timescaledb/hypertables/create_hypertable
+
+[create_table]: /api-reference/timescaledb/hypertables/create_table
+
+[detach_chunk]: /api-reference/timescaledb/hypertables/detach_chunk
+
+[detach_tablespace]: /api-reference/timescaledb/hypertables/detach_tablespace
+
+[detach_tablespaces]: /api-reference/timescaledb/hypertables/detach_tablespaces
+
+[disable_chunk_skipping]: /api-reference/timescaledb/hypertables/disable_chunk_skipping
+
+[drop_chunks]: /api-reference/timescaledb/hypertables/drop_chunks
+
+[enable_chunk_skipping]: /api-reference/timescaledb/hypertables/enable_chunk_skipping
+
+[hypertable-docs]: /manage-data/timescaledb/data-management/hypertables/understand-hypertables
+
+[hypertable_approximate_detailed_size]: /api-reference/timescaledb/hypertables/hypertable_approximate_detailed_size
+
+[hypertable_approximate_size]: /api-reference/timescaledb/hypertables/hypertable_approximate_size
+
+[hypertable_detailed_size]: /api-reference/timescaledb/hypertables/hypertable_detailed_size
+
+[hypertable_index_size]: /api-reference/timescaledb/hypertables/hypertable_index_size
+
+[hypertable_size]: /api-reference/timescaledb/hypertables/hypertable_size
+
+[merge_chunks]: /api-reference/timescaledb/hypertables/merge_chunks
+
+[move_chunk]: /api-reference/timescaledb/hypertables/move_chunk
+
+[remove_reorder_policy]: /api-reference/timescaledb/hypertables/remove_reorder_policy
+
+[reorder_chunk]: /api-reference/timescaledb/hypertables/reorder_chunk
+
+[set_chunk_time_interval]: /api-reference/timescaledb/hypertables/set_chunk_time_interval
+
+[set_integer_now_func]: /api-reference/timescaledb/hypertables/set_integer_now_func
+
+[show_chunks]: /api-reference/timescaledb/hypertables/show_chunks
+
+[show_tablespaces]: /api-reference/timescaledb/hypertables/show_tablespaces
+
+[split_chunk]: /api-reference/timescaledb/hypertables/split_chunk

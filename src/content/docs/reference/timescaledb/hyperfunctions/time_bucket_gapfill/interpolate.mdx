@@ -1,0 +1,48 @@
+---
+title: interpolate()
+description: Fill in missing values by linear interpolation
+topics: [hyperfunctions]
+license: community
+type: function
+hyperfunction:
+  family: gapfilling
+  type: interpolator
+  bucket_function: time_bucket_gapfill()
+products: [cloud, mst, self_hosted]
+---
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.1.1][tsdb-1.1.1]
+
+Fill in missing values by linear interpolation.
+Use in the same query as [`time_bucket_gapfill`][time_bucket_gapfill].
+`interpolate` cannot be nested inside another function call.
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT interpolate(
+    value = <anyelement>,
+    prev = <anyelement>,
+    next = <anyelement>
+);
+```
+
+| Name | Type | Default | Required | Description |
+|--|--|--|--|--|
+| `value` | SMALLINT | INTEGER | BIGINT | REAL | DOUBLE PRECISION | - | ✔ | The value to interpolate |
+| `prev` | EXPRESSION | - | - | If no previous value is available for gapfilling, use the `prev` lookup expression to get a previous value. For example, you can use `prev` to fill in the first bucket in a queried time range. The expression must return a `(time, value)` tuple with types corresponding to the bucketed times and values. |
+| `next` | EXPRESSION | - | - | If no next value is available for gapfilling, use the `next` lookup expression to get a next value. For example, you can use `next` to fill in the last bucket in a queried time range. The expression must return a `(time, value)` tuple with types corresponding to the bucketed times and values. |
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+| `interpolate` | SMALLINT, INTEGER, BIGINT, REAL, or DOUBLE PRECISION | The gapfilled value. The return type matches the input `value` type. |
+
+[time_bucket_gapfill]: /api-reference/timescaledb/hyperfunctions/time_bucket_gapfill/time_bucket_gapfill
+
+[tsdb-1.1.1]: https://github.com/timescale/timescaledb/releases/tag/1.1.1

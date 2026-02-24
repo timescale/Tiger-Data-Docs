@@ -1,0 +1,131 @@
+---
+title: ALTER TABLE (hypercore)
+description: Enable the columnstore for a hypertable.
+license: community
+type: command
+topics: [hypercore, columnstore]
+keywords: [columnstore, hypercore]
+tags: [settings, hypertables, alter, change]
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<TagIcon iconType="duotone" /> Since [2.18.0][tsdb-2.18.0]
+
+<Tag>Community</Tag>
+
+<Callout variant="info">
+  `ALTER TABLE (hypercore)` replaces `ALTER TABLE (Compression)`, deprecated in 2.18.0.
+</Callout>
+
+Enable the {C.COLUMNSTORE} or change the {C.COLUMNSTORE} settings for a {C.HYPERTABLE}. The settings are applied on a
+per-{C.CHUNK}
+basis. You **do not** need to convert the entire {C.HYPERTABLE} back to the {C.ROWSTORE} before changing the settings. The
+new
+settings apply only to the {C.CHUNK}s that have not yet been converted to {C.COLUMNSTORE}, the existing {C.CHUNK}s in the
+{C.COLUMNSTORE} do not change. This means that {C.CHUNK}s with different {C.COLUMNSTORE} settings can co-exist in the
+same {C.HYPERTABLE}.
+
+{C.TIMESCALE_DB} calculates default {C.COLUMNSTORE} settings for each {C.CHUNK} when it is created. These settings apply to
+each
+{C.CHUNK}, and not the entire {C.HYPERTABLE}. To explicitly disable the defaults, set a setting to an empty string. To
+remove
+the current configuration and re-enable the defaults, call `ALTER TABLE <your_table_name> RESET
+(<columnstore_setting>);`.
+
+After you have enabled the {C.COLUMNSTORE}, either:
+
+- [add\_columnstore\_policy][add_columnstore_policy]: create a [job][job] that automatically moves {C.CHUNK}s in a
+  {C.HYPERTABLE} to the {C.COLUMNSTORE} at a
+  specific time interval.
+- [convert\_to\_columnstore][convert_to_columnstore]: manually add a specific {C.CHUNK} in a {C.HYPERTABLE} to the
+  {C.COLUMNSTORE}.
+
+## Samples
+
+To enable the {C.COLUMNSTORE} using `ALTER TABLE`:
+
+- **Configure a {C.HYPERTABLE} that ingests device data to use the {C.COLUMNSTORE}**:
+
+  In this example, the `metrics` {C.HYPERTABLE} is often queried about a specific device or set of devices.
+  Segment the {C.HYPERTABLE} by `device_id` to improve query performance.
+
+  ```sql
+   ALTER TABLE metrics SET(
+     timescaledb.enable_columnstore,
+     timescaledb.orderby = 'time DESC',
+     timescaledb.segmentby = 'device_id');
+  ```
+
+- **Specify the {C.CHUNK} interval without changing other {C.COLUMNSTORE} settings**:
+
+  - Set the time interval when {C.CHUNK}s are added to the {C.COLUMNSTORE}:
+
+    ```sql
+    ALTER TABLE metrics SET (timescaledb.compress_chunk_time_interval = '24 hours');
+    ```
+
+  - To disable the option you set previously, set the interval to 0:
+
+    ```sql
+    ALTER TABLE metrics SET (timescaledb.compress_chunk_time_interval = '0');
+    ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+ALTER TABLE <table_name> SET (timescaledb.enable_columnstore,
+   timescaledb.compress_orderby = '<column_name> [ASC | DESC] [ NULLS { FIRST | LAST } ] [, ...]',
+   timescaledb.compress_segmentby = '<column_name> [, ...]',
+   timescaledb.sparse_index = '<index>(<column_name>), <index>(<column_name>)',
+   timescaledb.compress_chunk_time_interval='interval',
+   ALTER <column name> SET NOT NULL,
+   ADD CONSTRAINT <constraint_name> UNIQUE (<column name>, ... )
+);
+```
+
+| Name  | Type    | Default                                                                                                                                                                                                                           | Required | Description  |
+|-------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------|--------------|
+| `table_name`                               | TEXT    | -                                                                                                                                                                                                                                 | ✖        | The {C.HYPERTABLE} to enable columstore for.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `timescaledb.enable_columnstore`           | BOOLEAN | `true`                                                                                                                                                                                                                            | ✖        | Set to `false` to disable {C.COLUMNSTORE}.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `timescaledb.compress_orderby`                      | TEXT    | Descending order on the time column in `table_name`.                                                                                                                                                                              | ✖        | The order in which items are used in the {C.COLUMNSTORE}. Specified in the same way as an `ORDER BY` clause in a `SELECT` query. Setting `timescaledb.compress_orderby` automatically creates an implicit min/max sparse index on the `orderby` column.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `timescaledb.compress_segmentby`                    | TEXT    | {C.TIMESCALE_DB} looks at [`pg_stats`][pgstats] and determines an appropriate column based on the data cardinality and distribution. If `pg_stats` is not available, {C.TIMESCALE_DB} looks for an appropriate column from the existing indexes. | ✖        | Set the list of columns used to segment data in the {C.COLUMNSTORE} for `table`. An identifier representing the source of the data such as `device_id` or `tags_id` is usually a good candidate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `column_name`                              | TEXT    | -                                                                                                                                                                                                                                 | ✖        | The name of the column to `orderby` or `segmentby`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+|`timescaledb.sparse_index`| TEXT    | {C.TIMESCALE_DB} evaluates the columns you already have indexed, checks which data types are a good fit for sparse indexing, then creates a sparse index as an optimization.                                                         | ✖        | Configure the sparse indexes for compressed {C.CHUNK}s. Requires setting `timescaledb.compress_orderby`. Supported index types include: <li> `bloom(<column_name>)`: a probabilistic index, effective for `=` filters. Cannot be applied to `timescaledb.compress_orderby` columns.</li> <li> `minmax(<column_name>)`: stores min/max values for each compressed {C.CHUNK}. Setting `timescaledb.compress_orderby` automatically creates an implicit min/max sparse index on the `orderby` column. </li> Define multiple indexes using a comma-separated list. You can set only one index per column. Set to an empty string to avoid using sparse indexes and explicitly disable the default behavior. To remove the current sparse index configuration and re-enable default sparse index selection, call `ALTER TABLE your_table_name RESET (timescaledb.sparse_index);`. |
+| `timescaledb.compress_chunk_time_interval` | INTERVAL    | -                                                                                                                                                                                                                                 | ✖        | EXPERIMENTAL: reduce the total number of {C.CHUNK}s in the {C.COLUMNSTORE} for `table`. If you set `compress_chunk_time_interval`, {C.CHUNK}s added to the {C.COLUMNSTORE} are merged with the previous adjacent {C.CHUNK} within `chunk_time_interval` whenever possible. These {C.CHUNK}s are irreversibly merged. If you call [convert\_to\_rowstore][convert_to_rowstore], merged {C.CHUNK}s are not split up. You can call `compress_chunk_time_interval` independently of other compression settings; `timescaledb.enable_columnstore` is not required.                                                                                                                                                                                                                                                                                                             |
+| `interval`                                 | TEXT    | -                                                                                                                                                                                                                                 | ✖        | Set to a multiple of the [chunk\_time\_interval][chunk_time_interval] for `table`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `ALTER`                                    | TEXT    |                                                                                                                                                                                                                                   | ✖        | Set a specific column in the columnstore to be `NOT NULL`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `ADD CONSTRAINT`                           | TEXT    |                                                                                                                                                                                                                                   | ✖        | Add `UNIQUE` constraints to data in the columnstore.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+
+## Returns
+
+For standard `ALTER TABLE` return behavior, see the [PostgreSQL ALTER TABLE documentation][postgres-alter-table].
+
+[add_columnstore_policy]: /api-reference/timescaledb/hypercore/add_columnstore_policy
+
+[bloom-filters]: https://en.wikipedia.org/wiki/Bloom_filter
+
+[chunk_time_interval]: /api-reference/timescaledb/hypertables/set_chunk_time_interval
+
+[convert_to_columnstore]: /api-reference/timescaledb/hypercore/convert_to_columnstore
+
+[convert_to_rowstore]: /api-reference/timescaledb/hypercore/convert_to_rowstore
+
+[create-hypertable]: /api-reference/timescaledb/hypertables/create_hypertable
+
+[default_table_access_method]: https://www.postgresql.org/docs/17/runtime-config-client.html#GUC-DEFAULT-TABLE-ACCESS-METHOD
+
+[job]: /api-reference/timescaledb/jobs-automation/add_job
+
+[pgstats]: https://www.postgresql.org/docs/current/view-pg-stats.html
+
+[postgres-alter-table]: https://www.postgresql.org/docs/current/sql-altertable.html
+
+[tsdb-2.18.0]: https://github.com/timescale/timescaledb/releases/tag/2.18.0

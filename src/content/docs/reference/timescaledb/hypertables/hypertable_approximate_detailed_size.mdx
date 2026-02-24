@@ -1,0 +1,83 @@
+---
+title: hypertable_approximate_detailed_size()
+description: Get detailed information about approximate disk space used by a hypertable
+topics: [hypertables]
+keywords: [hypertables, information]
+tags: [statistics, size, disk space]
+license: apache
+type: function
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+import { Callout } from '@stainless-api/docs/components';
+
+import ReturnsNullIfNotHypertable from '/snippets/reference/timescaledb/_returns-null-if-not-hypertable.mdx';
+
+<TagIcon iconType="duotone" /> Since [2.14.0][tsdb-2.14.0]
+
+Get detailed information about approximate disk space used by a {C.HYPERTABLE} or
+{C.CAGG}, returning size information for the table
+itself, any indexes on the table, any toast tables, and the total
+size of all. All sizes are reported in bytes.
+
+When a {C.CAGG} name is provided, the function
+transparently looks up the backing {C.HYPERTABLE} and returns its approximate
+size statistics instead.
+
+<Callout variant="note">
+  This function relies on the per backend caching using the in-built
+  {C.PG} storage manager layer to compute the approximate size
+  cheaply. The PG cache invalidation clears off the cached size for a
+  {C.CHUNK} when DML happens into it. That size cache is thus able to get
+  the latest size in a matter of minutes. Also, due to the backend
+  caching, any long running session will only fetch latest data for new
+  or modified {C.CHUNK}s and can use the cached data (which is calculated
+  afresh the first time around) effectively for older {C.CHUNK}s. Thus it
+  is recommended to use a single connected {C.PG} backend session to
+  compute the approximate sizes of {C.HYPERTABLE}s to get faster results.
+</Callout>
+
+For more information about using {C.HYPERTABLE}s, including {C.CHUNK} size partitioning,
+see the [hypertable section][hypertable-docs].
+
+## Samples
+
+Get the approximate size information for a {C.HYPERTABLE}.
+
+```sql
+SELECT * FROM hypertable_approximate_detailed_size('hyper_table');
+ table_bytes | index_bytes | toast_bytes | total_bytes
+-------------+-------------+-------------+-------------
+        8192 |       24576 |       32768 |       65536
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT * FROM hypertable_approximate_detailed_size('<hypertable_name>');
+```
+
+|Name|Type| Default | Required | Description|
+|---|---|---|---|---|
+| `hypertable` | REGCLASS | - | ✔ | Hypertable or continuous aggregate to show detailed approximate size of. |
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+|table\_bytes|BIGINT|Approximate disk space used by main\_table (like `pg_relation_size(main_table)`)|
+|index\_bytes|BIGINT|Approximate disk space used by indexes|
+|toast\_bytes|BIGINT|Approximate disk space of toast tables|
+|total\_bytes|BIGINT|Approximate total disk space used by the specified table, including all indexes and TOAST data|
+
+<ReturnsNullIfNotHypertable />
+
+[hypertable-docs]: /use-timescale/hypertables/
+
+[tsdb-2.14.0]: https://github.com/timescale/timescaledb/releases/tag/2.14.0

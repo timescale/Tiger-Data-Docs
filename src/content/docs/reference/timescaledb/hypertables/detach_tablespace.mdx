@@ -1,0 +1,81 @@
+---
+title: detach_tablespace()
+description: Detach a tablespace from a hypertable
+topics: [hypertables]
+keywords: [tablespaces, hypertables, detach]
+products: [cloud, mst, self_hosted]
+license: apache
+type: function
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [0.7.0][tsdb-0.7.0]
+
+Detach a tablespace from one or more {C.HYPERTABLE}s. This *only* means
+that *new* {C.CHUNK}s are not placed on the detached tablespace. This
+is useful, for instance, when a tablespace is running low on disk
+space and one would like to prevent new {C.CHUNK}s from being created in
+the tablespace. The detached tablespace itself and any existing {C.CHUNK}s
+with data on it remains unchanged and continue to work as
+before, including being available for queries. Note that newly
+inserted data rows may still be inserted into an existing {C.CHUNK} on the
+detached tablespace since existing data is not cleared from a detached
+tablespace. A detached tablespace can be reattached if desired to once
+again be considered for {C.CHUNK} placement.
+
+## Samples
+
+Detach the tablespace `disk1` from the {C.HYPERTABLE} `conditions`:
+
+```sql
+SELECT detach_tablespace('disk1', 'conditions');
+SELECT detach_tablespace('disk2', 'conditions', if_attached => true);
+```
+
+Detach the tablespace `disk1` from all {C.HYPERTABLE}s that the current
+user has permissions for:
+
+```sql
+SELECT detach_tablespace('disk1');
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT detach_tablespace(
+    tablespace = '<tablespace_name>',
+    hypertable = '<hypertable_name>',
+    if_attached = true | false
+);
+```
+
+|Name|Type| Default | Required | Description|
+|---|---|---|---|---|
+| `tablespace` | TEXT | - | ✔ | Tablespace to detach.|
+| `hypertable` | REGCLASS | - | ✖ | Hypertable to detach the tablespace from.|
+| `if_attached` | BOOLEAN | `FALSE` | ✖ | Set to true to avoid throwing an error if the tablespace is not attached to the given table. A notice is issued instead. |
+
+When giving only the tablespace name as argument, the given tablespace
+is detached from all {C.HYPERTABLE}s that the current role has the
+appropriate permissions for. Therefore, without proper permissions,
+the tablespace may still receive new {C.CHUNK}s after this command
+is issued.
+
+When specifying a specific {C.HYPERTABLE}, the tablespace is only
+detached from the given {C.HYPERTABLE} and thus may remain attached to
+other {C.HYPERTABLE}s.
+
+## Returns
+
+| Name | Type | Description |
+|-|-|-|
+| detach\_tablespace | INTEGER | The number of {C.HYPERTABLE}s from which the tablespace was detached. |
+
+When called with both `tablespace` and `hypertable` arguments, returns 1 if the tablespace was successfully detached from the specified {C.HYPERTABLE}. When called with only the `tablespace` argument, returns the total number of {C.HYPERTABLE}s from which the tablespace was detached.
+
+[tsdb-0.7.0]: https://github.com/timescale/timescaledb/releases/tag/0.7.0

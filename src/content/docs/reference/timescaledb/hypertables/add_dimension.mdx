@@ -1,0 +1,109 @@
+---
+title: add_dimension()
+description: Add a space-partitioning dimension to a hypertable
+topics: [hypertables]
+keywords: [hypertables, partitions]
+tags: [dimensions, chunks]
+license: apache
+type: function
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+import { Callout } from '@stainless-api/docs/components';
+
+import DimensionInfo from '@partials/_dimensions_info.mdx';
+import AddDimensionErrors from '/snippets/reference/timescaledb/_add-dimension-errors.mdx';
+
+<TagIcon iconType="duotone" /> Since [0.1.0][tsdb-0.1.0]
+
+Add an additional partitioning dimension to a {C.TIMESCALE_DB} {C.HYPERTABLE}. You can only execute this `add_dimension`
+command
+on an empty {C.HYPERTABLE}. To convert a normal table to a {C.HYPERTABLE}, call [create hypertable][create_hypertable].
+
+The column you select as the dimension can use either:
+
+- [Interval partitions][by-range]: for example, for a second range partition.
+- [hash partitions][by-hash]: to enable parallelization across multiple disks.
+
+<Callout variant="note">
+  **These instructions are for self-hosted {C.TIMESCALE_DB} deployments**
+
+  Best practice is to not use additional dimensions. However, {C.CLOUD_LONG} transparently provides seamless storage
+  scaling, both in terms of storage capacity and available storage IOPS/bandwidth.
+</Callout>
+
+This page describes the generalized {C.HYPERTABLE} API introduced in {C.TIMESCALE_DB} v2.13.0.
+For information about the deprecated interface, see [add\_dimension(), deprecated interface][add-dimension-old].
+
+## Samples
+
+First convert table `conditions` to a hypertable with just range
+partitioning on column `time`, then add an additional partition key on
+`location` with four partitions:
+
+```sql
+SELECT create_hypertable('conditions', by_range('time'));
+SELECT add_dimension('conditions', by_hash('location', 4));
+```
+
+<Callout variant="info">
+  The `by_range` and `by_hash` dimension builders are an addition to {C.TIMESCALE_DB} 2.13.
+</Callout>
+
+Convert table `conditions` to a hypertable with range partitioning on
+`time` then add three additional dimensions: one hash partitioning on
+`location`, one range partition on `time_received`, and one hash
+partitioning on `device_id`.
+
+```sql
+SELECT create_hypertable('conditions', by_range('time'));
+SELECT add_dimension('conditions', by_hash('location', 2));
+SELECT add_dimension('conditions', by_range('time_received', INTERVAL '1 day'));
+SELECT add_dimension('conditions', by_hash('device_id', 2));
+SELECT add_dimension('conditions', by_hash('device_id', 2), if_not_exists => true);
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT add_dimension(
+    hypertable = '<hypertable_name>',
+    dimension = by_range('<column_name>', '<interval>') | by_hash('<column_name>', <number_partitions>),
+    if_not_exists = true | false
+);
+```
+
+| Name | Type             | Default | Required | Description                                                                                                                                       |
+|-|-|-|-|---------------------------------------------------------------------------------------------------------------------------------------------------|
+|`hypertable`| REGCLASS         | - | ✔ | The {C.HYPERTABLE} to add the dimension to.                                                                                                           |
+|`dimension` | [DIMENSION\_INFO][dimension-info] | -       | ✔ | To create a `_timescaledb_internal.dimension_info` instance to partition a {C.HYPERTABLE}, you call  [`by_range`][by-range] and [`by_hash`][by-hash]. |
+|`if_not_exists` | BOOLEAN          | `false` | ✖ | Set to `true` to print an error if a dimension for the column already exists. By default an exception is raised.                                  |
+
+<DimensionInfo />
+
+## Returns
+
+|Column|Type| Description                                                                                                 |
+|-|-|-------------------------------------------------------------------------------------------------------------|
+|`dimension_id`|INTEGER| ID of the dimension in the {C.TIMESCALE_DB} internal catalog                                                     |
+|`created`|BOOLEAN| `true` if the dimension was added, `false` when you set `if_not_exists` to `true` and no dimension was added. |
+
+<AddDimensionErrors />
+
+[add-dimension-old]: /api-reference/timescaledb/hypertables/add_dimension_old
+
+[by-hash]: /api-reference/timescaledb/hypertables/add_dimension#by_hash
+
+[by-range]: /api-reference/timescaledb/hypertables/add_dimension#by_range
+
+[create_hypertable]: /api-reference/timescaledb/hypertables/create_hypertable
+
+[dimension-info]: /api-reference/timescaledb/hypertables/add_dimension#dimension-info
+
+[tsdb-0.1.0]: https://github.com/timescale/timescaledb/releases/tag/0.1.0

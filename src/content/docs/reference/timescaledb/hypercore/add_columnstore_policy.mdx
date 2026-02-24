@@ -1,0 +1,209 @@
+---
+title: add_columnstore_policy()
+description: Set a policy to automatically move chunks in a hypertable to the columnstore when they reach a given age.
+license: community
+type: procedure
+topics: [hypercore, columnstore, jobs]
+keywords: [columnstore, hypercore, policies]
+tags: [scheduled jobs, background jobs, automation framework]
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+import { Callout } from '@stainless-api/docs/components';
+
+import OldCreateHypertable from '@partials/_old-api-create-hypertable.mdx';
+import CreateHypertablePolicyNote from '@partials/_create-hypertable-columnstore-policy-note.mdx';
+
+import ReturnsVoid from '/snippets/reference/timescaledb/_returns-void.mdx';
+
+<TagIcon iconType="duotone" /> Since [2.18.0][tsdb-2.18.0]
+
+<Callout variant="info">
+  `add_columnstore_policy()` replaces `add_compression_policy()`, deprecated in 2.18.0.
+</Callout>
+
+Create a [job][job] that automatically moves {C.CHUNK}s in a {C.HYPERTABLE} to the {C.COLUMNSTORE} after a
+specific time interval.
+
+- **Continuous aggregates**:
+
+  You first call `ALTER MATERIALIZED VIEW` to enable the {C.COLUMNSTORE} on a {C.CAGG}, then create the job that converts
+  your data to the {C.COLUMNSTORE} with a call to `add_columnstore_policy`.
+
+- **Hypertables**:
+
+  <CreateHypertablePolicyNote />
+
+When {C.COLUMNSTORE} is enabled, [bloom filters][bloom-filters] are enabled by default, and every new {C.CHUNK} has a bloom
+index.
+Bloom indexes are not retrofitted, existing {C.CHUNK}s need to be fully recompressed to have the bloom indexes present. If
+you converted {C.CHUNK}s to {C.COLUMNSTORE} using {C.TIMESCALE_DB} [v2.19.3][tsdb-2.19.3] or below, to enable bloom filters on that data you have
+to convert those {C.CHUNK}s to the {C.ROWSTORE}, then convert them back to the {C.COLUMNSTORE}.
+
+To view the policies that you set or the policies that already exist, see [informational views][informational-views].
+
+A {C.COLUMNSTORE} policy is applied on a per-{C.CHUNK} basis. If you remove an existing policy and then add a new one, the
+new
+policy applies only to the {C.CHUNK}s that have not yet been converted to {C.COLUMNSTORE}. The existing {C.CHUNK}s in the
+{C.COLUMNSTORE} remain unchanged. This means that {C.CHUNK}s with different {C.COLUMNSTORE} settings can co-exist in the same
+{C.HYPERTABLE}.
+
+## Samples
+
+To create a {C.COLUMNSTORE} job:
+
+1. **Enable {C.COLUMNSTORE}**
+
+   For [efficient queries][secondary-indexes] on data in the columnstore, remember to `segmentby` the column you will
+   use most often to filter your data.
+
+   - [Use `CREATE TABLE` for a {C.HYPERTABLE}][hypertable-create-table]. The columnstore policy is created automatically.
+
+     ```sql
+     CREATE TABLE crypto_ticks (
+        "time" TIMESTAMPTZ,
+        symbol TEXT,
+        price DOUBLE PRECISION,
+        day_volume NUMERIC
+     ) WITH (
+       tsdb.hypertable,
+       tsdb.segmentby='symbol',
+       tsdb.orderby='time DESC'
+     );
+     ```
+
+     <OldCreateHypertable />
+
+   - [Use `ALTER MATERIALIZED VIEW` for a {C.CAGG}][compression_continuous-aggregate]
+     ```sql
+     ALTER MATERIALIZED VIEW assets_candlestick_daily SET (
+        timescaledb.enable_columnstore = true,
+        timescaledb.segmentby = 'symbol');
+     ```
+
+2. **Add a policy to move {C.CHUNK}s to the {C.COLUMNSTORE} at a specific time interval**
+
+   For example:
+
+   - 60 days after the data was added to the table:
+     ```sql
+     CALL add_columnstore_policy('crypto_ticks', after => INTERVAL '60d');
+     ```
+
+   - 3 months prior to the moment you run the query:
+
+     ```sql
+     CALL add_columnstore_policy('crypto_ticks', created_before => INTERVAL '3 months');
+     ```
+
+   - With an integer-based time column:
+
+     ```sql
+     CALL add_columnstore_policy('table_with_bigint_time', BIGINT '600000');
+     ```
+
+   - Older than eight weeks:
+
+     ```sql
+     CALL add_columnstore_policy('cpu_weekly', INTERVAL '8 weeks');
+     ```
+
+   - Control the time your policy runs:
+
+     When you use a policy with a fixed schedule, {C.TIMESCALE_DB} uses the `initial_start` time to compute the
+     next start time. When {C.TIMESCALE_DB} finishes executing a policy, it picks the next available time on the
+     schedule,
+     skipping any candidate start times that have already passed.
+
+     When you set the `next_start` time, it only changes the start time of the next immediate execution. It does not
+     change the computation of the next scheduled execution after that next execution. To change the schedule so a
+     policy starts at a specific time, you need to set `initial_start`. To change the next immediate
+     execution, you need to set `next_start`. For example, to modify a policy to execute on a fixed schedule 15 minutes
+     past the hour, and every
+     hour, you need to set both `initial_start` and `next_start` using `alter_job`:
+
+     ```sql
+     select * from alter_job(1000, fixed_schedule => true, initial_start => '2025-07-11 10:15:00', next_start =>
+     '2025-07-11 11:15:00');
+     ```
+
+3. **View the policies that you set or the policies that already exist**
+
+   ```sql
+   SELECT * FROM timescaledb_information.jobs
+   WHERE proc_name='policy_compression';
+   ```
+
+   See [timescaledb\_information.jobs][informational-views].
+
+## Arguments
+
+The syntax is:
+
+```sql
+CALL add_columnstore_policy(
+    hypertable = '<hypertable_name>',
+    after = <interval>,
+    if_not_exists = true | false,
+    schedule_interval = <interval>,
+    initial_start = <timestamptz>,
+    timezone = '<timezone>',
+    created_before = <interval>
+);
+```
+
+Calls to `add_columnstore_policy` require either `after` or `created_before`, but cannot have both.
+
+| Name                          | Type | Default                                                                                                                      | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+|-------------------------------|--|------------------------------------------------------------------------------------------------------------------------------|----------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `hypertable`                  |REGCLASS| -                                                                                                                            | ✔        | Name of the {C.HYPERTABLE} or {C.CAGG} to run this [job][job] on.                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `after`                       |INTERVAL or INTEGER| -                                                                                                                            | ✖        | Add {C.CHUNK}s containing data older than `now - {after}::interval` to the {C.COLUMNSTORE}. <br /> Use an object type that matchs the time column type in `hypertable`: <ul><li><b><code>TIMESTAMP</code>, <code>TIMESTAMPTZ</code>, or <code>DATE</code></b>: use an <code>INTERVAL</code> type.</li><li><b> Integer-based timestamps </b>: set an integer type using the [integer\_now\_func][set_integer_now_func].</li></ul> `after` is mutually exclusive with `created_before`. |
+| `created_before`              |INTERVAL| NULL                                                                                                                         | ✖        | Add {C.CHUNK}s with a creation time of `now() - created_before` to the {C.COLUMNSTORE}. <br /> `created_before` is <ul><li>Not supported for {C.CAGG}s.</li><li>Mutually exclusive with `after`.</li></ul>                                                                                                                                                                                                                                                                             |
+| `schedule_interval`           |INTERVAL| 12 hours when [chunk\_time\_interval][chunk_time_interval] >= `1 day` for `hypertable`. Otherwise `chunk_time_interval` / `2`. | ✖        | Set the interval between the finish time of the last execution of this policy and the next start.                                                                                                                                                                                                                                                                                                                                                                          |
+| `initial_start`               |TIMESTAMPTZ| `NULL`                                     | ✖        | Set the time this job is first run. |
+| `timezone`                    |TEXT| `NULL`                                                   | ✖        | Set to a valid time zone to mitigate DST shifting. If `initial_start` is set, subsequent executions of this policy are aligned on `initial_start`.                                                                                                                                                                                                                                                                                                                         |
+| `if_not_exists`               |BOOLEAN| `false`                                                                                                                      | ✖        | Set to `true` so this job fails with a warning rather than an error if a {C.COLUMNSTORE} policy already exists on `hypertable`                                                                                                                                                                                                                                                                                                                                                |
+
+## Returns
+
+<ReturnsVoid />
+
+[add_columnstore_policy]: /api-reference/timescaledb/hypercore/add_columnstore_policy
+
+[alter_job_samples]: /api-reference/timescaledb/jobs-automation/alter_job/#samples
+
+[bloom-filters]: https://en.wikipedia.org/wiki/Bloom_filter
+
+[chunk_time_interval]: /api-reference/timescaledb/hypertables/set_chunk_time_interval
+
+[compression_alter-table]: /api-reference/timescaledb/hypercore/alter_table
+
+[compression_continuous-aggregate]: /api-reference/timescaledb/continuous-aggregates/alter_materialized_view
+
+[create_table_arguments]: /api-reference/timescaledb/hypertables/create_table/#arguments
+
+[hypercore]: /manage-data/capabilities/hypercore/
+
+[hypertable-create-table]: /api-reference/timescaledb/hypertables/create_table
+
+[hypertables-section]: /manage-data/capabilities/hypertables
+
+[informational-views]: /api-reference/timescaledb/informational-views/jobs
+
+[job]: /api-reference/timescaledb/jobs-automation/add_job
+
+[next-start]: /api-reference/timescaledb/informational-views/jobs/#arguments
+
+[remove_columnstore_policy]: /api-reference/timescaledb/hypercore/remove_columnstore_policy
+
+[secondary-indexes]: /manage-data/capabilities/hypercore/secondary-indexes/
+
+[set_integer_now_func]: /api-reference/timescaledb/hypertables/set_integer_now_func
+
+[tsdb-2.18.0]: https://github.com/timescale/timescaledb/releases/tag/2.18.0
+
+[tsdb-2.19.3]: https://github.com/timescale/timescaledb/releases/tag/2.19.3

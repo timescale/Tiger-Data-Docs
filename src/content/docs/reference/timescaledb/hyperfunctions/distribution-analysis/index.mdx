@@ -1,0 +1,56 @@
+---
+title: Distribution analysis overview
+sidebarTitle: Overview
+description: Functions for analyzing data distribution with histograms and approximate row counts
+topics: [hyperfunctions]
+license: apache
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+Distribution analysis functions help you understand how data is distributed across your datasets and perform fast
+approximate row counting on large tables.
+
+## Samples
+
+### Histogram distribution
+
+Create a histogram showing the distribution of battery levels across devices:
+
+```sql
+SELECT device_id, histogram(battery_level, 20, 60, 5)
+FROM readings
+GROUP BY device_id
+LIMIT 10;
+```
+
+The histogram partitions values into buckets between 20 and 60, with 5 equal-width buckets. The result includes an
+underflow bucket (values \< 20) and an overflow bucket (values >= 60).
+
+### Approximate row count
+
+Get a fast approximate count of rows in a {C.HYPERTABLE} without a full table scan:
+
+```sql
+ANALYZE conditions;
+
+SELECT * FROM approximate_row_count('conditions');
+```
+
+This uses database statistics to provide a quick estimate, which is particularly useful for very large tables where
+exact counts would be expensive.
+
+## Available functions
+
+### Distribution analysis
+
+- [`histogram()`][histogram]: partition a dataset into buckets and get the number of counts in each bucket
+
+### Approximate aggregation
+
+- [`approximate_row_count()`][approximate_row_count]: estimate the number of rows in a table using catalog statistics
+
+[approximate_row_count]: /api-reference/timescaledb/hyperfunctions/distribution-analysis/approximate_row_count
+
+[histogram]: /api-reference/timescaledb/hyperfunctions/distribution-analysis/histogram

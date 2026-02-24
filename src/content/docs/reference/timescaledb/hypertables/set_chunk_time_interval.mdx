@@ -1,0 +1,87 @@
+---
+title: set_chunk_time_interval()
+description: Change the chunk time interval of a hypertable
+topics: [hypertables]
+keywords: [chunks, hypertables]
+tags: [time ranges, time intervals]
+license: apache
+type: function
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [0.1.0][tsdb-0.1.0]
+
+Sets the `chunk_time_interval` on a {C.HYPERTABLE}. The new interval is used
+when new {C.CHUNK}s are created, and time intervals on existing {C.CHUNK}s are
+not changed.
+
+## Samples
+
+For a TIMESTAMP column, set `chunk_time_interval` to 24 hours:
+
+```sql
+SELECT set_chunk_time_interval('conditions', INTERVAL '24 hours');
+SELECT set_chunk_time_interval('conditions', 86400000000);
+```
+
+For a time column expressed as the number of milliseconds since the
+UNIX epoch, set `chunk_time_interval` to 24 hours:
+
+```sql
+SELECT set_chunk_time_interval('conditions', 86400000);
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT set_chunk_time_interval(
+    hypertable = '<hypertable_name>',
+    chunk_time_interval = <interval>,
+    dimension_name = '<dimension_name>'
+);
+```
+
+| Name        | Type             | Default | Required                                                             | Description                                                                                                                                      |
+|-------------|------------------|---------|----------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+|`hypertable`|REGCLASS| -       | ✔                                                                    | {C.HYPERTABLE} or {C.CAGG} to update interval for.                                                                                       |
+|`chunk_time_interval`|See note|-       | ✔   | Event time that each new {C.CHUNK} covers.                                                                                                           |
+|`dimension_name`|NAME| `NULL` | ✖ | The name of the time dimension to set the number of partitions for. Only use `dimension_name` when your {C.HYPERTABLE} has multiple time dimensions. |
+
+If you change {C.CHUNK} time interval you may see a {C.CHUNK} that is smaller than the new interval. For example, if you
+have two 7-day {C.CHUNK}s that cover 14 days, then change `chunk_time_interval` to 3 days, you may end up with a
+transition {C.CHUNK} covering one day. This happens because the start and end of the new {C.CHUNK} is calculated based on
+dividing the timeline by the `chunk_time_interval` starting at epoch 0. This leads to the following {C.CHUNK}s
+\[0, 3), \[3, 6), \[6, 9), \[9, 12), \[12, 15), \[15, 18) and so on. The two 7-day {C.CHUNK}s covered data up to day 14:
+\[0, 7), \[8, 14), so the 3-day {C.CHUNK} for \[12, 15) is reduced to a one day {C.CHUNK}. The following {C.CHUNK} \[15, 18) is
+created as a full 3 day {C.CHUNK}.
+
+The valid types for the `chunk_time_interval` depend on the type used for the
+{C.HYPERTABLE} `time` column:
+
+|`time` column type|`chunk_time_interval` type|Time unit|
+|-|-|-|
+|TIMESTAMP|INTERVAL|days, hours, minutes, etc|
+||INTEGER or BIGINT|microseconds|
+|TIMESTAMPTZ|INTERVAL|days, hours, minutes, etc|
+||INTEGER or BIGINT|microseconds|
+|DATE|INTERVAL|days, hours, minutes, etc|
+||INTEGER or BIGINT|microseconds|
+|SMALLINT|SMALLINT|The same time unit as the `time` column|
+|INT|INT|The same time unit as the `time` column|
+|BIGINT|BIGINT|The same time unit as the `time` column|
+
+For more information, see [{C.HYPERTABLE} partitioning][hypertable-partitioning].
+
+## Returns
+
+This function returns void.
+
+[hypertable-partitioning]: /use-timescale/hypertables/#hypertable-partitioning
+
+[tsdb-0.1.0]: https://github.com/timescale/timescaledb/releases/tag/0.1.0

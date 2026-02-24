@@ -1,0 +1,142 @@
+---
+title: CREATE MATERIALIZED VIEW (Continuous Aggregate)
+sidebarTitle: CREATE MATERIALIZED VIEW
+description: Create a continuous aggregate on a hypertable or another continuous aggregate
+topics: [continuous aggregates]
+keywords: [continuous aggregates, create]
+tags: [materialized view, hypertables]
+license: community
+type: command
+products: [cloud, self_hosted, mst]
+---
+
+import * as C from "@constants";
+
+You use the `CREATE MATERIALIZED VIEW` statement to create {C.CAGG}s. To learn more, see the
+[{C.CAGG} how-to guides][cagg-how-tos].
+
+The syntax is:
+
+```sql
+CREATE MATERIALIZED VIEW <view_name> [ ( column_name [, ...] ) ]
+  WITH ( timescaledb.continuous [, timescaledb.<option> = <value> ] )
+  AS
+    <select_query>
+  [WITH [NO] DATA]
+```
+
+`<select_query>` is of the form:
+
+```sql
+SELECT <grouping_exprs>, <aggregate_functions>
+    FROM <hypertable or another continuous aggregate>
+[WHERE ... ]
+GROUP BY time_bucket( <const_value>, <partition_col_of_hypertable> ),
+         [ optional grouping exprs>]
+[HAVING ...]
+```
+
+The {C.CAGG} view defaults to `WITH DATA`. This means that when the
+view is created, it refreshes using all the current data in the underlying
+{C.HYPERTABLE} or {C.CAGG}. This occurs once when the view is created.
+If you want the view to be refreshed regularly, you can use a refresh policy. If
+you do not want the view to update when it is first created, use the
+`WITH NO DATA` parameter. For more information, see
+[`refresh_continuous_aggregate`][refresh-cagg].
+
+{C.CAGG_CAP}s have some limitations of what types of queries they can
+support. For more information, see the
+[{C.CAGG}s section][cagg-how-tos].
+
+In {C.TIMESCALE_DB} v2.17.0 and greater (with {C.PG} 15+), you can dramatically decrease the amount
+of data written on a {C.CAGG} in the presence of a small number of changes,
+reduce the I/O cost of refreshing a {C.CAGG}, and generate fewer Write-Ahead
+Logs (WAL) by enabling the `timescaledb.enable_merge_on_cagg_refresh`
+[GUC parameter][gucs]. This enables {C.CAGG}
+refresh to use `MERGE` instead of deleting old materialized data and re-inserting.
+This parameter only works for finalized {C.CAGG}s
+that don't have compression enabled. It is disabled by default.
+
+To enable this parameter for your session:
+
+```sql
+SET timescaledb.enable_merge_on_cagg_refresh = ON;
+```
+
+To enable it at the database level:
+
+```sql
+ALTER DATABASE your_database SET timescaledb.enable_merge_on_cagg_refresh = ON;
+```
+
+For more information about GUC parameters, see the [configuration documentation][gucs].
+
+For more settings for {C.CAGG}s, see [timescaledb\_information.continuous\_aggregates][info-views].
+
+## Samples
+
+Create a daily {C.CAGG} view:
+
+```sql
+CREATE MATERIALIZED VIEW continuous_aggregate_daily( timec, minl, sumt, sumh )
+WITH (timescaledb.continuous) AS
+  SELECT time_bucket('1day', timec), min(location), sum(temperature), sum(humidity)
+    FROM conditions
+    GROUP BY time_bucket('1day', timec)
+```
+
+Add a thirty day {C.CAGG} on top of the same raw {C.HYPERTABLE}:
+
+```sql
+CREATE MATERIALIZED VIEW continuous_aggregate_thirty_day( timec, minl, sumt, sumh )
+WITH (timescaledb.continuous) AS
+  SELECT time_bucket('30day', timec), min(location), sum(temperature), sum(humidity)
+    FROM conditions
+    GROUP BY time_bucket('30day', timec);
+```
+
+Add an hourly {C.CAGG} on top of the same raw {C.HYPERTABLE}:
+
+```sql
+CREATE MATERIALIZED VIEW continuous_aggregate_hourly( timec, minl, sumt, sumh )
+WITH (timescaledb.continuous) AS
+  SELECT time_bucket('1h', timec), min(location), sum(temperature), sum(humidity)
+    FROM conditions
+    GROUP BY time_bucket('1h', timec);
+```
+
+## Arguments
+
+| Name | Type | Default | Required | Description |
+|-|-|-|-|-|
+| `<view_name>` | TEXT | - | ✔ | Name (optionally schema-qualified) of {C.CAGG} view to create |
+| `<column_name>` | TEXT | - | - | Optional list of names to be used for columns of the view. If not given, the column names are calculated from the query |
+| `WITH` clause | TEXT | - | ✔ | Specifies options for the {C.CAGG} view |
+| `<select_query>` | TEXT | - | ✔ | A `SELECT` query that uses the specified syntax |
+
+`WITH` clause options:
+
+| Name | Type | Default | Required | Description |
+|-|-|-|-|-|
+| `timescaledb.continuous` | BOOLEAN | - | ✔ | If `timescaledb.continuous` is not specified, this is a regular {C.PG} materialized view |
+| `timescaledb.chunk_interval` | INTERVAL | 10x the original {C.HYPERTABLE} | - | Set the {C.CHUNK} interval. The default value is 10x the original {C.HYPERTABLE}. |
+| `timescaledb.create_group_indexes` | BOOLEAN | `TRUE` | - | Create indexes on the {C.CAGG} for columns in its `GROUP BY` clause. Indexes are in the form `(<GROUP_BY_COLUMN>, time_bucket)` |
+| `timescaledb.materialized_only` | BOOLEAN | `TRUE` | - | Return only materialized data when querying the {C.CAGG} view |
+
+## Returns
+
+For standard `CREATE MATERIALIZED VIEW` return behavior, see the [PostgreSQL CREATE MATERIALIZED VIEW documentation][postgres-create-matview].
+
+For more information, see the [real-time aggregates][real-time-aggregates] section.
+
+[cagg-how-tos]: /use-timescale/latest/continuous-aggregates/
+
+[gucs]: /api-reference/timescaledb/configuration/gucs
+
+[info-views]: /api-reference/timescaledb/informational-views/continuous_aggregates
+
+[postgres-create-matview]: https://www.postgresql.org/docs/current/sql-creatematerializedview.html
+
+[real-time-aggregates]: /use-timescale/latest/continuous-aggregates/real-time-aggregates/
+
+[refresh-cagg]: /api-reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate

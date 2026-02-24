@@ -1,0 +1,107 @@
+---
+title: enable_chunk_skipping()
+description: Enable range tracking for columns of chunks from a hypertable
+topics: [hypertables]
+keywords: [hypertables, chunks, range-tracking, skipping]
+tags: [columns, ranges, min-max, chunks]
+license: apache
+type: function
+experimental: true
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { FlaskConicalIcon, TagIcon } from 'lucide-react';
+
+import CreateHypertablePolicyNote from '@partials/_create-hypertable-columnstore-policy-note.mdx';
+
+<FlaskConicalIcon /> Early access <TagIcon iconType="duotone" /> Since [2.16.0][tsdb-2.16.0]
+
+Enable range statistics for a specific column in a **compressed** {C.HYPERTABLE}. This tracks a range of values for that
+column per {C.CHUNK}.
+Used for {C.CHUNK} skipping during query optimization and applies only to the {C.CHUNK}s created after {C.CHUNK} skipping is
+enabled.
+
+Best practice is to enable range tracking on columns that are correlated to the
+partitioning column. In other words, enable tracking on secondary columns which are
+referenced in the `WHERE` clauses in your queries.
+
+TimescaleDB supports min/max range tracking for the `smallint`, `int`,
+`bigint`, `serial`, `bigserial`, `date`, `timestamp`, and `timestamptz` data types. The
+min/max ranges are calculated when a {C.CHUNK} belonging to
+this {C.HYPERTABLE} is added to the columnstore using the [convert\_to\_columnstore][convert_to_columnstore] function.
+The range is stored in start (inclusive) and end (exclusive) form in the
+`chunk_column_stats` catalog table.
+
+This way you store the min/max values for such columns in this catalog
+table at the per-{C.CHUNK} level. These min/max range values do
+not participate in partitioning of the data. These ranges are
+used for {C.CHUNK} skipping when the `WHERE` clause of an SQL query specifies
+ranges on the column.
+
+A [DROP COLUMN][drop-column]
+on a column with statistics tracking enabled on it ends up removing all relevant entries
+from the catalog table.
+
+A [convert\_to\_rowstore][convert_to_rowstore] invocation on a compressed {C.CHUNK} resets its entries
+from the `chunk_column_stats` catalog table since now it's available for DML and the
+min/max range values can change on any further data manipulation in the {C.CHUNK}.
+
+By default, this feature is disabled. To enable {C.CHUNK} skipping, set `timescaledb.enable_chunk_skipping = on` in
+`postgresql.conf`. When you upgrade from a database instance that uses compression but does not support {C.CHUNK}
+skipping, you need to recompress the previously compressed {C.CHUNK}s for {C.CHUNK} skipping to work.
+
+## Samples
+
+In this sample, you create the `conditions` {C.HYPERTABLE} with partitioning on the `time` column. You then specify and
+enable additional columns to track ranges for.
+
+```sql
+CREATE TABLE conditions (
+   time        TIMESTAMPTZ       NOT NULL,
+   location    TEXT              NOT NULL,
+   device      TEXT              NOT NULL,
+   temperature DOUBLE PRECISION  NULL,
+   humidity    DOUBLE PRECISION  NULL
+) WITH (
+   tsdb.hypertable
+);
+
+SELECT enable_chunk_skipping('conditions', 'device_id');
+```
+
+<CreateHypertablePolicyNote />
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT enable_chunk_skipping(
+    hypertable = '<hypertable_name>',
+    column_name = '<column_name>',
+    if_not_exists = true | false
+);
+```
+
+| Name        | Type             | Default | Required | Description                            |
+|-------------|------------------|---------|-|----------------------------------------|
+|`column_name`| `NAME`        | -       | ✔ | Column to track range statistics for |
+|`hypertable`| `REGCLASS`        | -       | ✔ | {C.HYPERTABLE} that the column belongs to  |
+|`if_not_exists`| `BOOLEAN`        | `false` | ✖ | Set to `true` so that a notice is sent when ranges are not being tracked for a column. By default, an error is thrown |
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+|`column_stats_id`|INTEGER|ID of the entry in the {C.TIMESCALE_DB} internal catalog|
+|`enabled`|BOOLEAN|Returns `true` when tracking is enabled, `if_not_exists` is `true`, and when a new entry is not added|
+
+[convert_to_columnstore]: /api-reference/timescaledb/hypercore/convert_to_columnstore
+
+[convert_to_rowstore]: /api-reference/timescaledb/hypercore/convert_to_rowstore
+
+[drop-column]: https://www.postgresql.org/docs/current/sql-altertable.html#SQL-ALTERTABLE-DESC-DROP-COLUMN
+
+[tsdb-2.16.0]: https://github.com/timescale/timescaledb/releases/tag/2.16.0

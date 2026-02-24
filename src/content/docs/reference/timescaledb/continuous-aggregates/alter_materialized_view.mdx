@@ -1,0 +1,93 @@
+---
+title: ALTER MATERIALIZED VIEW (Continuous Aggregate)
+description: Change an existing continuous aggregate
+sidebarTitle: ALTER MATERIALIZED VIEW
+topics: [continuous aggregates]
+keywords: [continuous aggregates]
+tags: [materialized views, hypertables, alter, change]
+license: community
+type: command
+products: [cloud, self_hosted, mst]
+---
+
+import * as C from "@constants";
+
+import { TagIcon, CirclePlayIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.3.0][tsdb-1.3.0]
+
+You use the `ALTER MATERIALIZED VIEW` statement to modify some of the `WITH`
+clause [options][create_materialized_view] for a {C.CAGG} view. You can only set the `continuous` and
+`create_group_indexes` options when you [create a {C.CAGG}][create_materialized_view]. `ALTER MATERIALIZED VIEW` also
+supports the following
+[{C.PG} clauses][postgres-alterview] on the {C.CAGG} view:
+
+- `RENAME TO`: rename the {C.CAGG} view
+- `RENAME [COLUMN]`: rename the {C.CAGG} column
+- `SET SCHEMA`: set the new schema for the {C.CAGG} view
+- `SET TABLESPACE`: move the materialization of the {C.CAGG} view to the new tablespace
+- `OWNER TO`: set a new owner for the {C.CAGG} view
+
+## Samples
+
+- Enable real-time aggregates for a {C.CAGG}:
+
+  ```sql
+  ALTER MATERIALIZED VIEW contagg_view SET (timescaledb.materialized_only = false);
+  ```
+
+- Enable hypercore for a {C.CAGG}:
+
+  <CirclePlayIcon iconType="duotone" /> Since 2.18.0
+
+  ```sql
+   ALTER MATERIALIZED VIEW contagg_view SET (
+    timescaledb.enable_columnstore = true,
+    timescaledb.segmentby = 'symbol' );
+  ```
+
+- Rename a column for a {C.CAGG}:
+
+  ```sql
+  ALTER MATERIALIZED VIEW contagg_view RENAME COLUMN old_name TO new_name;
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+ALTER MATERIALIZED VIEW <view_name> SET ( timescaledb.<argument> =  <value> [, ... ] )
+```
+
+| Name | Type | Default | Required | Description |
+|-|-|-|-|-|
+| `view_name` | TEXT | - | ✔ | The name of the {C.CAGG} view to be altered. |
+| `timescaledb.materialized_only` | BOOLEAN | `true` | - | Return only materialized data when querying the {C.CAGG} view. Set to `false` to enable real-time aggregation. |
+| `timescaledb.enable_columnstore` | BOOLEAN | `true` | - | Enable {C.COLUMNSTORE}. Effectively the same as `timescaledb.compress`. Since 2.18.0 |
+| `timescaledb.compress` | TEXT | Disabled | - | Enable compression. |
+| `timescaledb.orderby` | TEXT | Descending order on the time column in `table_name`. | - | Set the order in which items are used in the {C.COLUMNSTORE}. Specified in the same way as an `ORDER BY` clause in a `SELECT` query. Since 2.18.0 |
+| `timescaledb.compress_orderby` | TEXT | Descending order on the time column in `table_name`. | - | Set the order used by compression. Specified in the same way as the `ORDER BY` clause in a `SELECT` query. |
+| `timescaledb.segmentby` | TEXT | No segmentation by column. | - | Set the list of columns used to segment data in the {C.COLUMNSTORE} for `table`. An identifier representing the source of the data such as `device_id` or `tags_id` is usually a good candidate. Since 2.18.0 |
+| `timescaledb.compress_segmentby` | TEXT | No segmentation by column. | - | Set the list of columns used to segment the compressed data. An identifier representing the source of the data such as `device_id` or `tags_id` is usually a good candidate. |
+| `column_name` | TEXT | - | - | Set the name of the column to order by or segment by. |
+| `timescaledb.compress_chunk_time_interval` | TEXT | - | - | Reduce the total number of compressed/{C.COLUMNSTORE} {C.CHUNK}s for `table`. If you set `compress_chunk_time_interval`, compressed/{C.COLUMNSTORE} {C.CHUNK}s are merged with the previous adjacent {C.CHUNK} within `chunk_time_interval` whenever possible. These {C.CHUNK}s are irreversibly merged. If you call to [decompress][decompress]/[convert\_to\_rowstore][convert_to_rowstore], merged {C.CHUNK}s are not split up. You can call `compress_chunk_time_interval` independently of other compression settings; `timescaledb.compress`/`timescaledb.enable_columnstore` is not required. |
+| `timescaledb.chunk_interval` (formerly `timescaledb.chunk_time_interval`) | INTERVAL | 10x the original {C.HYPERTABLE}. | - | Set the {C.CHUNK} interval. Renamed in {C.TIMESCALE_DB} V2.20. |
+
+## Returns
+
+For standard `ALTER MATERIALIZED VIEW` return behavior, see the [PostgreSQL ALTER MATERIALIZED VIEW documentation][postgres-alterview].
+
+[convert_to_rowstore]: /api-reference/timescaledb/hypercore/convert_to_rowstore
+
+[create-cagg]: /use-timescale/latest/continuous-aggregates/create-a-continuous-aggregate/
+
+[create_materialized_view]: /api-reference/timescaledb/continuous-aggregates/create_materialized_view#arguments
+
+[decompress]: /api-reference/timescaledb/hypercore/convert_to_rowstore
+
+[default_table_access_method]: https://www.postgresql.org/docs/17/runtime-config-client.html#GUC-DEFAULT-TABLE-ACCESS-METHOD
+
+[postgres-alterview]: https://www.postgresql.org/docs/current/sql-alterview.html
+
+[tsdb-1.3.0]: https://github.com/timescale/timescaledb/releases/tag/1.3.0

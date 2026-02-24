@@ -1,0 +1,56 @@
+---
+title: timescaledb_information.continuous_aggregates
+sidebarTitle: continuous_aggregates
+description: Get metadata and settings information for continuous aggregates
+keywords: [continuous aggregates]
+tags: [information, schemas, metadata, definition]
+license: community
+type: view
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.3.0][tsdb-1.3.0]
+
+Get metadata and settings information for {C.CAGG}s.
+
+## Samples
+
+```sql
+SELECT * FROM timescaledb_information.continuous_aggregates;
+
+-[ RECORD 1 ]---------------------+-------------------------------------------------
+hypertable_schema                 | public
+hypertable_name                   | foo
+view_schema                       | public
+view_name                         | contagg_view
+view_owner                        | postgres
+materialized_only                 | f
+compression_enabled               | f
+materialization_hypertable_schema | _timescaledb_internal
+materialization_hypertable_name   | _materialized_hypertable_2
+view_definition                   |  SELECT foo.a,                                  +
+                                  |     COUNT(foo.b) AS countb                      +
+                                  |    FROM foo                                     +
+                                  |   GROUP BY (time_bucket('1 day', foo.a)), foo.a;
+
+```
+
+## Returns
+
+| Name | Type | Description |
+|------|------|-------------|
+| `hypertable_schema` | TEXT | Schema of the {C.HYPERTABLE} from the {C.CAGG} view |
+| `hypertable_name` | TEXT | Name of the {C.HYPERTABLE} from the {C.CAGG} view |
+| `view_schema` | TEXT | Schema for {C.CAGG} view |
+| `view_name` | TEXT | User supplied name for {C.CAGG} view |
+| `view_owner` | TEXT | Owner of the {C.CAGG} view |
+| `materialized_only` | BOOLEAN | Return only materialized data when querying the {C.CAGG} view |
+| `compression_enabled` | BOOLEAN | Is compression enabled for the {C.CAGG} view? |
+| `materialization_hypertable_schema` | TEXT | Schema of the underlying materialization table |
+| `materialization_hypertable_name` | TEXT | Name of the underlying materialization table |
+| `view_definition` | TEXT | `SELECT` query for {C.CAGG} view |
+
+[tsdb-1.3.0]: https://github.com/timescale/timescaledb/releases/tag/1.3.0

@@ -1,0 +1,96 @@
+---
+title: add_policies()
+description: Add refresh, compression, and data retention policies on a continuous aggregate
+topics: [continuous aggregates, jobs, compression, data retention]
+keywords: [continuous aggregates, policies, add, compress, data retention]
+license: community
+type: function
+experimental: true
+products: [cloud, self_hosted, mst]
+---
+
+import * as C from "@constants";
+
+import { FlaskConicalIcon, TagIcon } from 'lucide-react';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<FlaskConicalIcon /> Early access <TagIcon iconType="duotone" /> Since [2.10.0][tsdb-2.10.0]
+
+Add refresh, compression, and data retention policies to a {C.CAGG}
+in one step. The added compression and retention policies apply to the
+{C.CAGG}, *not* to the original {C.HYPERTABLE}.
+
+```sql
+timescaledb_experimental.add_policies(
+     relation REGCLASS,
+     if_not_exists BOOL = false,
+     refresh_start_offset "any" = NULL,
+     refresh_end_offset "any" = NULL,
+     compress_after "any" = NULL,
+     drop_after "any" = NULL)
+) RETURNS BOOL
+```
+
+<Callout variant="note">
+  `add_policies()` does not allow the `schedule_interval` for the {C.CAGG} to be set, instead using a default value of 1
+  hour.
+
+  If you would like to set this add your policies manually (see
+  [`add_continuous_aggregate_policy`][add_continuous_aggregate_policy]).
+</Callout>
+
+## Samples
+
+Given a {C.CAGG} named `example_continuous_aggregate`, add three
+policies to it:
+
+1. Regularly refresh the {C.CAGG} to materialize data between 1 day
+   and 2 days old.
+2. Compress data in the {C.CAGG} after 20 days.
+3. Drop data in the {C.CAGG} after 1 year.
+
+```sql
+SELECT timescaledb_experimental.add_policies(
+    'example_continuous_aggregate',
+    refresh_start_offset => '1 day'::interval,
+    refresh_end_offset => '2 day'::interval,
+    compress_after => '20 days'::interval,
+    drop_after => '1 year'::interval
+);
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT timescaledb_experimental.add_policies(
+    relation = '<view_name>',
+    refresh_start_offset = <interval>,
+    refresh_end_offset = <interval>,
+    compress_after = <interval>,
+    drop_after = <interval>
+);
+```
+
+| Name | Type | Default | Required | Description |
+|-|-|-|-|-|
+| `relation` | `REGCLASS` | - | ✔ | The {C.CAGG} that the policies should be applied to |
+| `if_not_exists` | `BOOL` | false | - | When true, prints a warning instead of erroring if the {C.CAGG} doesn't exist. |
+| `refresh_start_offset` | `INTERVAL` or `INTEGER` | - | - | The start of the {C.CAGG} refresh window, expressed as an offset from the policy run time. |
+| `refresh_end_offset` | `INTERVAL` or `INTEGER` | - | - | The end of the {C.CAGG} refresh window, expressed as an offset from the policy run time. Must be greater than `refresh_start_offset`. |
+| `compress_after` | `INTERVAL` or `INTEGER` | - | - | {C.CAGG} {C.CHUNK}s are compressed if they exclusively contain data older than this interval. |
+| `drop_after` | `INTERVAL` or `INTEGER` | - | - | {C.CAGG} {C.CHUNK}s are dropped if they exclusively contain data older than this interval. |
+
+For arguments that could be either an `INTERVAL` or an `INTEGER`, use an
+`INTERVAL` if your time bucket is based on timestamps. Use an `INTEGER` if your
+time bucket is based on integers.
+
+## Returns
+
+Returns `true` if successful.
+
+[add_continuous_aggregate_policy]: /api-reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy
+
+[tsdb-2.10.0]: https://github.com/timescale/timescaledb/releases/tag/2.10.0

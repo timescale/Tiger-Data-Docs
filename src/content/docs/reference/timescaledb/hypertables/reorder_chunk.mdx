@@ -1,0 +1,72 @@
+---
+title: reorder_chunk()
+description: Reorder rows in a chunk
+topics: [hypertables]
+keywords: [chunks, hypertables, reorder]
+license: community
+type: function
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+import ReturnsVoid from '/snippets/reference/timescaledb/_returns-void.mdx';
+
+<Tag>Community</Tag>
+
+<TagIcon iconType="duotone" /> Since [1.2.0][tsdb-1.2.0]
+
+Reorder a single {C.CHUNK}'s heap to follow the order of an index. This function
+acts similarly to the [PostgreSQL CLUSTER command][postgres-cluster] , however
+it uses lower lock levels so that, unlike with the CLUSTER command, the {C.CHUNK}
+and {C.HYPERTABLE} are able to be read for most of the process. It does use a bit
+more disk space during the operation.
+
+This command can be particularly useful when data is often queried in an order
+different from that in which it was originally inserted. For example, data is
+commonly inserted into a {C.HYPERTABLE} in loose time order (for example, many devices
+concurrently sending their current state), but one might typically query the
+{C.HYPERTABLE} about a *specific* device. In such cases, reordering a {C.CHUNK} using an
+index on `(device_id, time)` can lead to significant performance improvement for
+these types of queries.
+
+One can call this function directly on individual {C.CHUNK}s of a {C.HYPERTABLE}, but
+using [add\_reorder\_policy][add_reorder_policy] is often much more convenient.
+
+## Samples
+
+Reorder a chunk on an index:
+
+```sql
+SELECT reorder_chunk('_timescaledb_internal._hyper_1_10_chunk', '_timescaledb_internal.conditions_device_id_time_idx');
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT reorder_chunk(
+    chunk = '<chunk_name>',
+    index = '<index_name>',
+    verbose = true | false
+);
+```
+
+|Name|Type| Default | Required | Description|
+|---|---|---|---|---|
+| `chunk` | REGCLASS | - | ✔ | Name of the {C.CHUNK} to reorder. |
+| `index` | REGCLASS | - | ✖ | The name of the index (on either the {C.HYPERTABLE} or {C.CHUNK}) to order by.|
+| `verbose` | BOOLEAN | `FALSE` | ✖ | Setting to true displays messages about the progress of the reorder command.|
+
+## Returns
+
+<ReturnsVoid />
+
+[add_reorder_policy]: /api-reference/timescaledb/hypertables/add_reorder_policy
+
+[postgres-cluster]: https://www.postgresql.org/docs/current/sql-cluster.html
+
+[tsdb-1.2.0]: https://github.com/timescale/timescaledb/releases/tag/1.2.0

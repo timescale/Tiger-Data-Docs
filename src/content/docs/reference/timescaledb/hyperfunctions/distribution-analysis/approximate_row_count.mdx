@@ -1,0 +1,65 @@
+---
+title: approximate_row_count()
+description: Estimate the number of rows in a table
+topics: [hyperfunctions]
+keywords: [count, hyperfunctions]
+tags: [approximate, rows]
+license: apache
+type: function
+hyperfunction:
+  type: one-step aggregate
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [0.10.0][tsdb-0.10.0]
+
+Get approximate row count for {C.HYPERTABLE}, distributed {C.HYPERTABLE}, or regular {C.PG} table based on catalog estimates.
+This function supports tables with nested inheritance and declarative partitioning.
+
+The accuracy of `approximate_row_count` depends on the database having up-to-date statistics about the table or
+{C.HYPERTABLE}, which are updated by `VACUUM`, `ANALYZE`, and a few DDL commands. If you have auto-vacuum configured on
+your table or {C.HYPERTABLE}, or changes to the table are relatively infrequent, you might not need to explicitly
+`ANALYZE` your table as shown below. Otherwise, if your table statistics are too out-of-date, running this command
+updates your statistics and yields more accurate approximation results.
+
+## Samples
+
+Get the approximate row count for a single {C.HYPERTABLE}.
+
+```sql
+ANALYZE conditions;
+
+SELECT * FROM approximate_row_count('conditions');
+```
+
+The expected output:
+
+```
+approximate_row_count
+---------------------
+               240000
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT approximate_row_count('<table_name>');
+```
+
+| Name | Type | Default | Required | Description |
+|--|--|--|--|--|
+| `relation` | REGCLASS | - | ✔ | {C.HYPERTABLE} or regular {C.PG} table to get row count for. |
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+| `approximate_row_count` | BIGINT | A numeric estimate of the number of rows in the specified table or {C.HYPERTABLE}. |
+
+[tsdb-0.10.0]: https://github.com/timescale/timescaledb/releases/tag/0.10.0
