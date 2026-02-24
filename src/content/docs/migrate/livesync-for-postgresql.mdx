@@ -58,13 +58,14 @@ Choose your **target**: sync to Tiger Cloud using the web console, or to a **sel
 
 <TabItem label="Tiger Cloud">
 
-To sync from your {C.PG} database to a Tiger Cloud service using [Tiger Console](https://console.cloud.timescale.com/dashboard/services):
+To sync from your {C.PG} database to a Tiger Cloud service using Tiger Console:
 
 <NumberedList>
 
 <NumberedItem title="Connect to your Tiger Cloud service">
 
-In [Tiger Console](https://console.cloud.timescale.com/dashboard/services), select the service you want to sync live data into.
+In [Tiger Console](https://console.cloud.timescale.com/dashboard/services),  
+select the service you want to sync live data into.
 
 </NumberedItem>
 
@@ -110,16 +111,20 @@ You’re now syncing the selected tables from your {C.PG} instance to your Tiger
 
 Sync from a {C.PG} source to your **self-hosted TimescaleDB** instance using the `timescale/live-sync` Docker image. The connector runs on a machine that can reach both source and target.
 
-**Prerequisites for self-hosted target**
+<NumberedList>
+
+<NumberedItem title="Prerequisites for self-hosted target">
 
 - A self-hosted TimescaleDB instance (target) and a {C.PG} source (e.g. self-hosted, AWS RDS, or Aurora).
 - [Docker](https://docs.docker.com/engine/install/) and [{C.PG} client tools](/integrate/query-administration/psql) (`psql`, `pg_dump`, `pg_restore`, `vacuumdb`) on the sync machine.
 - The source and target must have the same extensions installed; create any needed extensions on the target before syncing.
 - The `<user>` in the `SOURCE` connection string must have the replication role (to create a replication slot).
 
-**Set your connection strings**
+</NumberedItem>
 
-On your sync machine:
+<NumberedItem title="Set your connection strings">
+
+On your sync machine, set the source and target connection strings:
 
 ```bash
 export SOURCE="postgres://<user>:<password>@<source host>:<source port>/<db_name>"
@@ -128,7 +133,9 @@ export TARGET="postgres://<user>:<password>@<self-hosted host>:<port>/<db_name>"
 
 `TARGET` is the connection string to your **self-hosted TimescaleDB** instance. Avoid connection strings that route through poolers (e.g. PgBouncer); use a direct connection.
 
-**Tune your source database**
+</NumberedItem>
+
+<NumberedItem title="Tune your source database">
 
 Configure the source for logical replication and create a connector user with the right permissions. Choose your source type:
 
@@ -147,6 +154,10 @@ Configure the source for logical replication and create a connector user with th
 </TabItem>
 
 </Tabs>
+
+</NumberedItem>
+
+</NumberedList>
 
 **Migrate the table schema to your self-hosted target**
 
@@ -187,7 +198,9 @@ Example: `time` column, 1-day chunks:
 psql -X -d $TARGET -c "SELECT public.create_hypertable('public.metrics', by_range('time', '1 day'::interval));"
 ```
 
-**Specify the tables to synchronize**
+<NumberedList>
+
+<NumberedItem title="Specify the tables to synchronize">
 
 On the **source** database, create a publication for the tables you want to sync:
 
@@ -195,10 +208,12 @@ On the **source** database, create a publication for the tables you want to sync
 CREATE PUBLICATION <publication_name> FOR TABLE <table_name>, <table_name>;
 ```
 
-To add tables later: `ALTER PUBLICATION <publication_name> ADD TABLE <table_name>;`  
-To use a partitioned table: `ALTER PUBLICATION <publication_name> SET (publish_via_partition_root = true);`
+- To add tables later: `ALTER PUBLICATION <publication_name> ADD TABLE <table_name>;`
+- To use a partitioned table: `ALTER PUBLICATION <publication_name> SET (publish_via_partition_root = true);`
 
-**Run the live-sync connector**
+</NumberedItem>
+
+<NumberedItem title="Run the live-sync connector">
 
 Run the connector as a long-lived container (e.g. daemon). Replace `<publication_name>`, `<subscription_name>`, and optionally `<table_map>`:
 
@@ -210,21 +225,27 @@ docker run -d --rm --name livesync timescale/live-sync:v0.11.2 run \
   --target $TARGET
 ```
 
-- `--publication`: name of the publication on the source.
-- `--subscription`: name for the subscription on the target (identifies this sync).
-- `--source` / `--target`: connection strings. Target is your self-hosted TimescaleDB.
-- Optional: `--table-map '{"source":{"schema":"public","table":"x"},"target":{"schema":"public","table":"y"}}'` to map source tables to different target names or schemas.
-- Optional: `--copy-data false` to skip initial copy and only replicate changes after the slot is created.
+- **`--publication`:** name of the publication on the source.
+- **`--subscription`:** name for the subscription on the target (identifies this sync).
+- **`--source` / `--target`:** connection strings. Target is your self-hosted TimescaleDB.
+- **Optional `--table-map`:** e.g. `'{"source":{"schema":"public","table":"x"},"target":{"schema":"public","table":"y"}}'` to map source tables to different target names or schemas.
+- **Optional `--copy-data false`:** skip initial copy and only replicate changes after the slot is created.
 
-**Monitor and manage**
+</NumberedItem>
+
+<NumberedItem title="Monitor and manage">
 
 - **Logs:** `docker logs -f livesync`
 - **Progress on target:** `psql $TARGET -c "SELECT * FROM _ts_live_sync.subscription_rel"`
-- **Replication lag on source:** query `pg_replication_slots` for `live_sync_%` slots and compare `pg_current_wal_flush_lsn()` with `confirmed_flush_lsn`
+- **Replication lag on source:** query `pg_replication_slots` for `live_sync_%` slots and compare `pg_current_wal_flush_lsn()` with `confirmed_flush_lsn`.
 - **Add/remove tables:** `ALTER PUBLICATION <publication_name> ADD TABLE ...` or `DROP TABLE ...` on the source; add tables to the publication as needed.
 - **Stop:** `docker stop livesync`
 - **Update statistics after initial sync:** `vacuumdb --analyze --verbose --dbname=$TARGET`
-- **Clean up replication slots (when done):** run the same `docker run ... timescale/live-sync:v0.11.2 run ... --drop` with `--drop` to remove slots on the source.
+- **Clean up replication slots (when done):** run the same `docker run ... timescale/live-sync:v0.11.2 run ... --drop` to remove slots on the source.
+
+</NumberedItem>
+
+</NumberedList>
 
 For more detail on the terminal flow (e.g. resetting sequences, partitioned tables), see the [live migration](/migrate/live-migration) guide.
 
