@@ -6,6 +6,9 @@ description: How to sync Postgres tables to Tiger Cloud in real time using the s
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import LivesyncConfigureSourceDatabase from "../../../partials/_livesync-configure-source-database.mdx";
+import TuneSourceDatabaseAWSRDS from "../../../partials/_livesync-configure-source-database-awsrds.mdx";
 
 # How to sync data from {C.PG}
 
@@ -49,7 +52,13 @@ Set the connection information for the source database on your sync machine. See
 
 ## Synchronize data to your service
 
-To sync data from your {C.PG} database to your Tiger Cloud service using Tiger Console:
+Choose your **target**: sync to Tiger Cloud using the web console, or to a **self-hosted TimescaleDB** instance using the terminal and the live-sync Docker image.
+
+<Tabs>
+
+<TabItem label="Tiger Cloud">
+
+To sync from your {C.PG} database to a Tiger Cloud service using [Tiger Console](https://console.cloud.timescale.com/dashboard/services):
 
 <NumberedList>
 
@@ -93,4 +102,132 @@ In [Tiger Console](https://console.cloud.timescale.com/dashboard/services), sele
 
 </NumberedList>
 
-You’re now syncing the selected tables from your {C.PG} instance to your Tiger Cloud service in real time. For additional connector capabilities and technical details, see the [Source Postgres connector reference](/integrate/connectors/source/sync-from-postgres).
+You’re now syncing the selected tables from your {C.PG} instance to your Tiger Cloud service in real time. </TabItem>
+
+<TabItem label="TimescaleDB self-hosted">
+
+Sync from a {C.PG} source to your **self-hosted TimescaleDB** instance using the `timescale/live-sync` Docker image. The connector runs on a machine that can reach both source and target.
+
+**Prerequisites for self-hosted target**
+
+- A self-hosted TimescaleDB instance (target) and a {C.PG} source (e.g. self-hosted, AWS RDS, or Aurora).
+- [Docker](https://docs.docker.com/engine/install/) and [{C.PG} client tools](/integrate/query-administration/psql) (`psql`, `pg_dump`, `pg_restore`, `vacuumdb`) on the sync machine.
+- The source and target must have the same extensions installed; create any needed extensions on the target before syncing.
+- The `<user>` in the `SOURCE` connection string must have the replication role (to create a replication slot).
+
+**Set your connection strings**
+
+On your sync machine:
+
+```bash
+export SOURCE="postgres://<user>:<password>@<source host>:<source port>/<db_name>"
+export TARGET="postgres://<user>:<password>@<self-hosted host>:<port>/<db_name>"
+```
+
+`TARGET` is the connection string to your **self-hosted TimescaleDB** instance. Avoid connection strings that route through poolers (e.g. PgBouncer); use a direct connection.
+
+**Tune your source database**
+
+Configure the source for logical replication and create a connector user with the right permissions. Choose your source type:
+
+<Tabs>
+
+<TabItem label="From AWS RDS/Aurora">
+
+<TuneSourceDatabaseAWSRDS />
+
+</TabItem>
+
+<TabItem label={`From ${C.PG} (self-hosted or other)`}>
+
+<LivesyncConfigureSourceDatabase />
+
+</TabItem>
+
+</Tabs>
+
+**Migrate the table schema to your self-hosted target**
+
+<NumberedList>
+
+<NumberedItem title="Export schema from the source">
+
+```bash
+pg_dump $SOURCE \
+  --no-privileges --no-owner --no-publications --no-subscriptions \
+  --no-table-access-method --no-tablespaces --schema-only \
+  --file=schema.sql
+```
+
+</NumberedItem>
+
+<NumberedItem title="Apply the schema on the target">
+
+```bash
+psql $TARGET -f schema.sql
+```
+
+</NumberedItem>
+
+</NumberedList>
+
+**Convert time-series tables to hypertables (optional)**
+
+On the target, convert tables that hold time-series or event data into [hypertables](/build/data-management/understand-hypertables) for better performance:
+
+```bash
+psql -X -d $TARGET -c "SELECT public.create_hypertable('public.<table>', by_range('<time_column>', '<chunk_interval>'::interval));"
+```
+
+Example: `time` column, 1-day chunks:
+
+```bash
+psql -X -d $TARGET -c "SELECT public.create_hypertable('public.metrics', by_range('time', '1 day'::interval));"
+```
+
+**Specify the tables to synchronize**
+
+On the **source** database, create a publication for the tables you want to sync:
+
+```sql
+CREATE PUBLICATION <publication_name> FOR TABLE <table_name>, <table_name>;
+```
+
+To add tables later: `ALTER PUBLICATION <publication_name> ADD TABLE <table_name>;`  
+To use a partitioned table: `ALTER PUBLICATION <publication_name> SET (publish_via_partition_root = true);`
+
+**Run the live-sync connector**
+
+Run the connector as a long-lived container (e.g. daemon). Replace `<publication_name>`, `<subscription_name>`, and optionally `<table_map>`:
+
+```bash
+docker run -d --rm --name livesync timescale/live-sync:v0.11.2 run \
+  --publication <publication_name> \
+  --subscription <subscription_name> \
+  --source $SOURCE \
+  --target $TARGET
+```
+
+- `--publication`: name of the publication on the source.
+- `--subscription`: name for the subscription on the target (identifies this sync).
+- `--source` / `--target`: connection strings. Target is your self-hosted TimescaleDB.
+- Optional: `--table-map '{"source":{"schema":"public","table":"x"},"target":{"schema":"public","table":"y"}}'` to map source tables to different target names or schemas.
+- Optional: `--copy-data false` to skip initial copy and only replicate changes after the slot is created.
+
+**Monitor and manage**
+
+- **Logs:** `docker logs -f livesync`
+- **Progress on target:** `psql $TARGET -c "SELECT * FROM _ts_live_sync.subscription_rel"`
+- **Replication lag on source:** query `pg_replication_slots` for `live_sync_%` slots and compare `pg_current_wal_flush_lsn()` with `confirmed_flush_lsn`
+- **Add/remove tables:** `ALTER PUBLICATION <publication_name> ADD TABLE ...` or `DROP TABLE ...` on the source; add tables to the publication as needed.
+- **Stop:** `docker stop livesync`
+- **Update statistics after initial sync:** `vacuumdb --analyze --verbose --dbname=$TARGET`
+- **Clean up replication slots (when done):** run the same `docker run ... timescale/live-sync:v0.11.2 run ... --drop` with `--drop` to remove slots on the source.
+
+For more detail on the terminal flow (e.g. resetting sequences, partitioned tables), see the [live migration](/migrate/live-migration) guide.
+
+</TabItem>
+
+</Tabs>
+
+For connector capabilities and technical details, see the [Source Postgres connector reference](/integrate/connectors/source/sync-from-postgres).
