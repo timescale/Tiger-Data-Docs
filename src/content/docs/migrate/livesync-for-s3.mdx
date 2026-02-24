@@ -1,0 +1,122 @@
+---
+title: Sync data from S3
+description: How to sync CSV and Parquet files from an S3 bucket to Tiger Cloud in real time using the source S3 connector
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+# How to sync data from S3
+
+This guide walks you through syncing CSV and Parquet files from an Amazon S3 bucket to your {C.SERVICE_LONG} in real time using the {C.S3_CONNECTOR} in Tiger Cloud. The connector runs continuously so you can use Tiger Cloud as your analytics database with data constantly synced from S3—without building or operating custom ETL between S3 and Tiger Cloud.
+
+**What you get:** The connector syncs from an S3 bucket to a Tiger Cloud service using glob patterns, watches for new files and imports them on a configurable schedule, supports CSV (including GZ and ZIP compression) and Parquet (converted to CSV then processed with timescaledb-parallel-copy), lets you enable a hypertable during file-to-table mapping and add columnstore and continuous aggregates later in the SQL editor, and polls on a default 1-minute interval (configurable with a cron expression).
+
+**File ordering:** The connector processes files in **lexicographical order**. It uses the name of the last file processed as a marker and only fetches files that sort later in the alphabet. Files whose names sort earlier than the marker are skipped and never synced (e.g. if the marker is at `Elephant`, a file named `Bob` added later is never processed). For large backlogs, use a 1-minute check until caught up.
+
+<Callout variant="note">
+The connector only syncs existing and new files. It does not update or delete records in your Tiger Cloud tables when files are updated or deleted in S3.
+</Callout>
+
+![Tiger Cloud connectors overview](/assets/images/migrate/tiger-console-connector-overview.png)
+
+## Before you start
+
+### Prerequisites
+
+- A target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled. You need your [connection details](/integrate/find-connection-details).
+- Access to a standard Amazon S3 bucket containing your data files. **Directory buckets are not supported.**
+- Access credentials for the S3 bucket:
+  - **IAM Role:** Set the trust policy `Principal` to `arn:aws:iam::142548018081:role/timescale-s3-connections` and `ExternalID` to your Tiger Cloud project and service ID in the form `<projectId>/<serviceId>` (to avoid the confused deputy problem). Grant `s3:GetObject` and `s3:ListBucket`.
+  - **Public anonymous user:** Supported if the bucket is public.
+
+<Callout variant="note">
+This feature is not supported for Tiger Cloud on Microsoft Azure.
+</Callout>
+
+### Limitations
+
+- **File naming:** Files must follow lexicographical ordering; names that sort earlier than already-processed files are permanently skipped (e.g. after `file_2024_01_15.csv` is processed, `file_2024_01_10.csv` added later is never synced). Use timestamps (e.g. `YYYY-MM-DD-HHMMSS`) or sequential names with fixed padding (e.g. `file_00001`, `file_00002`).
+- **CSV:** Max file size 1 GB (contact {C.CONTACT_SALES} to increase), max row size 2 MB. Compressed formats: GZ, ZIP. Delimiter and “skip header” are configurable in advanced settings.
+- **Parquet:** Max file size 1 GB, max row size 2 MB.
+- **Sync iteration:** Up to 100 files per sync iteration; additional checks only fill empty queue slots.
+
+## How to set up S3 sync
+
+Follow these steps in [Tiger Console](https://console.cloud.timescale.com/dashboard/services) to connect your S3 bucket and start syncing.
+
+<NumberedList>
+
+<NumberedItem title="Connect to your Tiger Cloud service">
+In Tiger Console, select the service you want to sync live data into.
+</NumberedItem>
+
+<NumberedItem title="Connect the source S3 bucket to the target service">
+- Click **Connectors** → **Amazon S3**.
+- Click the pencil icon and set the name for the new connector.
+- Set **Bucket name** and **Authentication method**, then click **Continue**. For IAM role setup, use **Learn how** in the UI. Tiger Console connects to the source bucket.
+- In **Define files to sync**, choose **File type** and set the **Glob pattern**. Examples:
+  - `<folder name>/*` — all files in a folder (patterns ending with `/` are treated as `/*`).
+  - `<folder name>/**` — all files recursively.
+  - `<folder name>/**/*.csv` — a specific file type.
+  Keep filters toward the end of the pattern; complex filtering can cause S3 list operations to time out.
+- Click the search icon to see the files that match, then click **Continue**.
+
+![Connect Tiger Cloud to S3 bucket](/assets/images/migrate/s3-connector-tiger-console.png)
+</NumberedItem>
+
+<NumberedItem title="Map schema and optimize for hypertables">
+Tiger Console infers the file schema and, when possible, suggests the time column for a hypertable.
+
+![S3 connector table selection](/assets/images/migrate/tiger-console-s3-connector-create-tables.png)
+
+- Choose **Create a new table for your data** or **Ingest data to an existing table**.
+- Set the **Data type** for each column, then click **Continue**.
+- Configure insert behavior on conflict, then click **Continue**.
+- Choose the polling interval (e.g. minute, hour, or a cron expression).
+- Click **Start Connector**. Tiger Console starts the connector and shows progress.
+</NumberedItem>
+
+</NumberedList>
+
+You now have continuous sync from your S3 bucket to your Tiger Cloud service.
+
+## How to monitor synchronization
+
+- **Connector data flow:** Click **Connectors** to see the diagram with connector status and amount of data replicated.
+- **Per-connector stats:** Click **Connectors** → **Source connectors**, then select your connector.
+
+![S3 connector import details and stats](/assets/images/migrate/tiger-console-s3-connector-import-details.png)
+
+From the connector dashboard you can:
+
+- **Search by file name** to find specific imports.
+- **Filter by status:** All statuses, Cancelled, Failure, In Queue, Paused, Pending Retry, Running, Success.
+- **Bulk retry** for files in Error status.
+- View **Lifecycle history** for time spent in each status.
+- **Refresh every minute** (auto-refresh).
+
+## How to manage the connector
+
+- **Pause:** **Connectors** → **Source connectors** → three-dot menu next to your connector → **Pause**.
+
+![Pause S3 connector](/assets/images/migrate/tiger-console-s3-connector-pause.png)
+
+- **Edit:** Same table → three-dot menu → **Edit** → **Connector settings**. You must pause the connector before editing.
+
+![Edit S3 connector settings](/assets/images/migrate/tiger-console-s3-connector-edit.png)
+
+- **Delete:** Three-dot menu → **Delete** (pause the connector first).
+
+## Summary
+
+You now have continuous sync from your S3 bucket to your Tiger Cloud service: new files that match your glob pattern are picked up on the schedule you chose, and you can monitor imports and manage the connector (pause, edit, or delete) from Tiger Console anytime. To extend the pipeline, enable [hypertables](/build/data-management/understand-hypertables), [columnstore](/build/columnar-storage), or [continuous aggregates](/build/continuous-aggregates/understand-continuous-aggregates) on the synced table via the SQL editor.
+
+## Related
+
+- [Sync from Postgres](/migrate/livesync-for-postgresql) — Continuously replicate from a {C.PG} database instead of S3.
+- [Import via Console](/migrate/import-console) — Upload CSV/TSV directly in the web console without a connector.
+- [Import via Terminal](/migrate/import-terminal) — Load data using the command line (e.g. psql, `COPY`).
+- [Live migration](/migrate/live-migration) — Migrate with minimal or no downtime from databases.
+- [Source S3 connector reference](/integrate/connectors/source/sync-from-s3) — Technical details and capabilities of the S3 connector.
