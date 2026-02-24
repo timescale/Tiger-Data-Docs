@@ -1,0 +1,206 @@
+import * as C from "@constants";
+
+import { Callout } from '@stainless-api/docs/components';
+
+By default, TimescaleDB uses the default {C.PG} server configuration settings. However, in some cases, these settings are not appropriate, especially if you have larger servers that use more hardware resources such as CPU, memory, and storage. This section explains the settings you are most likely to need to adjust.
+
+Some of these settings are {C.PG} settings, and some are TimescaleDB-specific settings. For most changes, you can use the [tuning tool][tstune-conf] to adjust your configuration. For more advanced configuration settings, or to change settings that aren't included in the `timescaledb-tune` tool, you can manually adjust the `postgresql.conf` configuration file.
+
+## Manual {C.PG} configuration
+
+If you prefer to tune settings yourself, or for settings not covered by `timescaledb-tune`, you can manually configure your installation using the {C.PG} configuration file.
+
+For more information about the {C.PG} configuration page, see the [{C.PG} documentation][pg-config].
+
+### Edit the {C.PG} configuration file
+
+The location of the {C.PG} configuration file depends on your operating system and installation.
+
+1. **Find the location of the config file for your {C.PG} instance**
+
+   Connect to your database:
+
+   ```shell
+   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+   ```
+
+   Retrieve the database file location from the database internal configuration:
+
+   ```sql
+   SHOW config_file;
+   ```
+
+   {C.PG} returns the path to your configuration file. For example:
+
+   ```sql
+   --------------------------------------------
+   /home/postgres/pgdata/data/postgresql.conf
+   (1 row)
+   ```
+
+2. **Open the config file, then [edit your {C.PG} configuration][pg-config]**
+
+   ```shell
+   vi /home/postgres/pgdata/data/postgresql.conf
+   ```
+
+3. **Save your updated configuration**
+
+   When you save the changes you make to the configuration file, the new configuration is not applied immediately. The configuration file is automatically reloaded when the server receives a `SIGHUP` signal. To manually reload the file, use the `pg_ctl` command.
+
+### Set parameters at the command prompt
+
+If you don't want to open the configuration file to make changes, you can also set parameters directly from the command prompt, using the `postgres` command. For example:
+
+```sql
+postgres -c log_connections=yes -c log_destination='syslog'
+```
+
+## Memory settings
+
+You can adjust these settings to match your machine's available memory:
+
+- `shared_buffers`
+- `effective_cache_size`
+- `work_mem`
+- `maintenance_work_mem`
+- `max_connections`
+
+To make it easier, you can use the [PgTune][pgtune] site to work out what settings to use. Enter your machine details, and select the `data warehouse` DB type to see the suggested parameters.
+
+<Callout variant="tip">
+  You can adjust these settings with `timescaledb-tune`.
+</Callout>
+
+## Worker settings
+
+{C.PG} uses worker pools to provide workers for live queries and background {C.JOB}s. If you do not configure these settings, your queries and background {C.JOB}s could run more slowly.
+
+Configure these worker settings:
+
+- `timescaledb.max_background_workers`
+- `max_parallel_workers`
+- `max_worker_processes`
+
+### Background workers
+
+TimescaleDB background workers are configured with `timescaledb.max_background_workers`. Each database needs a background worker allocated to schedule {C.JOB}s. Additional workers run background {C.JOB}s as required. This setting should be the sum of the total number of databases and the total number of concurrent background workers you want running at any one time.
+
+By default, `timescaledb-tune` sets `timescaledb.max_background_workers` to 16. You can change this setting directly, use the `--max-bg-workers` flag, or adjust the `TS_TUNE_MAX_BG_WORKERS` [Docker environment variable][docker-conf].
+
+### Parallel workers
+
+TimescaleDB parallel workers are configured with `max_parallel_workers`. For larger queries, {C.PG} automatically uses parallel workers if they are available. Increasing this setting can improve query performance for large queries that trigger the use of parallel workers.
+
+By default, this setting corresponds to the number of CPUs available. You can change this parameter directly, by adjusting the `--cpus` flag, or by using the `TS_TUNE_NUM_CPUS` [Docker environment variable][docker-conf].
+
+### Worker processes
+
+The `max_worker_processes` setting defines the total pool of workers available to both background and parallel workers, as well a small number of built-in {C.PG} workers. It should be at least the sum of `timescaledb.max_background_workers` and `max_parallel_workers`.
+
+<Callout variant="tip">
+  You can adjust these settings with `timescaledb-tune`.
+</Callout>
+
+## Disk write settings
+
+By default, disk writes are performed synchronously, so each transaction must be completed and a success message sent, before the next transaction can begin. You can change this to asynchronous to increase write throughput by setting `synchronous_commit = 'off'`.
+
+Note that disabling synchronous commits could result in some committed transactions being lost. To help reduce the risk, do not also change `fsync` setting. For more information about asynchronous commits and disk write speed, see the [{C.PG} documentation][async-commit].
+
+<Callout variant="tip">
+  You can adjust these settings in the `postgresql.conf` configuration file.
+</Callout>
+
+## Transaction lock settings
+
+TimescaleDB relies on table partitioning to scale time-series workloads. A {C.HYPERTABLE} needs to acquire locks on many {C.CHUNK}s during queries, which can exhaust the default limits for the number of allowed locks held. In some cases, you might see a warning like this:
+
+```sql
+psql: FATAL:  out of shared memory
+HINT:  You might need to increase max_locks_per_transaction.
+```
+
+To avoid this issue, increase the `max_locks_per_transaction` setting from the default value, which is usually 64. This parameter limits the average number of object locks used by each transaction. Individual transactions can lock more objects as long as the locks of all transactions fit in the lock table.
+
+For most workloads, choose a number equal to double the maximum number of {C.CHUNK}s you expect to have in a {C.HYPERTABLE} divided by `max_connections`. This takes into account that the number of locks used by a {C.HYPERTABLE} query is roughly equal to the number of {C.CHUNK}s in the {C.HYPERTABLE} if you need to access all {C.CHUNK}s in a query, or double that number if the query uses an index.
+
+You can see how many {C.CHUNK}s you currently have using the [`timescaledb_information.hypertables`][timescaledb_information-hypertables] view. Changing this parameter requires a database restart, so make sure you pick a larger number to allow for some growth. For more information about lock management, see the [{C.PG} documentation][lock-management].
+
+<Callout variant="tip">
+  You can adjust these settings in the `postgresql.conf` configuration file.
+</Callout>
+
+## TimescaleDB configuration settings
+
+Just as you can tune settings in {C.PG}, {C.TIMESCALE_DB} provides a number of configuration settings that may be useful to your specific installation and performance needs. You can set these within the `postgresql.conf` file or as command-line parameters when starting {C.PG}.
+
+### Query planning and execution
+
+##### `timescaledb.enable_chunkwise_aggregation (bool)`
+
+If enabled, aggregations are converted into partial aggregations during query planning. The first part of the aggregation is executed on a per-{C.CHUNK} basis. Then, these partial results are combined and finalized. Splitting aggregations decreases the size of the created hash tables and increases data locality, which speeds up queries.
+
+##### `timescaledb.vectorized_aggregation (bool)`
+
+Enables or disables the vectorized optimizations in the query executor. For example, the `sum()` aggregation function on compressed {C.CHUNK}s can be optimized in this way.
+
+##### `timescaledb.enable_merge_on_cagg_refresh (bool)`
+
+Set to `ON` to dramatically decrease the amount of data written on a {C.CAGG} in the presence of a small number of changes, reduce the I/O cost of refreshing a [{C.CAGG}][caggs], and generate fewer Write-Ahead Logs (WAL). Only works for {C.CAGG}s that don't have compression enabled.
+
+### Policies
+
+##### `timescaledb.max_background_workers (int)`
+
+Maximum background worker processes allocated to {C.TIMESCALE_DB}. Set to at least 1 + the number of databases loaded with the {C.TIMESCALE_DB} extension in a {C.PG} instance. Default value is 16.
+
+### {C.SERVICE_LONG} tuning
+
+##### `timescaledb.disable_load (bool)`
+
+Disables the loading of the actual extension.
+
+### Administration
+
+##### `timescaledb.restoring (bool)`
+
+Sets TimescaleDB in restoring mode. Disabled by default.
+
+##### `timescaledb.license (string)`
+
+Changes access to features based on the TimescaleDB license in use. For example, setting `timescaledb.license` to `apache` limits TimescaleDB to features that are implemented under the Apache 2 license. The default value is `timescale`, which allows access to all features.
+
+##### `timescaledb.telemetry_level (enum)`
+
+Telemetry settings level. Level used to determine which telemetry to send. Can be set to `off` or `basic`. Defaults to `basic`.
+
+##### `timescaledb.last_tuned (string)`
+
+Records last time `timescaledb-tune` ran.
+
+##### `timescaledb.last_tuned_version (string)`
+
+Version of `timescaledb-tune` used to tune when it runs.
+
+## Complete list of GUC parameters
+
+For a complete list, see the [Grand Unified Configuration (GUC) parameters][gucs] reference.
+
+[async-commit]: https://www.postgresql.org/docs/current/wal-async-commit.html
+
+[caggs]: /manage-data/continuous-aggregates
+
+[docker-conf]: /deploy-and-operate/self-hosted/install/docker-config
+
+[gucs]: /api-reference/timescaledb/configuration/gucs
+
+[lock-management]: https://www.postgresql.org/docs/current/runtime-config-locks.html
+
+[pg-config]: https://www.postgresql.org/docs/current/config-setting.html
+
+[pgtune]: https://pgtune.leopard.in.ua/
+
+[timescaledb_information-hypertables]: /api-reference/timescaledb/informational-views/hypertables
+
+[tstune-conf]: /deploy-and-operate/self-hosted/configuration/timescaledb-tune
