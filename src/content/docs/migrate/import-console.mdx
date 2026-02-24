@@ -1,112 +1,105 @@
 ---
-title: "Import data using Console"
-description: "Import CSV files and other data into Tiger Cloud using the web console interface"
+title: Upload a file using the Console
+description: How to upload CSV, Parquet, and text files into your Tiger Cloud service using Tiger Console (from your machine or S3)
 ---
 
-## Overview
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
-Learn how to import data into your Tiger Cloud database using the web console. The console provides a visual interface for uploading CSV files, mapping columns to table schemas, and monitoring import progress without using command-line tools.
+# How to upload a file using the Console
 
-## Prerequisites
+This guide walks you through uploading CSV, Parquet, and text files into your {C.SERVICE_LONG} using [Tiger Console](https://console.cloud.timescale.com/dashboard/services). The console has **three upload tabs**: **From CSV**, **From Parquet**, and **From a text file**. Pick the tab that matches your file type, then follow the steps—you can upload from your local machine or from an S3 bucket, with no command-line tools required. You’ll map columns to your table schema, set format options (e.g. delimiter, headers), and monitor import progress in the same interface.
 
-- An active Tiger Cloud account with console access
-- A Tiger Cloud service with a database created
-- Data files prepared in a supported format (CSV, TSV)
-- Target table created with appropriate schema (or create during import)
-- Files sized within console upload limits
+## Before you start
 
-## Supported file formats
+### Prerequisites
 
-This section describes the file formats and configurations supported by the console import feature.
+- An active Tiger Cloud account with [console access](https://console.cloud.timescale.com/dashboard/services).
+- A [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with a database.
+- Data files in a supported format (CSV, TSV, Parquet, or text).
+- A target table with the right schema, or plan to create one during the import.
 
-### CSV requirements
+### File type tabs in the console
 
-- UTF-8 encoding recommended
-- First row should contain column headers matching target table columns
-- Fields containing commas or special characters must be enclosed in double quotes
-- Consistent delimiter usage throughout the file
+In the upload flow, Tiger Console shows three tabs. Choose the one that matches your file:
 
-### File size limits
+- **From CSV** — For comma- or delimiter-separated files (CSV, TSV). You can set delimiter, header row, and null handling.
+- **From Parquet** — For Parquet files. The console infers schema and lets you map columns to your table.
+- **From a text file** — For other text-based formats. Configure delimiter and parsing options as needed.
 
-Information about maximum file sizes for console uploads and alternatives for larger files.
+### Supported file formats and limits
 
-## Import workflow
+- **CSV / TSV (From CSV tab):** UTF-8 encoding recommended. Use a consistent delimiter; the first row can be headers. Fields with commas or special characters should be in double quotes. Files must be within the console upload size limits—for very large files, use [Import via Terminal](/migrate/import-terminal) or [Sync from S3](/migrate/livesync-for-s3).
+- **Parquet (From Parquet tab):** Supported for upload; follow the same mapping and validation steps. Schema is inferred from the file.
+- **Text file (From a text file tab):** Supported for other text formats; set delimiter and options in the console.
 
-### Step 1: prepare your data
+<Callout variant="tip">
+Validate your file (encoding, headers, delimiter) before uploading. Test with a small sample to confirm column mapping, then run the full import.
+</Callout>
 
-Ensure your CSV file is properly formatted with headers, consistent data types, and no encoding issues.
+## How to upload a file
 
-### Step 2: navigate to import
+Follow these steps in Tiger Console to import a file into your service.
 
-Access the import feature from your Tiger Cloud console dashboard.
+<NumberedList>
 
-### Step 3: select target table
+<NumberedItem title="Open your service and go to import">
+In [Tiger Console](https://console.cloud.timescale.com/dashboard/services), select the service you want to load data into, then open the import or upload feature from the dashboard (e.g. **Data** or **Import**).
+</NumberedItem>
 
-Choose an existing table or create a new table to receive the imported data.
+<NumberedItem title="Choose the file type tab">
+Select one of the three tabs: **From CSV**, **From Parquet**, or **From a text file**. The steps that follow depend on this choice (e.g. CSV and text let you set delimiter and header; Parquet infers schema from the file).
+</NumberedItem>
 
-### Step 4: upload and configure
+<NumberedItem title="Choose where the file comes from">
+Select **Upload from your computer** for a local file, or **Import from S3** if the file is in an S3 bucket. If using S3, provide bucket and path (and credentials if required).
+</NumberedItem>
 
-Upload your file and configure import settings including delimiter, header row, and null value handling.
+<NumberedItem title="Select or create the target table">
+Choose an existing table to receive the data, or create a new table. If you create a new table, define column names and types to match your file or let the console suggest a schema from the file.
+</NumberedItem>
 
-### Step 5: map columns
+<NumberedItem title="Upload the file and set import options">
+Upload your file (or confirm the S3 path), then set:
+- **Delimiter** (e.g. comma, tab) if using CSV/TSV.
+- **Header row:** whether the first row is column headers.
+- **Null value handling** (how empty or placeholder values are stored).
+</NumberedItem>
 
-Review and adjust the mapping between CSV columns and database table columns. Verify data type compatibility.
+<NumberedItem title="Map columns">
+Review the mapping between file columns and table columns. The console tries to match by name; adjust or override as needed and ensure data types are compatible.
+</NumberedItem>
 
-### Step 6: preview and validate
+<NumberedItem title="Preview and run the import">
+Preview a sample of the data to catch formatting or mapping issues, then start the import. Monitor progress in the console until it completes.
+</NumberedItem>
 
-Preview the data before import to catch formatting issues or mapping errors.
+</NumberedList>
 
-### Step 7: execute import
+Your data is now imported into your Tiger Cloud service.
 
-Start the import and monitor progress through the console interface.
+## Column mapping tips
 
-## Column mapping
-
-### Automatic mapping
-
-The console attempts to match CSV headers to table columns by name. Review these mappings before proceeding.
-
-### Manual mapping adjustments
-
-Override automatic mappings when column names differ or when you need to skip certain columns.
-
-### Data type handling
-
-Understand how the console handles data type conversions and what to do when types do not match.
-
-## Best practices
-
-- Validate CSV files before uploading to catch formatting errors early
-- Start with a small sample file to verify mappings before importing large datasets
-- Create the target table schema in advance for better control over data types
-- Use consistent date and timestamp formats throughout your data
-- Remove or handle null values appropriately based on your table constraints
-- Back up existing table data before importing if you are appending to existing tables
+- **Automatic mapping:** The console matches file headers to table columns by name. Always review before importing.
+- **Manual adjustments:** Change mappings when names differ or when you want to skip columns.
+- **Data types:** If the console warns about type mismatches, fix the file (e.g. date format, numbers as text) or adjust the target column type.
 
 ## Troubleshooting
 
-### Upload fails or times out
+- **Upload fails or times out:** Use a smaller file or split the data; for large or automated loads, use [Import via Terminal](/migrate/import-terminal).
+- **Column mapping errors:** Ensure headers match the expected table columns (including case).
+- **Data type or null errors:** Check that values fit the column types and that NOT NULL columns have no empty values, or adjust null handling in the import settings.
+- **Encoding issues:** Save the file as UTF-8 to avoid corrupted characters.
 
-For large files, consider splitting into smaller chunks or using terminal-based import methods.
+## Summary
 
-### Column mapping errors
+You can upload CSV, Parquet, and text files into your Tiger Cloud service from your local machine or from S3 using Tiger Console. After mapping columns and setting options, the import runs in the UI—no CLI needed. For continuous sync from S3 or bulk/scripted imports, use [Sync from S3](/migrate/livesync-for-s3) or [Import via Terminal](/migrate/import-terminal).
 
-Verify that column headers in your CSV exactly match the expected table column names, including case sensitivity.
+## Related
 
-### Data type mismatches
-
-Check that values in each column are compatible with the target column data type. Common issues include dates in unexpected formats or numeric values containing text.
-
-### Null value constraint violations
-
-If your table has NOT NULL constraints, ensure your CSV contains valid data for those columns or adjust import settings for null handling.
-
-### Encoding errors
-
-Save your CSV file with UTF-8 encoding to prevent character corruption during import.
-
-## Next steps
-
-- [Import data using Terminal](/migrate/import-terminal/) - Use command-line tools for larger imports or automation
-- [Live import from a database](/migrate/live-migration/) - Migrate from an existing database
-- [Read and write data](/get-started/timescaledb-read-write-data/) - Query and modify your imported data
+- [Import via Terminal](/migrate/import-terminal) — Use psql, `COPY`, or pg_restore for large or automated imports.
+- [Sync from S3](/migrate/livesync-for-s3) — Continuously sync CSV and Parquet from an S3 bucket.
+- [Sync from Postgres](/migrate/livesync-for-postgresql) — Continuously replicate from a {C.PG} database.
+- [Live migration](/migrate/live-migration) — Migrate with minimal or no downtime.
+- [Migrate overview](/migrate) — All import and migration options.
