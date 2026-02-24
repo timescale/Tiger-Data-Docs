@@ -1,0 +1,249 @@
+---
+title: Sync data from Postgres
+description: How to sync Postgres tables to Tiger Cloud in real time using the source Postgres connector (livesync)
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import LivesyncConfigureSourceDatabase from "../../../partials/_livesync-configure-source-database.mdx";
+import TuneSourceDatabaseAWSRDS from "../../../partials/_livesync-configure-source-database-awsrds.mdx";
+
+# How to sync data from {C.PG}
+
+You use the source {C.PG} connector in Tiger Cloud to synchronize all data or specific tables from a {C.PG} database to your service in real time. You run the connector continuously, turning {C.PG} into the primary with your Tiger Cloud service as a logical replica—so you can leverage Tiger Cloud’s real-time analytics on your replica data without impacting the primary.
+
+The connector uses the established [{C.PG} logical replication protocol](https://www.postgresql.org/docs/current/logical-replication.html), so you get compatibility, familiarity, and a broad knowledge base when adopting it. This is used for **data synchronization**, not one-off migration.
+
+**Use cases include:**
+- **Copy existing data** from a {C.PG} instance to a Tiger Cloud service: up to ~150 GB/hr (recommended minimum 4 CPU/16 GB on both source and target); copy publication tables in parallel (very large tables use a single connection); foreign key validation is disabled during sync so you can sync a table without its referenced tables; and you can track progress via `pg_stat_progress_copy` on the source.
+- **Synchronize real-time changes** from the source to your service.
+- **Add and remove tables on demand** using the [PUBLICATION interface](https://www.postgresql.org/docs/current/sql-createpublication.html).
+- **Enable** [hypertables](/build/data-management/understand-hypertables), [columnstore](/build/columnar-storage), and [continuous aggregates](/build/continuous-aggregates/understand-continuous-aggregates) on your logical replica.
+
+![Tiger Cloud connectors overview](https://assets.timescale.com/docs/images/tiger-on-azure/tiger-console-connector-overview.png)
+
+<Callout variant="note">
+This source {C.PG} connector is in early access and not yet supported for production use. Questions or feedback? Talk to us in [#livesync in the Tiger Data Community](https://app.slack.com/client/T4GT3N2JK/C086NU9EZ88).
+</Callout>
+
+## Prerequisites
+
+- A target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled. You need your [connection details](/integrate/find-connection-details).
+- [{C.PG} client tools](/integrate/query-administration/psql) installed on your sync machine.
+- The source {C.PG} instance and the target Tiger Cloud service must have the same extensions installed. The connector does not create extensions on the target. If a table uses types from an extension, create that extension on the target service before syncing the table.
+
+## Limitations
+
+- The source {C.PG} instance must be accessible from the Internet. Services behind a firewall or VPC are not yet supported.
+- Indexes, primary keys, unique constraints, and sequences are not migrated. Create the indexes you need on the target service for your query patterns.
+- Using TimescaleDB as the source has limited support (no continuous aggregates).
+- The source must run {C.PG} 13 or later.
+- Schema changes must be coordinated: make compatible changes on the Tiger Cloud service first, then on the source.
+- There is WAL volume growth on the source during large table copy.
+- **Continuous aggregate invalidation:** The connector uses `session_replication_role=replica` during copy, so table triggers (including those that invalidate continuous aggregates) do not fire. Continuous aggregates on the target do not auto-refresh for data inserted during the sync. This applies only to data below the aggregate’s materialization watermark. If the continuous aggregate exists on the source, add it to the connector publication. If it exists only on the target, manually refresh with the `force` option of [refresh_continuous_aggregate](/api-reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate).
+
+Avoid connection strings that route through poolers like PgBouncer; the connector needs a direct connection to the database.
+
+## Set your connection string
+
+Set the connection information for the source database on your sync machine. See [Tune your source database](/integrate/connectors/source/sync-from-postgres#tune-your-source-database) on the connector reference for the exact connection string and source configuration.
+
+## Tune your source database
+
+Configure the source for logical replication and create a connector user with the right permissions. Choose your source type:
+
+<Tabs>
+
+<TabItem label="From AWS RDS/Aurora">
+
+<TuneSourceDatabaseAWSRDS />
+
+</TabItem>
+
+<TabItem label="From Postgres">
+
+<LivesyncConfigureSourceDatabase />
+
+</TabItem>
+
+</Tabs>
+
+## Synchronize data to your service
+
+Choose your **target**: sync to Tiger Cloud using the web console, or to a **self-hosted TimescaleDB** instance using the terminal and the live-sync Docker image.
+
+<Tabs>
+
+<TabItem label="Tiger Cloud">
+
+To sync from your {C.PG} database to a Tiger Cloud service using [Tiger Console](https://console.cloud.timescale.com/dashboard/services):
+
+<NumberedList>
+
+<NumberedItem title="Connect to your Tiger Cloud service">Open <a href="https://console.cloud.timescale.com/dashboard/services">Tiger Console</a> and select the service you want to sync live data into.</NumberedItem>
+
+<NumberedItem title="Connect the source database and the target service">
+
+- Click **Connectors** → **{C.PG}**.
+- Set the connector name (pencil icon).
+- Check **Set wal_level to logical** and **Update your credentials**, then click **Continue**.
+- Enter your database credentials or {C.PG} connection string and click **Connect to database**. Tiger Console connects to the source and retrieves schema information.
+
+</NumberedItem>
+
+<NumberedItem title="Choose tables and optimize for hypertables">
+
+- In the **Select table** dropdown, choose the tables to sync.
+- Click **Select tables +**. Tiger Console checks the schema and, when possible, suggests the time dimension column for a hypertable.
+- Click **Create Connector**. Tiger Console starts the source {C.PG} connector and shows progress.
+
+</NumberedItem>
+
+<NumberedItem title="Monitor synchronization">
+
+- Click **Connectors** to see **Connector data flow**: status and amount of data replicated.
+- For per-table progress: **Connectors** → **Source connectors** → select your connector.
+
+</NumberedItem>
+
+<NumberedItem title="Manage the connector">
+
+- **Edit:** **Connectors** → **Source connectors** → select the connector. You can rename it, add or remove tables.
+- **Pause:** same table → three-dot menu → **Pause**.
+- **Delete:** three-dot menu → **Delete** (pause the connector first).
+
+</NumberedItem>
+
+</NumberedList>
+
+You’re now syncing the selected tables from your {C.PG} instance to your Tiger Cloud service in real time.
+
+</TabItem>
+
+<TabItem label="TimescaleDB self-hosted">
+
+Sync from a {C.PG} source to your **self-hosted TimescaleDB** instance using the `timescale/live-sync` Docker image. The connector runs on a machine that can reach both source and target.
+
+<NumberedList>
+
+<NumberedItem title="Prerequisites for self-hosted target">
+
+- A self-hosted TimescaleDB instance (target) and a {C.PG} source (e.g. self-hosted, AWS RDS, or Aurora).
+- [Docker](https://docs.docker.com/engine/install/) and [{C.PG} client tools](/integrate/query-administration/psql) (`psql`, `pg_dump`, `pg_restore`, `vacuumdb`) on the sync machine.
+- The source and target must have the same extensions installed; create any needed extensions on the target before syncing.
+- The `<user>` in the `SOURCE` connection string must have the replication role (to create a replication slot).
+
+</NumberedItem>
+
+<NumberedItem title="Set your connection strings">
+
+On your sync machine, set the source and target connection strings:
+
+```bash
+export SOURCE="postgres://<user>:<password>@<source host>:<source port>/<db_name>"
+export TARGET="postgres://<user>:<password>@<self-hosted host>:<port>/<db_name>"
+```
+
+`TARGET` is the connection string to your **self-hosted TimescaleDB** instance. Avoid connection strings that route through poolers (e.g. PgBouncer); use a direct connection.
+
+</NumberedItem>
+
+</NumberedList>
+
+**Migrate the table schema to your self-hosted target**
+
+<NumberedList>
+
+<NumberedItem title="Export schema from the source">
+
+```bash
+pg_dump $SOURCE \
+  --no-privileges --no-owner --no-publications --no-subscriptions \
+  --no-table-access-method --no-tablespaces --schema-only \
+  --file=schema.sql
+```
+
+</NumberedItem>
+
+<NumberedItem title="Apply the schema on the target">
+
+```bash
+psql $TARGET -f schema.sql
+```
+
+</NumberedItem>
+
+</NumberedList>
+
+**Convert time-series tables to hypertables (optional)**
+
+On the target, convert tables that hold time-series or event data into [hypertables](/build/data-management/understand-hypertables) for better performance:
+
+```bash
+psql -X -d $TARGET -c "SELECT public.create_hypertable('public.<table>', by_range('<time_column>', '<chunk_interval>'::interval));"
+```
+
+Example: `time` column, 1-day chunks:
+
+```bash
+psql -X -d $TARGET -c "SELECT public.create_hypertable('public.metrics', by_range('time', '1 day'::interval));"
+```
+
+<NumberedList>
+
+<NumberedItem title="Specify the tables to synchronize">
+
+On the **source** database, create a publication for the tables you want to sync:
+
+```sql
+CREATE PUBLICATION <publication_name> FOR TABLE <table_name>, <table_name>;
+```
+
+- To add tables later: `ALTER PUBLICATION <publication_name> ADD TABLE <table_name>;`
+- To use a partitioned table: `ALTER PUBLICATION <publication_name> SET (publish_via_partition_root = true);`
+
+</NumberedItem>
+
+<NumberedItem title="Run the live-sync connector">
+
+Run the connector as a long-lived container (e.g. daemon). Replace `<publication_name>`, `<subscription_name>`, and optionally `<table_map>`:
+
+```bash
+docker run -d --rm --name livesync timescale/live-sync:v0.11.2 run \
+  --publication <publication_name> \
+  --subscription <subscription_name> \
+  --source $SOURCE \
+  --target $TARGET
+```
+
+- **`--publication`:** name of the publication on the source.
+- **`--subscription`:** name for the subscription on the target (identifies this sync).
+- **`--source` / `--target`:** connection strings. Target is your self-hosted TimescaleDB.
+- **Optional `--table-map`:** e.g. `'{"source":{"schema":"public","table":"x"},"target":{"schema":"public","table":"y"}}'` to map source tables to different target names or schemas.
+- **Optional `--copy-data false`:** skip initial copy and only replicate changes after the slot is created.
+
+</NumberedItem>
+
+<NumberedItem title="Monitor and manage">
+
+- **Logs:** `docker logs -f livesync`
+- **Progress on target:** `psql $TARGET -c "SELECT * FROM _ts_live_sync.subscription_rel"`
+- **Replication lag on source:** query `pg_replication_slots` for `live_sync_%` slots and compare `pg_current_wal_flush_lsn()` with `confirmed_flush_lsn`.
+- **Add/remove tables:** `ALTER PUBLICATION <publication_name> ADD TABLE ...` or `DROP TABLE ...` on the source; add tables to the publication as needed.
+- **Stop:** `docker stop livesync`
+- **Update statistics after initial sync:** `vacuumdb --analyze --verbose --dbname=$TARGET`
+- **Clean up replication slots (when done):** run the same `docker run ... timescale/live-sync:v0.11.2 run ... --drop` to remove slots on the source.
+
+</NumberedItem>
+
+</NumberedList>
+
+For more detail on the terminal flow (e.g. resetting sequences, partitioned tables), see the [live migration](/migrate/live-migration) guide.
+
+</TabItem>
+
+</Tabs>
+
+For connector capabilities and technical details, see the [Source Postgres connector reference](/integrate/connectors/source/sync-from-postgres).
