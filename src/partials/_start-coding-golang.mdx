@@ -1,28 +1,26 @@
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
-
-
-import IntegrationPrereqs from "./_integration-prereqs.mdx";
+import IntegrationPrereqsSelfOnly from "./_integration-prereqs-self-only.mdx";
 
 ## Prerequisites
 
-<IntegrationPrereqs />
+<IntegrationPrereqsSelfOnly />
 
 - Install [Go](https://golang.org/doc/install).
 - Install the [PGX driver for Go](https://github.com/jackc/pgx).
 
-## Connect to your {C.SERVICE_LONG}
+## Connect to {C.TIMESCALE_DB}
 
-In this section, you create a connection to {C.CLOUD_LONG} using the PGX driver.
+In this section, you create a connection to {C.TIMESCALE_DB} using the PGX driver.
 PGX is a toolkit designed to help Go developers work directly with {C.PG}.
-You can use it to help your Go application interact directly with TimescaleDB.
+You can use it to help your Go application interact directly with {C.TIMESCALE_DB}.
 
 <NumberedList>
 
-<NumberedItem title={`Locate your ${C.TIMESCALE_DB} credentials and use them to compose a connection`}>
+<NumberedItem title={`Locate your ${C.TIMESCALE_DB} credentials`}>
 
-string for PGX.
+Use them to compose a connection string for PGX.
 
 You'll need:
 
@@ -34,16 +32,15 @@ You'll need:
 
 </NumberedItem>
 
-<NumberedItem title="Compose your connection string variable as a">
+<NumberedItem title="Compose your connection string variable">
 
-[libpq connection string](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING), using this format:
+Use a [libpq connection string](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) format:
 
 ```go
 connStr := "postgres://username:password@host:port/dbname"
 ```
 
-If you're using a hosted version of TimescaleDB, or if you need an SSL
-connection, use this format instead:
+If you require an SSL connection, use this format instead:
 
 ```go
 connStr := "postgres://username:password@host:port/dbname?sslmode=require"
@@ -51,9 +48,9 @@ connStr := "postgres://username:password@host:port/dbname?sslmode=require"
 
 </NumberedItem>
 
-<NumberedItem title="(Optional) You can check that you're connected to your database with this">
+<NumberedItem title="(Optional) Verify your database connection">
 
-hello world program:
+You can check that you're connected to your database with this hello world program:
 
 ```go
 package main
@@ -109,12 +106,9 @@ result in faster database queries:
 
 <NumberedList>
 
-<NumberedItem title="To create a connection pool that can be used for concurrent connections to">
+<NumberedItem title="Create a connection pool">
 
-your database, use the `pgxpool.New()` function instead of
-`pgx.Connect()`. Also note that this script imports
-`github.com/jackc/pgx/v5/pgxpool`, instead of `pgx/v5` which was used to
-create a single connection:
+To create a connection pool for concurrent connections to your database, use the `pgxpool.New()` function instead of `pgx.Connect()`. Also note that this script imports `github.com/jackc/pgx/v5/pgxpool`, instead of `pgx/v5` which was used to create a single connection:
 
 ```go
 package main
@@ -163,10 +157,9 @@ percentage of the sensors.
 
 <NumberedList>
 
-<NumberedItem title="Compose a string that contains the SQL statement to create a relational">
+<NumberedItem title="Compose the SQL statement to create a relational table">
 
-table. This example creates a table called `sensors`, with columns for ID,
-type, and location:
+This example creates a table called `sensors`, with columns for ID, type, and location:
 
 ```go
 queryCreateTable := `CREATE TABLE sensors (id SERIAL PRIMARY KEY, type VARCHAR(50), location VARCHAR(50));`
@@ -174,10 +167,9 @@ queryCreateTable := `CREATE TABLE sensors (id SERIAL PRIMARY KEY, type VARCHAR(5
 
 </NumberedItem>
 
-<NumberedItem title="Execute the `CREATE TABLE` statement with the `Exec()` function on the">
+<NumberedItem title="Execute the CREATE TABLE statement">
 
-`dbpool` object, using the arguments of the current context and the
-statement string you created:
+Use the `Exec()` function on the `dbpool` object, using the arguments of the current context and the statement string you created:
 
 ```go
 package main
@@ -243,11 +235,9 @@ queryCreateTable := `CREATE TABLE sensor_data (
 
 </NumberedItem>
 
-<NumberedItem title="Formulate the `SELECT` statement to convert the table into a hypertable. You">
+<NumberedItem title="Formulate the SELECT statement to convert the table into a hypertable">
 
-must specify the table name to convert to a hypertable, and its time column
-name as the second argument. For more information, see the
-[`create_hypertable` docs](/getting-started/start-coding-with-timescale/#generate-a-hypertable):
+You must specify the table name to convert to a hypertable, and its time column name as the second argument. For more information, see the [`create_hypertable` docs](/reference/timescaledb/hypertables/create_hypertable):
 
 ```go
 queryCreateHypertable := `SELECT create_hypertable('sensor_data', by_range('time'));`
@@ -262,11 +252,9 @@ The `by_range` dimension builder is an addition to {C.TIMESCALE_DB} 2.13.
 
 </NumberedItem>
 
-<NumberedItem title="Execute the `CREATE TABLE` statement and `SELECT` statement which converts">
+<NumberedItem title="Execute the statements to create the hypertable">
 
-the table into a hypertable. You can do this by calling the `Exec()`
-function on the `dbpool` object, using the arguments of the current context,
-and the `queryCreateTable` and `queryCreateHypertable` statement strings:
+Execute the `CREATE TABLE` statement and `SELECT` statement which converts the table into a hypertable. You can do this by calling the `Exec()` function on the `dbpool` object, using the arguments of the current context, and the `queryCreateTable` and `queryCreateHypertable` statement strings:
 
 ```go
 package main
@@ -329,9 +317,9 @@ the process.
 
 <NumberedList>
 
-<NumberedItem title="Open a connection pool to the database, then use the prepared statements to">
+<NumberedItem title="Insert data using prepared statements">
 
-formulate an `INSERT` SQL statement, and execute it:
+Open a connection pool to the database, then use prepared statements to formulate an `INSERT` SQL statement, and execute it:
 
 ```go
 package main
@@ -389,13 +377,9 @@ to insert multiple rows of data, instead:
 
 <NumberedList>
 
-<NumberedItem title={`This example uses ${C.PG} to generate some sample time-series to insert`}>
+<NumberedItem title={`Generate sample time-series data`}>
 
-into the `sensor_data` hypertable. Define the SQL statement to generate the
-data, called `queryDataGeneration`. Then use the `.Query()` function to
-execute the statement and return the sample data. The data returned by the
-query is stored in `results`, a slice of structs, which is then used as a
-source to insert data into the hypertable:
+This example uses {C.PG} to generate some sample time-series data to insert into the `sensor_data` hypertable. Define the SQL statement to generate the data, called `queryDataGeneration`. Then use the `.Query()` function to execute the statement and return the sample data. The data returned by the query is stored in `results`, a slice of structs, which is then used as a source to insert data into the hypertable:
 
 ```go
 package main
@@ -505,9 +489,9 @@ fmt.Println("Successfully inserted samples into sensor_data hypertable")
 
 </NumberedItem>
 
-<NumberedItem title="(Optional) This example `main.go` generates sample data and inserts it into">
+<NumberedItem title="(Optional) Full sample code for data generation and insert">
 
-the `sensor_data` hypertable:
+This example `main.go` generates sample data and inserts it into the `sensor_data` hypertable:
 
 ```go
 package main
@@ -755,11 +739,9 @@ This section covers how to execute queries against your database.
 
 <NumberedList>
 
-<NumberedItem title="Define the SQL query you'd like to run on the database. This example uses a">
+<NumberedItem title="Define the SQL query">
 
-SQL query that combines time-series and relational data. It returns the
-average CPU values for every 5 minute interval, for sensors located on
-location `ceiling` and of type `a`:
+This example uses a SQL query that combines time-series and relational data. It returns the average CPU values for every 5 minute interval, for sensors located on location `ceiling` and of type `a`:
 
 ```go
 // Formulate query in SQL
@@ -776,9 +758,9 @@ queryTimebucketFiveMin := `
 
 </NumberedItem>
 
-<NumberedItem title="Use the `.Query()` function to execute the query string. Make sure you">
+<NumberedItem title="Execute the query">
 
-specify the relevant placeholders:
+Use the `.Query()` function to execute the query string. Make sure you specify the relevant placeholders:
 
 ```go
 //Execute query on TimescaleDB
@@ -794,12 +776,9 @@ fmt.Println("Successfully executed query")
 
 </NumberedItem>
 
-<NumberedItem title="Access the rows returned by `.Query()`. Create a struct with fields">
+<NumberedItem title="Access the returned rows">
 
-representing the columns that you expect to be returned, then use the
-`rows.Next()` function to iterate through the rows returned and fill
-`results` with the array of structs. This uses the `rows.Scan()` function,
-passing in pointers to the fields that you want to scan for results.
+Create a struct with fields representing the columns that you expect to be returned, then use the `rows.Next()` function to iterate through the rows returned and fill `results` with the array of structs. This uses the `rows.Scan()` function, passing in pointers to the fields that you want to scan for results.
 
 This example prints out the results returned from the query, but you might
 want to use those results for some other purpose. Once you've scanned
@@ -838,9 +817,9 @@ if rows.Err() != nil {
 
 </NumberedItem>
 
-<NumberedItem title="(Optional) This example program runs a query, and accesses the results of">
+<NumberedItem title="(Optional) Full sample code for querying">
 
-that query:
+This example program runs a query, and accesses the results of that query:
 
 ```go
 package main
@@ -923,11 +902,9 @@ func main() {
 ## Next steps
 
 Now that you're able to connect, read, and write to a {C.TIMESCALE_DB} instance from
-your Go application, be sure to check out these advanced {C.TIMESCALE_DB} tutorials:
+your Go application, check out these resources:
 
 *   Refer to the [pgx documentation](https://pkg.go.dev/github.com/jackc/pgx) for more information about pgx.
-*   Get up and running with {C.TIMESCALE_DB} with the [Getting Started](/getting-started/)
-    tutorial.
 *   Want fast inserts on CSV data? Check out
     [{C.TIMESCALE_DB} parallel copy](https://github.com/timescale/timescaledb-parallel-copy), a tool for fast inserts,
     written in Go.
