@@ -1,17 +1,17 @@
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
-
-import IntegrationPrereqs from "./_integration-prereqs.mdx";
+import IntegrationPrereqsSelfOnly from "./_integration-prereqs-self-only.mdx";
 
 ## Prerequisites
 
-<IntegrationPrereqs />
+<IntegrationPrereqsSelfOnly />
 
-*   Install the `psycopg2` library. 
+*   Install the `psycopg2` library.
+    For more information, see the [psycopg2 documentation](https://pypi.org/project/psycopg2/).
+*   (Optional) Create a [Python virtual environment](https://docs.python.org/3/library/venv.html).
 
-   For more information, see the [psycopg2 documentation](https://pypi.org/project/psycopg2/).
-*   Create a [Python virtual environment](https://docs.python.org/3/library/venv.html). (Optional) ## Connect to TimescaleDB
+## Connect to {C.TIMESCALE_DB}
 
 In this section, you create a connection to {C.TIMESCALE_DB} using the `psycopg2`
 library. This library is one of the most popular {C.PG} libraries for
@@ -28,9 +28,9 @@ import psycopg2
 
 </NumberedItem>
 
-<NumberedItem title={`Locate your ${C.TIMESCALE_DB} credentials and use them to compose a connection`}>
+<NumberedItem title={`Locate your ${C.TIMESCALE_DB} credentials`}>
 
-string for `psycopg2`.
+Use them to compose a connection string for `psycopg2`.
 
 You'll need:
 
@@ -42,16 +42,15 @@ You'll need:
 
 </NumberedItem>
 
-<NumberedItem title="Compose your connection string variable as a">
+<NumberedItem title="Compose your connection string variable">
 
-[libpq connection string](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING), using this format:
+Use a [libpq connection string](https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING) format:
 
 ```python
 CONNECTION = "postgres://username:password@host:port/dbname"
 ```
 
-If you're using a hosted version of {C.TIMESCALE_DB}, or generally require an SSL
-connection, use this version instead:
+If you require an SSL connection, use this version instead:
 
 ```python
 CONNECTION = "postgres://username:password@host:port/dbname?sslmode=require"
@@ -74,10 +73,9 @@ details like your password, hostname, and port number.
 
 </NumberedItem>
 
-<NumberedItem title="Use the `psycopg2` connect function to create a new">
+<NumberedItem title="Create a database session with psycopg2">
 
-database session and create a new [cursor object](https://www.psycopg.org/docs/connection.html?highlight=cursor#connection.cursor) to
-interact with the database.
+Use the `psycopg2` connect function to create a new database session and a new [cursor object](https://www.psycopg.org/docs/connection.html?highlight=cursor#connection.cursor) to interact with the database.
 
 In your `main` function, add these lines:
 
@@ -115,9 +113,9 @@ percentage of the sensors.
 
 <NumberedList>
 
-<NumberedItem title="Compose a string which contains the SQL statement to create a relational">
+<NumberedItem title="Compose the SQL statement to create a relational table">
 
-table. This example creates a table called `sensors`, with columns `id`,
+This example creates a table called `sensors`, with columns `id`,
 `type` and `location`:
 
 ```python
@@ -131,10 +129,9 @@ query_create_sensors_table = """CREATE TABLE sensors (
 
 </NumberedItem>
 
-<NumberedItem title="Open a cursor, execute the query you created in the previous step, and">
+<NumberedItem title="Execute the query and commit the changes">
 
-commit the query to make the changes persistent. Afterward, close the cursor
-to clean up:
+Open a cursor, execute the query you created in the previous step, and commit the query to make the changes persistent. Afterward, close the cursor to clean up:
 
 ```python
 cursor = conn.cursor()
@@ -156,9 +153,9 @@ and most other tasks are executed on the hypertable.
 
 <NumberedList>
 
-<NumberedItem title="Create a string variable that contains the `CREATE TABLE` SQL statement for">
+<NumberedItem title="Create the CREATE TABLE SQL statement for your hypertable">
 
-your hypertable. Notice how the hypertable has the compulsory time column:
+Notice how the hypertable has the compulsory time column:
 
 ```python
 # create sensor data hypertable
@@ -174,11 +171,11 @@ query_create_sensordata_table = """CREATE TABLE sensor_data (
 
 </NumberedItem>
 
-<NumberedItem title="Formulate a `SELECT` statement that converts the `sensor_data` table to a">
+<NumberedItem title="Convert the table to a hypertable">
 
-hypertable. You must specify the table name to convert to a hypertable, and
+Formulate a `SELECT` statement that converts the `sensor_data` table to a hypertable. You must specify the table name to convert to a hypertable, and
 the name of the time column as the two arguments. For more information, see
-the [`create_hypertable` docs](/api/hypertable/create_hypertable):
+the [`create_hypertable` docs](/reference/timescaledb/hypertables/create_hypertable):
 
 ```python
 query_create_sensordata_hypertable = "SELECT create_hypertable('sensor_data', by_range('time'));"
@@ -193,9 +190,9 @@ The `by_range` dimension builder is an addition to {C.TIMESCALE_DB} 2.13.
 
 </NumberedItem>
 
-<NumberedItem title="Open a cursor with the connection, execute the statements from the previous">
+<NumberedItem title="Execute the statements and commit your changes">
 
-steps, commit your changes, and close the cursor:
+Open a cursor with the connection, execute the statements from the previous steps, commit your changes, and close the cursor:
 
 ```python
 cursor = conn.cursor()
@@ -218,11 +215,9 @@ section, you can use `psycopg2` with prepared statements, or you can use
 
 <NumberedList>
 
-<NumberedItem title="This example inserts a list of tuples, or relational data, called `sensors`,">
+<NumberedItem title="Insert relational data into the `sensors` table">
 
-into the relational table named `sensors`. Open a cursor with a connection
-to the database, use prepared statements to formulate the `INSERT` SQL
-statement, and then execute that statement:
+Open a cursor with a connection to the database, use prepared statements to formulate the `INSERT` SQL statement, and then execute that statement:
 
 ```python
 sensors = [('a', 'floor'), ('a', 'ceiling'), ('b', 'floor'), ('b', 'ceiling')]
@@ -238,10 +233,9 @@ conn.commit()
 
 </NumberedItem>
 
-<NumberedItem title="(Optional) Alternatively, you can pass variables to the `cursor.execute`">
+<NumberedItem title="(Optional) Use separate SQL and data variables">
 
-function and separate the formulation of the SQL statement, `SQL`, from the
-data being passed with it into the prepared statement, `data`:
+Alternatively, you can pass variables to the `cursor.execute` function and separate the formulation of the SQL statement, `SQL`, from the data being passed with it into the prepared statement, `data`:
 
 ```python
 SQL = "INSERT INTO sensors (type, location) VALUES (%s, %s);"
@@ -270,9 +264,9 @@ from pgcopy import CopyManager
 
 <NumberedList>
 
-<NumberedItem title="Generate some random sensor data using the `generate_series` function">
+<NumberedItem title="Generate random sensor data">
 
-provided by {C.PG}. This example inserts a total of 480 rows of data (4
+Use the `generate_series` function provided by {C.PG}. This example inserts a total of 480 rows of data (4
 readings, every 5 minutes, for 24 hours). In your application, this would be
 the query that saves your time-series data into the hypertable:
 
@@ -292,9 +286,9 @@ for id in range(1, 4, 1):
 
 </NumberedItem>
 
-<NumberedItem title="Define the column names of the table you want to insert data into. This">
+<NumberedItem title="Define the column names for the target table">
 
-example uses the `sensor_data` hypertable created earlier. This hypertable
+This example uses the `sensor_data` hypertable created earlier. This hypertable
 consists of columns named `time`, `sensor_id`, `temperature` and `cpu`. The
 column names are defined in a list of strings called `cols`:
 
@@ -304,11 +298,9 @@ cols = ['time', 'sensor_id', 'temperature', 'cpu']
 
 </NumberedItem>
 
-<NumberedItem title="Create an instance of the `pgcopy` CopyManager, `mgr`, and pass the">
+<NumberedItem title="Insert data using pgcopy CopyManager">
 
-connection variable, hypertable name, and list of column names. Then use the
-`copy` function of the CopyManager to insert the data into the database
-quickly using `pgcopy`.
+Create an instance of the `pgcopy` CopyManager, `mgr`, and pass the connection variable, hypertable name, and list of column names. Then use the `copy` function to insert the data quickly.
 
 ```python
 mgr = CopyManager(conn, 'sensor_data', cols)
@@ -325,9 +317,9 @@ conn.commit()
 
 </NumberedItem>
 
-<NumberedItem title={`(Optional) The full sample code to insert data into ${C.TIMESCALE_DB} using`}>
+<NumberedItem title={`(Optional) Full sample code for pgcopy insert`}>
 
-`pgcopy`, using the example of sensor data from four sensors:
+The full sample code to insert data into {C.TIMESCALE_DB} using `pgcopy`, using the example of sensor data from four sensors:
 
 ```python
 # insert using pgcopy
@@ -388,10 +380,9 @@ see the [psycopg2 documentation](https://www.psycopg.org/docs/usage.html).
 
 <NumberedList>
 
-<NumberedItem title="Define the SQL query you'd like to run on the database. This example is a">
+<NumberedItem title="Define the SQL query">
 
-simple `SELECT` statement querying each row from the previously created
-`sensor_data` table.
+This example is a simple `SELECT` statement querying each row from the previously created `sensor_data` table.
 
 ```python
 query = "SELECT * FROM sensor_data;"
@@ -399,9 +390,9 @@ query = "SELECT * FROM sensor_data;"
 
 </NumberedItem>
 
-<NumberedItem title="Open a cursor from the existing database connection, `conn`, and then execute">
+<NumberedItem title="Execute the query">
 
-the query you defined:
+Open a cursor from the existing database connection, `conn`, and then execute the query you defined:
 
 ```python
 cursor = conn.cursor()
@@ -411,9 +402,9 @@ cursor.execute(query)
 
 </NumberedItem>
 
-<NumberedItem title="To access all resulting rows returned by your query, use one of `pyscopg2`'s">
+<NumberedItem title="Access the query results">
 
-[results retrieval methods][results-retrieval-methods],
+Use one of `psycopg2`'s [results retrieval methods](https://www.psycopg.org/docs/cursor.html),
 such as `fetchall()` or `fetchmany()`. This example prints the results of
 the query, row by row. Note that the result of `fetchall()` is a list of
 tuples, so you can handle them accordingly:
@@ -429,9 +420,9 @@ cursor.close()
 
 </NumberedItem>
 
-<NumberedItem title="(Optional) If you want a list of dictionaries instead, you can define the">
+<NumberedItem title="(Optional) Use DictCursor for dictionary results">
 
-cursor using [`DictCursor`](https://www.psycopg.org/docs/extras.html#dictionary-like-cursor):
+If you want a list of dictionaries instead, define the cursor using [`DictCursor`](https://www.psycopg.org/docs/extras.html#dictionary-like-cursor):
 
 ```python
 cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -479,7 +470,3 @@ results = cursor.fetchall()
 
 
 
-
-
-
-[results-retrieval-methods]:https://www.psycopg.org/docs/cursor.html
