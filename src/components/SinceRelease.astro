@@ -1,10 +1,13 @@
 ---
 import { Badge } from '@stainless-api/docs/components';
-import { TagIcon } from 'lucide-react';
+import { callSafely } from 'astro:actions';
+import { TagIcon, FlaskConicalIcon, CirclePlayIcon, SunsetIcon, ArchiveIcon } from 'lucide-react';
+import type { ComponentProps } from 'react';
 
 export type Props = {
   version: string;
   product: 'tsdb' | 'toolkit';
+  mode?: 'released' | 'early_access' | 'community' | 'sunset' | 'deprecated';
 }
 
 const releasePages = {
@@ -13,9 +16,31 @@ const releasePages = {
 } satisfies Record<Props['product'], `http${string}/releases/tag/`>;
 
 const url = new URL(Astro.props.version, releasePages[Astro.props.product]).href;
+
+const mode = Astro.props.mode ?? 'released';
+const intent = ({
+  released: 'accent',
+  early_access: 'accent',
+  community: 'accent',
+  sunset: 'danger',
+  deprecated: 'danger',
+} as const)[mode] satisfies ComponentProps<typeof Badge>['intent'];
+
 ---
 
-<Badge intent="accent" size="md">
-  <TagIcon slot="icon" />
-  Since <a href={url} target="_blank" rel="noopener noreferrer">{Astro.props.version}</a>
+<Badge intent={intent} size="md">
+  {mode === 'released' && <TagIcon slot="icon" />}
+  {mode === 'early_access' && <FlaskConicalIcon slot="icon" />}
+  {mode === 'community' && <CirclePlayIcon slot="icon" />}
+  {mode === 'sunset' && <SunsetIcon slot="icon" />}
+  {mode === 'deprecated' && <ArchiveIcon slot="icon" />}
+
+  {{
+    released: 'Since',
+    early_access: 'Early access since',
+    community: 'Community since',
+    sunset: 'Sunsetted',
+    deprecated: 'Deprecated',
+  }[mode]}{' '}
+  <a href={url} target="_blank" rel="noopener noreferrer">{Astro.props.version}</a><slot />
 </Badge>
