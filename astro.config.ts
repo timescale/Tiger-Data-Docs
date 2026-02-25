@@ -39,9 +39,9 @@ export default defineConfig({
           },
         ],
       },
-      social: [
-        { icon: "github", label: "GitHub", href: "https://github.com/timescale/timescaledb" },
-      ],
+      // social: [
+      //   { icon: "github", label: "GitHub", href: "https://github.com/timescale/timescaledb" },
+      // ],
       experimental: {
         aiChat: aiChat(),
         starlightCompat: {
@@ -286,4 +286,10 @@ export default defineConfig({
       ],
     }),
   ],
+
+  redirects: {
+    "/api-reference/timescaledb-toolkit": "/reference/toolkit",
+    "/api-reference/timescaledb": "/reference/timescaledb",
+    "/api-reference": "/reference",
+  },
 });
