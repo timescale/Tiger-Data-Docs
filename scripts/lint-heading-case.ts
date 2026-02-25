@@ -49,6 +49,7 @@ const PROPER_NOUNS = new Set(
     "CloudWatch", "Transit", "Gateway", "Explorer", "Insights", "Notebooks",
     "Livesync", "Vectorizer", "Huggingface", "Chrome", "DevTools",
     "Microsoft", "Google", "Grafana", "Alertmanager", "Looker", "Datadog", "OpenTelemetry", "MacPorts", "Compose", "macOS",
+    "TimeWeightSummary",
   ].map((s) => s.toLowerCase())
 );
 
