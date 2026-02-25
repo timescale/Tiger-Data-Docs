@@ -1,0 +1,95 @@
+---
+title: interpolated_duration_in()
+description: Calculate the total time spent in a given state from a state aggregate, interpolating values at time bucket boundaries
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: accessor
+  aggregates:
+    - compact_state_agg()
+---
+
+import { FlaskIcon } from 'lucide-react';
+
+<FlaskIcon /> Early access [1.8.0][toolkit-1.8.0]
+
+Calculate the total duration in the given state. Unlike [`duration_in`][duration_in], you can use this function across
+multiple state aggregates that cover multiple time buckets. Any missing values at the time bucket boundaries are
+interpolated from adjacent state aggregates.
+
+## Samples
+
+Create a test table that tracks when a system switches between `starting`, `running`, and `error` states. Query the
+table for the time spent in the `running` state. Use `LAG` and `LEAD` to get the neighboring aggregates for
+interpolation.
+
+If you prefer to see the result in seconds, [`EXTRACT`][extract] the epoch from the returned result.
+
+```sql
+SELECT
+  time,
+  toolkit_experimental.interpolated_duration_in(
+    agg,
+    'running',
+    time,
+    '1 day',
+    LAG(agg) OVER (ORDER BY time)
+) FROM (
+  SELECT
+    time_bucket('1 day', time) as time,
+    toolkit_experimental.compact_state_agg(time, state) as agg
+  FROM
+    states
+  GROUP BY time_bucket('1 day', time)
+) s;
+```
+
+Returns:
+
+```
+time                    | interpolated_duration_in
+------------------------+--------------------------
+2020-01-01 00:00:00+00  | 13:30:00
+2020-01-02 00:00:00+00  | 16:00:00
+2020-01-03 00:00:00+00  | 04:30:00
+2020-01-04 00:00:00+00  | 12:00:00
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+interpolated_duration_in(
+  agg CompactStateAgg,
+  state {TEXT | BIGINT},
+  start TIMESTAMPTZ,
+  interval INTERVAL
+  [, prev CompactStateAgg]
+) RETURNS INTERVAL
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | CompactStateAgg | - | ✔ | A state aggregate created with [`compact_state_agg`][compact_state_agg] |
+| state | TEXT | BIGINT | - | ✔ | The state to query |
+| start | TIMESTAMPTZ | - | ✔ | The start of the interval to be calculated |
+| interval | INTERVAL | - | ✔ | The length of the interval to be calculated |
+| prev | CompactStateAgg | - | | The state aggregate from the prior interval, used to interpolate the value at `start`. If `NULL`, the first timestamp in `aggregate` is used as the start of the interval |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| interpolated\_duration\_in | INTERVAL | The total time spent in the queried state. Displayed as `days`, `hh:mm:ss`, or a combination of the two. |
+
+[compact_state_agg]: /api-reference/timescaledb-toolkit/state-tracking/compact_state_agg/compact_state_agg
+
+[duration_in]: /api-reference/timescaledb-toolkit/state-tracking/compact_state_agg/duration_in
+
+[extract]: https://www.postgresql.org/docs/current/functions-datetime.html#FUNCTIONS-DATETIME-EXTRACT
+
+[toolkit-1.8.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.8.0

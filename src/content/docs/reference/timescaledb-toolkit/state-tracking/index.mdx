@@ -1,0 +1,113 @@
+---
+title: State tracking overview
+sidebarTitle: Overview
+description: Functions for tracking state transitions and system liveness over time
+topics: [hyperfunctions]
+license: community
+toolkit: true
+products: [cloud, mst, self_hosted]
+---
+
+Track state transitions and system liveness over time. These functions help you analyze systems that switch between
+discrete states, monitor heartbeat signals for liveness detection, and calculate durations spent in different states.
+
+TimescaleDB Toolkit provides three approaches to state tracking:
+
+- **compact\_state\_agg**: Track time spent in each state with minimal memory usage
+- **state\_agg**: Track state transitions with full timestamp information
+- **heartbeat\_agg**: Monitor system liveness based on heartbeat signals
+
+import TwoStepAggregation from '@partials/_two-step-aggregation.mdx';
+
+## Two-step aggregation
+
+<TwoStepAggregation />
+
+## Samples
+
+### Track time in different states
+
+Use compact\_state\_agg to efficiently track how much time a system spends in each state:
+
+```sql
+SELECT
+    device_id,
+    toolkit_experimental.compact_state_agg(time, status) AS state_data
+FROM devices
+GROUP BY device_id;
+```
+
+Query the duration spent in each state:
+
+```sql
+WITH state_data AS (
+    SELECT
+        device_id,
+        toolkit_experimental.compact_state_agg(time, status) AS agg
+    FROM devices
+    GROUP BY device_id
+)
+SELECT
+    device_id,
+    toolkit_experimental.duration_in('running', agg) AS running_time,
+    toolkit_experimental.duration_in('error', agg) AS error_time
+FROM state_data;
+```
+
+### Analyze state transitions
+
+Use state\_agg to track when state transitions occur:
+
+```sql
+WITH state_data AS (
+    SELECT state_agg(time, status) AS agg
+    FROM devices
+    WHERE device_id = 'device_1'
+)
+SELECT *
+FROM unnest((SELECT state_timeline(agg) FROM state_data));
+```
+
+### Monitor system liveness
+
+Use heartbeat\_agg to track uptime and downtime:
+
+```sql
+WITH heartbeats AS (
+    SELECT heartbeat_agg(
+        ping_time,
+        '2024-01-01'::timestamptz,
+        '7 days'::interval,
+        '5 minutes'::interval
+    ) AS agg
+    FROM system_health
+)
+SELECT
+    uptime(agg) AS total_uptime,
+    downtime(agg) AS total_downtime
+FROM heartbeats;
+```
+
+## Available functions
+
+### Compact state aggregation
+
+- [`compact_state_agg()`][compact_state_agg]: track time spent in states with minimal memory usage
+
+### State aggregation with transitions
+
+- [`state_agg()`][state_agg]: track state transitions with full timestamp information
+
+### Heartbeat monitoring
+
+- [`heartbeat_agg()`][heartbeat_agg]: monitor system liveness based on heartbeat signals
+
+[compact_state_agg]: /api-reference/timescaledb-toolkit/state-tracking/compact_state_agg
+
+[heartbeat_agg]: /api-reference/timescaledb-toolkit/state-tracking/heartbeat_agg
+
+[state_agg]: /api-reference/timescaledb-toolkit/state-tracking/state_agg
+
+[toolkit-1.5.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.5.0
+
+[two-step-aggregation]: #two-step-aggregation

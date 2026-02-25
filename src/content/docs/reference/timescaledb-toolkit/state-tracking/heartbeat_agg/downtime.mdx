@@ -1,0 +1,66 @@
+---
+title: downtime()
+description: Get the total time dead during a heartbeat aggregate
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: accessor
+  aggregates:
+    - heartbeat_agg()
+---
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.15.0][toolkit-1.15.0]
+
+Sum all the ranges where the system did not have a recent enough heartbeat from a heartbeat aggregate.
+
+There may appear to be some downtime between the start of the aggregate and the first heartbeat. If there is a heartbeat
+aggregate covering the previous period, you can use its last heartbeat to correct for this using
+[`interpolated_downtime()`][interpolated_downtime].
+
+## Samples
+
+Given a table called `liveness` containing weekly heartbeat aggregates in column `health` with timestamp column `date`,
+use the following to get the total downtime of the system during the week of Jan 9, 2022.
+
+```sql
+SELECT downtime(health)
+FROM liveness
+WHERE date = '01-9-2022 UTC'
+```
+
+Returns:
+
+```
+downtime
+--------
+00:04:25
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+downtime(
+    agg HEARTBEATAGG
+) RETURNS INTERVAL
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | HeartbeatAgg | - | ✔ | A heartbeat aggregate to get the liveness data from |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| downtime | INTERVAL | The sum of all the dead ranges in the aggregate. |
+
+[interpolated_downtime]: /api-reference/timescaledb-toolkit/state-tracking/heartbeat_agg/interpolated_downtime
+
+[toolkit-1.15.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.15.0

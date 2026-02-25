@@ -1,0 +1,72 @@
+---
+title: with_bounds()
+description: Add bounds to a gauge aggregate
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: counters and gauges
+  type: mutator
+  aggregates:
+    - gauge_agg()
+topics:
+  - hyperfunctions
+---
+
+import { FlaskIcon, TagIcon } from 'lucide-react';
+
+<FlaskIcon /> Early access <TagIcon iconType="duotone" /> Since [1.6.0][toolkit-1.6.0]
+
+Add time bounds to an already-computed gauge aggregate. Bounds are necessary to use extrapolation accessors on the
+aggregate.
+
+## Samples
+
+Create a gauge aggregate for each `id` and each 15-minute interval. Then add bounds to the gauge aggregate, so you can
+calculate the extrapolated rate.
+
+```sql
+SELECT
+    id,
+    bucket,
+    extrapolated_rate(
+        with_bounds(
+            summary,
+            time_bucket_range('15 min'::interval, bucket)
+        )
+    )
+FROM (
+    SELECT
+        id,
+        time_bucket('15 min'::interval, ts) AS bucket,
+        gauge_agg(ts, val) AS summary
+    FROM foo
+    GROUP BY id, time_bucket('15 min'::interval, ts)
+) t
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+with_bounds(
+    summary GaugeSummary,
+    bounds TSTZRANGE,
+) RETURNS GaugeSummary
+```
+
+| Name | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `summary` | `GaugeSummary` | - | ✔ | A gauge aggregate created using [`gauge_agg`][gauge-agg] |
+| `bounds` | `TSTZRANGE` | - | ✔ | A range of `timestamptz` giving the smallest and largest allowed times in the gauge aggregate |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| with\_bounds | GaugeSummary | A new gauge aggregate with the bounds applied |
+
+[gauge-agg]: /api-reference/timescaledb-toolkit/counters-and-gauges/gauge_agg/gauge_agg
+
+[toolkit-1.6.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.6.0

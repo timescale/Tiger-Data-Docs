@@ -1,0 +1,63 @@
+---
+title: first_time()
+description: Get the first timestamp from a counter aggregate
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: counters and gauges
+  type: accessor
+  aggregates:
+  - counter_agg()
+topics:
+- hyperfunctions
+---
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.11.0][toolkit-1.11.0]
+
+Get the first timestamp from a counter aggregate.
+
+## Samples
+
+Get the first and last point of each daily counter aggregate.
+
+```sql
+WITH t as (
+  SELECT
+      time_bucket('1 day'::interval, ts) as dt,
+      counter_agg(ts, val) AS cs -- get a CounterSummary
+  FROM table
+  GROUP BY time_bucket('1 day'::interval, ts)
+)
+SELECT
+    dt,
+    first_time(cs) -- extract the timestamp of the first point in the CounterSummary
+    last_time(cs) -- extract the timestamp of the last point in the CounterSummary
+FROM t;
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+first_time(
+    cs CounterSummary
+) RETURNS TIMESTAMPTZ
+```
+
+| Name | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `cs` | `CounterSummary` | - | ✔ | A counter aggregate produced using [`counter_agg`][counter-agg] |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| first\_time | TIMESTAMPTZ | The timestamp of the first point in the counter aggregate |
+
+[counter-agg]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/counter_agg
+
+[toolkit-1.11.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.11.0

@@ -1,0 +1,134 @@
+---
+title: UddSketch overview
+sidebarTitle: Overview
+description: Percentile approximation with guaranteed relative error using the UddSketch algorithm
+topics: [hyperfunctions]
+license: community
+toolkit: true
+products: [cloud, mst, self_hosted]
+---
+
+Estimate the value at a given percentile, or the percentile rank of a given value, using the UddSketch algorithm. This
+estimation is more memory- and CPU-efficient than an exact calculation using PostgreSQL's `percentile_cont` and
+`percentile_disc` functions.
+
+`uddsketch` is one of two advanced percentile approximation aggregates provided in TimescaleDB Toolkit. It produces
+stable estimates within a guaranteed relative error.
+
+The other advanced percentile approximation aggregate is [`tdigest`][tdigest], which is more accurate at extreme
+quantiles, but is somewhat dependent on input order.
+
+If you aren't sure which aggregate to use, try the default percentile estimation method,
+[`percentile_agg`][percentile_agg]. It uses the `uddsketch` algorithm with some sensible defaults.
+
+For more information about percentile approximation algorithms, see the
+[algorithms overview][advanced-agg].
+
+import TwoStepAggregation from '@partials/_two-step-aggregation.mdx';
+
+## Two-step aggregation
+
+<TwoStepAggregation />
+
+## Samples
+
+### Aggregate and roll up percentile data using percentile\_agg
+
+Create an hourly continuous aggregate that contains a percentile aggregate:
+
+```sql
+CREATE MATERIALIZED VIEW foo_hourly
+WITH (timescaledb.continuous)
+AS SELECT
+    time_bucket('1 h'::interval, ts) AS bucket,
+    percentile_agg(value) AS pct_agg
+FROM foo
+GROUP BY 1;
+```
+
+Use accessors to query directly from the continuous aggregate for hourly data. You can also roll the hourly data up into
+daily buckets, then calculate approximate percentiles:
+
+```sql
+SELECT
+    time_bucket('1 day'::interval, bucket) AS bucket,
+    approx_percentile(0.95, rollup(pct_agg)) AS p95,
+    approx_percentile(0.99, rollup(pct_agg)) AS p99
+FROM foo_hourly
+GROUP BY 1;
+```
+
+### Aggregate and roll up percentile data using uddsketch
+
+Create an hourly continuous aggregate that contains a percentile aggregate:
+
+```sql
+CREATE MATERIALIZED VIEW foo_hourly
+WITH (timescaledb.continuous)
+AS SELECT
+    time_bucket('1 h'::interval, ts) AS bucket,
+    uddsketch(100, 0.01, value) AS uddsketch
+FROM foo
+GROUP BY 1;
+```
+
+Use accessors to query directly from the continuous aggregate for hourly data. You can also roll the hourly data up into
+daily buckets, then calculate approximate percentiles:
+
+```sql
+SELECT
+    time_bucket('1 day'::interval, bucket) AS bucket,
+    approx_percentile(0.95, rollup(uddsketch)) AS p95,
+    approx_percentile(0.99, rollup(uddsketch)) AS p99
+FROM foo_hourly
+GROUP BY 1;
+```
+
+## Available functions
+
+### Aggregate
+
+- [`uddsketch()`][uddsketch]: aggregate data in a uddsketch for percentile calculation
+
+### Alternate aggregate
+
+- [`percentile_agg()`][percentile_agg]: aggregate data using sensible defaults for percentile calculation
+
+### Accessors
+
+- [`approx_percentile()`][approx_percentile]: estimate the value at a given percentile from a uddsketch
+- [`approx_percentile_array()`][approx_percentile_array]: estimate values at multiple percentiles from a uddsketch
+- [`approx_percentile_rank()`][approx_percentile_rank]: estimate the percentile rank of a given value from a uddsketch
+- [`error()`][error]: get the maximum relative error of a uddsketch
+- [`mean()`][mean]: calculate the exact mean from values in a uddsketch
+- [`num_vals()`][num_vals]: get the number of values in a uddsketch
+
+### Rollup
+
+- [`rollup()`][rollup]: combine multiple uddsketch aggregates
+
+[approx_percentile]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/approx_percentile
+
+[approx_percentile_array]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/approx_percentile_array
+
+[approx_percentile_rank]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/approx_percentile_rank
+
+[error]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/error
+
+[mean]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/mean
+
+[num_vals]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/num_vals
+
+[percentile_agg]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/percentile_agg
+
+[rollup]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/rollup
+
+[tdigest]: /api-reference/timescaledb-toolkit/percentile-approximation/tdigest
+
+[advanced-agg]: /manage-data/capabilities/hyperfunctions/percentile-approx-algorithms
+
+[toolkit-1.0.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.0.0
+
+[two-step-aggregation]: #two-step-aggregation
+
+[uddsketch]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/uddsketch

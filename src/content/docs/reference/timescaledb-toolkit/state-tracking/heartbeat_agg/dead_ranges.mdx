@@ -1,0 +1,65 @@
+---
+title: dead_ranges()
+description: Get the down intervals from a heartbeat_agg
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: accessor
+  aggregates:
+    - heartbeat_agg()
+---
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.15.0][toolkit-1.15.0]
+
+Return a set of (start\_time, end\_time) pairs representing when the underlying system did not have a valid heartbeat
+during the interval of the aggregate.
+
+## Samples
+
+Given a table called `liveness` containing weekly heartbeat aggregates in column `health` with timestamp column `date`,
+use the following to get the intervals where the system was down during the week of Jan 9, 2022.
+
+```sql
+SELECT dead_ranges(health)
+FROM liveness
+WHERE date = '01-9-2022 UTC'
+```
+
+Returns:
+
+```
+                    dead_ranges
+-----------------------------------------------------
+("2022-01-09 00:00:00+00","2022-01-09 00:00:30+00")
+("2022-01-12 15:27:22+00","2022-01-12 15:31:17+00")
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+dead_ranges(
+    agg HEARTBEATAGG
+) RETURNS TABLE (
+    start TIMESTAMPTZ,
+    end TIMESTAMPTZ
+)
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | HeartbeatAgg | - | ✔ | A heartbeat aggregate to get the liveness data from |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| dead\_ranges | TABLE (start TIMESTAMPTZ, end TIMESTAMPTZ) | The (start, end) pairs of when the system was down. |
+
+[toolkit-1.15.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.15.0

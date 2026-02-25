@@ -1,0 +1,64 @@
+---
+title: live_at()
+description: Test if the aggregate has a heartbeat covering a given time
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: accessor
+  aggregates:
+    - heartbeat_agg()
+---
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.15.0][toolkit-1.15.0]
+
+Determine whether the aggregate has a heartbeat indicating the system was live at a given time.
+
+Note that this returns false for any time not covered by the aggregate.
+
+## Samples
+
+Given a table called `liveness` containing weekly heartbeat aggregates in column `health` with timestamp column `date`,
+use the following to see if the system was live at a particular time.
+
+```sql
+SELECT live_at(health, '2022-01-12 15:30:00+00')
+FROM liveness
+WHERE date = '01-9-2022 UTC'
+```
+
+Returns:
+
+```
+ live_at
+---------
+ f
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+live_at(
+    agg HEARTBEATAGG,
+    test TIMESTAMPTZ
+) RETURNS BOOL
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | HeartbeatAgg | - | ✔ | A heartbeat aggregate to get the liveness data from |
+| test | TimestampTz | - | ✔ | The time to test the liveness of |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| live\_at | bool | True if the heartbeat aggregate had a heartbeat close before the test time. |
+
+[toolkit-1.15.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.15.0

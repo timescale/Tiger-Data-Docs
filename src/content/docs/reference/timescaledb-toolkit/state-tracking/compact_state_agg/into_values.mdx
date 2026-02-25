@@ -1,0 +1,69 @@
+---
+title: into_values()
+description: Expand a state aggregate into a set of rows displaying the duration of each state
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: accessor
+  aggregates:
+    - compact_state_agg()
+---
+
+import { FlaskIcon } from 'lucide-react';
+
+<FlaskIcon /> Early access [1.6.0][toolkit-1.6.0]
+
+Unpack the state aggregate into a set of rows with two columns, displaying the duration of each state. By default, the
+columns are named `state` and `duration`. You can rename them using the same method as renaming a table.
+
+## Samples
+
+Create a state aggregate from the table `states_test`. The time column is named `time`, and the `state` column contains
+text values corresponding to different states of a system. Use `into_values` to display the data from the state
+aggregate.
+
+```sql
+SELECT state, duration FROM toolkit_experimental.into_values(
+  (SELECT toolkit_experimental.compact_state_agg(time, state) FROM states_test)
+);
+```
+
+Returns:
+
+```
+state | duration
+------+----------
+ERROR | 00:00:03
+OK    | 00:01:46
+START | 00:00:11
+```
+
+The syntax is:
+
+```sql
+into_values(
+  agg CompactStateAgg
+) RETURNS (TEXT, INTERVAL)
+
+into_int_values(
+  agg CompactStateAgg
+) RETURNS (BIGINT, INTERVAL)
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | CompactStateAgg | - | ✔ | A state aggregate created with [`compact_state_agg`][compact_state_agg] |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| state | TEXT | BIGINT | A state found in the state aggregate |
+| duration | INTERVAL | The total time spent in that state |
+
+[compact_state_agg]: /api-reference/timescaledb-toolkit/state-tracking/compact_state_agg/compact_state_agg#arguments
+
+[toolkit-1.6.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.6.0

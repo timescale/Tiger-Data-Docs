@@ -1,0 +1,72 @@
+---
+title: state_periods()
+description: Get the time periods corresponding to a given state from a state aggregate
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: accessor
+  aggregates:
+    - state_agg()
+---
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.15.0][toolkit-1.15.0]
+
+List the periods when the system is in a specific state from a state aggregate. Periods are defined by the start time
+and end time.
+
+If you have multiple state aggregates and need to interpolate the state across interval boundaries, use
+[`interpolated_state_periods`][interpolated_state_periods].
+
+## Samples
+
+Create a state aggregate and list all periods corresponding to the state `OK`.
+
+```sql
+SELECT start_time, end_time FROM state_periods(
+  (SELECT state_agg(ts, state) FROM states_test),
+  'OK',
+);
+```
+
+Returns:
+
+```
+       start_time       |        end_time
+------------------------+------------------------
+ 2020-01-01 00:00:11+00 | 2020-01-01 00:01:00+00
+ 2020-01-01 00:01:03+00 | 2020-01-01 00:02:00+00
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+state_periods(
+    agg StateAgg,
+    state [TEXT | BIGINT]
+) RETURNS (TIMESTAMPTZ, TIMESTAMPTZ)
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | StateAgg | - | ✔ | A state aggregate created using [`state_agg`][state_agg] |
+| state | TEXT | BIGINT | - | ✔ | The target state to get data for |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| start\_time | TIMESTAMPTZ | The time when the state started (inclusive) |
+| end\_time | TIMESTAMPTZ | The time when the state ended (exclusive) |
+
+[interpolated_state_periods]: /api-reference/timescaledb-toolkit/state-tracking/state_agg/interpolated_state_periods
+
+[state_agg]: /api-reference/timescaledb-toolkit/state-tracking/state_agg/state_agg
+
+[toolkit-1.15.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.15.0

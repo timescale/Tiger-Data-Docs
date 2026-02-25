@@ -1,0 +1,84 @@
+---
+title: Downsampling overview
+sidebarTitle: Overview
+description: Functions for downsampling time-series data to visualize trends while preserving visual similarity
+topics: [hyperfunctions]
+license: community
+toolkit: true
+products: [cloud, mst, self_hosted]
+---
+
+Downsample your data to visualize trends while preserving fewer data points. Downsampling replaces a set of values with
+a much smaller set that is highly representative of the original data. This is particularly useful for graphing
+applications where displaying millions of points would be inefficient and visually overwhelming.
+
+TimescaleDB Toolkit provides two downsampling algorithms:
+
+- **LTTB (Largest Triangle Three Buckets)**: Retains visual similarity between the downsampled data and the original
+  dataset by selecting points that form the largest triangles
+- **ASAP smooth**: Preserves the approximate shape and larger trends while minimizing local variance between points
+
+## Samples
+
+### Downsample with LTTB
+
+Downsample a sine wave dataset from 168 points to approximately 8 points using LTTB:
+
+```sql
+SET TIME ZONE 'UTC';
+CREATE TABLE metrics(date TIMESTAMPTZ, reading DOUBLE PRECISION);
+INSERT INTO metrics
+SELECT
+    '2020-1-1 UTC'::timestamptz + make_interval(hours=>foo),
+    (5 + 5 * sin(foo / 24.0 * PI()))
+FROM generate_series(1,168) foo;
+
+SELECT time, value
+FROM unnest((
+    SELECT lttb(date, reading, 8)
+    FROM metrics
+));
+```
+
+### Downsample with gap preservation
+
+Use gap-preserving LTTB to downsample data while maintaining boundaries of missing regions:
+
+```sql
+SELECT time, value
+FROM unnest((
+    SELECT toolkit_experimental.gp_lttb(date, reading, '12 hours'::interval, 8)
+    FROM metrics
+));
+```
+
+### Downsample with ASAP smoothing
+
+Smooth and downsample data to show larger trends while minimizing local variance:
+
+```sql
+SELECT time, value
+FROM unnest((
+    SELECT asap_smooth(date, reading, 10)
+    FROM metrics
+));
+```
+
+## Available functions
+
+### LTTB algorithm
+
+- [`lttb()`][lttb]: downsample using the Largest Triangle Three Buckets method
+- [`gp_lttb()`][gp_lttb]: downsample using LTTB while preserving gaps in data
+
+### ASAP smoothing
+
+- [`asap_smooth()`][asap_smooth]: downsample using the ASAP smoothing algorithm
+
+[asap_smooth]: /api-reference/timescaledb-toolkit/downsampling/asap_smooth
+
+[gp_lttb]: /api-reference/timescaledb-toolkit/downsampling/gp_lttb
+
+[lttb]: /api-reference/timescaledb-toolkit/downsampling/lttb
+
+[toolkit-1.10.1]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.10.1

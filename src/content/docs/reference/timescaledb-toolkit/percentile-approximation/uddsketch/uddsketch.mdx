@@ -1,0 +1,66 @@
+---
+title: uddsketch()
+description: Aggregate data in a `uddsketch` for further calculation of percentile estimates
+topics: [hyperfunctions]
+license: community
+type: aggregate
+toolkit: true
+hyperfunction:
+  family: percentile approximation
+  type: aggregate
+  aggregates:
+    - uddsketch()
+---
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.0.0][toolkit-1.0.0]
+
+Aggregate data in a `uddsketch` for further calculation of percentile estimates. This is the first step for calculating
+approximate percentiles with the `uddsketch` algorithm. Use `uddsketch` to create an intermediate aggregate from your
+raw data. This intermediate form can then be used by one or more accessors in this group to compute final results.
+
+Optionally, multiple such intermediate aggregate objects can be combined using [`rollup()`][rollup] before an accessor is applied.
+
+If you aren't sure what values to set for `size` and `max_error`, try using the alternate aggregate function, [`percentile_agg()`][percentile-agg]. `percentile_agg` also creates a `UddSketch`, but it sets sensible default values for `size` and `max_error` that should work for many use cases.
+
+## Samples
+
+Build a `uddsketch` using a column called `data` from a table called `samples`. Use a maximum of 100 buckets and a
+relative error of 0.01.
+
+```sql
+SELECT uddsketch(100, 0.01, data) FROM samples;
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+uddsketch(
+    size INTEGER,
+    max_error DOUBLE PRECISION,
+    value DOUBLE PRECISION
+) RETURNS UddSketch
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| size | INTEGER | - | ✔ | maximum number of buckets in the `uddsketch`. Providing a larger value here makes it more likely that the aggregate is able to maintain the desired error, but potentially increases the memory usage |
+| max\_error | DOUBLE PRECISION | - | ✔ | the desired maximum relative error of the sketch. The true error may exceed this if too few buckets are provided for the data distribution. You can get the true error using the [`error`][error] function |
+| value | DOUBLE PRECISION | - | ✔ | the column to aggregate for further calculation |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| uddsketch | UddSketch | A percentile estimator object created to calculate percentiles using the `uddsketch` algorithm |
+
+[error]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/error
+
+[percentile-agg]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/percentile_agg
+
+[rollup]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch/rollup
+
+[toolkit-1.0.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.0.0

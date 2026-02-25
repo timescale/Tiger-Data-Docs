@@ -1,0 +1,81 @@
+---
+title: Maximum values by overview
+description: Get the N largest values with accompanying data
+sidebarTitle: Overview
+---
+
+import TwoStepAggregation from '@partials/_two-step-aggregation.mdx';
+
+Get the N largest values from a column, with an associated piece of data per
+value. For example, you can return an accompanying column, or the full row.
+
+The `max_n_by()` functions give the same results as the regular SQL query
+`SELECT ... ORDER BY ... LIMIT n`. But unlike the SQL query, they can be
+composed and combined like other aggregate hyperfunctions.
+
+To get the N smallest values with accompanying data, use
+[`min_n_by()`][min_n_by]. To get the N largest values without accompanying data,
+use [`max_n()`][max_n].
+
+This function group uses the [two-step aggregation][two-step-aggregation]
+pattern. In addition to the usual aggregate function [`max_n_by`][max_n_by], it also
+includes accessors and rollup functions.
+
+## Two-step aggregation
+
+<TwoStepAggregation />
+
+## Samples
+
+This example assumes that you have a table of stock trades in this format:
+
+```sql
+CREATE TABLE stock_sales(
+    ts TIMESTAMPTZ,
+    symbol TEXT,
+    price FLOAT,
+    volume INT
+);
+```
+
+Find the 10 largest transactions in the table, what time they occurred, and what
+symbol was being traded:
+
+```sql
+SELECT
+    (data).ts,
+    (data).symbol,
+    value AS transaction
+FROM
+    into_values((
+        SELECT max_n_by(price * volume, stock_sales, 10)
+        FROM stock_sales
+    ),
+    NULL::stock_sales);
+```
+
+## Available functions
+
+### Aggregate
+
+- [`max_n_by()`][max_n_by]: construct an aggregate that keeps track of the largest values and associated data
+
+### Accessors
+
+- [`into_values()`][into_values]: return the N highest values with their associated data
+
+### Rollup
+
+- [`rollup()`][rollup]: combine multiple MaxNBy aggregates
+
+[into_values]: /api-reference/timescaledb-toolkit/minimum-and-maximum/max_n_by/into_values
+
+[max_n]: /api-reference/timescaledb-toolkit/minimum-and-maximum/max_n/max_n
+
+[max_n_by]: /api-reference/timescaledb-toolkit/minimum-and-maximum/max_n_by/max_n_by
+
+[min_n_by]: /api-reference/timescaledb-toolkit/minimum-and-maximum/min_n_by/min_n_by
+
+[rollup]: /api-reference/timescaledb-toolkit/minimum-and-maximum/max_n_by/rollup
+
+[two-step-aggregation]: #two-step-aggregation

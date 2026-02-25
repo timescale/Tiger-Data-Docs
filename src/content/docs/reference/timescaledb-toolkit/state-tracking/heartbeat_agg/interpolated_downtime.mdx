@@ -1,0 +1,68 @@
+---
+title: interpolated_downtime()
+description: Get the total time dead from a heartbeat aggregate and predecessor
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: accessor
+  aggregates:
+    - heartbeat_agg()
+---
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.15.0][toolkit-1.15.0]
+
+Calculate downtime from a heartbeat aggregate, taking the heartbeat aggregate from the preceding interval to interpolate
+values at the boundary. This checks when the last heartbeat in the predecessor was received and makes sure not to
+consider the heartbeat interval after that time as unhealthy, even if it extends into the current aggregate prior to the
+first heartbeat.
+
+## Samples
+
+Given a table called `liveness` containing weekly heartbeat aggregates in column `health` with timestamp column `date`,
+use this command to get the total interpolated downtime of the system during the week of Jan 9, 2022.
+
+```sql
+SELECT interpolated_downtime(
+  health,
+  LAG(health) OVER (ORDER BY date)
+)
+FROM liveness
+WHERE date = '01-9-2022 UTC'
+```
+
+Returns:
+
+```
+interpolated_downtime
+---------------------
+       00:03:55
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+interpolated_downtime(
+    agg HEARTBEATAGG,
+    pred HEARTBEATAGG
+) RETURNS INTERVAL
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | HeartbeatAgg | - | ✔ | A heartbeat aggregate to get the liveness data from |
+| pred | HeartbeatAgg | - | | The heartbeat aggregate for the interval before the one being measured, if one exists |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| interpolated\_downtime | INTERVAL | The sum of all the unhealthy ranges in the aggregate, excluding those covered by the last heartbeat of the previous interval. |
+
+[toolkit-1.15.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.15.0

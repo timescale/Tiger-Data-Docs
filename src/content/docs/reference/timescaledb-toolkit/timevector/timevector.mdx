@@ -1,0 +1,78 @@
+---
+title: timevector()
+description: Create a timevector from time-value pairs for efficient time-series processing
+topics: [hyperfunctions]
+license: community
+type: aggregate
+toolkit: true
+hyperfunction:
+  family: timevector
+  type: aggregate
+---
+
+import { FlaskIcon } from 'lucide-react';
+
+<FlaskIcon /> Early access [1.3.0][toolkit-1.3.0]
+
+Create a timevector object from time-value pairs. A timevector is a space-efficient intermediate representation that stores time-series data and can be passed to various analytic functions or used with pipeline operations.
+
+## Samples
+
+### Create a timevector from a table
+
+Aggregate time-series data into a timevector:
+
+```sql
+SELECT timevector(time, weight) FROM samples;
+```
+
+### Store a timevector in a view
+
+Create a view to store pre-aggregated timevectors:
+
+```sql
+CREATE VIEW series AS
+    SELECT device_id, timevector(time, temperature) AS series
+    FROM sensor_data
+    GROUP BY device_id;
+```
+
+### Use timevector with downsampling
+
+Pass a timevector directly to downsampling functions:
+
+```sql
+SELECT time, value::numeric(10,2)
+FROM unnest((
+    SELECT lttb(timevector(time, value), 20)
+    FROM metrics
+));
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+timevector(
+    time TIMESTAMPTZ,
+    value DOUBLE PRECISION
+) RETURNS Timevector
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| time | TIMESTAMPTZ | - | ✔ | Timestamp for each data point |
+| value | DOUBLE PRECISION | - | ✔ | Value at each timestamp |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| timevector | Timevector | A timevector object containing the time-value pairs. Use with analytic functions, pipeline operations, or extract with `unnest()`. |
+
+[lttb]: /api-reference/timescaledb-toolkit/downsampling/lttb
+
+[unnest]: /api-reference/timescaledb-toolkit/timevector/unnest
+
+[toolkit-1.3.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.3.0

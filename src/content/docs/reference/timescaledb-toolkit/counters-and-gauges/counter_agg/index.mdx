@@ -1,0 +1,166 @@
+---
+title: Counter aggregation overview
+sidebarTitle: Overview
+description: Functions for analyzing monotonically increasing counter metrics
+topics: [hyperfunctions]
+license: community
+toolkit: true
+---
+
+Analyze data whose values are designed to monotonically increase, and where any decreases are treated as resets. The
+`counter_agg` functions simplify this task, which can be difficult to do in pure SQL.
+
+If it's possible for your readings to decrease as well as increase, use [`gauge_agg`][gauge_agg] instead.
+
+import TwoStepAggregation from '@partials/_two-step-aggregation.mdx';
+
+## Two-step aggregation
+
+<TwoStepAggregation />
+
+## Samples
+
+### Roll up counter aggregates and calculate deltas
+
+Create daily counter aggregates for a counter with id `bar`:
+
+```sql
+SELECT
+    date_trunc('day', ts) AS dt,
+    counter_agg(ts, val) AS counter_summary
+FROM foo
+WHERE id = 'bar'
+GROUP BY date_trunc('day');
+```
+
+Roll up the daily aggregates to get a counter aggregate that covers all recorded timestamps:
+
+```sql
+WITH t AS (
+    SELECT
+        date_trunc('day', ts) AS dt,
+        counter_agg(ts, val) AS counter_summary
+    FROM foo
+    WHERE id = 'bar'
+    GROUP BY date_trunc('day')
+)
+SELECT rollup(counter_summary) AS full_cs
+FROM t;
+```
+
+Calculate the delta, or the difference between the final and first values, from each daily counter aggregate. Also
+calculate the fraction of the total delta that happens on each day:
+
+```sql
+WITH t AS (
+    SELECT
+        date_trunc('day', ts) AS dt,
+        counter_agg(ts, val) AS counter_summary
+    FROM foo
+    WHERE id = 'bar'
+    GROUP BY date_trunc('day')
+), q AS (
+    SELECT rollup(counter_summary) AS full_cs
+    FROM t
+)
+SELECT
+    dt,
+    delta(counter_summary),
+    delta(counter_summary) / (SELECT delta(full_cs) FROM q LIMIT 1) AS normalized
+FROM t;
+```
+
+## Available functions
+
+### Aggregate
+
+- [`counter_agg()`][counter_agg]: aggregate counter data into an intermediate form for further analysis
+
+### Accessors
+
+- [`corr()`][corr]: calculate the correlation coefficient from a counter aggregate
+- [`counter_zero_time()`][counter_zero_time]: calculate the time when a counter value was zero
+- [`delta()`][delta]: calculate the change in a counter's value
+- [`extrapolated_delta()`][extrapolated_delta]: estimate the total change in a counter over a time period
+- [`extrapolated_rate()`][extrapolated_rate]: estimate the average rate of change over a time period
+- [`first_time()`][first_time]: get the timestamp of the first point in a counter aggregate
+- [`first_val()`][first_val]: get the value of the first point in a counter aggregate
+- [`idelta_left()`][idelta_left]: calculate the instantaneous change at the left boundary
+- [`idelta_right()`][idelta_right]: calculate the instantaneous change at the right boundary
+- [`intercept()`][intercept]: calculate the y-intercept from a counter aggregate
+- [`interpolated_delta()`][interpolated_delta]: calculate the change over a specific time range with interpolation
+- [`interpolated_rate()`][interpolated_rate]: calculate the rate of change over a specific time range with interpolation
+- [`irate_left()`][irate_left]: calculate the instantaneous rate at the left boundary
+- [`irate_right()`][irate_right]: calculate the instantaneous rate at the right boundary
+- [`last_time()`][last_time]: get the timestamp of the last point in a counter aggregate
+- [`last_val()`][last_val]: get the value of the last point in a counter aggregate
+- [`num_changes()`][num_changes]: get the number of times the counter changed value
+- [`num_elements()`][num_elements]: get the number of points in a counter aggregate
+- [`num_resets()`][num_resets]: get the number of counter resets
+- [`rate()`][rate]: calculate the average rate of change
+- [`slope()`][slope]: calculate the slope from a counter aggregate
+- [`time_delta()`][time_delta]: calculate the elapsed time in a counter aggregate
+
+### Rollup
+
+- [`rollup()`][rollup]: combine multiple counter aggregates
+
+### Mutator
+
+- [`with_bounds()`][with_bounds]: add time bounds to a counter aggregate for extrapolation
+
+[corr]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/corr
+
+[counter_agg]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/counter_agg
+
+[counter_zero_time]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/counter_zero_time
+
+[delta]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/delta
+
+[extrapolated_delta]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/extrapolated_delta
+
+[extrapolated_rate]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/extrapolated_rate
+
+[first_time]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/first_time
+
+[first_val]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/first_val
+
+[gauge_agg]: /api-reference/timescaledb-toolkit/counters-and-gauges/gauge_agg
+
+[idelta_left]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/idelta_left
+
+[idelta_right]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/idelta_right
+
+[intercept]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/intercept
+
+[interpolated_delta]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/interpolated_delta
+
+[interpolated_rate]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/interpolated_rate
+
+[irate_left]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/irate_left
+
+[irate_right]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/irate_right
+
+[last_time]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/last_time
+
+[last_val]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/last_val
+
+[num_changes]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/num_changes
+
+[num_elements]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/num_elements
+
+[num_resets]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/num_resets
+
+[rate]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/rate
+
+[rollup]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/rollup
+
+[slope]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/slope
+
+[time_delta]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/time_delta
+
+[toolkit-1.3.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.3.0
+
+[two-step-aggregation]: #two-step-aggregation
+
+[with_bounds]: /api-reference/timescaledb-toolkit/counters-and-gauges/counter_agg/with_bounds

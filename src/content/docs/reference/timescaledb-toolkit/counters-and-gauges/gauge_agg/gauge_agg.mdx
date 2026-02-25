@@ -1,0 +1,68 @@
+---
+title: gauge_agg()
+description: Aggregate gauge data into an intermediate form for further analysis
+license: community
+type: aggregate
+toolkit: true
+hyperfunction:
+  family: counters and gauges
+  type: aggregate
+  aggregates:
+  - gauge_agg()
+topics:
+- hyperfunctions
+---
+
+import { FlaskIcon, TagIcon } from 'lucide-react';
+
+<FlaskIcon /> Early access <TagIcon iconType="duotone" /> Since [1.6.0][toolkit-1.6.0]
+
+This is the first step for performing any aggregate calculations
+on gauge data. Use `gauge_agg` to create an intermediate aggregate
+from your data. This intermediate form can then be used
+by one or more accessors in this group to compute final results. Optionally,
+you can combine multiple intermediate aggregate objects with
+[`rollup()`][rollup] before an accessor is applied.
+
+## Samples
+
+Create a gauge aggregate to summarize daily gauge data.
+
+```sql
+SELECT
+  time_bucket('1 day'::interval, ts) as dt,
+  gauge_agg(ts, val) AS cs
+FROM foo
+WHERE id = 'bar'
+GROUP BY time_bucket('1 day'::interval, ts)
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+gauge_agg(
+  ts TIMESTAMPTZ,
+  value DOUBLE PRECISION
+  [, bounds TSTZRANGE]
+) RETURNS GaugeSummary
+```
+
+| Name | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `ts` | `TIMESTAMPTZ` | - | ✔ | The time at each point |
+| `value` | `DOUBLE PRECISION` | - | ✔ | The value of the gauge at each point |
+| `bounds` | `TSTZRANGE` | - |  | The smallest and largest possible times that can be input to this aggregate. Bounds are required for extrapolation, but not for other accessor functions. If you don't specify bounds at aggregate creation time, you can add them later using the [`with_bounds`][with-bounds] function. |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| gauge\_agg | GaugeSummary | The gauge aggregate, containing data about the variables in an intermediate form. Pass the aggregate to accessor functions in the gauge aggregates API to perform final calculations. Or, pass the aggregate to rollup functions to combine multiple gauge aggregates into larger aggregates. |
+
+[rollup]: /api-reference/timescaledb-toolkit/counters-and-gauges/gauge_agg/rollup
+
+[toolkit-1.6.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.6.0
+
+[with-bounds]: /api-reference/timescaledb-toolkit/counters-and-gauges/gauge_agg/with_bounds

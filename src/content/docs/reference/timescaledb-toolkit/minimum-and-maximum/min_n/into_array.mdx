@@ -1,0 +1,65 @@
+---
+title: into_array()
+description: Returns an array of the lowest values from a MinN aggregate
+topics: [hyperfunctions]
+tags: [hyperfunctions, toolkit, minimum]
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: minimum and maximum
+  type: accessor
+  aggregates:
+    - min_n()
+products: [cloud, mst, self_hosted]
+---
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.16.0][toolkit-1.16.0]
+
+Returns the N lowest values seen by the aggregate. The values are
+formatted as an array in increasing order.
+
+## Samples
+
+Find the bottom 5 values from `i * 13 % 10007` for i = 1 to 10000.
+
+```sql
+SELECT into_array(
+    min_n(sub.val, 5))
+FROM (
+  SELECT (i * 13) % 10007 AS val
+  FROM generate_series(1,10000) as i
+) sub;
+```
+
+Output:
+
+```sql
+into_array
+---------------------------------
+{1,2,3,4,5}
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+into_array (
+    agg MinN
+) BIGINT[] | DOUBLE PRECISION[] | TIMESTAMPTZ[]
+```
+
+| Name | Type | Default | Required | Description |
+|--|--|--|--|--|
+| `agg` | MinN | - | ✔ | The aggregate to return the results from. Note that the exact type here varies based on the type of data stored. |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| into\_array | BIGINT\[] | DOUBLE PRECISION\[] | TIMESTAMPTZ\[] | The lowest values seen while creating this aggregate. |
+
+[toolkit-1.16.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.16.0

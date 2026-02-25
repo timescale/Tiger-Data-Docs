@@ -1,0 +1,83 @@
+---
+title: Maximum values overview
+description: Get the N largest values from a column
+sidebarTitle: Overview
+---
+
+import TwoStepAggregation from '@partials/_two-step-aggregation.mdx';
+
+Get the N largest values from a column.
+
+The `max_n()` functions give the same results as the regular SQL query `SELECT
+... ORDER BY ... LIMIT n`. But unlike the SQL query, they can be composed and
+combined like other aggregate hyperfunctions.
+
+To get the N smallest values, use [`min_n()`][min_n]. To get the N largest
+values with accompanying data, use [`max_n_by()`][max_n_by].
+
+This function group uses the [two-step aggregation][two-step-aggregation]
+pattern. In addition to the usual aggregate function [`max_n`][max_n], it also
+includes accessors and rollup functions.
+
+## Two-step aggregation
+
+<TwoStepAggregation />
+
+## Samples
+
+### Get the 10 largest transactions from a table of stock trades
+
+This example assumes that you have a table of stock trades in this format:
+
+```sql
+CREATE TABLE stock_sales(
+    ts TIMESTAMPTZ,
+    symbol TEXT,
+    price FLOAT,
+    volume INT
+);
+```
+
+You can query for the 10 largest transactions each day:
+
+```sql
+WITH t as (
+    SELECT
+        time_bucket('1 day'::interval, ts) as day,
+        max_n(price * volume, 10) AS daily_max
+    FROM stock_sales
+    GROUP BY time_bucket('1 day'::interval, ts)
+)
+SELECT
+    day, into_array(daily_max)
+FROM t;
+```
+
+## Available functions
+
+### Aggregate
+
+- [`max_n()`][max_n]: construct an aggregate that keeps track of the largest values passed through it
+
+### Accessors
+
+- [`into_values()`][into_values]: return the N highest values seen by the aggregate
+- [`into_array()`][into_array]: return the N highest values seen by the aggregate as an array
+
+### Rollup
+
+- [`rollup()`][rollup]: combine multiple MaxN aggregates
+
+[into_array]: /api-reference/timescaledb-toolkit/minimum-and-maximum/max_n/into_array
+
+[into_values]: /api-reference/timescaledb-toolkit/minimum-and-maximum/max_n/into_values
+
+[max_n]: /api-reference/timescaledb-toolkit/minimum-and-maximum/max_n/max_n
+
+[max_n_by]: /api-reference/timescaledb-toolkit/minimum-and-maximum/max_n_by/max_n_by
+
+[min_n]: /api-reference/timescaledb-toolkit/minimum-and-maximum/min_n/min_n
+
+[rollup]: /api-reference/timescaledb-toolkit/minimum-and-maximum/max_n/rollup
+
+[two-step-aggregation]: #two-step-aggregation

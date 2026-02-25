@@ -1,0 +1,61 @@
+---
+title: num_gaps()
+description: Count the number of gaps between live ranges
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: accessor
+  aggregates:
+    - heartbeat_agg()
+---
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.16.0][toolkit-1.16.0]
+
+Return the number of gaps between the periods of liveness. Additionally, if the aggregate is not live at the start or
+end of its covered interval, these are also considered gaps.
+
+## Samples
+
+Given a table called `liveness` containing weekly heartbeat aggregates in column `health` with timestamp column `date`,
+use this query to see how many times the system was down in a particular week:
+
+```sql
+SELECT num_gaps(health)
+FROM liveness
+WHERE date = '01-9-2022 UTC'
+```
+
+Returns:
+
+```
+ num_gaps
+---------
+ 4
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+num_gaps(
+    agg HEARTBEATAGG
+) RETURNS BIGINT
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | HeartbeatAgg | - | ✔ | A heartbeat aggregate to get the number of gaps from |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| num\_gaps | bigint | The number of gaps in the aggregate. |
+
+[toolkit-1.16.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.16.0

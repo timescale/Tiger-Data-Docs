@@ -1,0 +1,98 @@
+---
+title: Percentile approximation overview
+sidebarTitle: Overview
+description: Estimate percentile values and percentile ranks using memory-efficient approximation algorithms
+topics: [hyperfunctions]
+license: community
+toolkit: true
+products: [cloud, mst, self_hosted]
+---
+
+These functions are more CPU- and memory-efficient than exact calculations using PostgreSQL's `percentile_cont` and
+`percentile_disc` functions, making them ideal for large datasets and continuous aggregates.
+
+TimescaleDB Toolkit provides two advanced percentile approximation algorithms:
+
+- **UddSketch**: Produces stable estimates within a guaranteed relative error
+- **t-digest**: More accurate at extreme quantiles, though somewhat dependent on input order
+
+import TwoStepAggregation from '@partials/_two-step-aggregation.mdx';
+
+## Two-step aggregation
+
+<TwoStepAggregation />
+
+## Samples
+
+### Using percentile\_agg (recommended for most use cases)
+
+Create an hourly continuous aggregate and calculate daily percentiles:
+
+```sql
+CREATE MATERIALIZED VIEW foo_hourly
+WITH (timescaledb.continuous)
+AS SELECT
+    time_bucket('1 h'::interval, ts) AS bucket,
+    percentile_agg(value) AS pct_agg
+FROM foo
+GROUP BY 1;
+
+-- Query daily percentiles
+SELECT
+    time_bucket('1 day'::interval, bucket) AS bucket,
+    approx_percentile(0.95, rollup(pct_agg)) AS p95,
+    approx_percentile(0.99, rollup(pct_agg)) AS p99
+FROM foo_hourly
+GROUP BY 1;
+```
+
+### Using uddsketch for custom error control
+
+Aggregate percentile data with specific error bounds:
+
+```sql
+SELECT
+    time_bucket('1 day'::interval, ts) AS day,
+    uddsketch(200, 0.001, value) AS sketch
+FROM measurements
+GROUP BY day;
+```
+
+### Using tdigest for extreme quantiles
+
+Calculate percentiles at extreme ends of the distribution:
+
+```sql
+CREATE MATERIALIZED VIEW response_times_hourly
+WITH (timescaledb.continuous)
+AS SELECT
+    time_bucket('1 h'::interval, ts) AS bucket,
+    tdigest(100, response_time) AS digest
+FROM requests
+GROUP BY 1;
+
+-- Query for extreme percentiles
+SELECT
+    bucket,
+    approx_percentile(0.999, digest) AS p999,
+    approx_percentile(0.9999, digest) AS p9999
+FROM response_times_hourly;
+```
+
+## Available functions
+
+### UddSketch (recommended)
+
+- [`uddsketch()`][uddsketch]: estimate percentiles using the UddSketch algorithm with guaranteed relative error
+
+### t-digest (for extreme quantiles)
+
+- [`tdigest()`][tdigest]: estimate percentiles using the t-digest algorithm, optimized for extreme quantiles
+
+[tdigest]: /api-reference/timescaledb-toolkit/percentile-approximation/tdigest
+
+[toolkit-1.0.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.0.0
+
+[two-step-aggregation]: #two-step-aggregation
+
+[uddsketch]: /api-reference/timescaledb-toolkit/percentile-approximation/uddsketch

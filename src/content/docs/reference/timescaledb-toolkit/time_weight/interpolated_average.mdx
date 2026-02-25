@@ -1,0 +1,93 @@
+---
+title: interpolated_average()
+description: Calculate the time-weighted average over an interval, while interpolating the interval bounds
+topics: [hyperfunctions]
+license: community
+type: function
+toolkit: true
+products: [cloud, mst, self_hosted]
+hyperfunction:
+  family: time-weighted calculations
+  type: accessor
+  aggregates:
+    - time_weight()
+---
+
+import * as C from "@constants";
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.14.0][toolkit-1.14.0]
+
+Calculate the time-weighted average over an interval, while interpolating the interval bounds.
+
+Similar to [`average`][average], but allows an accurate calculation across interval bounds when data has been bucketed
+into separate time intervals, and there is no data point precisely at the interval bound. For example, this is useful in
+a window function.
+
+Values from the previous and next buckets are used to interpolate the values at the bounds, using the same interpolation
+method used within the TimeWeightSummary itself.
+
+Equal to [`interpolated_integral`][interpolated_integral] divided by the elapsed time.
+
+## Samples
+
+Calculate the time-weighted daily average of the column `val`, interpolating over bucket bounds using the 'last
+observation carried forward' method:
+
+```sql
+SELECT
+    id,
+    time,
+    interpolated_average(
+        tws,
+        time,
+        '1 day',
+        LAG(tws) OVER (PARTITION BY id ORDER by time),
+        LEAD(tws) OVER (PARTITION BY id ORDER by time)
+    )
+FROM (
+    SELECT
+        id,
+        time_bucket('1 day', ts) AS time,
+        time_weight('LOCF', ts, val) AS tws
+    FROM foo
+    GROUP BY id, time
+) t
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+interpolated_average(
+    tws TimeWeightSummary,
+    start TIMESTAMPTZ,
+    interval INTERVAL
+    [, prev TimeWeightSummary]
+    [, next TimeWeightSummary]
+) RETURNS DOUBLE PRECISION
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| tws | TimeWeightSummary | - | ✔ | The input TimeWeightSummary from a time\_weight() call |
+| start | TIMESTAMPTZ | - | ✔ | The start of the interval which the time-weighted average should cover (if there is a preceding point) |
+| interval | INTERVAL | - | ✔ | The length of the interval which the time-weighted average should cover |
+| prev | TimeWeightSummary | NULL | | The TimeWeightSummary from the prior interval, used to interpolate the value at `start`. If NULL, the first timestamp in `tws` is used for the starting value. The prior interval can be determined from the {C.PG} [`lag()`][pg-window-functions] function |
+| next | TimeWeightSummary | NULL | | The TimeWeightSummary from the next interval, used to interpolate the value at `start` + `interval`. If NULL, the last timestamp in `tws` is used for the starting value. The next interval can be determined from the {C.PG} [`lead()`][pg-window-functions] function |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| average | DOUBLE PRECISION | The time-weighted average for the interval (`start`, `start` + `interval`), computed from the `TimeWeightSummary` plus end points interpolated from `prev` and `next` |
+
+[average]: /api-reference/timescaledb-toolkit/time_weight/average
+
+[interpolated_integral]: /api-reference/timescaledb-toolkit/time_weight/interpolated_integral
+
+[pg-window-functions]: https://www.postgresql.org/docs/current/functions-window.html#FUNCTIONS-WINDOW-TABLE
+
+[toolkit-1.14.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.14.0

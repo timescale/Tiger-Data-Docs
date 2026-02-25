@@ -1,0 +1,70 @@
+---
+title: interpolate()
+description: Adjust a heartbeat aggregate with predecessor information
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: mutator
+  aggregates:
+    - heartbeat_agg()
+---
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.15.0][toolkit-1.15.0]
+
+Update a heartbeat aggregate to include any live ranges that should have been carried over from the last heartbeat in
+the predecessor, even if there aren't heartbeats for that range in the interval covered by this aggregate. Return the
+updated aggregate, which can then be used with any of the heartbeat aggregate accessors.
+
+## Samples
+
+Given a table called `liveness` containing weekly heartbeat aggregates in column `health` with timestamp column `date`,
+use the following to get the intervals where the system was unhealthy during the week of Jan 9, 2022. This correctly
+excludes any ranges covered by a heartbeat at the end of the Jan 2 week.
+
+```sql
+SELECT dead_ranges(
+  interpolate(
+    health,
+    LAG(health) OVER (ORDER BY date)
+  )
+)
+FROM liveness
+WHERE date = '01-9-2022 UTC'
+```
+
+Returns:
+
+```
+                    dead_ranges
+-----------------------------------------------------
+("2022-01-12 15:27:22+00","2022-01-12 15:31:17+00")
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+interpolate(
+    agg HEARTBEATAGG,
+    pred HEARTBEATAGG
+) RETURNS HEARTBEATAGG
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | HeartbeatAgg | - | ✔ | A heartbeat aggregate containing liveness data for a particular interval |
+| pred | HeartbeatAgg | - | | The heartbeat aggregate for the preceding interval, if one exists |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| interpolate | HeartbeatAgg | A copy of `agg` which has been update to include any heartbeat intervals extending past the end of `pred`. |
+
+[toolkit-1.15.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.15.0

@@ -1,0 +1,58 @@
+---
+title: max_frequency()
+description: Get the maximum bound of the estimated frequency for a given value in a space-saving aggregate
+topics: [hyperfunctions]
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: frequency analysis
+  type: accessor
+  aggregates:
+    - freq_agg()
+---
+
+import { TagIcon } from 'lucide-react';
+
+<TagIcon iconType="duotone" /> Since [1.16.0][toolkit-1.16.0]
+
+Get the maximum bound of the estimated frequency for a given value in a space-saving aggregate.
+
+## Samples
+
+Find the maximum frequency of the value `3` in a column named `value` within the table `value_test`:
+
+```sql
+SELECT max_frequency(
+    (SELECT mcv_agg(20, value) FROM value_test),
+    3
+);
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+max_frequency (
+    agg SpaceSavingAggregate,
+    value AnyElement
+) RETURNS DOUBLE PRECISION
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| `agg` | SpaceSavingAggregate | - | ✔ | A space-saving aggregate created using either [`freq_agg`][freq-agg] or [`mcv_agg`][mcv-agg] |
+| `value` | AnyElement | - | ✔ | The value to get the frequency of |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| max\_frequency | DOUBLE PRECISION | The maximum bound for the value's estimated frequency. The maximum frequency might be 0 if the value's frequency falls below the space-saving aggregate's cut-off threshold. For more information, see [`freq_agg`][freq-agg]. |
+
+[freq-agg]: /api-reference/timescaledb-toolkit/frequency-analysis/freq_agg/freq_agg
+
+[mcv-agg]: /api-reference/timescaledb-toolkit/frequency-analysis/freq_agg/mcv_agg
+
+[toolkit-1.16.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.16.0

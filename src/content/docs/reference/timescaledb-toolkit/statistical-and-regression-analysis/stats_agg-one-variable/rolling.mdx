@@ -1,0 +1,75 @@
+---
+title: rolling()
+description: Combine multiple one-dimensional statistical aggregates to calculate rolling window aggregates
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: statistical and regression analysis
+  type: rollup
+  aggregates:
+    - stats_agg() (one variable)
+topics: [hyperfunctions]
+keywords: [statistics, hyperfunctions, Toolkit]
+---
+
+import { TagIcon } from 'lucide-react';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<TagIcon iconType="duotone" /> Since [1.3.0][toolkit-1.3.0]
+
+Combine multiple intermediate statistical aggregate (`StatsSummary1D`) objects into a single `StatsSummary1D` object. It
+is optimized for use in a window function context for computing tumbling window statistical aggregates.
+
+<Callout variant="info">
+  This is especially useful for computing tumbling window aggregates from a continuous aggregate. It can be orders of
+  magnitude faster because it uses inverse transition and combine functions, with the possibility that bigger floating
+  point errors can occur in unusual scenarios.
+
+  For re-aggregation in a non-window function context, such as combining hourly buckets into daily buckets, see
+  `rollup()`.
+</Callout>
+
+## Samples
+
+Combine hourly continuous aggregates to create a tumbling window daily aggregate. Calculate the average and standard
+deviation using the appropriate accessors:
+
+```sql
+CREATE MATERIALIZED VIEW foo_hourly
+WITH (timescaledb.continuous)
+AS SELECT
+  time_bucket('1h'::interval, ts) AS bucket,
+  stats_agg(value) as stats
+FROM foo
+GROUP BY 1;
+
+SELECT
+  bucket,
+  average(rolling(stats) OVER (ORDER BY bucket RANGE '1 day' PRECEDING)),
+  stddev(rolling(stats) OVER (ORDER BY bucket RANGE '1 day' PRECEDING)),
+FROM foo_hourly;
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+rolling(
+    ss StatsSummary1D
+) RETURNS StatsSummary1D
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| summary | StatsSummary1D | - | ✔ | The statistical aggregate produced by a `stats_agg` call |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| rolling | StatsSummary1D | A new statistical aggregate produced by combining the input statistical aggregates |
+
+[toolkit-1.3.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.3.0

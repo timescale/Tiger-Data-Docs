@@ -1,0 +1,53 @@
+---
+title: freq_agg()
+description: Aggregate data into a space-saving aggregate for further frequency analysis
+topics: [hyperfunctions]
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: frequency analysis
+  type: aggregate
+  aggregates:
+    - freq_agg()
+---
+
+import { FlaskIcon, TagIcon } from 'lucide-react';
+
+<FlaskIcon /> Early access <TagIcon iconType="duotone" /> Since [1.5.0][toolkit-1.5.0]
+
+Aggregate data into a space-saving aggregate object, which stores frequency information in an intermediate form. You can
+then use any of the accessors in this group to return estimated frequencies or the most common elements.
+
+## Samples
+
+Create a space-saving aggregate over a field `ZIP` in a `HomeSales` table. This aggregate tracks any `ZIP` value that
+occurs in at least 5% of rows:
+
+```sql
+SELECT toolkit_experimental.freq_agg(0.05, ZIP) FROM HomeSales;
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+freq_agg(
+  min_freq DOUBLE PRECISION,
+  value AnyElement
+) RETURNS SpaceSavingAggregate
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| `min_freq` | DOUBLE PRECISION | - | ✔ | Frequency cutoff for keeping track of a value. Values that occur less frequently than the cutoff are not stored. |
+| `value` | AnyElement | - | ✔ | The column to store frequencies for |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| agg | SpaceSavingAggregate | An object storing the most common elements of the given table and their estimated frequency. You can pass this object to any of the accessor functions to get a final result. |
+
+[toolkit-1.5.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.5.0
