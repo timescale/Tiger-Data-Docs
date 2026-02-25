@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { defineConfig } from "astro/config";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
+import starlightLinksValidator from 'starlight-links-validator';
 import aiChat from "@stainless-api/docs-ai-chat/plugin";
 
 const require = createRequire(import.meta.url);
@@ -67,6 +68,7 @@ export default defineConfig({
             Pagination: "./src/components/PageNavigation.astro",
             Callout: "./src/components/Callout.astro",
           },
+          plugins: process.env.CHECK_LINKS ? [starlightLinksValidator()] : [],
         },
       },
       tabs: [
