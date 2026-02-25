@@ -48,7 +48,7 @@ const PROPER_NOUNS = new Set(
     "Visual", "Studio", "CMake", "GitHub", "Git", "Markdown", "Diátaxis",
     "CloudWatch", "Transit", "Gateway", "Explorer", "Insights", "Notebooks",
     "Livesync", "Vectorizer", "Huggingface", "Chrome", "DevTools",
-    "Microsoft", "Google", "Grafana", "Alertmanager", "Looker", "Datadog", "OpenTelemetry", "MacPorts", "Compose", "Hugging", "Face", "macOS",
+    "Microsoft", "Google", "Grafana", "Alertmanager", "Looker", "Datadog", "OpenTelemetry", "MacPorts", "Compose", "macOS",
   ].map((s) => s.toLowerCase())
 );
 
@@ -71,6 +71,7 @@ const PROPER_NOUN_PHRASES = [
   "Early Access",
   "Public Beta",
   "Google Cloud",
+  "Hugging Face",
 ];
 
 /**
@@ -161,6 +162,10 @@ function checkSentenceCase(text: string): string | null {
       const prevCore = words[i - 1].replace(/[?!.,:;)(\-]+$/, "").replace(/^[(\-]+/, "").toLowerCase();
       if (PHRASE_PAIRS.has(`${prevCore}|${lower}`)) continue;
     }
+    if (i < words.length - 1) {
+      const nextCore = words[i + 1].replace(/[?!.,:;)(\-]+$/, "").replace(/^[(\-]+/, "").toLowerCase();
+      if (PHRASE_PAIRS.has(`${lower}|${nextCore}`)) continue;
+    }
 
     // Subsequent words: should be lowercase unless allowed
     if (isCapitalized && rest !== rest.toUpperCase()) {
@@ -187,11 +192,13 @@ function toSentenceCaseSimple(text: string): string {
     const lower = core.toLowerCase();
     const upper = core.toUpperCase();
     const prev = out.length ? out[out.length - 1].replace(/[?!.,:;\-]+$/, "").toLowerCase() : "";
+    const next = i < parts.length - 1 ? parts[i + 1].replace(/[?!.,:;\-]+$/, "").toLowerCase() : "";
     const keepCap =
       i === 0 ||
       (core === upper && /[A-Z]/.test(core)) ||
       allowedCapitalized(core) ||
-      PHRASE_PAIRS.has(`${prev}|${lower}`);
+      PHRASE_PAIRS.has(`${prev}|${lower}`) ||
+      PHRASE_PAIRS.has(`${lower}|${next}`);
     const newWord = keepCap ? core : core.charAt(0).toLowerCase() + core.slice(1);
     out.push(newWord + punct);
   }
