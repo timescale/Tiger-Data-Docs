@@ -1,6 +1,6 @@
 ---
 title: Upload a file using the terminal
-description: How to upload CSV, MySQL, and Parquet files from your machine into your Tiger Cloud service using the terminal
+description: Upload CSV, MySQL, and Parquet files from your machine into your Tiger Cloud service using the terminal
 ---
 
 import * as C from "@constants";
@@ -8,28 +8,30 @@ import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 
-# How to upload a file using the terminal
-
 This guide shows you how to upload **CSV**, **MySQL**, and **Parquet** files from a source machine into your {C.SERVICE_LONG} using the terminal. Use the tab below that matches your file type. Terminal-based imports are ideal for large files, scripting, and automation—and they avoid the size limits of the [Console upload](/migrate/import-console).
 
 ## Before you start
 
 ### Prerequisites
 
-- A [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with [connection details](/integrate/find-connection-details) (host, port, database, user, password).
-- Data files on a machine that can reach your service (your laptop, a jump host, or a server).
-- **For CSV:** `psql` (or another {C.PG} client) installed.
-- **For MySQL:** Access to the MySQL source (e.g. `mysqldump`, MySQL client) and `psql` for the target.
-- **For Parquet:** A way to convert Parquet to CSV if you use `COPY` (e.g. Python, `parquet-tools`), or a loader that supports Parquet; plus `psql` or [timescaledb-parallel-copy](https://github.com/timescale/timescaledb-parallel-copy) for bulk load.
+To follow the steps on this page:
+
+- Create a [{C.SERVICE_LONG}](/get-started/create-service/) and find your [connection details](/integrate/find-connection-details).
+- Prepare data files on a machine that can reach your {C.SERVICE_SHORT} (your laptop, a jump host, or a server):
+    - **For CSV:** `psql` (or another {C.PG} client) installed.
+    - **For MySQL:** Access to the MySQL source (for example, `mysqldump`, MySQL client) and `psql` for the target.
+    - **For Parquet:** A way to convert Parquet to CSV if you use `COPY` (for example, Python, `parquet-tools`), or a loader that supports Parquet; plus `psql` or [timescaledb-parallel-copy](https://github.com/timescale/timescaledb-parallel-copy) for bulk load.
 
 ### Supported formats and limits
 
 - **CSV:** Use {C.PG} `COPY` or `\copy` for high-throughput bulk load. UTF-8 recommended; set delimiter and header as needed.
-- **MySQL:** Export from MySQL (e.g. `mysqldump` or CSV export), then import into your service with `psql` or `pg_restore` (for dumps). For ongoing sync, see [Sync from Postgres](/migrate/livesync-for-postgresql) or migration guides.
+- **MySQL:** Export from MySQL (for example, `mysqldump` or CSV export), then import into your {C.SERVICE_SHORT} with `psql` or `pg_restore` (for dumps). For ongoing sync, see [Sync from {C.PG}](/migrate/livesync-for-postgresql) or migration guides.
 - **Parquet:** Convert to CSV then use `COPY` or timescaledb-parallel-copy, or use a Parquet-capable ETL tool that can write to {C.PG}.
 
 <Callout variant="tip">
+
 Use the same {C.PG} major version as your target when running `pg_dump`/`pg_restore` for dumps. For large CSV or Parquet loads, [timescaledb-parallel-copy](https://github.com/timescale/timescaledb-parallel-copy) can speed up imports.
+
 </Callout>
 
 ## How to upload a file
@@ -40,12 +42,12 @@ Choose the tab that matches your source file type and follow the steps.
 
 <TabItem label="From CSV">
 
-To load a CSV file into your service from the terminal:
+To load a CSV file into your {C.SERVICE_SHORT} from the terminal:
 
 <NumberedList>
 
 <NumberedItem title="Get your connection string">
-Use your [Tiger Cloud connection details](/integrate/find-connection-details) and set a connection string, for example:
+Use your [{C.CLOUD_LONG} connection details](/integrate/find-connection-details) and set a connection string, for example:
 `postgres://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require`
 </NumberedItem>
 
@@ -74,7 +76,7 @@ psql "postgres://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require" -c "\copy my_
 </NumberedItem>
 
 <NumberedItem title="Verify the import">
-Query the table in `psql` or the [SQL editor](https://console.cloud.timescale.com) to confirm row counts and sample data.
+Query the table in `psql` or the [{C.SQL_EDITOR}](https://console.cloud.timescale.com) to confirm row counts and sample data.
 </NumberedItem>
 
 </NumberedList>
@@ -83,49 +85,49 @@ Query the table in `psql` or the [SQL editor](https://console.cloud.timescale.co
 
 <TabItem label="From MySQL">
 
-To get data from MySQL into your Tiger Cloud service using the terminal:
+To get data from MySQL into your {C.SERVICE_LONG} using the terminal:
 
 <NumberedList>
 
 <NumberedItem title="Export data from MySQL">
-- **Option A — CSV:** Export tables to CSV (e.g. `SELECT ... INTO OUTFILE` or a script that writes CSV), then load with `\copy` or `COPY` as in the **From CSV** tab.
-- **Option B — SQL dump:** Use `mysqldump` to create a SQL dump. Note: MySQL dump syntax differs from {C.PG}; you may need to convert or load schema and data in steps (e.g. schema first, then data via CSV).
+- **Option A — CSV:** Export tables to CSV (for example, `SELECT ... INTO OUTFILE` or a script that writes CSV), then load with `\copy` or `COPY` as in the **From CSV** tab.
+- **Option B — SQL dump:** Use `mysqldump` to create a SQL dump. Note: MySQL dump syntax differs from {C.PG}; you may need to convert or load schema and data in steps (for example, schema first, then data via CSV).
 </NumberedItem>
 
-<NumberedItem title="Get your Tiger Cloud connection string">
-Use your [Tiger Cloud connection details](/integrate/find-connection-details):  
+<NumberedItem title={`Get your ${C.CLOUD_LONG} connection string`}>
+Use your [{C.CLOUD_LONG} connection details](/integrate/find-connection-details):
 `postgres://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require`
 </NumberedItem>
 
 <NumberedItem title="Create the target schema and tables">
-Create tables in your Tiger Cloud service that match the data you exported (same column names and compatible types). Adjust types as needed (e.g. MySQL `DATETIME` → `TIMESTAMPTZ`).
+Create tables in your {C.SERVICE_LONG} that match the data you exported (same column names and compatible types). Adjust types as needed (for example, MySQL `DATETIME` → `TIMESTAMPTZ`).
 </NumberedItem>
 
 <NumberedItem title="Import the data">
 - If you exported to **CSV**, use `psql` with `\copy` or `COPY` as in the **From CSV** tab.
-- If you have a **MySQL dump**, you can use a conversion step or tool (e.g. [pgloader](https://pgloader.io/) for MySQL → {C.PG}) to load into your service. For schema-only or custom dumps, restore schema first, then load data (e.g. via CSV) to avoid syntax differences.
+- If you have a **MySQL dump**, you can use a conversion step or tool (for example, [pgloader](https://pgloader.io/) for MySQL → {C.PG}) to load into your {C.SERVICE_SHORT}. For schema-only or custom dumps, restore schema first, then load data (for example, via CSV) to avoid syntax differences.
 </NumberedItem>
 
 <NumberedItem title="Verify the import">
-Query the tables in `psql` or the [SQL editor](https://console.cloud.timescale.com) to confirm data.
+Query the tables in `psql` or the [{C.SQL_EDITOR}](https://console.cloud.timescale.com) to confirm data.
 </NumberedItem>
 
 </NumberedList>
 
 <Callout variant="note">
-For a full MySQL → Tiger Cloud migration with schema and data, see [Migrate from a specific database](/migrate/migrate-from) and migration guides that cover schema mapping and tools like pgloader.
+For a full MySQL → {C.CLOUD_LONG} migration with schema and data, see [Migrate from a specific database](/migrate/migrate-from) and migration guides that cover schema mapping and tools like pgloader.
 </Callout>
 
 </TabItem>
 
 <TabItem label="From Parquet">
 
-To load a Parquet file into your service from the terminal:
+To load a Parquet file into your {C.SERVICE_SHORT} from the terminal:
 
 <NumberedList>
 
 <NumberedItem title="Convert Parquet to CSV (if using COPY)">
-{C.PG} `COPY` does not read Parquet directly. Convert the Parquet file to CSV (e.g. with Python/pandas, `parquet-tools`, or another tool), then follow the **From CSV** steps. Example with Python:
+{C.PG} `COPY` does not read Parquet directly. Convert the Parquet file to CSV (for example, with Python/pandas, `parquet-tools`, or another tool), then follow the **From CSV** steps. Example with Python:
 
 ```bash
 python -c "
@@ -138,7 +140,7 @@ df.to_csv('data.csv', index=False)
 </NumberedItem>
 
 <NumberedItem title="Get your connection string">
-Use your [Tiger Cloud connection details](/integrate/find-connection-details):  
+Use your [{C.CLOUD_LONG} connection details](/integrate/find-connection-details):
 `postgres://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require`
 </NumberedItem>
 
@@ -151,7 +153,7 @@ Use `\copy` or `COPY` as in the **From CSV** tab, or use [timescaledb-parallel-c
 </NumberedItem>
 
 <NumberedItem title="Verify the import">
-Query the table in `psql` or the [SQL editor](https://console.cloud.timescale.com) to confirm row counts and sample data.
+Query the table in `psql` or the [{C.SQL_EDITOR}](https://console.cloud.timescale.com) to confirm row counts and sample data.
 </NumberedItem>
 
 </NumberedList>
@@ -160,7 +162,7 @@ Query the table in `psql` or the [SQL editor](https://console.cloud.timescale.co
 
 </Tabs>
 
-Your data is now in your Tiger Cloud service. For time-series tables, consider converting them to [hypertables](/build/data-management/understand-hypertables) for better performance.
+Your data is now in your {C.SERVICE_LONG}. For time-series tables, consider converting them to [{C.HYPERTABLE}s](/build/data-management/understand-hypertables) for better performance.
 
 ## Troubleshooting
 
@@ -171,12 +173,12 @@ Your data is now in your Tiger Cloud service. For time-series tables, consider c
 
 ## Summary
 
-You can upload CSV, MySQL, and Parquet data into your Tiger Cloud service from the terminal: use **From CSV** with `COPY`/`\copy`, **From MySQL** by exporting to CSV or using a migration tool, and **From Parquet** by converting to CSV then loading. For a UI-based upload, use [Upload a file using the Console](/migrate/import-console); for continuous sync from S3, use [Sync from S3](/migrate/livesync-for-s3).
+You can upload CSV, MySQL, and Parquet data into your {C.SERVICE_LONG} from the terminal: From CSV with `COPY`/`\copy`, from MySQL by exporting to CSV or using a migration tool, and from Parquet by converting to CSV then loading. For a UI-based upload, use [Upload a file using the Console](/migrate/import-console); for continuous sync from S3, use [Sync from S3](/migrate/livesync-for-s3).
 
 ## Related
 
-- [Upload a file using the Console](/migrate/import-console) — Upload CSV, Parquet, and text files via the web UI.
-- [Sync from S3](/migrate/livesync-for-s3) — Continuously sync CSV and Parquet from an S3 bucket.
-- [Sync from Postgres](/migrate/livesync-for-postgresql) — Continuously replicate from a {C.PG} database.
-- [Live migration](/migrate/live-migration) — Migrate with minimal or no downtime.
+- [Upload a file using {C.CONSOLE_LONG}](/migrate/import-console) — Upload CSV, Parquet, and text files via the web UI.
+- [Sync data from S3](/migrate/livesync-for-s3) — Continuously sync CSV and Parquet from an S3 bucket.
+- [Sync data from {C.PG}](/migrate/livesync-for-postgresql) — Continuously replicate from a {C.PG} database.
+- [Live import from a database](/migrate/live-migration) — Migrate with minimal or no downtime.
 - [Migrate from a specific database](/migrate/migrate-from) — Guides for MySQL and other sources.
