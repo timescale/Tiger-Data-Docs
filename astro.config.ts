@@ -1,6 +1,8 @@
 import { defineConfig } from "astro/config";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
+import starlightLinksValidator from 'starlight-links-validator';
 import aiChat from "@stainless-api/docs-ai-chat/plugin";
+
 
 // https://astro.build/config
 export default defineConfig({
@@ -48,6 +50,7 @@ export default defineConfig({
           components: {
             Header: "./src/components/Header.astro",
           },
+          plugins: process.env.CHECK_LINKS ? [starlightLinksValidator()] : [],
         },
       },
       tabs: [
