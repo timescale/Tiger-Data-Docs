@@ -1,99 +1,184 @@
 ---
 title: "Integrate Apache Kafka with Tiger Cloud"
 description: "Stream, process, and analyze real-time event data from Apache Kafka topics"
+keywords: ["kafka integration","event streaming","real-time data","message broker","kafka topics","event processing","stream processing"]
+sidebar:
+  label: "Apache Kafka"
 ---
 
 import * as C from "@constants";
 
-[Apache Kafka](https://kafka.apache.org/documentation/) is a distributed event streaming platform used for high-performance data pipelines, streaming analytics, and data integration. [Apache Kafka Connect](https://docs.confluent.io/platform/current/connect/index.html) is a tool to scalably and reliably stream data between Apache Kafka® and other data systems. Kafka Connect is an ecosystem of pre-written and maintained Kafka Producers (source connectors) and Kafka Consumers (sink connectors) for data products and platforms like databases and message brokers. This guide explains how to set up Kafka and Kafka Connect to stream data from a Kafka topic into your Tiger Cloud service.
+import CreateHypertablePolicyNote from '@partials/_create-hypertable-columnstore-policy-note.mdx';
+import IntegrationApacheKafka from '@partials/_integration-apache-kafka-install.mdx';
+import IntegrationPrereqs from '@partials/_prereqs-cloud-and-self.mdx';
 
-Prerequisites
+[Apache Kafka][apache-kafka] is a distributed event streaming platform used for high-performance data pipelines,
+streaming analytics, and data integration. [Apache Kafka Connect][kafka-connect] is a tool to scalably and reliably
+stream data between Apache Kafka® and other data systems. Kafka Connect is an ecosystem of pre-written and maintained
+Kafka Producers (source connectors) and Kafka Consumers (sink connectors) for data products and platforms like
+databases and message brokers.
 
-To follow the steps on this page:
+This guide explains how to set up Kafka and Kafka Connect to stream data from a Kafka topic into your {C.SERVICE_LONG}.
 
--   Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled.
-    
-    You need [your connection details](/integrate/find-connection-details). This procedure also works for [self-hosted TimescaleDB](/deploy/self-hosted/install-and-update/install-self-hosted).
+## Prerequisites
 
--   [Java8 or higher](https://www.oracle.com/java/technologies/downloads/) to run Apache Kafka
+<IntegrationPrereqs />
 
-Install and configure Apache Kafka
+- [Java8 or higher][java-installers] to run Apache Kafka
+
+## Install and configure Apache Kafka
 
 To install and configure Apache Kafka:
 
-1.  **Extract the Kafka binaries to a local folder** From now on, the folder where you extracted the Kafka binaries is called `<KAFKA_HOME>`.
-2.  **Configure and run Apache Kafka** Use the `-daemon` flag to run this process in the background.
-3.  **Create Kafka topics** In another Terminal window, navigate to `<KAFKA_HOME>`, then call `kafka-topics.sh` and create the following topics:
-    -   `accounts`: publishes JSON messages that are consumed by the timescale-sink connector and inserted into your Tiger Cloud service.
-    -   `deadletter`: stores messages that cause errors and that Kafka Connect workers cannot process.
-4.  **Test that your topics are working correctly**
-    1.  Run `kafka-console-producer` to send messages to the `accounts` topic:
-    2.  Send some events. For example, type the following:
-    3.  In another Terminal window, navigate to `<KAFKA_HOME>`, then run `kafka-console-consumer` to consume the events you just sent: You see
+<IntegrationApacheKafka />
 
 Keep these terminals open, you use them to test the integration later.
 
-Install the sink connector to communicate with Tiger Cloud
+## Install the sink connector to communicate with Tiger Cloud
 
 To set up Kafka Connect server, plugins, drivers, and connectors:
 
-1.  **Install the {C.PG} connector** In another terminal window, navigate to `<KAFKA_HOME>`, then download and configure the {C.PG} sink and driver.
-2.  **Start Kafka Connect** Use the `-daemon` flag to run this process in the background.
-3.  **Verify Kafka Connect is running** In yet another another terminal window, run the following command: You see something like:
+1. **Install the {C.PG} connector**
 
-Create a table in your service to ingest Kafka events
+   In another terminal window, navigate to `<KAFKA_HOME>`, then download and configure the {C.PG} sink and driver.
 
-To prepare your Tiger Cloud service for Kafka integration:
+   ```bash
+   mkdir -p "plugins/camel-postgresql-sink-kafka-connector"
+   curl https://repo.maven.apache.org/maven2/org/apache/camel/kafkaconnector/camel-postgresql-sink-kafka-connector/3.21.0/camel-postgresql-sink-kafka-connector-3.21.0-package.tar.gz \
+   | tar -xzf - -C "plugins/camel-postgresql-sink-kafka-connector" --strip-components=1
+   curl  -H "Accept: application/zip" https://jdbc.postgresql.org/download/postgresql-42.7.5.jar -o  "plugins/camel-postgresql-sink-kafka-connector/postgresql-42.7.5.jar"
+   echo "plugin.path=`pwd`/plugins/camel-postgresql-sink-kafka-connector" >> "config/connect-distributed.properties"
+   echo "plugin.path=`pwd`/plugins/camel-postgresql-sink-kafka-connector" >> "config/connect-standalone.properties"
+   ```
 
-1.  **[Connect](/deploy/tiger-cloud/get-started/run-queries-from-console) to your Tiger Cloud service**
-2.  **Create a hypertable to ingest Kafka events** When you create a hypertable using [CREATE TABLE … WITH …](/api-reference/timescaledb/hypertables/create_table), the default partitioning column is automatically the first column with a timestamp data type. Also, TimescaleDB creates a [columnstore policy](/api-reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts your data to the columnstore, after an interval equal to the value of the [chunk\_interval](/api-reference/timescaledb/hypertables/create_table#arguments), defined through `compress_after` in the policy. This columnar format enables fast scanning and aggregation, optimizing performance for analytical workloads while also saving significant storage space. In the columnstore conversion, hypertable chunks are compressed by up to 98%, and organized for efficient, large-scale queries. You can customize this policy later using [alter\_job](/api-reference/timescaledb/jobs-automation/alter_job#samples). However, to change `after` or `created_before`, the compression settings, or the hypertable the policy is acting on, you must [remove the columnstore policy](/api-reference/timescaledb/hypercore/remove_columnstore_policy) and [add a new one](/api-reference/timescaledb/hypercore/add_columnstore_policy). You can also manually [convert chunks](/api-reference/timescaledb/hypercore/convert_to_columnstore) in a hypertable to the columnstore.
+2. **Start Kafka Connect**
 
-Create the Tiger Cloud sink
+   ```bash
+   export CLASSPATH=`pwd`/plugins/camel-postgresql-sink-kafka-connector/*
+   ./bin/connect-standalone.sh config/connect-standalone.properties
+   ```
 
-To create a Tiger Cloud sink in Apache Kafka:
+   Use the `-daemon` flag to run this process in the background.
 
-1.  **Create the connection configuration**
-    1.  In the terminal running Kafka Connect, stop the process by pressing `Ctrl+C`.
-    2.  Write the following configuration to `<KAFKA_HOME>/config/timescale-standalone-sink.properties`, then update the `<properties>` with your [connection details](/integrate/find-connection-details).
-    3.  Restart Kafka Connect with the new configuration:
-2.  **Test the connection** To see your sink, query the `/connectors` route in a GET request: You see:
+3. **Verify Kafka Connect is running**
 
-Test the integration with Tiger Cloud
+   In yet another another terminal window, run the following command:
+
+   ```bash
+   curl http://localhost:8083
+   ```
+
+   You see something like:
+
+   ```bash
+   {"version":"3.9.0","commit":"a60e31147e6b01ee","kafka_cluster_id":"J-iy4IGXTbmiALHwPZEZ-A"}
+   ```
+
+## Create a table in your service to ingest Kafka events
+
+To prepare your {C.SERVICE_LONG} for Kafka integration:
+
+1. **[Connect][in-console-editors] to your {C.SERVICE_LONG}**
+
+2. **Create a hypertable to ingest Kafka events**
+
+   ```sql
+   CREATE TABLE accounts (
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    name TEXT,
+    city TEXT
+   ) WITH (
+     tsdb.hypertable
+   );
+   ```
+
+   <CreateHypertablePolicyNote />
+
+## Create the Tiger Cloud sink
+
+To create a {C.CLOUD_LONG} sink in Apache Kafka:
+
+1. **Create the connection configuration**
+
+   1. In the terminal running Kafka Connect, stop the process by pressing `Ctrl+C`.
+
+   2. Write the following configuration to `<KAFKA_HOME>/config/timescale-standalone-sink.properties`, then update the `<properties>` with your [connection details][connection-info].
+
+      ```properties
+      name=timescale-standalone-sink
+      connector.class=org.apache.camel.kafkaconnector.postgresqlsink.CamelPostgresqlsinkSinkConnector
+      errors.tolerance=all
+      errors.deadletterqueue.topic.name=deadletter
+      tasks.max=10
+      value.converter=org.apache.kafka.connect.storage.StringConverter
+      key.converter=org.apache.kafka.connect.storage.StringConverter
+      topics=accounts
+      camel.kamelet.postgresql-sink.databaseName=<dbname>
+      camel.kamelet.postgresql-sink.username=<user>
+      camel.kamelet.postgresql-sink.password=<password>
+      camel.kamelet.postgresql-sink.serverName=<host>
+      camel.kamelet.postgresql-sink.serverPort=<port>
+      camel.kamelet.postgresql-sink.query=INSERT INTO accounts (name,city) VALUES (:#name,:#city)
+      ```
+
+   3. Restart Kafka Connect with the new configuration:
+      ```bash
+      export CLASSPATH=`pwd`/plugins/camel-postgresql-sink-kafka-connector/*
+      ./bin/connect-standalone.sh config/connect-standalone.properties config/timescale-standalone-sink.properties
+      ```
+
+2. **Test the connection**
+
+   To see your sink, query the `/connectors` route in a GET request:
+
+   ```bash
+   curl -X GET http://localhost:8083/connectors
+   ```
+
+   You see:
+
+   ```bash
+   #["timescale-standalone-sink"]
+   ```
+
+## Test the integration with Tiger Cloud
 
 To test this integration, send some messages onto the `accounts` topic. You can do this using the kafkacat or kcat utility.
 
-1.  **In the terminal running `kafka-console-producer.sh` enter the following json strings** Look in your terminal running `kafka-console-consumer` to see the messages being processed.
-2.  **Query your Tiger Cloud service for all rows in the `accounts` table** You see something like:
-    
-    created\_at
-    
-    name
-    
-    city
-    
-    2025-02-18 13:55:05.147261+00
-    
-    Lola
-    
-    Copacabana
-    
-    2025-02-18 13:55:05.216673+00
-    
-    Holly
-    
-    Miami
-    
-    2025-02-18 13:55:05.283549+00
-    
-    Jolene
-    
-    Tennessee
-    
-    2025-02-18 13:55:05.35226+00
-    
-    Barbara Ann
-    
-    California
-    
+1. **In the terminal running `kafka-console-producer.sh` enter the following json strings**
 
-You have successfully integrated Apache Kafka with Tiger Cloud.
+   ```bash
+   {"name":"Lola","city":"Copacabana"}
+   {"name":"Holly","city":"Miami"}
+   {"name":"Jolene","city":"Tennessee"}
+   {"name":"Barbara Ann ","city":"California"}
+   ```
+
+   Look in your terminal running `kafka-console-consumer` to see the messages being processed.
+
+2. **Query your {C.SERVICE_LONG} for all rows in the `accounts` table**
+
+   ```sql
+   SELECT * FROM accounts;
+   ```
+
+   You see something like:
+
+   | created\_at                    |  name  |      city |
+   | -- | --| -- |
+   |2025-02-18 13:55:05.147261+00 | Lola | Copacabana |
+   |2025-02-18 13:55:05.216673+00 | Holly | Miami |
+   |2025-02-18 13:55:05.283549+00 | Jolene | Tennessee |
+   |2025-02-18 13:55:05.35226+00 | Barbara Ann | California |
+
+You have successfully integrated Apache Kafka with {C.CLOUD_LONG}.
+
+[apache-kafka]: https://kafka.apache.org/documentation/
+
+[connection-info]: /integrations/find-connection-details
+
+[in-console-editors]: /deploy-and-operate/tiger-cloud/get-started/run-queries-from-console
+
+[java-installers]: https://www.oracle.com/java/technologies/downloads/
+
+[kafka-connect]: https://docs.confluent.io/platform/current/connect/index.html

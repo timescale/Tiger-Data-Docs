@@ -1,29 +1,150 @@
 ---
 title: "Integrate Terraform with Tiger Cloud"
 description: "Provision and manage your infrastructure as code with predictable deployments"
+keywords: ["infrastructure as code","terraform provider","iac","provisioning","automation","devops","configuration management"]
+sidebar:
+  label: "Terraform"
 ---
-[Terraform](https://developer.hashicorp.com/terraform) is an infrastructure-as-code tool that enables you to safely and predictably provision and manage infrastructure. This page explains how to configure Terraform to manage your Tiger Cloud service or self-hosted TimescaleDB.
 
-Prerequisites
+import * as C from "@constants";
 
-To follow the steps on this page:
+import { Tabs, Tab } from '@stainless-api/docs/stainless-docs/mintlify-compat';
 
--   Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled.
-    
-    You need [your connection details](/integrate/find-connection-details). This procedure also works for [self-hosted TimescaleDB](/deploy/self-hosted/install-and-update/install-self-hosted).
+import IntegrationPrereqs from '@partials/_prereqs-cloud-and-self.mdx';
 
--   [Download and install](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli) Terraform.
+[Terraform][terraform] is an infrastructure-as-code tool that enables you to safely and predictably provision and manage infrastructure.
 
-Configure Terraform
+This page explains how to configure Terraform to manage your {C.SERVICE_LONG} or {C.SELF_LONG}.
+
+## Prerequisites
+
+<IntegrationPrereqs />
+
+- [Download and install][terraform-install] Terraform.
+
+## Configure Terraform
 
 Configure Terraform based on your deployment type:
 
-You use the [Tiger Data Terraform provider](https://registry.terraform.io/providers/timescale/timescale/latest/docs) to manage Tiger Cloud services:
+<Tabs>
+  <Tab title={CLOUD_LONG}>
+    You use the [{C.COMPANY} Terraform provider][terraform-provider] to manage {C.SERVICE_LONG}s:
 
-1.  **[Generate client credentials](/integrate/find-connection-details#create-client-credentials)**
-2.  **Configure Tiger Data Terraform provider**
-    1.  Create a `main.tf` configuration file with at least the following content. Change `x.y.z` to the [latest version](https://registry.terraform.io/providers/timescale/timescale/latest/docs) of the provider.
-    2.  Create a `terraform.tfvars` file in the same directory as your `main.tf` to pass in the variable values:
-3.  **Add your resources** Add your Tiger Cloud services or VPC connections to the `main.tf` configuration file. For example:
+    1. **[Generate client credentials][generate-credentials]**
 
-You can now manage your resources with Terraform. See more about [available resources](https://registry.terraform.io/providers/timescale/timescale/latest/docs/resources/peering_connection) and [data sources](https://registry.terraform.io/providers/timescale/timescale/latest/docs/data-sources/products).
+    2. **Configure {C.COMPANY} Terraform provider**
+
+       1. Create a `main.tf` configuration file with at least the following content. Change `x.y.z` to the [latest version][terraform-provider] of the provider.
+
+          ```hcl
+          terraform {
+            required_providers {
+              timescale = {
+                source  = "timescale/timescale"
+                version = "x.y.z"
+              }
+            }
+          }
+
+          # Authenticate using client credentials generated in Tiger Cloud Console.
+          # When required, these credentials will change to a short-lived JWT to do the calls.
+          provider "timescale" {
+           project_id = var.ts_project_id
+           access_key = var.ts_access_key
+           secret_key = var.ts_secret_key
+          }
+
+          variable "ts_project_id" {
+           type = string
+          }
+
+          variable "ts_access_key" {
+           type = string
+          }
+
+          variable "ts_secret_key" {
+           type = string
+          }
+          ```
+
+       2. Create a `terraform.tfvars` file in the same directory as your `main.tf` to pass in the variable values:
+
+          ```hcl
+          export TF_VAR_ts_project_id="<your-timescale-project-id>"
+          export TF_VAR_ts_access_key="<your-timescale-access-key>"
+          export TF_VAR_ts_secret_key="<your-timescale-secret-key>"
+          ```
+
+    3. **Add your resources**
+
+       Add your {C.SERVICE_LONG}s or {C.VPC} connections to the `main.tf` configuration file. For example:
+
+       ```hcl
+       resource "timescale_service" "test" {
+         name              = "test-service"
+         milli_cpu         = 500
+         memory_gb         = 2
+         region_code       = "us-east-1"
+         enable_ha_replica = false
+
+         timeouts = {
+           create = "30m"
+         }
+       }
+
+       resource "timescale_vpc" "vpc" {
+         cidr         = "10.10.0.0/16"
+         name         = "test-vpc"
+         region_code  = "us-east-1"
+       }
+       ```
+
+    You can now manage your resources with Terraform. See more about [available resources][terraform-resources] and [data sources][terraform-data-sources].
+  </Tab>
+
+  <Tab title={SELF_LONG_CAP}>
+    You use the [`cyrilgdn/postgresql`][pg-provider] {C.PG} provider to connect to your {C.SELF_LONG} instance.
+
+    Create a `main.tf` configuration file with the following content, using your [connection details][connection-info]:
+
+    ```hcl
+       terraform {
+        required_providers {
+         postgresql = {
+          source  = "cyrilgdn/postgresql"
+          version = ">= 1.15.0"
+         }
+        }
+       }
+
+       provider "postgresql" {
+        host            = "your-timescaledb-host"
+        port            = "your-timescaledb-port"
+        database        = "your-database-name"
+        username        = "your-username"
+        password        = "your-password"
+        sslmode         = "require" # Or "disable" if SSL isn't enabled
+       }
+    ```
+
+    You can now manage your database with Terraform.
+  </Tab>
+</Tabs>
+
+[connection-info]: /integrations/find-connection-details
+
+[generate-credentials]: /integrations/find-connection-details#create-client-credentials
+
+[pg-provider]: https://registry.terraform.io/providers/cyrilgdn/postgresql/latest
+
+[services-portal]: https://console.cloud.timescale.com/dashboard/services
+
+[terraform]: https://developer.hashicorp.com/terraform
+
+[terraform-data-sources]: https://registry.terraform.io/providers/timescale/timescale/latest/docs/data-sources/products
+
+[terraform-install]: https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli
+
+[terraform-provider]: https://registry.terraform.io/providers/timescale/timescale/latest/docs
+
+[terraform-resources]: https://registry.terraform.io/providers/timescale/timescale/latest/docs/resources/peering_connection
