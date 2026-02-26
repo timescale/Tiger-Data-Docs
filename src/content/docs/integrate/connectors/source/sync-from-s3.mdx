@@ -1,118 +1,228 @@
 ---
 title: "Sync data from S3"
 description: "Sync data from S3 to your Tiger Cloud service in real time"
-integrationCategory: connectors
-connectorType: tiger-data
-sortOrder: 2
-integrationIndustry: ["IoT", "manufacturing"]
-integrationCardTitle: "S3"
-integrationPlatforms: ["aws", "azure", "self-hosted"]
+keywords: ["s3 ingestion","parquet import","csv import","object storage","data lake","s3 sync","cloud storage"]
+tags: ["recovery","logical backup","replication"]
+sidebar:
+  label: "Amazon S3"
 ---
 
-import { Callout } from "@stainless-api/docs/components";
+import * as C from "@constants";
 
-You use the source S3 connector in Tiger Cloud to synchronize CSV and Parquet files from an S3 bucket to your Tiger Cloud service in real time. The connector runs continuously, enabling you to leverage Tiger Cloud as your analytics database with data constantly synced from S3. This lets you take full advantage of Tiger Cloud‘s real-time analytics capabilities without having to develop or manage custom ETL solutions between S3 and Tiger Cloud. ![Tiger Cloud overview](/assets/images/migrate/tiger-console-connector-overview.png) You can use the source S3 connector to synchronize your existing and new data. Here’s what the connector can do:
+import { Callout } from '@stainless-api/docs/components';
 
-<Callout variant="important">
-The connector processes files in [lexicographical order](https://en.wikipedia.org/wiki/Lexicographic_order). It uses the name of the last file processed as a marker and fetches only files later in the alphabet in subsequent queries. Files added with names earlier in the alphabet than the marker are skipped and never synced. For example, if you add the file Bob when the marker is at Elephant, Bob is never processed.
+import PrereqCloud from '@partials/_integration-prereqs-cloud-only.mdx';
+
+You use the {C.S3_CONNECTOR} in {C.CLOUD_LONG} to synchronize CSV and Parquet files from an S3 bucket to your {C.SERVICE_LONG} in real time. The connector runs continuously, enabling you to leverage {C.CLOUD_LONG} as your analytics database with data constantly synced from S3. This lets you take full advantage of {C.CLOUD_LONG}'s real-time analytics capabilities without having to develop or manage custom ETL solutions between S3 and {C.CLOUD_LONG}.
+
+![CLOUD\_LONG overview][cloud_long-overview]
+
+You can use the {C.S3_CONNECTOR} to synchronize your existing and new data. Here's what the connector can do:
+
+- Sync data from an S3 bucket instance to a {C.SERVICE_LONG}:
+  - Use glob patterns to identify the objects to sync.
+  - Watch an S3 bucket for new files and import them automatically. It runs on a configurable schedule and tracks processed files.
+  - **Important**: the connector processes files in [lexicographical order][lex-order]. It uses the name of the last file processed as a marker and fetches only files later in the alphabet in subsequent queries. Files added with names earlier in the alphabet than the marker are skipped and never synced. For example, if you add the file Bob when the marker is at Elephant, Bob is never processed.
+  - For large backlogs, check every minute until caught up.
+
+- Sync data from multiple file formats:
+  - CSV: check for compression in GZ and ZIP format, then process using [timescaledb-parallel-copy][timescaledb-parallel-copy].
+  - Parquet: convert to CSV, then process using [timescaledb-parallel-copy][timescaledb-parallel-copy].
+
+- The {C.S3_CONNECTOR} offers an option to enable a [{C.HYPERTABLE}][hypertables-section] during the file-to-table schema mapping setup. You can enable [{C.COLUMNSTORE}][compression] and [{C.CAGG}s][caggs] through the {C.SQL_EDITOR} once the connector has started running.
+
+- The connector offers a default 1-minute polling interval. This means that {C.CLOUD_LONG} checks the S3 source every minute for new data. You can customize this interval by setting up a cron expression.
+
+The {C.S3_CONNECTOR_CAP} continuously imports data from an Amazon S3 bucket into your database. It monitors your S3 bucket for new files matching a specified pattern and automatically imports them into your designated database table.
+
+**Note**: the connector currently only syncs existing and new files—it does not support updating or deleting records based on updates and deletes from S3 to tables in a {C.SERVICE_LONG}.
+
+If you have any questions or feedback about the {C.S3_CONNECTOR}, join us in the [{C.COMPANY} community][join-livesync-on-slack].
+
+## Prerequisites
+
+<PrereqCloud />
+
+- Ensure access to a standard Amazon S3 bucket containing your data files.
+
+  Directory buckets are not supported.
+- Configure access credentials for the S3 bucket.
+  The following credentials are supported:
+  - [IAM Role][credentials-iam].
+
+    - Configure the trust policy. Set the:
+
+      - `Principal`: `arn:aws:iam::142548018081:role/timescale-s3-connections`.
+      - `ExternalID`: set to the [{C.CLOUD_LONG} {C.PROJECT_SHORT} and {C.SERVICE_LONG} ID][get-project-id] of the {C.SERVICE_SHORT} you are syncing to in the format `<projectId>/<serviceId>`.
+
+        This is to avoid the [confused deputy problem][deputy-problem].
+    - Give the following access permissions:
+
+      - `s3:GetObject`.
+      - `s3:ListBucket`.
+
+  - [Public anonymous user][credentials-public].
+
+<Callout variant="info">
+  This feature is currently not supported for {C.CLOUD_LONG} on Microsoft Azure.
 </Callout>
 
--   Sync data from an S3 bucket instance to a Tiger Cloud service:
-    -   Use glob patterns to identify the objects to sync.
-    -   Watch an S3 bucket for new files and import them automatically. It runs on a configurable schedule and tracks processed files.
-    -   For large backlogs, check every minute until caught up.
--   Sync data from multiple file formats:
-    -   CSV: check for compression in GZ and ZIP format, then process using [timescaledb-parallel-copy](https://github.com/timescale/timescaledb-parallel-copy).
-    -   Parquet: convert to CSV, then process using [timescaledb-parallel-copy](https://github.com/timescale/timescaledb-parallel-copy).
--   The source S3 connector offers an option to enable a [hypertable](/open-source/timescaledb/hypertables) during the file-to-table schema mapping setup. You can enable [columnstore](/open-source/timescaledb/compression) and [continuous aggregates](/open-source/timescaledb/continuous-aggregates) through the SQL editor once the connector has started running.
--   The connector offers a default 1-minute polling interval. This means that Tiger Cloud checks the S3 source every minute for new data. You can customize this interval by setting up a cron expression.
+## Limitations
 
-The Source S3 connector continuously imports data from an Amazon S3 bucket into your database. It monitors your S3 bucket for new files matching a specified pattern and automatically imports them into your designated database table.
+- **File naming**:
+  Files must follow lexicographical ordering conventions. Files with names that sort earlier than already-processed files are permanently skipped. Example: if `file_2024_01_15.csv` has been processed, a file named `file_2024_01_10.csv` added later will never be synced.
+  Recommended naming patterns: timestamps (for example, `YYYY-MM-DD-HHMMSS`), sequential numbers with fixed padding (for example, `file_00001`, `file_00002`).
 
-<Callout variant="note">
-The connector currently only syncs existing and new files—it does not support updating or deleting records based on updates and deletes from S3 to tables in a Tiger Cloud service. If you have any questions or feedback about the source S3 connector, join us in the [Tiger Data community](https://app.slack.com/client/T4GT3N2JK/C086NU9EZ88).
-</Callout>
+- **CSV**:
+  - Maximum file size: 1 GB
 
-Prerequisites
+    To increase this limit, contact {C.CONTACT_SALES}
+  - Maximum row size: 2 MB
+  - Supported compressed formats:
+    - GZ
+    - ZIP
+  - Advanced settings:
+    - Delimiter: the default character is `,`, you can choose a different delimiter
+    - Skip header: skip the first row if your file has headers
 
-To follow the steps on this page:
+- **Parquet**:
+  - Maximum file size: 1 GB
+  - Maximum row size: 2 MB
 
--   Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled. You need your [connection details](/integrate/find-connection-details).
+- **Sync iteration**:
 
--   Ensure access to a standard Amazon S3 bucket containing your data files. Directory buckets are not supported.
--   Configure access credentials for the S3 bucket. The following credentials are supported:
-    -   [IAM Role](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html#roles-creatingrole-user-console).
-        -   Configure the trust policy. Set the:
-            -   `Principal`: `arn:aws:iam::142548018081:role/timescale-s3-connections`.
-            -   `ExternalID`: set to the [Tiger Cloud project and Tiger Cloud service ID](/integrate/find-connection-details#find-your-project-and-service-id) of the service you are syncing to in the format `<projectId>/<serviceId>`. This is to avoid the [confused deputy problem](https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html).
-        -   Give the following access permissions:
-            -   `s3:GetObject`.
-            -   `s3:ListBucket`.
-    -   [Public anonymous user](https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html#example-bucket-policies-anonymous-user).
+  To prevent system overload, the connector tracks up to 100 files for each sync iteration. Additional checks only fill empty queue slots.
 
-<Callout variant="note">
-This feature is currently not supported for Tiger Cloud on Microsoft Azure.
-</Callout>
+## Synchronize data to your service
 
-Limitations
+To sync data from your S3 bucket to your {C.SERVICE_LONG} using {C.CONSOLE}:
 
--   **File naming**: Files must follow lexicographical ordering conventions. Files with names that sort earlier than already-processed files are permanently skipped. Example: if `file_2024_01_15.csv` has been processed, a file named `file_2024_01_10.csv` added later will never be synced. Recommended naming patterns: timestamps (for example, `YYYY-MM-DD-HHMMSS`), sequential numbers with fixed padding (for example, `file_00001`, `file_00002`).
--   **CSV**:
-    -   Maximum file size: 1 GB To increase this limit, contact sales@tigerdata.com
-    -   Maximum row size: 2 MB
-    -   Supported compressed formats:
-        -   GZ
-        -   ZIP
-    -   Advanced settings:
-        -   Delimiter: the default character is `,`, you can choose a different delimiter
-        -   Skip header: skip the first row if your file has headers
--   **Parquet**:
-    -   Maximum file size: 1 GB
-    -   Maximum row size: 2 MB
--   **Sync iteration**: To prevent system overload, the connector tracks up to 100 files for each sync iteration. Additional checks only fill empty queue slots.
+1. **Connect to your {C.SERVICE_LONG}**
 
-Synchronize data to your service
+   In [{C.CONSOLE}][services-portal], select the {C.SERVICE_SHORT} to sync live data to.
 
-To sync data from your S3 bucket to your Tiger Cloud service using Tiger Console:
+2. **Connect the source S3 bucket to the target {C.SERVICE_SHORT}**
 
-1.  **Connect to your Tiger Cloud service** In [Tiger Console](https://console.cloud.timescale.com/dashboard/services), select the service to sync live data to.
-2.  **Connect the source S3 bucket to the target service** ![Connect Tiger Cloud to S3 bucket](/assets/images/migrate/s3-connector-tiger-console.png)
-    1.  Click `Connectors` > `Amazon S3`.
-    2.  Click the pencil icon, then set the name for the new connector.
-    3.  Set the `Bucket name` and `Authentication method`, then click `Continue`. For instruction on creating the IAM role to connect your S3 bucket, click `Learn how`. Tiger Console connects to the source bucket.
-    4.  In `Define files to sync`, choose the `File type` and set the `Glob pattern`. Use the following patterns:
-        
-        -   `<folder name>/*`: match all files in a folder. Also, any pattern ending with `/` is treated as `/*`.
-        -   `<folder name>/**`: match all recursively.
-        -   `<folder name>/**/*.csv`: match a specific file type.
-        
-        The source S3 connector uses prefix filters where possible, place patterns carefully at the end of your glob expression. AWS S3 doesn’t support complex filtering. If your expression filters too many files, the list operation may time out.
-    5.  Click the search icon. You see the files to sync. Click `Continue`.
-3.  **Optimize the data to synchronize in hypertables** ![S3 connector table selection](/assets/images/migrate/tiger-console-s3-connector-create-tables.png) Tiger Console checks the file schema and, if possible, suggests the column to use as the time dimension in a [hypertable](/open-source/timescaledb/hypertables).
-    1.  Choose `Create a new table for your data` or `Ingest data to an existing table`.
-    2.  Choose the `Data type` for each column, then click `Continue`.
-    3.  Configure the insert behavior when there is a conflict, then click `Continue`.
-    4.  Choose the polling interval. This can be a minute, an hour, or a [cron expression](https://en.wikipedia.org/wiki/Cron#Cron_expression).
-    5.  Click `Start Connector`. Tiger Console starts the connection between the source database and the target service and displays the progress.
-4.  **Monitor synchronization** The Source S3 connector provides comprehensive observability that gives you maximum visibility on connector performance. This includes summarized insights into connector state, quick actions, filtering and search to easily find specific files, and detailed lifecycle tracking as each file is imported.
-    1.  To view the amount of data replicated, click `Connectors`. The diagram in `CONNECTOR DATA FLOW` shows the connectors you have created, their status, and how much data has been replicated. ![Tiger Cloud connectors overview](/assets/images/migrate/tiger-console-connector-overview.png)
-    2.  To view file import statistics and logs, click `Connectors` > `Source connectors`, then select the name of your connector in the table. ![S3 connector stats](/assets/images/migrate/tiger-console-s3-connector-import-details.png) The connector dashboard displays all imports at a glance. Use this page to:
-        -   **Search by file name**: find specific files from the list of imports
-        -   **Filter by status**: filter files based on their current status:
-            -   `All statuses`: all files
-            -   `Cancelled`: files where import is aborted
-            -   `Failure`: files where an error occurred during import
-            -   `In Queue`: files that are awaiting processing
-            -   `Paused`: files where processing is on hold
-            -   `Pending Retry`: files that are re-queued for processing
-            -   `Running`: files currently being imported
-            -   `Success`: files that have been imported
-        -   **Bulk retry**: retry importing all files with the `Error` status
-        -   **Lifecycle history**: view detailed information for all imports, and time spent in each status
-        -   **Refresh every minute**: enable auto-refresh
-5.  **Manage the connector**
-    1.  To pause the connector, click `Connectors` > `Source connectors`. Open the three-dot menu next to your connector in the table, then click `Pause`. ![Pause S3 connector](/assets/images/migrate/tiger-console-s3-connector-pause.png)
-    2.  To edit the connector, click `Connectors` > `Source connectors`. Open the three-dot menu next to your connector in the table, then click `Edit`. Select `Connector settings`. You must pause the connector before editing it. ![S3 connector change config](/assets/images/migrate/tiger-console-s3-connector-edit.png)
-    3.  To pause or delete the connector, click `Connectors` > `Source connectors`, then open the three-dot menu on the right and select an option. You must pause the connector before deleting it.
+   ![Connect CLOUD\_LONG to S3 bucket][connect-cloud_long-to-s3-bucket]
 
-And that is it, you are using the source S3 connector to synchronize all the data, or specific files, from an S3 bucket to your Tiger Cloud service in real time.
+   1. Click `Connectors` > `Amazon S3`.
+
+   2. Click the pencil icon, then set the name for the new connector.
+
+   3. Set the `Bucket name` and `Authentication method`, then click `Continue`.
+
+      For instruction on creating the IAM role to connect your S3 bucket, click `Learn how`. {C.CONSOLE} connects to the source bucket.
+
+   4. In `Define files to sync`, choose the `File type` and set the `Glob pattern`.
+
+      Use the following patterns:
+
+      - `<folder name>/*`: match all files in a folder. Also, any pattern ending with `/` is treated as  `/*`.
+      - `<folder name>/**`: match all recursively.
+      - `<folder name>/**/*.csv`: match a specific file type.
+
+      The {C.S3_CONNECTOR} uses prefix filters where possible, place patterns carefully at the end of your glob expression.
+      AWS S3 doesn't support complex filtering. If your expression filters too many files, the list operation may time out.
+
+   5. Click the search icon. You see the files to sync. Click `Continue`.
+
+3. **Optimize the data to synchronize in hypertables**
+
+   ![S3 connector table selection][s3-connector-table-selection]
+
+   {C.CONSOLE} checks the file schema and, if possible, suggests the column to use as the time dimension in a [{C.HYPERTABLE}][hypertables-section].
+
+   1. Choose `Create a new table for your data` or `Ingest data to an existing table`.
+   2. Choose the `Data type` for each column, then click `Continue`.
+   3. Configure the insert behavior when there is a conflict, then click `Continue`.
+   4. Choose the polling interval. This can be a minute, an hour, or a [cron expression][cron-expression].
+   5. Click `Start Connector`.
+
+      {C.CONSOLE} starts the connection between the source database and the target {C.SERVICE_SHORT} and displays the progress.
+
+4. **Monitor synchronization**
+
+   The {C.S3_CONNECTOR_CAP} provides comprehensive observability that gives you maximum visibility on connector performance.
+   This includes summarized insights into connector state, quick actions, filtering and search to easily find specific files, and detailed lifecycle tracking as each file is imported.
+
+   1. To view the amount of data replicated, click `Connectors`.
+
+      The diagram in `CONNECTOR DATA FLOW` shows the connectors you have created, their status, and how much data has been replicated.
+
+      ![CLOUD\_LONG connectors overview][cloud_long-overview]
+
+   2. To view file import statistics and logs, click `Connectors` > `Source connectors`, then select the name of your connector in the table.
+
+      ![S3 connector stats][s3-connector-stats]
+
+      The connector dashboard displays all imports at a glance. Use this page to:
+
+      - **Search by file name**: find specific files from the list of imports
+      - **Filter by status**: filter files based on their current status:
+        - `All statuses`: all files
+        - `Cancelled`: files where import is aborted
+        - `Failure`: files where an error occurred during import
+        - `In Queue`: files that are awaiting processing
+        - `Paused`: files where processing is on hold
+        - `Pending Retry`: files that are re-queued for processing
+        - `Running`: files currently being imported
+        - `Success`: files that have been imported
+      - **Bulk retry**: retry importing all files with the `Error` status
+      - **Lifecycle history**: view detailed information for all imports, and time spent in each status
+      - **Refresh every minute**: enable auto-refresh
+
+5. **Manage the connector**
+
+   1. To pause the connector, click `Connectors` > `Source connectors`. Open the three-dot menu next to your connector in the table, then click `Pause`.
+
+      ![Edit S3 connector][edit-s3-connector]
+
+   2. To edit the connector, click `Connectors` > `Source connectors`. Open the three-dot menu next to your connector in the table, then click `Edit`. Select `Connector settings`. You must pause the connector before editing it.
+
+      ![S3 connector change config][s3-connector-change-config]
+
+   3. To pause or delete the connector, click `Connectors` > `Source connectors`, then open the three-dot menu on the right and select an option. You must pause the connector before deleting it.
+
+And that is it, you are using the {C.S3_CONNECTOR} to synchronize all the data, or specific files, from an S3 bucket to your {C.SERVICE_LONG} in real time.
+
+[caggs]: /open-source/timescaledb/continuous-aggregates
+
+[cloud_long-connectors-overview]: https://assets.timescale.com/docs/images/tiger-on-azure/tiger-console-connector-overview.png
+
+[cloud_long-overview]: https://assets.timescale.com/docs/images/tiger-on-azure/tiger-console-connector-overview.png
+
+[compression]: /open-source/timescaledb/compression
+
+[connect-cloud_long-to-s3-bucket]: https://assets.timescale.com/docs/images/tiger-on-azure/s3-connector-tiger-console.png
+
+[connection-info]: /integrations/find-connection-details
+
+[create-service]: /getting-started/services
+
+[credentials-iam]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html#roles-creatingrole-user-console
+
+[credentials-public]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html#example-bucket-policies-anonymous-user
+
+[cron-expression]: https://en.wikipedia.org/wiki/Cron#Cron_expression
+
+[deputy-problem]: https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html
+
+[edit-s3-connector]: https://assets.timescale.com/docs/images/tiger-on-azure/tiger-console-s3-connector-pause.png
+
+[get-project-id]: /integrations/find-connection-details#find-your-project-and-service-id
+
+[hypertables-section]: /open-source/timescaledb/hypertables
+
+[join-livesync-on-slack]: https://app.slack.com/client/T4GT3N2JK/C086NU9EZ88
+
+[lex-order]: https://en.wikipedia.org/wiki/Lexicographic_order
+
+[s3-connector-change-config]: https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-console-s3-connector-edit.png
+
+[s3-connector-stats]: https://assets.timescale.com/docs/images/tiger-on-azure/tiger-console-s3-connector-import-details.png
+
+[s3-connector-table-selection]: https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-console-s3-connector-create-tables.png
+
+[services-portal]: https://console.cloud.timescale.com/dashboard/services
+
+[timescaledb-parallel-copy]: https://github.com/timescale/timescaledb-parallel-copy

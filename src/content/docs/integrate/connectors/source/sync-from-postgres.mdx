@@ -1,66 +1,68 @@
 ---
-title: "Source Postgres connector"
-description: "Tiger Cloud connector for syncing from Postgres—protocol, capabilities, and configuration"
-integrationCategory: connectors
-connectorType: tiger-data
-sortOrder: 4
-integrationIndustry: ["manufacturing"]
-integrationCardTitle: "Postgres"
-integrationPlatforms: ["aws", "azure", "self-hosted"]
+title: "Sync data from Postgres"
+description: "Sync updates to your primary Postgres database with Tiger Cloud in real time"
+keywords: ["postgres replication","logical replication","data sync","live migration","cdc","change data capture","real-time sync"]
+sidebar:
+  label: "Postgres"
 ---
 
 import * as C from "@constants";
-import { Callout } from "@stainless-api/docs/components";
 
-<Callout variant="note" title="How-to guide">
-For step-by-step instructions to sync data from Postgres to Tiger Cloud, see [Sync data from Postgres](/migrate/livesync-for-postgresql) in the Migrate section.
-</Callout>
+import { FlaskIcon } from 'lucide-react';
 
-# Source Postgres connector
+import { Tabs, Tab } from '@stainless-api/docs/stainless-docs/mintlify-compat';
 
-The source {C.PG} connector is the connection tool Tiger Cloud uses to synchronize data from a {C.PG} instance to your service. It uses the [{C.PG} logical replication protocol](https://www.postgresql.org/docs/current/logical-replication.html) and the [PUBLICATION](https://www.postgresql.org/docs/current/sql-createpublication.html) interface, so you can add or remove tables on demand and keep the connector compatible with standard {C.PG} tooling and knowledge.
+import LivesyncConsole from "@partials/_livesync-console.mdx";
+import LivesyncTerminal from "@partials/_livesync-terminal.mdx";
 
-## What the connector does
+<FlaskIcon /> Early access
 
-- **Copy existing data** from a {C.PG} instance to a Tiger Cloud service (initial load).
-- **Stream ongoing changes** in real time (logical replication).
-- **Respect PUBLICATION** so you control which tables are replicated by adding or removing them from the publication on the source.
+You use the {C.PG_CONNECTOR} in {C.CLOUD_LONG} to synchronize all data or specific tables from a {C.PG} database instance to your {C.SERVICE_SHORT}, in real time. You run the connector continuously, turning {C.PG} into a primary database with your {C.SERVICE_SHORT} as a logical replica. This enables you to leverage {C.CLOUD_LONG}'s real-time analytics capabilities on your replica data.
 
-The connector is intended for **synchronization** (continuous replication), not one-off migration. For migration workflows and full how-to steps, use [Sync data from Postgres](/migrate/livesync-for-postgresql).
+![CLOUD\_LONG connectors overview][cloud_long-connectors-overview]
 
-## Capabilities
+The {C.PG_CONNECTOR} in {C.CLOUD_LONG} leverages the well-established {C.PG} logical replication protocol. By relying on this protocol, {C.CLOUD_LONG} ensures compatibility, familiarity, and a broader knowledge base—making it easier for you to adopt the connector and integrate your data.
 
-- **Throughput:** Copy at up to ~150 GB/hr. Minimum recommended: 4 CPU / 16 GB on both source and target.
-- **Parallel copy:** Publication tables are copied in parallel; very large tables use a single connection (parallel per-table is planned).
-- **Foreign keys:** Disabled during sync. You can sync a table without syncing its referenced tables; the connector does not validate FKs on the target.
-- **Progress:** {C.PG} exposes copy progress in `pg_stat_progress_copy` so you can monitor initial load.
+You use the {C.PG_CONNECTOR} for data synchronization, rather than migration. This includes:
 
-<Callout variant="note">
-This connector is in early access and not supported for production use. Feedback: [#livesync in the Tiger Data Community](https://app.slack.com/client/T4GT3N2JK/C086NU9EZ88).
-</Callout>
+- Copy existing data from a {C.PG} instance to a {C.SERVICE_LONG}:
+  - Copy data at up to 150 GB/hr.
 
-## Connection and source requirements
+    You need at least a 4 CPU/16 GB source database, and a 4 CPU/16 GB target {C.SERVICE_SHORT}.
+  - Copy the publication tables in parallel.
 
-- **Direct connection:** Use a connection string that reaches the database directly. Do not route through connection poolers (e.g. PgBouncer); the connector needs a direct connection.
-- **Source version:** {C.PG} 13 or later.
-- **Network:** Source must be reachable from the Internet. Connector support for sources behind a firewall or VPC is on the roadmap.
-- **Extensions:** Source and target must have the same extensions installed. The connector does not create extensions on the target. If a table uses extension types, create the extension on the target Tiger Cloud service before syncing that table.
+    Large tables are still copied using a single connection. Parallel copying is in the backlog.
+  - Forget foreign key relationships.
 
-## Tune your source database
+    The connector disables foreign key validation during the sync. For example, if a `metrics` table refers to the `id` column on the `tags` table, you can still sync only the `metrics` table without worrying about their foreign key relationships.
+  - Track progress.
 
-For the connector to work, the source must have logical replication enabled. Set:
+    {C.PG} exposes `COPY` progress under `pg_stat_progress_copy`.
 
-- `wal_level = logical`
-- Sufficient `max_replication_slots` and `max_wal_senders`
+- Synchronize real-time changes from a {C.PG} instance to a {C.SERVICE_LONG}.
 
-The exact connection string and parameters used by the connector (e.g. for the `<pg connector username>`) are shown in Tiger Console when you add a source {C.PG} connector. Use the same connection details and ensure the source user has privileges to use logical replication and the chosen publication.
+- Add and remove tables on demand using the [{C.PG} PUBLICATION interface][create-publication].
 
-## Limitations (reference)
+- Enable features such as [{C.HYPERTABLE}s][hypertables-section], [{C.COLUMNSTORE}][compression], and [{C.CAGG}s][caggs] on your logical replica.
 
-- Indexes, primary key, unique constraints, and sequences are **not** migrated. Create needed indexes on the target for your queries.
-- TimescaleDB as source has limited support (e.g. no continuous aggregates).
-- Schema changes must be coordinated: apply compatible changes on the target first, then on the source.
-- WAL volume on the source increases during large table copy.
-- **Continuous aggregates:** The connector uses `session_replication_role=replica` during copy, so triggers (including continuous aggregate invalidation) do not run. Data synced during initial load below a continuous aggregate’s materialization watermark may not appear in the aggregate until you manually refresh. If the aggregate exists on the source, include it in the connector’s publication; if only on the target, use the `force` option of [refresh_continuous_aggregate](/api-reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate) to refresh affected ranges.
+This {C.PG_CONNECTOR} is not yet supported for production use. If you have any questions or feedback, talk to us in <a href="https://app.slack.com/client/T4GT3N2JK/C086NU9EZ88">#livesync in the {C.COMPANY} Community</a>.
 
-For full setup, prerequisites, and step-by-step sync instructions, see [Sync data from Postgres](/migrate/livesync-for-postgresql).
+<Tabs>
+  <Tab title="Tiger Cloud Console">
+    <LivesyncConsole />
+  </Tab>
+
+  <Tab title="Self-hosted Postgres connector">
+    <LivesyncTerminal />
+  </Tab>
+</Tabs>
+
+[caggs]: /open-source/timescaledb/continuous-aggregates
+
+[cloud_long-connectors-overview]: https://assets.timescale.com/docs/images/tiger-on-azure/tiger-console-connector-overview.png
+
+[compression]: /open-source/timescaledb/compression
+
+[create-publication]: https://www.postgresql.org/docs/current/sql-createpublication.html
+
+[hypertables-section]: /open-source/timescaledb/hypertables

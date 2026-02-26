@@ -1,162 +1,43 @@
 ---
-title: "Start coding with Tiger Data"
-description: "Integrate your app with Tiger Cloud using your preferred programming language"
-integrationCategory: code
-connectorType: external
-sortOrder: 1
-integrationIndustry: ["IoT", "manufacturing"]
-integrationCardTitle: "Start coding"
-integrationPlatforms: ["aws", "azure", "self-hosted"]
+title: Start coding with Tiger Data
+description: Integrate your app with Tiger Cloud using your preferred programming language
+keywords: [developer guide, programming languages, sdk, application development, database client, code examples, api integration]
 ---
 
 import * as C from "@constants";
 
-Easily integrate your app with Tiger Cloud or self-hosted TimescaleDB. Use your favorite programming language to connect to your Tiger Cloud service, create and manage hypertables, then ingest and query data.
+import { Tabs, Tab } from '@stainless-api/docs/stainless-docs/mintlify-compat';
 
-Prerequisites
+import StartCodingRuby from "@partials/_start-coding-ruby.mdx";
+import StartCodingPython from "@partials/_start-coding-python.mdx";
+import StartCodingNode from "@partials/_start-coding-node.mdx";
+import StartCodingGoLang from "@partials/_start-coding-golang.mdx";
+import StartCodingJava from "@partials/_start-coding-java.mdx";
 
-To follow the steps on this page:
+Easily integrate your app with {C.CLOUD_LONG} or {C.SELF_LONG}. Use your favorite programming language to connect to your {C.SERVICE_LONG}, create and manage {C.HYPERTABLE}s, then ingest and query data.
 
--   Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled.
-    
-    You need [your connection details](/integrate/find-connection-details). This procedure also works for [self-hosted TimescaleDB](/deploy/self-hosted/install-and-update/install-self-hosted).
+<Tabs>
+  <Tab title="Ruby">
+    <StartCodingRuby />
+  </Tab>
 
--   Install [Rails](https://guides.rubyonrails.org/install_ruby_on_rails.html#installing-rails).
+  <Tab title="Python">
+    <StartCodingPython />
+  </Tab>
 
-Connect a Rails app to your service
+  <Tab title="Node.js">
+    <StartCodingNode />
+  </Tab>
 
-Every Tiger Cloud service is a 100% {C.PG} database hosted in Tiger Cloud with Tiger Data extensions such as TimescaleDB. You connect to your Tiger Cloud service from a standard Rails app configured for {C.PG}.
+  <Tab title="Go">
+    <StartCodingGoLang />
+  </Tab>
 
-1.  **Create a new Rails app configured for {C.PG}** Rails creates and bundles your app, then installs the standard {C.PG} Gems.
-2.  **Install the TimescaleDB gem**
-    1.  Open `Gemfile`, add the following line, then save your changes:
-    2.  In Terminal, run the following command:
-3.  **Connect your app to your Tiger Cloud service**
-    1.  In `<my_app_home>/config/database.yml` update the configuration to read securely connect to your Tiger Cloud service by adding `url: <%= ENV['DATABASE_URL'] %>` to the default configuration:
-    2.  Set the environment variable for `DATABASE_URL` to the value of `Service URL` from your [connection details](/integrate/find-connection-details)
-    3.  Create the database:
-        -   **Tiger Cloud**: nothing to do. The database is part of your Tiger Cloud service.
-        -   **Self-hosted TimescaleDB**, create the database for the project:
-    4.  Run migrations:
-    5.  Verify the connection from your app to your Tiger Cloud service: The result shows the list of extensions in your Tiger Cloud service
-        
-        Name
-        
-        Version
-        
-        Schema
-        
-        Description
-        
-        pg\_buffercache
-        
-        1.5
-        
-        public
-        
-        examine the shared buffer cache
-        
-        pg\_stat\_statements
-        
-        1.11
-        
-        public
-        
-        track planning and execution statistics of all SQL statements executed
-        
-        plpgsql
-        
-        1.0
-        
-        pg\_catalog
-        
-        PL/pgSQL procedural language
-        
-        postgres\_fdw
-        
-        1.1
-        
-        public
-        
-        foreign-data wrapper for remote {C.PG} servers
-        
-        timescaledb
-        
-        2.24.0
-        
-        public
-        
-        Enables scalable inserts and complex queries for time-series data (Community Edition)
-        
-        timescaledb\_toolkit
-        
-        1.22.0
-        
-        public
-        
-        Library of analytical hyperfunctions, time-series pipelining, and other SQL utilities
-        
+  <Tab title="Java">
+    <StartCodingJava />
+  </Tab>
+</Tabs>
 
-Optimize time-series data in hypertables
+You are not limited to these languages. {C.CLOUD_LONG} is based on {C.PG}, you can interface with {C.TIMESCALE_DB} and {C.CLOUD_LONG} using any [{C.PG} client driver][postgres-drivers].
 
-Hypertables are {C.PG} tables designed to simplify and accelerate data analysis. Anything you can do with regular {C.PG} tables, you can do with hypertables - but much faster and more conveniently.In this section, you use the helpers in the TimescaleDB gem to create and manage a [hypertable](/open-source/timescaledb/hypertables).
-
-1.  **Generate a migration to create the page loads table** This creates the `<my_app_home>/db/migrate/<migration-datetime>_create_page_loads.rb` migration file.
-2.  **Add hypertable options** Replace the contents of `<my_app_home>/db/migrate/<migration-datetime>_create_page_loads.rb` with the following: The `id` column is not included in the table. This is because TimescaleDB requires that any `UNIQUE` or `PRIMARY KEY` indexes on the table include all partitioning columns. In this case, this is the time column. A new Rails model includes a `PRIMARY KEY` index for id by default: either remove the column or make sure that the index includes time as part of a “composite key.” For more information, check the Ruby docs around [composite primary keys](https://guides.rubyonrails.org/active_record_composite_primary_keys.html).
-3.  **Create a `PageLoad` model** Create a new file called `<my_app_home>/app/models/page_load.rb` and add the following code:
-4.  **Run the migration**
-
-Insert data your service
-
-The TimescaleDB gem provides efficient ways to insert data into hypertables. This section shows you how to ingest test data into your hypertable.
-
-1.  **Create a controller to handle page loads** Create a new file called `<my_app_home>/app/controllers/application_controller.rb` and add the following code:
-2.  **Generate some test data** Use `bin/console` to join a Rails console session and run the following code to define some random page load access data:
-3.  **Insert the generated data into your Tiger Cloud service**
-4.  **Validate the test data in your Tiger Cloud service**
-
-Reference
-
-This section lists the most common tasks you might perform with the TimescaleDB gem.
-
-Query scopes
-
-The TimescaleDB gem provides several convenient scopes for querying your time-series data.
-
--   Built-in time-based scopes:
--   Browser-specific scopes:
--   Query continuous aggregates: This query fetches the average and standard deviation from the performance stats for the `/products` path over the last day.
-
-TimescaleDB features
-
-The TimescaleDB gem provides utility methods to access hypertable and chunk information. Every model that uses the `acts_as_hypertable` method has access to these methods.
-
-Access hypertable and chunk information
-
--   View chunk or hypertable information:
--   Compress/Decompress chunks:
-
-Access hypertable stats
-
-You collect hypertable stats using methods that provide insights into your hypertable‘s structure, size, and compression status:
-
--   Get basic hypertable information:
--   Get detailed size information:
-
-Continuous aggregates
-
-The `continuous_aggregates` method generates a class for each continuous aggregate.
-
--   Get all the continuous aggregate classes:
--   Manually refresh a continuous aggregate:
--   Create or drop a continuous aggregate: Create or drop all the continuous aggregates in the proper order to build them hierarchically. See more about how it works in this [blog post](https://www.tigerdata.com/blog/building-a-better-ruby-orm-for-time-series-and-analytics).
-
-Next steps
-
-Now that you have integrated the ruby gem into your app:
-
--   Learn more about the [TimescaleDB gem](https://github.com/timescale/timescaledb-ruby).
--   Check out the [official docs](https://timescale.github.io/timescaledb-ruby/).
--   Follow the [LTTB](https://timescale.github.io/timescaledb-ruby/toolkit_lttb_tutorial/), [Open AI long-term storage](https://timescale.github.io/timescaledb-ruby/chat_gpt_tutorial/), and [candlesticks](https://timescale.github.io/timescaledb-ruby/toolkit_candlestick/) tutorials.
-
-You are not limited to these languages. Tiger Cloud is based on {C.PG}, you can interface with TimescaleDB and Tiger Cloud using any [{C.PG} client driver](https://wiki.postgresql.org/wiki/List_of_drivers).
+[postgres-drivers]: https://wiki.postgresql.org/wiki/List_of_drivers
