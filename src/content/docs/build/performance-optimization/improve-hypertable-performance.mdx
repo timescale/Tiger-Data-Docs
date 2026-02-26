@@ -1,0 +1,166 @@
+---
+title: Improve hypertable and query performance
+description: Use chunk skipping to optimize hypertable performance and make sure your analytical queries are as fast as they can be
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+import ChunkInterval from "../../../../partials/_chunk-interval.mdx";
+import EarlyAccess2171 from "../../../../partials/_early_access_2_17_1.mdx";
+
+{C.HYPERTABLE_CAP}s are {C.PG} tables that help you improve insert and query performance by automatically partitioning
+your data by time. Each {C.HYPERTABLE} is made up of child tables called {C.CHUNK}s. Each {C.CHUNK} is assigned a range of time,
+and only contains data from that range. When you run a query, {C.TIMESCALE_DB} identifies the correct {C.CHUNK} and runs
+the query on it, instead of going through the entire table. This page shows you how to tune {C.HYPERTABLE}s to increase
+performance even more.
+
+- [Optimize {C.HYPERTABLE} {C.CHUNK} intervals](#optimize-hypertable-chunk-intervals): choose the optimum {C.CHUNK} size for your data
+- [Enable {C.CHUNK_SKIPPING}](#enable-chunk-skipping): skip {C.CHUNK}s on non-partitioning columns in {C.HYPERTABLE}s when you query your data
+- [Analyze your {C.HYPERTABLE}s](#analyze-your-hypertables): use {C.PG} `ANALYZE` to create the best query plan
+
+## Optimize {C.HYPERTABLE} {C.CHUNK} intervals
+
+Adjusting your {C.HYPERTABLE} {C.CHUNK} interval can improve performance in your database.
+
+<NumberedList>
+
+  <NumberedItem title={`Choose an optimum ${C.CHUNK} interval`}>
+
+    <ChunkInterval />
+
+    In the following example you create a table called `conditions` that stores time values in the
+    `time` column and has {C.CHUNK}s that store data for a `chunk_interval` of one day:
+
+    ```sql
+    CREATE TABLE conditions (
+       time        TIMESTAMPTZ       NOT NULL,
+       location    TEXT              NOT NULL,
+       device      TEXT              NOT NULL,
+       temperature DOUBLE PRECISION  NULL,
+       humidity    DOUBLE PRECISION  NULL
+    ) WITH (
+       tsdb.hypertable,
+       tsdb.chunk_interval='1 day'
+    );
+    ```
+
+  </NumberedItem>
+
+  <NumberedItem title={`Check current setting for ${C.CHUNK} intervals`}>
+
+    Query the {C.TIMESCALE_DB} catalog for a {C.HYPERTABLE}. For example:
+
+    ```sql
+    SELECT *
+      FROM timescaledb_information.dimensions
+      WHERE hypertable_name = 'conditions';
+    ```
+
+    The result looks like:
+
+    ```sql
+    hypertable_schema | hypertable_name | dimension_number | column_name |       column_type        | dimension_type | time_interval | integer_interval | integer_now_func | num_partitions
+    -------------------+-----------------+------------------+-------------+--------------------------+----------------+---------------+------------------+------------------+----------------
+     public           | metrics          |                1 | recorded    | timestamp with time zone | Time           | 1 day         |                  |                  |
+    ```
+
+    Time-based interval lengths are reported in microseconds.
+
+  </NumberedItem>
+
+  <NumberedItem title={`Change the ${C.CHUNK} interval length on an existing ${C.HYPERTABLE}`}>
+
+    To change the {C.CHUNK} interval on an already existing {C.HYPERTABLE}, call
+    [`set_chunk_time_interval()`](/api-reference/timescaledb/hypertables/set_chunk_time_interval).
+
+    ```sql
+    SELECT set_chunk_time_interval('conditions', INTERVAL '24 hours');
+    ```
+
+    The updated {C.CHUNK} interval only applies to new {C.CHUNK}s. This means setting an overly long
+    interval might take a long time to correct. For example, if you set
+    `chunk_interval` to 1 year and start inserting data, you can no longer
+    shorten the {C.CHUNK} for that year. If you need to correct this situation, create a
+    new {C.HYPERTABLE} and migrate your data.
+
+    While {C.CHUNK} turnover does not degrade performance, {C.CHUNK} creation
+    does take longer lock time than a normal `INSERT` operation into a {C.CHUNK} that has
+    already been created. This means that if multiple {C.CHUNK}s are being created at
+    the same time, the transactions block each other until the first transaction is
+    completed.
+
+  </NumberedItem>
+
+</NumberedList>
+
+If you use expensive index types, such as some PostGIS geospatial indexes, take
+care to check the total size of the {C.CHUNK} and its index using
+[`chunks_detailed_size()`](/api-reference/timescaledb/hypertables/chunks_detailed_size).
+
+## Enable {C.CHUNK_SKIPPING}
+
+<EarlyAccess2171 />
+
+One of the key purposes of {C.HYPERTABLE}s is to make your analytical queries run with the lowest latency possible.
+When you execute a query on a {C.HYPERTABLE}, you do not parse the whole table; you only access the {C.CHUNK}s necessary
+to satisfy the query. This works well when the `WHERE` clause of a query uses the column by which a {C.HYPERTABLE} is
+partitioned. For example, in a {C.HYPERTABLE} where every day of the year is a separate {C.CHUNK}, a query for September 1
+accesses only the {C.CHUNK} for that day.
+
+However, many queries use columns other than the partitioning one. For example, a satellite company might have a
+table with two columns: one for when data was gathered by a satellite and one for when it was added to the database.
+If you partition by the date of gathering, a query by the date of adding accesses all {C.CHUNK}s in the {C.HYPERTABLE} and
+slows the performance.
+
+To improve query performance, {C.TIMESCALE_DB} enables you to skip {C.CHUNK}s on non-partitioning columns in {C.HYPERTABLE}s.
+
+<Callout variant="warning">
+{C.CHUNK_SKIPPING_CAP} only works on {C.CHUNK}s converted to the {C.COLUMNSTORE} **after** you `enable_chunk_skipping`.
+</Callout>
+
+### How {C.CHUNK_SKIPPING} works
+
+You enable {C.CHUNK_SKIPPING} on a column in a {C.HYPERTABLE}. {C.TIMESCALE_DB} tracks the minimum and maximum values for that
+column in each {C.CHUNK}. These ranges are stored in the start (inclusive) and end (exclusive) format in the `chunk_column_stats`
+catalog table. {C.TIMESCALE_DB} uses these ranges for dynamic {C.CHUNK} exclusion when the `WHERE` clause of an SQL query
+specifies ranges on the column.
+
+![Chunk skipping](https://assets.timescale.com/docs/images/hypertable-with-chunk-skipping.png)
+
+You can enable {C.CHUNK_SKIPPING} on {C.HYPERTABLE}s compressed into the {C.COLUMNSTORE} for `smallint`, `int`, `bigint`, `serial`,
+`bigserial`, `date`, `timestamp`, or `timestamptz` type columns.
+
+### When to enable {C.CHUNK_SKIPPING}
+
+You can enable {C.CHUNK_SKIPPING} on as many columns as you need. However, best practice is to enable it on columns that
+are both:
+
+- Correlated, that is, related to the partitioning column in some way.
+- Referenced in the `WHERE` clauses of the queries.
+
+In the satellite example, the time of adding data to a database inevitably follows the time of gathering.
+Sequential IDs and the creation timestamp for both entities also increase synchronously. This means those two
+columns are correlated.
+
+For a more in-depth look on {C.CHUNK_SKIPPING}, see [our blog post](https://www.tigerdata.com/blog/boost-postgres-performance-by-7x-with-chunk-skipping-indexes).
+
+### Enable {C.CHUNK_SKIPPING}
+
+To enable {C.CHUNK_SKIPPING} on a column, call [`enable_chunk_skipping()`](/api-reference/timescaledb/hypertables/enable_chunk_skipping)
+on a {C.HYPERTABLE} for a `column_name`. For example, the following query enables {C.CHUNK_SKIPPING} on the `order_id` column
+in the `orders` table:
+
+```sql
+SELECT enable_chunk_skipping('orders', 'order_id');
+```
+
+For more details on how to implement {C.CHUNK_SKIPPING}, see the [API reference](/api-reference/timescaledb/hypertables/enable_chunk_skipping).
+
+## Analyze your {C.HYPERTABLE}s
+
+You can use the {C.PG} `ANALYZE` command to query all {C.CHUNK}s in your
+{C.HYPERTABLE}. The statistics collected by the `ANALYZE` command are used by the
+{C.PG} planner to create the best query plan. For more information about the
+`ANALYZE` command, see the [{C.PG} documentation](https://www.postgresql.org/docs/current/sql-analyze.html).
