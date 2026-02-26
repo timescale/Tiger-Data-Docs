@@ -66,7 +66,6 @@ const PROPER_NOUN_PHRASES = [
   "Azure AI",
   "Azure Marketplace",
   "TimescaleDB Toolkit",
-  "Timescale Cloud",
   "Datadog Agent",
   "Early Access",
   "Public Beta",
