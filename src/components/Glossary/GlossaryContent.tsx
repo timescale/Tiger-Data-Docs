@@ -4,6 +4,7 @@ import { GlossaryHeader } from "./GlossaryHeader";
 import { AlphabetNav } from "./AlphabetNav";
 import { CategoryFilter } from "./CategoryFilter";
 import { GlossaryLetterSection } from "./GlossaryLetterSection";
+import { GlossaryToc } from "./GlossaryToc";
 
 export function GlossaryContent() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -49,8 +50,14 @@ export function GlossaryContent() {
     setActiveLetter(null);
   }, []);
 
+  const sortedForToc = useMemo(
+    () => [...filteredTerms].sort((a, b) => a.term.localeCompare(b.term, undefined, { sensitivity: "base" })),
+    [filteredTerms]
+  );
+
   return (
     <div className="glossary-root">
+      <GlossaryToc terms={sortedForToc} />
       <GlossaryHeader
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}

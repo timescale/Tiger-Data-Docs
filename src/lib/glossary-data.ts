@@ -290,3 +290,14 @@ export const glossaryTerms: GlossaryTerm[] = [
 ];
 
 export const categories = ["Tiger Data"];
+
+/** URL-safe id for a term (for anchor links and "On this page" TOC). */
+export function slug(term: string): string {
+  return term
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[()]/g, "")
+    .replace(/[/,]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { GlossaryTerm } from "../../lib/glossary-data";
+import { slug } from "../../lib/glossary-data";
 
 interface GlossaryTermCardProps {
   term: GlossaryTerm;
@@ -28,7 +29,7 @@ function highlightText(text: string, query: string): ReactNode {
 
 export function GlossaryTermCard({ term, highlight }: GlossaryTermCardProps) {
   return (
-    <div className="glossary-term-card">
+    <div id={slug(term.term)} className="glossary-term-card">
       <div className="glossary-term-card__header">
         <h3 className="glossary-term-card__term">
           {highlight ? highlightText(term.term, highlight) : term.term}
