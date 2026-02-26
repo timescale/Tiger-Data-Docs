@@ -91,6 +91,10 @@ export default defineConfig({
               collapsed: true,
               autogenerate: { directory: "learn/production-patterns" },
             },
+            {
+              label: "Glossary",
+              link: "/learn/glossary",
+            },
           ],
         },
         // Build tab
