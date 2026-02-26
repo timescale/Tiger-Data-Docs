@@ -91,6 +91,23 @@ export default defineConfig({
               collapsed: true,
               autogenerate: { directory: "learn/production-patterns" },
             },
+            {
+              label: "Glossary",
+              collapsed: false,
+              items: [
+                { label: "All", link: "/learn/glossary" },
+                { label: "TimescaleDB", link: "/learn/glossary?category=TimescaleDB" },
+                { label: "Storage", link: "/learn/glossary?category=Storage" },
+                { label: "Time-series", link: "/learn/glossary?category=Time-series" },
+                { label: "Cloud", link: "/learn/glossary?category=Cloud" },
+                { label: "Security", link: "/learn/glossary?category=Security" },
+                { label: "Operations", link: "/learn/glossary?category=Operations" },
+                { label: "Observability", link: "/learn/glossary?category=Observability" },
+                { label: "AI & vectors", link: "/learn/glossary?category=AI%20%26%20vectors" },
+                { label: "PostgreSQL", link: "/learn/glossary?category=PostgreSQL" },
+                { label: "Data & migration", link: "/learn/glossary?category=Data%20%26%20migration" },
+              ],
+            },
           ],
         },
         // Build tab
