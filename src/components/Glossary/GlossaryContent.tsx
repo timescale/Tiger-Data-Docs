@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { glossaryTerms, categories } from "../../lib/glossary-data";
 import { GlossaryHeader } from "./GlossaryHeader";
 import { AlphabetNav } from "./AlphabetNav";
@@ -6,10 +6,40 @@ import { CategoryFilter } from "./CategoryFilter";
 import { GlossaryLetterSection } from "./GlossaryLetterSection";
 import { GlossaryTocPortal } from "./GlossaryTocPortal";
 
+function getCategoryFromUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const category = params.get("category");
+  if (!category) return null;
+  const decoded = decodeURIComponent(category);
+  return categories.includes(decoded) ? decoded : null;
+}
+
 export function GlossaryContent() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(() =>
+    getCategoryFromUrl()
+  );
   const [activeLetter, setActiveLetter] = useState<string | null>(null);
+
+  // Sync active category from URL on mount (e.g. when opening a sidebar category link).
+  useEffect(() => {
+    const category = getCategoryFromUrl();
+    setActiveCategory(category);
+  }, []);
+
+  // Update URL when category filter changes so sidebar links and shared URLs stay in sync.
+  const handleCategoryChange = useCallback((category: string | null) => {
+    setActiveCategory(category);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (category) {
+      url.searchParams.set("category", category);
+    } else {
+      url.searchParams.delete("category");
+    }
+    window.history.replaceState({}, "", url.pathname + url.search);
+  }, []);
 
   const filteredTerms = useMemo(() => {
     return glossaryTerms.filter((term) => {
@@ -75,7 +105,7 @@ export function GlossaryContent() {
             <CategoryFilter
               categories={categories}
               activeCategory={activeCategory}
-              onCategoryChange={setActiveCategory}
+              onCategoryChange={handleCategoryChange}
             />
           </div>
           {groupedTerms.length > 0 ? (
