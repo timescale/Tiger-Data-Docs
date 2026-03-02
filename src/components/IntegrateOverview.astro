@@ -1,0 +1,284 @@
+---
+/**
+ * Integrate overview: dropdown to switch between four card views.
+ * - By category: 8 category cards (static)
+ * - By industry: integrations grouped by integrationIndustry frontmatter
+ * - Tiger Data connectors: connectorType === 'tiger-data'
+ * - External integrations and tools: connectorType === 'external'
+ *
+ * Relies on frontmatter on each integration page: integrationIndustry[], connectorType, sortOrder.
+ */
+import { getEntry } from "astro:content";
+import { LinkCard, CardGrid } from "@astrojs/starlight/components";
+
+// Glob only to get list of integration doc paths; we use getEntry for frontmatter.
+const pathMap = import.meta.glob("../content/docs/integrate/**/*.mdx");
+const indexSlug = "integrate/index";
+const findConnectionSlug = "integrate/find-connection-details";
+
+function pathToSlug(filePath: string): string {
+  // Paths from glob vary (e.g. ../content/docs/integrate/... or integrate/...); extract integrate/... and drop .mdx
+  const normalized = filePath.replace(/\\/g, "/");
+  const i = normalized.indexOf("integrate/");
+  if (i === -1) return "";
+  return normalized.slice(i).replace(/\.mdx$/, "");
+}
+
+const allSlugs = Object.keys(pathMap)
+  .map(pathToSlug)
+  .filter(Boolean)
+  .filter(
+    (slug) =>
+      slug !== indexSlug &&
+      slug !== findConnectionSlug &&
+      !slug.endsWith("/index")
+  );
+
+type DocData = {
+  title: string;
+  description?: string;
+  integrationCategory?: string;
+  integrationIndustry?: string[];
+  connectorType?: "tiger-data" | "external";
+  sortOrder?: number;
+};
+
+const entries: { slug: string; data: DocData }[] = [];
+for (const slug of allSlugs) {
+  try {
+    const entry = await getEntry("docs", slug);
+    if (entry && "data" in entry && entry.data) {
+      const d = entry.data as DocData;
+      entries.push({
+        slug,
+        data: {
+          title: d.title ?? slug.split("/").pop() ?? "Integration",
+          description: d.description,
+          integrationCategory: d.integrationCategory,
+          integrationIndustry: d.integrationIndustry,
+          connectorType: d.connectorType,
+          sortOrder: d.sortOrder,
+        },
+      });
+    }
+  } catch {
+    // Skip entries that don't exist or fail
+  }
+}
+
+const byCategory = [
+  {
+    title: "Data Engineering & ETL",
+    description: "ETL tools and data pipelines",
+    href: "/integrate/data-engineering-etl",
+  },
+  {
+    title: "BI & Visualization",
+    description: "Dashboards and reporting tools",
+    href: "/integrate/bi-vizualization",
+  },
+  {
+    title: "Data Ingestion & Streaming",
+    description: "Real-time data streaming",
+    href: "/integrate/data-ingestion-streaming",
+  },
+  {
+    title: "Connectors",
+    description: "Source and destination connectors",
+    href: "/integrate/connectors",
+  },
+  {
+    title: "Query & Administration",
+    description: "Database management tools",
+    href: "/integrate/query-administration",
+  },
+  {
+    title: "Secure Connectivity",
+    description: "VPNs, tunnels, and secure access",
+    href: "/integrate/secure-connectivity",
+  },
+  {
+    title: "Observability & Alerting",
+    description: "Monitoring and alerting tools",
+    href: "/integrate/observability-alerting",
+  },
+  {
+    title: "Configuration & Deployment",
+    description: "IaC and deployment tools",
+    href: "/integrate/configuration-deployment",
+  },
+];
+
+const tigerData = entries
+  .filter((e) => e.data.connectorType === "tiger-data")
+  .sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99));
+
+const external = entries
+  .filter((e) => e.data.connectorType === "external")
+  .sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99));
+
+// Group by industry; industry name -> entries
+const industryGroups: Record<string, { slug: string; data: DocData }[]> = {};
+for (const entry of entries) {
+  const industries = entry.data.integrationIndustry ?? [];
+  for (const ind of industries) {
+    const key = ind.trim();
+    if (!key) continue;
+    if (!industryGroups[key]) industryGroups[key] = [];
+    industryGroups[key].push(entry);
+  }
+}
+// Sort industries by name; sort entries within each by sortOrder
+const industryOrder = Object.keys(industryGroups).sort();
+for (const key of industryOrder) {
+  industryGroups[key].sort(
+    (a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99)
+  );
+}
+
+function slugToHref(slug: string): string {
+  return "/" + slug + "/";
+}
+---
+
+<div class="integrate-overview">
+  <div class="integrate-overview-controls">
+    <label for="integrate-view-select" class="integrate-overview-label">View integrations</label>
+    <select id="integrate-view-select" class="integrate-overview-select" aria-label="Choose how to view integrations">
+      <option value="category">By category</option>
+      <option value="industry">By industry</option>
+      <option value="tiger-data">Tiger Data connectors</option>
+      <option value="external">External integrations and tools</option>
+    </select>
+  </div>
+
+  <div id="integrate-view-category" class="integrate-view" data-view="category">
+    <CardGrid>
+      {
+        byCategory.map((card) => (
+          <LinkCard
+            title={card.title}
+            description={card.description}
+            href={card.href}
+          />
+        ))
+      }
+    </CardGrid>
+  </div>
+
+  <div id="integrate-view-industry" class="integrate-view" data-view="industry" hidden>
+    {
+      industryOrder.length > 0 ? (
+        industryOrder.map((industry) => (
+          <section class="integrate-industry-section">
+            <h3 class="integrate-industry-heading">{industry}</h3>
+            <CardGrid>
+              {
+                industryGroups[industry].map(({ slug, data }) => (
+                  <LinkCard
+                    title={data.title}
+                    description={data.description ?? ""}
+                    href={slugToHref(slug)}
+                  />
+                ))
+              }
+            </CardGrid>
+          </section>
+        ))
+      ) : (
+        <p class="integrate-empty">No integrations tagged by industry yet. Add <code>integrationIndustry</code> in frontmatter to show them here.</p>
+      )
+    }
+  </div>
+
+  <div id="integrate-view-tiger-data" class="integrate-view" data-view="tiger-data" hidden>
+    {
+      tigerData.length > 0 ? (
+        <CardGrid>
+          {
+            tigerData.map(({ slug, data }) => (
+              <LinkCard
+                title={data.title}
+                description={data.description ?? ""}
+                href={slugToHref(slug)}
+              />
+            ))
+          }
+        </CardGrid>
+      ) : (
+        <p class="integrate-empty">No Tiger Data connectors yet. Set <code>connectorType: "tiger-data"</code> in frontmatter.</p>
+      )
+    }
+  </div>
+
+  <div id="integrate-view-external" class="integrate-view" data-view="external" hidden>
+    {
+      external.length > 0 ? (
+        <CardGrid>
+          {
+            external.map(({ slug, data }) => (
+              <LinkCard
+                title={data.title}
+                description={data.description ?? ""}
+                href={slugToHref(slug)}
+              />
+            ))
+          }
+        </CardGrid>
+      ) : (
+        <p class="integrate-empty">No external integrations yet. Set <code>connectorType: "external"</code> in frontmatter.</p>
+      )
+    }
+  </div>
+</div>
+
+<script>
+  const select = document.getElementById("integrate-view-select") as HTMLSelectElement;
+  const views = document.querySelectorAll<HTMLElement>("[data-view]");
+  if (select && views.length) {
+    function showView(value: string) {
+      views.forEach((el) => {
+        el.hidden = el.getAttribute("data-view") !== value;
+      });
+    }
+    showView(select.value);
+    select.addEventListener("change", () => showView(select.value));
+  }
+</script>
+
+<style>
+  .integrate-overview {
+    margin: 1.5rem 0;
+  }
+  .integrate-overview-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+  .integrate-overview-label {
+    font-weight: 500;
+    color: var(--sl-color-text);
+  }
+  .integrate-overview-select {
+    font: inherit;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--sl-color-hairline);
+    background: var(--sl-color-background);
+    color: var(--sl-color-text);
+    cursor: pointer;
+  }
+  .integrate-industry-section {
+    margin-bottom: 1.5rem;
+  }
+  .integrate-industry-heading {
+    font-size: var(--sl-text-h4);
+    margin-bottom: 0.75rem;
+    color: var(--sl-color-text);
+  }
+  .integrate-empty {
+    color: var(--sl-color-text);
+    font-style: italic;
+  }
+</style>
