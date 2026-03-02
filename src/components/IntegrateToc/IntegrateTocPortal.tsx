@@ -82,7 +82,7 @@ export function IntegrateTocPortal() {
   }, []);
 
   const tocContent = (
-    <div className="glossary-page-toc-wrapper">
+    <div className="glossary-page-toc-wrapper integrate-toc-wrapper">
       <IntegrateToc currentView={currentView} industryOrder={industryOrder} />
     </div>
   );
