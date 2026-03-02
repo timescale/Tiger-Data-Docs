@@ -58,6 +58,10 @@ export default defineConfig({
           sidebar: [
             "get-started", // Welcome/index page
             {
+              label: "Feature comparison",
+              link: "/get-started/feature-comparison",
+            },
+            {
               label: "Quickstart",
               autogenerate: { directory: "get-started" },
             },
