@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { IntegrateToc, getViewFromHash, type IntegrateView } from "./IntegrateToc";
 
@@ -29,20 +29,20 @@ function getIndustryOrder(): string[] {
 }
 
 /**
- * Portals the integrate "On this page" TOC into the right sidebar.
- * Replaces the default Starlight TOC with a dynamic TOC that shows the current
- * view (by category, by industry, Tiger Data connectors, external) and
- * subcategories when applicable.
+ * Portals the integrate "On this page" TOC into the right sidebar when it exists.
+ * If the right sidebar is not in the DOM (e.g. layout hides it on this page),
+ * renders the TOC inline so it still appears.
  */
 export function IntegrateTocPortal() {
   const [target, setTarget] = useState<HTMLElement | null>(null);
+  const [useFallback, setUseFallback] = useState(false);
   const [currentView, setCurrentView] = useState<IntegrateView>(() => getViewFromHash());
   const [industryOrder, setIndustryOrder] = useState<string[]>([]);
-  const clearedRef = useRef(false);
 
   useEffect(() => {
     const el = findRightSidebar();
     if (el) {
+      el.innerHTML = "";
       setTarget(el);
       setIndustryOrder(getIndustryOrder());
       return () => setTarget(null);
@@ -50,6 +50,7 @@ export function IntegrateTocPortal() {
     const observer = new MutationObserver(() => {
       const found = findRightSidebar();
       if (found) {
+        found.innerHTML = "";
         setTarget(found);
         setIndustryOrder(getIndustryOrder());
         observer.disconnect();
@@ -58,9 +59,16 @@ export function IntegrateTocPortal() {
     observer.observe(document.body, { childList: true, subtree: true });
     const t = setTimeout(() => {
       observer.disconnect();
-      setTarget(findRightSidebar());
-      setIndustryOrder(getIndustryOrder());
-    }, 500);
+      const found = findRightSidebar();
+      if (found) {
+        found.innerHTML = "";
+        setTarget(found);
+        setIndustryOrder(getIndustryOrder());
+      } else {
+        setUseFallback(true);
+        setIndustryOrder(getIndustryOrder());
+      }
+    }, 800);
     return () => {
       observer.disconnect();
       clearTimeout(t);
@@ -73,20 +81,23 @@ export function IntegrateTocPortal() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  // Replace default Starlight TOC with our content (clear once)
-  useEffect(() => {
-    if (target && !clearedRef.current) {
-      target.innerHTML = "";
-      clearedRef.current = true;
-    }
-  }, [target]);
-
-  if (!target) return null;
-
-  return createPortal(
+  const tocContent = (
     <div className="glossary-page-toc-wrapper">
       <IntegrateToc currentView={currentView} industryOrder={industryOrder} />
-    </div>,
-    target
+    </div>
   );
+
+  if (target) {
+    return createPortal(tocContent, target);
+  }
+
+  if (useFallback) {
+    return (
+      <aside className="integrate-toc-fallback" aria-label="On this page">
+        {tocContent}
+      </aside>
+    );
+  }
+
+  return null;
 }
