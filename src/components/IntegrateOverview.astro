@@ -128,8 +128,15 @@ for (const entry of entries) {
     industryGroups[key].push(entry);
   }
 }
-// Sort industries by name; sort entries within each by sortOrder
-const industryOrder = Object.keys(industryGroups).sort();
+// Fixed industry order: crypto, IoT, healthcare, manufacturing (only include those that have entries)
+const INDUSTRY_ORDER = ["crypto", "IoT", "healthcare", "manufacturing"];
+const INDUSTRY_LABELS: Record<string, string> = {
+  crypto: "Crypto",
+  IoT: "IoT",
+  healthcare: "Healthcare",
+  manufacturing: "Manufacturing",
+};
+const industryOrder = INDUSTRY_ORDER.filter((key) => industryGroups[key]?.length);
 for (const key of industryOrder) {
   industryGroups[key].sort(
     (a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99)
@@ -171,7 +178,7 @@ function slugToHref(slug: string): string {
       industryOrder.length > 0 ? (
         industryOrder.map((industry) => (
           <section class="integrate-industry-section">
-            <h3 class="integrate-industry-heading">{industry}</h3>
+            <h3 class="integrate-industry-heading">{INDUSTRY_LABELS[industry] ?? industry}</h3>
             <CardGrid>
               {
                 industryGroups[industry].map(({ slug, data }) => (
