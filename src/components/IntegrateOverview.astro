@@ -148,7 +148,7 @@ function slugToHref(slug: string): string {
 }
 ---
 
-<div class="integrate-overview">
+<div class="integrate-overview" data-industry-order={JSON.stringify(industryOrder)}>
   <div class="integrate-overview-controls">
     <label for="integrate-view-select" class="integrate-overview-label">View integrations</label>
     <select id="integrate-view-select" class="integrate-overview-select" aria-label="Choose how to view integrations">
@@ -177,7 +177,7 @@ function slugToHref(slug: string): string {
     {
       industryOrder.length > 0 ? (
         industryOrder.map((industry) => (
-          <section class="integrate-industry-section">
+          <section class="integrate-industry-section" id={`integrate-industry-${String(industry).toLowerCase()}`}>
             <h3 class="integrate-industry-heading">{INDUSTRY_LABELS[industry] ?? industry}</h3>
             <CardGrid>
               {
@@ -242,14 +242,40 @@ function slugToHref(slug: string): string {
 <script>
   const select = document.getElementById("integrate-view-select") as HTMLSelectElement;
   const views = document.querySelectorAll<HTMLElement>("[data-view]");
+  const HASH_TO_VIEW: Record<string, string> = {
+    "by-category": "category",
+    "by-industry": "industry",
+    "tiger-data": "tiger-data",
+    "external": "external",
+  };
+  const VIEW_TO_HASH: Record<string, string> = {
+    category: "by-category",
+    industry: "by-industry",
+    "tiger-data": "tiger-data",
+    external: "external",
+  };
+  function showView(value: string) {
+    views.forEach((el) => {
+      el.hidden = el.getAttribute("data-view") !== value;
+    });
+    if (select) select.value = value;
+  }
+  function syncHashToView() {
+    const hash = window.location.hash.slice(1);
+    const view = HASH_TO_VIEW[hash] || "category";
+    showView(view);
+  }
   if (select && views.length) {
-    function showView(value: string) {
-      views.forEach((el) => {
-        el.hidden = el.getAttribute("data-view") !== value;
-      });
-    }
-    showView(select.value);
-    select.addEventListener("change", () => showView(select.value));
+    syncHashToView();
+    select.addEventListener("change", () => {
+      const view = select.value;
+      const hash = VIEW_TO_HASH[view];
+      if (hash) {
+        window.location.hash = hash;
+      }
+      showView(view);
+    });
+    window.addEventListener("hashchange", syncHashToView);
   }
 </script>
 
