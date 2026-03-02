@@ -289,6 +289,14 @@ export default defineConfig({
               autogenerate: { directory: "deploy/tiger-cloud" },
             },
             {
+              label: "Tiger Cloud on AWS",
+              autogenerate: { directory: "deploy/tiger-cloud-AWS" },
+            },
+            {
+              label: "Tiger Cloud on Azure",
+              autogenerate: { directory: "deploy/tiger-cloud-azure" },
+            },
+            {
               label: "Self-Hosted",
               collapsed: true,
               autogenerate: { directory: "deploy/self-hosted" },
