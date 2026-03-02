@@ -116,7 +116,7 @@ export function IntegrateToc({ currentView, industryOrder }: IntegrateTocProps) 
             </a>
           </li>
           <li className="glossary-page-toc__item">
-            <a href="#pg-compatibility" className="glossary-page-toc__link">
+            <a href="#postgresql-compatibility" className="glossary-page-toc__link">
               PostgreSQL compatibility
             </a>
           </li>
