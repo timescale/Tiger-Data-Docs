@@ -58,6 +58,10 @@ export default defineConfig({
           sidebar: [
             "get-started", // Welcome/index page
             {
+              label: "Feature comparison",
+              link: "/get-started/feature-comparison",
+            },
+            {
               label: "Quickstart",
               autogenerate: { directory: "get-started" },
             },
@@ -287,6 +291,14 @@ export default defineConfig({
             {
               label: "Tiger Cloud",
               autogenerate: { directory: "deploy/tiger-cloud" },
+            },
+            {
+              label: "Tiger Cloud on AWS",
+              autogenerate: { directory: "deploy/tiger-cloud-AWS" },
+            },
+            {
+              label: "Tiger Cloud on Azure",
+              autogenerate: { directory: "deploy/tiger-cloud-azure" },
             },
             {
               label: "Self-Hosted",
