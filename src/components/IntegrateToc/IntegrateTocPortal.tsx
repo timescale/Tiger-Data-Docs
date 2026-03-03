@@ -39,6 +39,17 @@ function getCategoryOrder(): string[] {
   return [];
 }
 
+function getAllIntegrations(): { title: string; id: string }[] {
+  try {
+    const el = document.querySelector("[data-all-integrations]");
+    const raw = el?.getAttribute("data-all-integrations");
+    if (raw) return JSON.parse(raw) as AllIntegrationTocItem[];
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
 /**
  * Portals the integrate "On this page" TOC into the right sidebar when it exists.
  * If the right sidebar is not in the DOM (e.g. layout hides it on this page),
@@ -50,6 +61,7 @@ export function IntegrateTocPortal() {
   const [currentView, setCurrentView] = useState<IntegrateView>(() => getViewFromHash());
   const [industryOrder, setIndustryOrder] = useState<string[]>([]);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
+  const [allIntegrations, setAllIntegrations] = useState<{ title: string; id: string }[]>([]);
 
   useEffect(() => {
     const el = findRightSidebar();
@@ -58,6 +70,7 @@ export function IntegrateTocPortal() {
       setTarget(el);
       setIndustryOrder(getIndustryOrder());
       setCategoryOrder(getCategoryOrder());
+      setAllIntegrations(getAllIntegrations());
       return () => setTarget(null);
     }
     const observer = new MutationObserver(() => {
@@ -67,6 +80,7 @@ export function IntegrateTocPortal() {
         setTarget(found);
         setIndustryOrder(getIndustryOrder());
         setCategoryOrder(getCategoryOrder());
+        setAllIntegrations(getAllIntegrations());
         observer.disconnect();
       }
     });
@@ -79,10 +93,12 @@ export function IntegrateTocPortal() {
         setTarget(found);
         setIndustryOrder(getIndustryOrder());
         setCategoryOrder(getCategoryOrder());
+        setAllIntegrations(getAllIntegrations());
       } else {
         setUseFallback(true);
         setIndustryOrder(getIndustryOrder());
         setCategoryOrder(getCategoryOrder());
+        setAllIntegrations(getAllIntegrations());
       }
     }, 800);
     return () => {
@@ -99,7 +115,7 @@ export function IntegrateTocPortal() {
 
   const tocContent = (
     <div className="glossary-page-toc-wrapper integrate-toc-wrapper">
-      <IntegrateToc currentView={currentView} industryOrder={industryOrder} categoryOrder={categoryOrder} />
+      <IntegrateToc currentView={currentView} industryOrder={industryOrder} categoryOrder={categoryOrder} allIntegrations={allIntegrations} />
     </div>
   );
 

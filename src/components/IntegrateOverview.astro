@@ -183,9 +183,19 @@ function getPlatforms(data: DocData): PlatformSlug[] {
   const p = data.integrationPlatforms ?? ["aws"];
   return PLATFORM_ORDER.filter((key) => p.includes(key));
 }
+
+/** URL-safe id for a card in the "all" view (for TOC anchor links). */
+function slugToCardId(slug: string): string {
+  return slug.replace(/\//g, "-");
+}
+
+const allIntegrationsToc = allIntegrations.map(({ slug, data }) => ({
+  title: cardTitle(data),
+  id: slugToCardId(slug),
+}));
 ---
 
-<div class="integrate-overview" data-industry-order={JSON.stringify(industryOrder)} data-category-order={JSON.stringify(categoryOrder)} id="integrate-overview-root">
+<div class="integrate-overview" data-industry-order={JSON.stringify(industryOrder)} data-category-order={JSON.stringify(categoryOrder)} data-all-integrations={JSON.stringify(allIntegrationsToc)} id="integrate-overview-root">
   <div class="integrate-overview-controls">
     <label for="integrate-view-select" class="integrate-overview-label">View integrations</label>
     <select id="integrate-view-select" class="integrate-overview-select" aria-label="Choose how to view integrations">
@@ -213,8 +223,9 @@ function getPlatforms(data: DocData): PlatformSlug[] {
       {
         allIntegrations.map(({ slug, data }) => {
           const platforms = getPlatforms(data);
+          const cardId = slugToCardId(slug);
           return (
-            <div class="integrate-card-wrapper" data-platforms={platforms.join(",")}>
+            <div class="integrate-card-wrapper" id={`integrate-card-${cardId}`} data-platforms={platforms.join(",")}>
               <a href={slugToHref(slug)} class="integrate-card-link">
                 <span class="integrate-card-inner">
                   <span class="integrate-card-title">{cardTitle(data)}</span>

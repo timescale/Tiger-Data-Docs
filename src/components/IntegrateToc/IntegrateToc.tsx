@@ -42,10 +42,13 @@ const INDUSTRY_LABELS: Record<string, string> = {
 
 export type IntegrateView = "all" | "category" | "industry" | "tiger-data" | "external";
 
+export type AllIntegrationTocItem = { title: string; id: string };
+
 interface IntegrateTocProps {
   currentView: IntegrateView;
   industryOrder: string[];
   categoryOrder: string[];
+  allIntegrations: AllIntegrationTocItem[];
 }
 
 function getViewFromHash(): IntegrateView {
@@ -54,7 +57,7 @@ function getViewFromHash(): IntegrateView {
   return (view as IntegrateView) || "all";
 }
 
-export function IntegrateToc({ currentView, industryOrder, categoryOrder }: IntegrateTocProps) {
+export function IntegrateToc({ currentView, industryOrder, categoryOrder, allIntegrations }: IntegrateTocProps) {
   return (
     <aside className="glossary-page-toc integrate-toc" aria-label="On this page">
       <h2 className="glossary-page-toc__title">On this page</h2>
@@ -73,6 +76,17 @@ export function IntegrateToc({ currentView, industryOrder, categoryOrder }: Inte
             >
               All integrations
             </a>
+            {currentView === "all" && allIntegrations.length > 0 && (
+              <ul className="glossary-page-toc__list integrate-toc__sublist">
+                {allIntegrations.map((item) => (
+                  <li key={item.id} className="glossary-page-toc__item">
+                    <a href={`#integrate-card-${item.id}`} className="glossary-page-toc__link integrate-toc__sublink">
+                      {item.title.replace(/\s+and Tiger Data$/i, "")}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </li>
           <li className="glossary-page-toc__item">
             <a
