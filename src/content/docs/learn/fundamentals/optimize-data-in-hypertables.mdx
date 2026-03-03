@@ -1,0 +1,126 @@
+---
+title: Optimize time-series data in hypertables
+description: Create, alter, and drop a hypertable, and speed up data ingest with direct compress
+products: [cloud, mst, self_hosted]
+keywords: [hypertable, create hypertable, alter hypertable, drop hypertable, direct compress, data ingest]
+---
+
+import * as C from "@constants";
+import IntegrationPrereqs from "../../../../partials/_integration-prereqs.mdx";
+import HypercoreDirectCompress from "../../../../partials/_hypercore-direct-compress.mdx";
+import CreateHypertablePolicyNote from "../../../../partials/_create-hypertable-columnstore-policy-note.mdx";
+
+{C.HYPERTABLE_CAP}s are designed for real-time analytics, they are {C.PG} tables that automatically partition your data by
+time. Typically, you partition {C.HYPERTABLE}s on columns that hold time values.
+[Best practice is to use `timestamptz`](https://wiki.postgresql.org/wiki/Don't_Do_This#Don.27t_use_timestamp_.28without_time_zone.29) column type. However, you can also partition on
+`date`, `integer`, `timestamp` and [UUIDv7](/api/latest/uuid-functions) types.
+
+## Prerequisites
+
+<IntegrationPrereqs />
+
+## Create a {C.HYPERTABLE}
+
+Create a [{C.HYPERTABLE}](/build/data-management/understand-hypertables) for your time-series data using [CREATE TABLE](/api/latest/hypertable/create_table).
+For [efficient queries](/build/columnar-storage/secondary-indexes), remember to `segmentby` the column you will use most often to filter your
+data:
+
+```sql
+CREATE TABLE conditions (
+   time        TIMESTAMPTZ       NOT NULL,
+   location    TEXT              NOT NULL,
+   device      TEXT              NOT NULL,
+   temperature DOUBLE PRECISION  NULL,
+   humidity    DOUBLE PRECISION  NULL
+) WITH (
+   tsdb.hypertable,
+   tsdb.segmentby = 'device',
+   tsdb.orderby = 'time DESC'
+);
+
+```
+
+<CreateHypertablePolicyNote />
+
+To convert an existing table with data in it, call `create_hypertable` on that table with
+[`migrate_data` to `true`](/api/latest/hypertable/create_hypertable#arguments). However, if you have a lot of data, this may take a long time.
+
+## Speed up data ingestion
+
+<HypercoreDirectCompress />
+
+## Alter a {C.HYPERTABLE}
+
+You can alter a {C.HYPERTABLE}, for example to add a column, by using the {C.PG}
+[`ALTER TABLE`](https://www.postgresql.org/docs/current/sql-altertable.html) command. Some operations are not supported for {C.HYPERTABLE}s with {C.COLUMNSTORE} enabled. See [Altering {C.HYPERTABLE}s with {C.COLUMNSTORE} enabled](/build/performance-optimization/alter-update-table-schema).
+
+### Add a column to a {C.HYPERTABLE}
+
+You add a column to a {C.HYPERTABLE} using the `ALTER TABLE` command. In this
+example, the {C.HYPERTABLE} is named `conditions` and the new column is named
+`humidity`:
+
+```sql
+ALTER TABLE conditions
+  ADD COLUMN humidity DOUBLE PRECISION NULL;
+```
+
+If the column you are adding has the default value set to `NULL`, or has no
+default value, then adding a column is relatively fast. If you set the default
+to a non-null value, it takes longer, because it needs to fill in this value for
+all existing rows of all existing {C.CHUNK}s.
+
+### Rename a {C.HYPERTABLE}
+
+You can change the name of a {C.HYPERTABLE} using the `ALTER TABLE` command. In this
+example, the {C.HYPERTABLE} is called `conditions`, and is being changed to the new
+name, `weather`:
+
+```sql
+ALTER TABLE conditions
+  RENAME TO weather;
+```
+
+### Change a column data type
+
+You can change the data type of a column in a {C.HYPERTABLE} using the `ALTER TABLE`
+command. In this example, the `temperature` column data type is changed from `DOUBLE PRECISION`
+to `NUMERIC`:
+
+```sql
+ALTER TABLE conditions
+  ALTER COLUMN temperature TYPE NUMERIC;
+```
+
+The following restrictions apply:
+
+- You cannot change the type of `segmentby` columns.
+- For time dimension columns, you can only change to `TIMESTAMPTZ`, `TIMESTAMP`, `DATE`,
+  `INTEGER` (smallint, integer, or bigint), or `UUID` (UUIDv7 only).
+- You cannot change the type of columns with custom partitioning functions.
+- You cannot change the type of columns for {C.HYPERTABLE}s with {C.COLUMNSTORE} enabled. See [Altering {C.HYPERTABLE}s with {C.COLUMNSTORE} enabled](/build/performance-optimization/alter-update-table-schema) for how to do it instead.
+- For columns with statistics enabled, you can only change to integer or timestamp types.
+  To change to other types, first disable statistics using `disable_column_stats`.
+
+### Drop a column
+
+You can drop a column from a {C.HYPERTABLE} using the `ALTER TABLE` command. In this
+example, the `humidity` column is dropped from the `conditions` {C.HYPERTABLE}:
+
+```sql
+ALTER TABLE conditions
+  DROP COLUMN humidity;
+```
+
+You cannot drop partitioning columns.
+
+## Drop a {C.HYPERTABLE}
+
+Drop a {C.HYPERTABLE} using a standard {C.PG} [`DROP TABLE`](https://www.postgresql.org/docs/current/sql-droptable.html)
+command:
+
+```sql
+DROP TABLE weather;
+```
+
+All data {C.CHUNK}s belonging to the {C.HYPERTABLE} are deleted.
