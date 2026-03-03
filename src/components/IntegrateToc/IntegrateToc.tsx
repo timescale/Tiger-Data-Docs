@@ -49,6 +49,8 @@ interface IntegrateTocProps {
   industryOrder: string[];
   categoryOrder: string[];
   allIntegrations: AllIntegrationTocItem[];
+  tigerDataIntegrations: AllIntegrationTocItem[];
+  externalIntegrations: AllIntegrationTocItem[];
 }
 
 function getViewFromHash(): IntegrateView {
@@ -57,7 +59,7 @@ function getViewFromHash(): IntegrateView {
   return (view as IntegrateView) || "all";
 }
 
-export function IntegrateToc({ currentView, industryOrder, categoryOrder, allIntegrations }: IntegrateTocProps) {
+export function IntegrateToc({ currentView, industryOrder, categoryOrder, allIntegrations, tigerDataIntegrations, externalIntegrations }: IntegrateTocProps) {
   return (
     <aside className="glossary-page-toc integrate-toc" aria-label="On this page">
       <h2 className="glossary-page-toc__title">On this page</h2>
@@ -143,6 +145,17 @@ export function IntegrateToc({ currentView, industryOrder, categoryOrder, allInt
             >
               Tiger Data connectors
             </a>
+            {currentView === "tiger-data" && tigerDataIntegrations.length > 0 && (
+              <ul className="glossary-page-toc__list integrate-toc__sublist">
+                {tigerDataIntegrations.map((item) => (
+                  <li key={item.id} className="glossary-page-toc__item">
+                    <a href={`#integrate-tiger-${item.id}`} className="glossary-page-toc__link integrate-toc__sublink">
+                      {item.title.replace(/\s+and Tiger Data$/i, "")}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </li>
           <li className="glossary-page-toc__item">
             <a
@@ -152,6 +165,17 @@ export function IntegrateToc({ currentView, industryOrder, categoryOrder, allInt
             >
               External integrations and tools
             </a>
+            {currentView === "external" && externalIntegrations.length > 0 && (
+              <ul className="glossary-page-toc__list integrate-toc__sublist">
+                {externalIntegrations.map((item) => (
+                  <li key={item.id} className="glossary-page-toc__item">
+                    <a href={`#integrate-external-${item.id}`} className="glossary-page-toc__link integrate-toc__sublink">
+                      {item.title.replace(/\s+and Tiger Data$/i, "")}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
           </li>
           <li className="glossary-page-toc__item">
             <a href="#postgresql-compatibility" className="glossary-page-toc__link">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { IntegrateToc, getViewFromHash, type IntegrateView } from "./IntegrateToc";
+import { IntegrateToc, getViewFromHash, type IntegrateView, type AllIntegrationTocItem } from "./IntegrateToc";
 
 const RIGHT_SIDEBAR_SELECTORS = [
   ".right-sidebar-container .right-sidebar",
@@ -50,6 +50,28 @@ function getAllIntegrations(): { title: string; id: string }[] {
   return [];
 }
 
+function getTigerDataIntegrations(): { title: string; id: string }[] {
+  try {
+    const el = document.querySelector("[data-tiger-data-integrations]");
+    const raw = el?.getAttribute("data-tiger-data-integrations");
+    if (raw) return JSON.parse(raw) as { title: string; id: string }[];
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+function getExternalIntegrations(): { title: string; id: string }[] {
+  try {
+    const el = document.querySelector("[data-external-integrations]");
+    const raw = el?.getAttribute("data-external-integrations");
+    if (raw) return JSON.parse(raw) as { title: string; id: string }[];
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
 /**
  * Portals the integrate "On this page" TOC into the right sidebar when it exists.
  * If the right sidebar is not in the DOM (e.g. layout hides it on this page),
@@ -62,6 +84,8 @@ export function IntegrateTocPortal() {
   const [industryOrder, setIndustryOrder] = useState<string[]>([]);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
   const [allIntegrations, setAllIntegrations] = useState<{ title: string; id: string }[]>([]);
+  const [tigerDataIntegrations, setTigerDataIntegrations] = useState<{ title: string; id: string }[]>([]);
+  const [externalIntegrations, setExternalIntegrations] = useState<{ title: string; id: string }[]>([]);
 
   useEffect(() => {
     const el = findRightSidebar();
@@ -71,6 +95,8 @@ export function IntegrateTocPortal() {
       setIndustryOrder(getIndustryOrder());
       setCategoryOrder(getCategoryOrder());
       setAllIntegrations(getAllIntegrations());
+      setTigerDataIntegrations(getTigerDataIntegrations());
+      setExternalIntegrations(getExternalIntegrations());
       return () => setTarget(null);
     }
     const observer = new MutationObserver(() => {
@@ -81,6 +107,8 @@ export function IntegrateTocPortal() {
         setIndustryOrder(getIndustryOrder());
         setCategoryOrder(getCategoryOrder());
         setAllIntegrations(getAllIntegrations());
+        setTigerDataIntegrations(getTigerDataIntegrations());
+        setExternalIntegrations(getExternalIntegrations());
         observer.disconnect();
       }
     });
@@ -94,11 +122,15 @@ export function IntegrateTocPortal() {
         setIndustryOrder(getIndustryOrder());
         setCategoryOrder(getCategoryOrder());
         setAllIntegrations(getAllIntegrations());
+        setTigerDataIntegrations(getTigerDataIntegrations());
+        setExternalIntegrations(getExternalIntegrations());
       } else {
         setUseFallback(true);
         setIndustryOrder(getIndustryOrder());
         setCategoryOrder(getCategoryOrder());
         setAllIntegrations(getAllIntegrations());
+        setTigerDataIntegrations(getTigerDataIntegrations());
+        setExternalIntegrations(getExternalIntegrations());
       }
     }, 800);
     return () => {
@@ -115,7 +147,7 @@ export function IntegrateTocPortal() {
 
   const tocContent = (
     <div className="glossary-page-toc-wrapper integrate-toc-wrapper">
-      <IntegrateToc currentView={currentView} industryOrder={industryOrder} categoryOrder={categoryOrder} allIntegrations={allIntegrations} />
+      <IntegrateToc currentView={currentView} industryOrder={industryOrder} categoryOrder={categoryOrder} allIntegrations={allIntegrations} tigerDataIntegrations={tigerDataIntegrations} externalIntegrations={externalIntegrations} />
     </div>
   );
 
