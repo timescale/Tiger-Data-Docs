@@ -12,6 +12,10 @@ const HASH_TO_VIEW: Record<string, string> = {
   external: "external",
 };
 
+/** Category slug from href e.g. /integrate/data-engineering-etl -> data-engineering-etl */
+function hrefToCategorySlug(href: string): string {
+  return href.replace(/^\/integrate\/?/, "").replace(/\/$/, "") || "";
+}
 const CATEGORIES = [
   { title: "Data Engineering & ETL", href: "/integrate/data-engineering-etl" },
   { title: "BI & Visualization", href: "/integrate/bi-vizualization" },
@@ -22,6 +26,12 @@ const CATEGORIES = [
   { title: "Observability & Alerting", href: "/integrate/observability-alerting" },
   { title: "Configuration & Deployment", href: "/integrate/configuration-deployment" },
 ];
+const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
+  CATEGORIES.map((c) => [hrefToCategorySlug(c.href), c.title])
+);
+function getCategoryLabel(slug: string): string {
+  return CATEGORY_LABELS[slug] ?? slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
 
 const INDUSTRY_LABELS: Record<string, string> = {
   crypto: "Crypto",
@@ -35,6 +45,7 @@ export type IntegrateView = "all" | "category" | "industry" | "tiger-data" | "ex
 interface IntegrateTocProps {
   currentView: IntegrateView;
   industryOrder: string[];
+  categoryOrder: string[];
 }
 
 function getViewFromHash(): IntegrateView {
@@ -43,7 +54,7 @@ function getViewFromHash(): IntegrateView {
   return (view as IntegrateView) || "all";
 }
 
-export function IntegrateToc({ currentView, industryOrder }: IntegrateTocProps) {
+export function IntegrateToc({ currentView, industryOrder, categoryOrder }: IntegrateTocProps) {
   return (
     <aside className="glossary-page-toc integrate-toc" aria-label="On this page">
       <h2 className="glossary-page-toc__title">On this page</h2>
@@ -71,15 +82,18 @@ export function IntegrateToc({ currentView, industryOrder }: IntegrateTocProps) 
             >
               By category
             </a>
-            {currentView === "category" && (
+            {currentView === "category" && categoryOrder.length > 0 && (
               <ul className="glossary-page-toc__list integrate-toc__sublist">
-                {CATEGORIES.map((cat) => (
-                  <li key={cat.href} className="glossary-page-toc__item">
-                    <a href={cat.href} className="glossary-page-toc__link integrate-toc__sublink">
-                      {cat.title}
-                    </a>
-                  </li>
-                ))}
+                {categoryOrder.map((slug) => {
+                  const id = `integrate-category-${slug.replace(/\s+/g, "-").toLowerCase()}`;
+                  return (
+                    <li key={id} className="glossary-page-toc__item">
+                      <a href={`#${id}`} className="glossary-page-toc__link integrate-toc__sublink">
+                        {getCategoryLabel(slug)}
+                      </a>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </li>

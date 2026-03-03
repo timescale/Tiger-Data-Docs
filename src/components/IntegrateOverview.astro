@@ -9,7 +9,7 @@
  * Relies on frontmatter on each integration page: integrationIndustry[], connectorType, sortOrder.
  */
 import { getEntry } from "astro:content";
-import { LinkCard, CardGrid } from "@astrojs/starlight/components";
+import { CardGrid } from "@astrojs/starlight/components";
 
 // Glob only to get list of integration doc paths; we use getEntry for frontmatter.
 const pathMap = import.meta.glob("../content/docs/integrate/**/*.mdx");
@@ -95,47 +95,47 @@ for (const slug of allSlugs) {
 }
 
 const byCategory = [
-  {
-    title: "Data Engineering & ETL",
-    description: "ETL tools and data pipelines",
-    href: "/integrate/data-engineering-etl",
-  },
-  {
-    title: "BI & Visualization",
-    description: "Dashboards and reporting tools",
-    href: "/integrate/bi-vizualization",
-  },
-  {
-    title: "Data Ingestion & Streaming",
-    description: "Real-time data streaming",
-    href: "/integrate/data-ingestion-streaming",
-  },
-  {
-    title: "Connectors",
-    description: "Source and destination connectors",
-    href: "/integrate/connectors",
-  },
-  {
-    title: "Query & Administration",
-    description: "Database management tools",
-    href: "/integrate/query-administration",
-  },
-  {
-    title: "Secure Connectivity",
-    description: "VPNs, tunnels, and secure access",
-    href: "/integrate/secure-connectivity",
-  },
-  {
-    title: "Observability & Alerting",
-    description: "Monitoring and alerting tools",
-    href: "/integrate/observability-alerting",
-  },
-  {
-    title: "Configuration & Deployment",
-    description: "IaC and deployment tools",
-    href: "/integrate/configuration-deployment",
-  },
+  { title: "Data Engineering & ETL", description: "ETL tools and data pipelines", href: "/integrate/data-engineering-etl" },
+  { title: "BI & Visualization", description: "Dashboards and reporting tools", href: "/integrate/bi-vizualization" },
+  { title: "Data Ingestion & Streaming", description: "Real-time data streaming", href: "/integrate/data-ingestion-streaming" },
+  { title: "Connectors", description: "Source and destination connectors", href: "/integrate/connectors" },
+  { title: "Query & Administration", description: "Database management tools", href: "/integrate/query-administration" },
+  { title: "Secure Connectivity", description: "VPNs, tunnels, and secure access", href: "/integrate/secure-connectivity" },
+  { title: "Observability & Alerting", description: "Monitoring and alerting tools", href: "/integrate/observability-alerting" },
+  { title: "Configuration & Deployment", description: "IaC and deployment tools", href: "/integrate/configuration-deployment" },
 ];
+
+/** Category slug from href e.g. /integrate/data-engineering-etl -> data-engineering-etl */
+function hrefToCategorySlug(href: string): string {
+  return href.replace(/^\/integrate\/?/, "").replace(/\/$/, "") || "";
+}
+const CATEGORY_ORDER = byCategory.map((c) => hrefToCategorySlug(c.href)).filter(Boolean);
+const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
+  byCategory.map((c) => [hrefToCategorySlug(c.href), c.title])
+);
+// Fallback label for categories that appear in frontmatter but aren't in byCategory (e.g. code, troubleshoot)
+function getCategoryLabel(slug: string): string {
+  return CATEGORY_LABELS[slug] ?? slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+// Group entries by integrationCategory
+const categoryGroups: Record<string, { slug: string; data: DocData }[]> = {};
+for (const entry of entries) {
+  const cat = entry.data.integrationCategory?.trim();
+  if (!cat) continue;
+  if (!categoryGroups[cat]) categoryGroups[cat] = [];
+  categoryGroups[cat].push(entry);
+}
+// Sort within each category; include category order from byCategory, then any others that have entries
+const categoryOrder = [
+  ...CATEGORY_ORDER.filter((key) => categoryGroups[key]?.length),
+  ...Object.keys(categoryGroups).filter((key) => !CATEGORY_ORDER.includes(key)),
+];
+for (const key of categoryOrder) {
+  if (categoryGroups[key]) {
+    categoryGroups[key].sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99));
+  }
+}
 
 const allIntegrations = [...entries].sort((a, b) =>
   cardTitle(a.data).localeCompare(cardTitle(b.data), undefined, { sensitivity: "base" })
@@ -185,7 +185,7 @@ function getPlatforms(data: DocData): PlatformSlug[] {
 }
 ---
 
-<div class="integrate-overview" data-industry-order={JSON.stringify(industryOrder)} id="integrate-overview-root">
+<div class="integrate-overview" data-industry-order={JSON.stringify(industryOrder)} data-category-order={JSON.stringify(categoryOrder)} id="integrate-overview-root">
   <div class="integrate-overview-controls">
     <label for="integrate-view-select" class="integrate-overview-label">View integrations</label>
     <select id="integrate-view-select" class="integrate-overview-select" aria-label="Choose how to view integrations">
@@ -235,19 +235,47 @@ function getPlatforms(data: DocData): PlatformSlug[] {
   </div>
 
   <div id="integrate-view-category" class="integrate-view" data-view="category" hidden>
-    <CardGrid>
-      {
-        byCategory.map((card) => (
-          <div class="integrate-card-wrapper" data-platforms="aws,azure,self-hosted">
-            <LinkCard
-              title={card.title}
-              description={card.description}
-              href={card.href}
-            />
-          </div>
+    {
+      categoryOrder.length > 0 ? (
+        categoryOrder.map((category) => (
+          <section class="integrate-category-section" id={`integrate-category-${category.replace(/\s+/g, "-").toLowerCase()}`}>
+            <details class="integrate-category-details" open>
+              <summary class="integrate-category-summary">
+                <span class="integrate-category-heading">{getCategoryLabel(category)}</span>
+                <span class="integrate-category-chevron" aria-hidden="true"></span>
+              </summary>
+              <div class="integrate-category-content">
+                <CardGrid>
+                  {
+                    (categoryGroups[category] ?? []).map(({ slug, data }) => {
+                      const platforms = getPlatforms(data);
+                      return (
+                        <div class="integrate-card-wrapper" data-platforms={platforms.join(",")}>
+                          <a href={slugToHref(slug)} class="integrate-card-link">
+                            <span class="integrate-card-inner">
+                              <span class="integrate-card-title">{cardTitle(data)}</span>
+                              <div class="integrate-card-chips">
+                                {platforms.map((p) => (
+                                  <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
+                                ))}
+                              </div>
+                              {data.description && <p class="integrate-card-description">{data.description}</p>}
+                            </span>
+                            <span class="integrate-card-arrow" aria-hidden="true">→</span>
+                          </a>
+                        </div>
+                      );
+                    })
+                  }
+                </CardGrid>
+              </div>
+            </details>
+          </section>
         ))
-      }
-    </CardGrid>
+      ) : (
+        <p class="integrate-empty">No integrations tagged by category yet. Add <code>integrationCategory</code> in frontmatter to show them here.</p>
+      )
+    }
   </div>
 
   <div id="integrate-view-industry" class="integrate-view" data-view="industry" hidden>
@@ -462,6 +490,56 @@ function getPlatforms(data: DocData): PlatformSlug[] {
     font-size: var(--sl-text-h4);
     margin-bottom: 0.75rem;
     color: var(--sl-color-text);
+  }
+
+  /* By category: collapsible sections */
+  .integrate-category-section {
+    margin-bottom: 1rem;
+  }
+  .integrate-category-details {
+    border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
+    border-radius: var(--tiger-radius-lg, 0.5rem);
+    overflow: hidden;
+  }
+  .integrate-category-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    font-size: var(--sl-text-h4);
+    font-weight: 600;
+    color: var(--sl-color-text);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  .integrate-category-summary::-webkit-details-marker {
+    display: none;
+  }
+  .integrate-category-summary:hover {
+    background: light-dark(var(--tiger-grey-50), var(--tiger-grey-800));
+  }
+  .integrate-category-heading {
+    flex: 1;
+  }
+  .integrate-category-chevron {
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    margin-bottom: 0.25rem;
+    transition: transform 0.2s ease;
+  }
+  .integrate-category-details[open] .integrate-category-chevron {
+    transform: rotate(-135deg);
+    margin-bottom: -0.35rem;
+  }
+  .integrate-category-content {
+    padding: 0 1rem 1rem;
+    border-top: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
   }
   .integrate-empty {
     color: var(--sl-color-text);

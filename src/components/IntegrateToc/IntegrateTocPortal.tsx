@@ -28,6 +28,17 @@ function getIndustryOrder(): string[] {
   return ["crypto", "IoT", "healthcare", "manufacturing"];
 }
 
+function getCategoryOrder(): string[] {
+  try {
+    const el = document.querySelector("[data-category-order]");
+    const raw = el?.getAttribute("data-category-order");
+    if (raw) return JSON.parse(raw) as string[];
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
 /**
  * Portals the integrate "On this page" TOC into the right sidebar when it exists.
  * If the right sidebar is not in the DOM (e.g. layout hides it on this page),
@@ -38,6 +49,7 @@ export function IntegrateTocPortal() {
   const [useFallback, setUseFallback] = useState(false);
   const [currentView, setCurrentView] = useState<IntegrateView>(() => getViewFromHash());
   const [industryOrder, setIndustryOrder] = useState<string[]>([]);
+  const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
 
   useEffect(() => {
     const el = findRightSidebar();
@@ -45,6 +57,7 @@ export function IntegrateTocPortal() {
       el.innerHTML = "";
       setTarget(el);
       setIndustryOrder(getIndustryOrder());
+      setCategoryOrder(getCategoryOrder());
       return () => setTarget(null);
     }
     const observer = new MutationObserver(() => {
@@ -53,6 +66,7 @@ export function IntegrateTocPortal() {
         found.innerHTML = "";
         setTarget(found);
         setIndustryOrder(getIndustryOrder());
+        setCategoryOrder(getCategoryOrder());
         observer.disconnect();
       }
     });
@@ -64,9 +78,11 @@ export function IntegrateTocPortal() {
         found.innerHTML = "";
         setTarget(found);
         setIndustryOrder(getIndustryOrder());
+        setCategoryOrder(getCategoryOrder());
       } else {
         setUseFallback(true);
         setIndustryOrder(getIndustryOrder());
+        setCategoryOrder(getCategoryOrder());
       }
     }, 800);
     return () => {
@@ -83,7 +99,7 @@ export function IntegrateTocPortal() {
 
   const tocContent = (
     <div className="glossary-page-toc-wrapper integrate-toc-wrapper">
-      <IntegrateToc currentView={currentView} industryOrder={industryOrder} />
+      <IntegrateToc currentView={currentView} industryOrder={industryOrder} categoryOrder={categoryOrder} />
     </div>
   );
 
