@@ -34,6 +34,14 @@ const allSlugs = Object.keys(pathMap)
       !slug.endsWith("/index")
   );
 
+const PLATFORM_LABELS: Record<string, string> = {
+  aws: "Tiger Cloud on AWS",
+  azure: "Tiger Cloud on Azure",
+  "self-hosted": "Self-Hosted TimescaleDB",
+};
+const PLATFORM_ORDER = ["aws", "azure", "self-hosted"] as const;
+type PlatformSlug = (typeof PLATFORM_ORDER)[number];
+
 type DocData = {
   title: string;
   description?: string;
@@ -42,6 +50,7 @@ type DocData = {
   connectorType?: "tiger-data" | "external";
   sortOrder?: number;
   integrationCardTitle?: string;
+  integrationPlatforms?: PlatformSlug[];
 };
 
 /** Card title for integrate index: "Tool and Tiger Cloud" when integrationCardTitle is set, else derive from title. */
@@ -76,6 +85,7 @@ for (const slug of allSlugs) {
           connectorType: d.connectorType,
           sortOrder: d.sortOrder,
           integrationCardTitle: d.integrationCardTitle,
+          integrationPlatforms: d.integrationPlatforms ?? ["aws"],
         },
       });
     }
@@ -168,9 +178,14 @@ for (const key of industryOrder) {
 function slugToHref(slug: string): string {
   return "/" + slug + "/";
 }
+
+function getPlatforms(data: DocData): PlatformSlug[] {
+  const p = data.integrationPlatforms ?? ["aws"];
+  return PLATFORM_ORDER.filter((key) => p.includes(key));
+}
 ---
 
-<div class="integrate-overview" data-industry-order={JSON.stringify(industryOrder)}>
+<div class="integrate-overview" data-industry-order={JSON.stringify(industryOrder)} id="integrate-overview-root">
   <div class="integrate-overview-controls">
     <label for="integrate-view-select" class="integrate-overview-label">View integrations</label>
     <select id="integrate-view-select" class="integrate-overview-select" aria-label="Choose how to view integrations">
@@ -181,17 +196,38 @@ function slugToHref(slug: string): string {
       <option value="external">External integrations and tools</option>
     </select>
   </div>
+  <div class="integrate-platform-filter">
+    <span class="integrate-platform-filter-label">Platform</span>
+    <div class="integrate-platform-chips" role="group" aria-label="Filter by platform">
+      <button type="button" class="integrate-platform-chip integrate-platform-chip--all integrate-platform-chip--active" data-platform-filter="all" aria-pressed="true">All</button>
+      {
+        PLATFORM_ORDER.map((key) => (
+          <button type="button" class="integrate-platform-chip" data-platform-filter={key} aria-pressed="false">{PLATFORM_LABELS[key]}</button>
+        ))
+      }
+    </div>
+  </div>
 
   <div id="integrate-view-all" class="integrate-view" data-view="all">
     <CardGrid>
       {
-        allIntegrations.map(({ slug, data }) => (
-          <LinkCard
-            title={cardTitle(data)}
-            description={data.description ?? ""}
-            href={slugToHref(slug)}
-          />
-        ))
+        allIntegrations.map(({ slug, data }) => {
+          const platforms = getPlatforms(data);
+          return (
+            <div class="integrate-card-wrapper" data-platforms={platforms.join(",")}>
+              <LinkCard
+                title={cardTitle(data)}
+                description={data.description ?? ""}
+                href={slugToHref(slug)}
+              />
+              <div class="integrate-card-chips">
+                {platforms.map((p) => (
+                  <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
+                ))}
+              </div>
+            </div>
+          );
+        })
       }
     </CardGrid>
   </div>
@@ -200,11 +236,13 @@ function slugToHref(slug: string): string {
     <CardGrid>
       {
         byCategory.map((card) => (
-          <LinkCard
-            title={card.title}
-            description={card.description}
-            href={card.href}
-          />
+          <div class="integrate-card-wrapper" data-platforms="aws,azure,self-hosted">
+            <LinkCard
+              title={card.title}
+              description={card.description}
+              href={card.href}
+            />
+          </div>
         ))
       }
     </CardGrid>
@@ -218,13 +256,23 @@ function slugToHref(slug: string): string {
             <h3 class="integrate-industry-heading">{INDUSTRY_LABELS[industry] ?? industry}</h3>
             <CardGrid>
               {
-                industryGroups[industry].map(({ slug, data }) => (
-                  <LinkCard
-                    title={cardTitle(data)}
-                    description={data.description ?? ""}
-                    href={slugToHref(slug)}
-                  />
-                ))
+                industryGroups[industry].map(({ slug, data }) => {
+                  const platforms = getPlatforms(data);
+                  return (
+                    <div class="integrate-card-wrapper" data-platforms={platforms.join(",")}>
+                      <LinkCard
+                        title={cardTitle(data)}
+                        description={data.description ?? ""}
+                        href={slugToHref(slug)}
+                      />
+                      <div class="integrate-card-chips">
+                        {platforms.map((p) => (
+                          <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })
               }
             </CardGrid>
           </section>
@@ -240,13 +288,23 @@ function slugToHref(slug: string): string {
       tigerData.length > 0 ? (
         <CardGrid>
           {
-            tigerData.map(({ slug, data }) => (
-              <LinkCard
-                title={cardTitle(data)}
-                description={data.description ?? ""}
-                href={slugToHref(slug)}
-              />
-            ))
+            tigerData.map(({ slug, data }) => {
+              const platforms = getPlatforms(data);
+              return (
+                <div class="integrate-card-wrapper" data-platforms={platforms.join(",")}>
+                  <LinkCard
+                    title={cardTitle(data)}
+                    description={data.description ?? ""}
+                    href={slugToHref(slug)}
+                  />
+                  <div class="integrate-card-chips">
+                    {platforms.map((p) => (
+                      <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
           }
         </CardGrid>
       ) : (
@@ -260,13 +318,23 @@ function slugToHref(slug: string): string {
       external.length > 0 ? (
         <CardGrid>
           {
-            external.map(({ slug, data }) => (
-              <LinkCard
-                title={cardTitle(data)}
-                description={data.description ?? ""}
-                href={slugToHref(slug)}
-              />
-            ))
+            external.map(({ slug, data }) => {
+              const platforms = getPlatforms(data);
+              return (
+                <div class="integrate-card-wrapper" data-platforms={platforms.join(",")}>
+                  <LinkCard
+                    title={cardTitle(data)}
+                    description={data.description ?? ""}
+                    href={slugToHref(slug)}
+                  />
+                  <div class="integrate-card-chips">
+                    {platforms.map((p) => (
+                      <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
           }
         </CardGrid>
       ) : (
@@ -318,6 +386,27 @@ function slugToHref(slug: string): string {
       showView(view);
     });
     window.addEventListener("hashchange", syncHashToView);
+
+    const platformChips = document.querySelectorAll<HTMLButtonElement>("[data-platform-filter]");
+    const cardWrappers = document.querySelectorAll<HTMLElement>(".integrate-card-wrapper");
+    function applyPlatformFilter(platform: string) {
+      platformChips.forEach((btn) => {
+        const value = btn.getAttribute("data-platform-filter");
+        btn.setAttribute("aria-pressed", value === platform ? "true" : "false");
+        btn.classList.toggle("integrate-platform-chip--active", value === platform);
+      });
+      cardWrappers.forEach((el) => {
+        const platforms = (el.getAttribute("data-platforms") ?? "").split(",").map((p) => p.trim());
+        const show = platform === "all" || platforms.includes(platform);
+        el.hidden = !show;
+      });
+    }
+    platformChips.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const platform = btn.getAttribute("data-platform-filter") ?? "all";
+        applyPlatformFilter(platform);
+      });
+    });
   }
 </script>
 
@@ -369,5 +458,67 @@ function slugToHref(slug: string): string {
   .integrate-empty {
     color: var(--sl-color-text);
     font-style: italic;
+  }
+
+  .integrate-platform-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+  }
+  .integrate-platform-filter-label {
+    font-weight: 500;
+    font-size: inherit;
+    color: var(--sl-color-text);
+  }
+  .integrate-platform-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .integrate-platform-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--sl-color-text);
+    background: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
+    border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .integrate-platform-chip:hover {
+    background: light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
+  }
+  .integrate-platform-chip--active,
+  .integrate-platform-chip[aria-pressed="true"] {
+    background: var(--stl-color-accent);
+    color: light-dark(#fff, var(--tiger-grey-900));
+    border-color: var(--stl-color-accent);
+  }
+
+  .integrate-card-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .integrate-card-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .integrate-chip {
+    display: inline-block;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: light-dark(var(--tiger-grey-600), var(--tiger-grey-400));
+    background: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
+    border-radius: 4px;
   }
 </style>

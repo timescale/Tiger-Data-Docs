@@ -23,6 +23,8 @@ const integrationSchema = z.object({
   sortOrder: z.number().optional(),
   /** Short name for integration cards: displayed as "{integrationCardTitle} and Tiger Cloud". */
   integrationCardTitle: z.string().optional(),
+  /** Platforms this integration is available on; shown as chips and used for filtering. */
+  integrationPlatforms: z.array(z.enum(["aws", "azure", "self-hosted"])).optional(),
 });
 
 export const collections = {
