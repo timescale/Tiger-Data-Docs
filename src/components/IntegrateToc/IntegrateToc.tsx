@@ -5,6 +5,7 @@
  */
 
 const HASH_TO_VIEW: Record<string, string> = {
+  all: "all",
   "by-category": "category",
   "by-industry": "industry",
   "tiger-data": "tiger-data",
@@ -29,7 +30,7 @@ const INDUSTRY_LABELS: Record<string, string> = {
   manufacturing: "Manufacturing",
 };
 
-export type IntegrateView = "category" | "industry" | "tiger-data" | "external";
+export type IntegrateView = "all" | "category" | "industry" | "tiger-data" | "external";
 
 interface IntegrateTocProps {
   currentView: IntegrateView;
@@ -39,7 +40,7 @@ interface IntegrateTocProps {
 function getViewFromHash(): IntegrateView {
   const hash = typeof window !== "undefined" ? window.location.hash.slice(1) : "";
   const view = HASH_TO_VIEW[hash];
-  return (view as IntegrateView) || "category";
+  return (view as IntegrateView) || "all";
 }
 
 export function IntegrateToc({ currentView, industryOrder }: IntegrateTocProps) {
@@ -51,6 +52,15 @@ export function IntegrateToc({ currentView, industryOrder }: IntegrateTocProps) 
           <li className="glossary-page-toc__item">
             <a href="#" className="glossary-page-toc__link" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0 }); }}>
               Overview
+            </a>
+          </li>
+          <li className="glossary-page-toc__item">
+            <a
+              href="#all"
+              className={`glossary-page-toc__link ${currentView === "all" ? "integrate-toc__link--active" : ""}`}
+              onClick={(e) => { e.preventDefault(); window.location.hash = "all"; }}
+            >
+              All integrations
             </a>
           </li>
           <li className="glossary-page-toc__item">

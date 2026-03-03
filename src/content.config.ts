@@ -21,6 +21,8 @@ const integrationSchema = z.object({
   connectorType: z.enum(["tiger-data", "external"]).optional(),
   /** Sort order within Tiger Data / External lists (lower = first). */
   sortOrder: z.number().optional(),
+  /** Short name for integration cards: displayed as "{integrationCardTitle} and Tiger Cloud". */
+  integrationCardTitle: z.string().optional(),
 });
 
 export const collections = {

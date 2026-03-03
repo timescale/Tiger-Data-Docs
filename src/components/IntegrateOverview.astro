@@ -41,7 +41,24 @@ type DocData = {
   integrationIndustry?: string[];
   connectorType?: "tiger-data" | "external";
   sortOrder?: number;
+  integrationCardTitle?: string;
 };
+
+/** Card title for integrate index: "Tool and Tiger Cloud" when integrationCardTitle is set, else derive from title. */
+function cardTitle(data: DocData): string {
+  if (data.integrationCardTitle) {
+    return `${data.integrationCardTitle} and Tiger Cloud`;
+  }
+  const t = data.title ?? "";
+  const withMatch = t.match(/^Integrate (.+?) (?:with|and) Tiger Cloud$/i);
+  if (withMatch) return `${withMatch[1]} and Tiger Cloud`;
+  const connectMatch = t.match(/^Connect (.+?) to Tiger Cloud$/i);
+  if (connectMatch) return `${connectMatch[1]} and Tiger Cloud`;
+  const connectWithMatch = t.match(/^Connect to Tiger Cloud with (.+)$/i);
+  if (connectWithMatch) return `${connectWithMatch[1]} and Tiger Cloud`;
+  if (t && !t.includes("Tiger Cloud")) return `${t} and Tiger Cloud`;
+  return t || "Integration";
+}
 
 const entries: { slug: string; data: DocData }[] = [];
 for (const slug of allSlugs) {
@@ -58,6 +75,7 @@ for (const slug of allSlugs) {
           integrationIndustry: d.integrationIndustry,
           connectorType: d.connectorType,
           sortOrder: d.sortOrder,
+          integrationCardTitle: d.integrationCardTitle,
         },
       });
     }
@@ -109,6 +127,10 @@ const byCategory = [
   },
 ];
 
+const allIntegrations = [...entries].sort((a, b) =>
+  cardTitle(a.data).localeCompare(cardTitle(b.data), undefined, { sensitivity: "base" })
+);
+
 const tigerData = entries
   .filter((e) => e.data.connectorType === "tiger-data")
   .sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99));
@@ -152,6 +174,7 @@ function slugToHref(slug: string): string {
   <div class="integrate-overview-controls">
     <label for="integrate-view-select" class="integrate-overview-label">View integrations</label>
     <select id="integrate-view-select" class="integrate-overview-select" aria-label="Choose how to view integrations">
+      <option value="all">All integrations</option>
       <option value="category">By category</option>
       <option value="industry">By industry</option>
       <option value="tiger-data">Tiger Data connectors</option>
@@ -159,7 +182,21 @@ function slugToHref(slug: string): string {
     </select>
   </div>
 
-  <div id="integrate-view-category" class="integrate-view" data-view="category">
+  <div id="integrate-view-all" class="integrate-view" data-view="all">
+    <CardGrid>
+      {
+        allIntegrations.map(({ slug, data }) => (
+          <LinkCard
+            title={cardTitle(data)}
+            description={data.description ?? ""}
+            href={slugToHref(slug)}
+          />
+        ))
+      }
+    </CardGrid>
+  </div>
+
+  <div id="integrate-view-category" class="integrate-view" data-view="category" hidden>
     <CardGrid>
       {
         byCategory.map((card) => (
@@ -183,7 +220,7 @@ function slugToHref(slug: string): string {
               {
                 industryGroups[industry].map(({ slug, data }) => (
                   <LinkCard
-                    title={data.title}
+                    title={cardTitle(data)}
                     description={data.description ?? ""}
                     href={slugToHref(slug)}
                   />
@@ -205,7 +242,7 @@ function slugToHref(slug: string): string {
           {
             tigerData.map(({ slug, data }) => (
               <LinkCard
-                title={data.title}
+                title={cardTitle(data)}
                 description={data.description ?? ""}
                 href={slugToHref(slug)}
               />
@@ -225,7 +262,7 @@ function slugToHref(slug: string): string {
           {
             external.map(({ slug, data }) => (
               <LinkCard
-                title={data.title}
+                title={cardTitle(data)}
                 description={data.description ?? ""}
                 href={slugToHref(slug)}
               />
@@ -243,12 +280,14 @@ function slugToHref(slug: string): string {
   const select = document.getElementById("integrate-view-select") as HTMLSelectElement;
   const views = document.querySelectorAll<HTMLElement>("[data-view]");
   const HASH_TO_VIEW: Record<string, string> = {
+    "all": "all",
     "by-category": "category",
     "by-industry": "industry",
     "tiger-data": "tiger-data",
     "external": "external",
   };
   const VIEW_TO_HASH: Record<string, string> = {
+    all: "all",
     category: "by-category",
     industry: "by-industry",
     "tiger-data": "tiger-data",
@@ -262,11 +301,14 @@ function slugToHref(slug: string): string {
   }
   function syncHashToView() {
     const hash = window.location.hash.slice(1);
-    const view = HASH_TO_VIEW[hash] || "category";
+    const view = HASH_TO_VIEW[hash] || "all";
     showView(view);
   }
   if (select && views.length) {
     syncHashToView();
+    if (!window.location.hash) {
+      history.replaceState(null, "", window.location.pathname + "#all");
+    }
     select.addEventListener("change", () => {
       const view = select.value;
       const hash = VIEW_TO_HASH[view];
