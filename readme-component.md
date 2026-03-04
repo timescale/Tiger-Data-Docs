@@ -1,6 +1,6 @@
 # Component usage guide
 
-This doc describes how to use the custom and overridden components in Tiger Data Docs. Use the sections below to expand only what you need.
+This doc describes how to use the custom and overridden components in Tiger Data Docs. Use the sections below to expand only what you need. **Callouts** are the main thing doc editors use in MDX; **Main / primary button** explains when to use the primary CTA style (header and callout CTAs).
 
 ---
 
@@ -124,6 +124,38 @@ For **`variant="callout"`** only:
 
 - Omit `buttonLabel` or `buttonHref` to render only title + body (no button).
 - The default title for `variant="callout"` is **"Callout with button"** if `title` is not set.
+
+</details>
+
+---
+
+## Main / primary button – when to use it
+
+<details>
+<summary><strong>When to use the primary (accent) button</strong></summary>
+
+The **main button** is the primary CTA style: dark background (`#0b0b0f` in light theme), light text, 4px radius, 16px padding. It’s used for the single most important action in a given context (e.g. “Try for free”, “Get started”).
+
+### When to use
+
+- **One primary action per view** — e.g. “Get started” in the header, or “Try for free” inside a callout. Reserve it for the main conversion or next step you want the user to take.
+- **Header links** — In `astro.config.ts`, `header.links` entries are rendered as buttons; the **last** link is styled as the primary (accent) button. Use that slot for the top-level CTA (e.g. sign up, start trial, get started).
+- **In-content CTAs** — Use **Callout with button** (`variant="callout"` with `buttonLabel` and `buttonHref`) when you want a prominent CTA inside a doc (e.g. trial signup, product signup). That callout’s button uses the same primary style.
+
+### When not to use
+
+- **Secondary or alternate actions** — Use outline buttons or text links instead so the primary CTA stays visually dominant.
+- **Multiple equal-weight actions** — If two actions are equally important, use outline style or links for both; avoid two primary buttons in the same block.
+- **Low-emphasis or tertiary actions** — Prefer links or outline buttons so the main button doesn’t compete with them.
+
+### Where it appears
+
+| Location              | How it’s set                                                                 |
+|-----------------------|-------------------------------------------------------------------------------|
+| **Header**            | `astro.config.ts` → `header.links`. Last item gets accent (primary) style.   |
+| **Callout with button**| `<Callout variant="callout" buttonLabel="…" buttonHref="…">…</Callout>` in MDX. |
+
+Styling is in `theme.css`: variables `--stl-button-primary-bg` and `--stl-button-primary-fg`, and classes `.stl-ui-button`, `.stl-ui-button--accent`. The callout CTA button shares these tokens so header and in-doc CTAs stay consistent.
 
 </details>
 
