@@ -4,6 +4,43 @@ This doc describes how to use the custom and overridden components in Tiger Data
 
 ---
 
+## Callouts – quick copy-paste for doc editors
+
+<details>
+<summary><strong>Blurb to copy into contributor docs or style guides</strong></summary>
+
+**How to use callouts in Tiger Data Docs (MDX)**
+
+In any `.mdx` file under `src/content/docs/`, add this import at the top:
+
+```mdx
+import { Callout } from "@stainless-api/docs/components";
+```
+
+Then use one of these blocks. **Tip** and **Note** are the most common; use **Important** or **Warning** for cautions, and **Callout with button** when you need a CTA.
+
+- **Tip** (hints, best practices):  
+  `<Callout variant="tip">Your text here.</Callout>`
+
+- **Note** (extra context):  
+  `<Callout variant="note">Your text here.</Callout>`  
+  Optional: add `title="Your title"` to override the default "Note".
+
+- **Important** (don’t skip):  
+  `<Callout variant="important">Your text here.</Callout>`
+
+- **Warning** (cautions):  
+  `<Callout variant="warning">Your text here.</Callout>`
+
+- **Callout with button** (promo/CTA):  
+  `<Callout variant="callout" title="Optional title" buttonLabel="Button text" buttonHref="/path">Body text.</Callout>`
+
+Use a single import per file; you can use multiple `<Callout>` blocks with different `variant` values in the same file.
+
+</details>
+
+---
+
 ## Callouts
 
 <details>
