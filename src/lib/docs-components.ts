@@ -6,3 +6,4 @@
  */
 export * from "@stainless-api/ui-primitives";
 export { default as Callout } from "@components/Callout.astro";
+export { default as Button } from "@components/Button.astro";
