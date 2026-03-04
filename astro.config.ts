@@ -9,6 +9,11 @@ export default defineConfig({
       alias: {
         "@components": new URL("./src/components", import.meta.url).pathname,
         "@constants": new URL("./src/constants.ts", import.meta.url).pathname,
+        // Override Callout with our Figma-styled Tip (lightbulb icon) and structure
+        "@stainless-api/docs/components": new URL(
+          "./src/lib/docs-components.ts",
+          import.meta.url
+        ).pathname,
       },
     },
   },
@@ -49,6 +54,7 @@ export default defineConfig({
             Header: "./src/components/Header.astro",
             PageTitle: "./src/components/PageTitle.astro",
             Pagination: "./src/components/PageNavigation.astro",
+            Callout: "./src/components/Callout.astro",
           },
         },
       },
