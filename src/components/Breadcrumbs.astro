@@ -1,0 +1,105 @@
+---
+/**
+ * Breadcrumbs matching Figma design (node 3245-7788):
+ * - Geist 12px regular; intermediate items & "/" in #555570; current item in #15151E
+ * - 8px gap between items; "/" separators (not chevrons)
+ * - All segments except the current page are clickable links.
+ */
+import { findBreadcrumbTrail } from "@stainless-api/docs/components/ContentBreadcrumbs";
+
+interface Props {
+  currentPath: string;
+  sidebarEntry: import("@astrojs/starlight/route-data").StarlightRouteData["sidebar"];
+}
+
+const { currentPath, sidebarEntry } = Astro.props;
+const trail = findBreadcrumbTrail(sidebarEntry, currentPath, true);
+---
+
+{trail && trail.length > 0 && (
+  <nav class="breadcrumbs" aria-label="Breadcrumb">
+    <ol class="breadcrumbs__list">
+      {trail.map((crumb, index) => {
+        const isLast = index === trail.length - 1;
+        return (
+          <li class="breadcrumbs__item">
+            {index > 0 && <span class="breadcrumbs__sep" aria-hidden="true">/</span>}
+            {crumb.href ? (
+              <a href={crumb.href} class="breadcrumbs__link">
+                {crumb.title}
+              </a>
+            ) : (
+              <span
+                class={isLast ? "breadcrumbs__current" : "breadcrumbs__label"}
+                aria-current={isLast ? "page" : undefined}
+              >
+                {crumb.title}
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  </nav>
+)}
+
+<style is:global>
+  @layer starlight.core {
+    .breadcrumbs,
+    .breadcrumbs a {
+      all: revert-layer;
+    }
+  }
+
+  .breadcrumbs {
+    --breadcrumb-fg: #555570;
+    --breadcrumb-current: #15151e;
+  }
+
+  .breadcrumbs__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-family: var(--stl-font-family, "Geist Sans", sans-serif);
+    font-size: 12px;
+    font-weight: 450;
+    line-height: 1.5;
+    letter-spacing: 0.12px;
+    color: var(--breadcrumb-fg);
+  }
+
+  .breadcrumbs__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .breadcrumbs__sep {
+    color: var(--breadcrumb-fg);
+    user-select: none;
+  }
+
+  .breadcrumbs__link {
+    color: var(--breadcrumb-fg);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .breadcrumbs__link:hover {
+    color: var(--breadcrumb-current);
+    text-decoration: underline;
+  }
+
+  .breadcrumbs__label {
+    color: var(--breadcrumb-fg);
+  }
+
+  .breadcrumbs__current {
+    color: var(--breadcrumb-current);
+    font-weight: 450;
+  }
+</style>
