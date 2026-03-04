@@ -1,14 +1,13 @@
 ---
 /**
- * Custom Callout that implements Figma designs for variant="tip" (lightbulb) and
- * variant="note" (information circle): light purple box, 24px padding, full border,
- * icon + title + body. Other variants delegate to Stainless ui-primitives Callout.
+ * Custom Callout that implements Figma designs for tip, note, important, and warning:
+ * icon + title + body, 24px padding, full border. Other variants delegate to Stainless.
  */
 import { Callout as StainlessCallout, type CalloutVariant } from "@stainless-api/ui-primitives";
 
 export interface Props {
-  variant?: CalloutVariant;
-  /** Optional title; defaults are "Tips" / "Note" for tip/note. */
+  variant?: CalloutVariant | "important";
+  /** Optional title; defaults: "Tips" / "Note" / "Important" / "Warning". */
   title?: string;
   children?: astroHTML.JSX.Children;
 }
@@ -17,8 +16,12 @@ const { variant = "note", title, children } = Astro.props;
 
 const isTip = variant === "tip";
 const isNote = variant === "note";
-const isCustomVariant = isTip || isNote;
-const displayTitle = title ?? (isTip ? "Tips" : isNote ? "Note" : undefined);
+const isImportant = variant === "important";
+const isWarning = variant === "warning";
+const isCustomVariant = isTip || isNote || isImportant || isWarning;
+const displayTitle =
+  title ??
+  (isTip ? "Tips" : isNote ? "Note" : isImportant ? "Important" : isWarning ? "Warning" : undefined);
 ---
 
 {isCustomVariant ? (
@@ -26,52 +29,23 @@ const displayTitle = title ?? (isTip ? "Tips" : isNote ? "Note" : undefined);
     <div class="stl-callout__header" data-callout-header>
       <span class="stl-callout__icon" aria-hidden="true">
         {isTip ? (
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            focusable="false"
-          >
-            <path
-              d="M12 2a7 7 0 0 1 4.9 12.1l-.9 2.8a1 1 0 0 1-.95.7H9.95a1 1 0 0 1-.95-.7l-.9-2.8A7 7 0 0 1 12 2z"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M10 22h4"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+            <path d="M12 2a7 7 0 0 1 4.9 12.1l-.9 2.8a1 1 0 0 1-.95.7H9.95a1 1 0 0 1-.95-.7l-.9-2.8A7 7 0 0 1 12 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M10 22h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+        ) : isNote ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" fill="none" />
+            <path d="M12 11v4M12 8h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        ) : isImportant ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true">
+            <path d="M5 8v8l6 3 7-4V9l-7-4-6 3z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+            <path d="M18 9v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
           </svg>
         ) : (
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            focusable="false"
-          >
-            <circle
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="1.5"
-              fill="none"
-            />
-            <path
-              d="M12 11v4M12 8h.01"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+            <path d="M12 9v4m0 4h.01M10.29 3.86L2.14 18a2 2 0 0 0 1.72 3h16.28a2 2 0 0 0 1.72-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         )}
       </span>
@@ -82,7 +56,7 @@ const displayTitle = title ?? (isTip ? "Tips" : isNote ? "Note" : undefined);
     </div>
   </div>
 ) : (
-  <StainlessCallout variant={variant}>
+  <StainlessCallout variant={variant as CalloutVariant}>
     <slot />
   </StainlessCallout>
 )}
