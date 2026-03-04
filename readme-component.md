@@ -157,6 +157,29 @@ The **main button** is the primary CTA style: dark background (`#0b0b0f` in ligh
 
 Styling is in `theme.css`: variables `--stl-button-primary-bg` and `--stl-button-primary-fg`, and classes `.stl-ui-button`, `.stl-ui-button--accent`. The callout CTA button shares these tokens so header and in-doc CTAs stay consistent.
 
+### Outline + hover button (Figma 3245-9618, 3245-9617)
+
+The **Button** component implements the two Figma states: **enabled** (outline: light bg, dark border, dark text) and **hover** (filled: dark bg, white text). Use it for secondary actions that highlight on hover.
+
+Import and use in MDX or Astro:
+
+```mdx
+import { Button } from "@stainless-api/docs/components";
+
+<Button label="Button enabled" icon="down" />
+<Button label="Download" href="/download" variant="outline" icon="down" />
+<Button label="Primary CTA" variant="accent" href="/get-started" />
+```
+
+| Prop | Description |
+|------|-------------|
+| `label` | Button text (required). |
+| `href` | If set, renders as `<a>`; otherwise `<button>`. |
+| `variant` | `"outline"` (default) = enabled → hover fill; `"accent"` = primary only. |
+| `icon` | `"down"` or `true` = show down-arrow icon (Figma “Arrow / With base / Down”). |
+| `type` | For `<button>`: `"button"` \| `"submit"` \| `"reset"`. |
+| `class` | Extra CSS classes. |
+
 </details>
 
 ---
@@ -187,16 +210,65 @@ No MDX import is required for these; they are part of the default layout.
 ## Other custom components
 
 <details>
-<summary><strong>Glossary, NumberedList, IntegrateToc, Changelog, etc.</strong></summary>
+<summary><strong>Button, Glossary, NumberedList, IntegrateToc, Changelog, etc.</strong></summary>
 
-Other project-specific components live under `src/components/` and are used in specific pages or layouts:
+Other project-specific components live under `src/components/` and are used in specific pages or layouts.
+
+### SecondaryButton (icon + label, default / subtle) – Figma 3245-9636, 3245-9637
+
+The **SecondaryButton** component implements the two Figma variants: **default** (white background) and **subtle** (light gray background). Both use a dark border, 12px Geist Medium label, and an optional icon (default: Copy). Use for secondary actions (e.g. copy, download) where the primary CTA is something else.
+
+**Import (MDX or Astro):**
+
+```mdx
+import SecondaryButton from "@components/SecondaryButton.astro";
+```
+
+**Usage:**
+
+```mdx
+<SecondaryButton variant="default" label="Button" />
+<SecondaryButton variant="subtle" label="Copy" href="/copy" />
+```
+
+| Prop | Description |
+|------|-------------|
+| `variant` | `"default"` (white bg, Figma 3245-9636) or `"subtle"` (gray bg, Figma 3245-9637). Default: `"default"`. |
+| `label` | Button text (required). |
+| `href` | If set, renders as `<a>`; otherwise `<button>`. |
+| `type` | For `<button>`: `"button"` \| `"submit"` \| `"reset"`. |
+| `aria-label` | Override accessible name (defaults to `label`). |
+
+Use the **icon** slot to replace the default Copy icon: put your SVG (or icon component) inside the component with `slot="icon"`.
+
+### Button (outline + hover, optional icon)
+
+The **Button** component matches Figma 3245-9618 (enabled) and 3245-9617 (hover). Use it for standalone actions: outline style by default, fills to primary on hover; optional down-arrow icon.
+
+**Import (in MDX or Astro):**
+
+```mdx
+import { Button } from "@stainless-api/docs/components";
+```
+
+**Props:** `label` (required), `href` (optional; renders as `<a>` if set), `variant` (`"outline"` | `"accent"`), `icon` (`"down"` or `true` for the arrow), `type`, `class`.
+
+**Examples:**
+
+```mdx
+<Button label="Button enabled" icon="down" />
+<Button label="Download" href="/download" variant="outline" icon="down" />
+<Button label="Primary CTA" variant="accent" href="/get-started" />
+```
+
+See **Main / primary button** above for when to use primary vs outline and how it ties into theme tokens.
 
 - **Glossary** (`Glossary/`) — glossary UI (filters, letter nav, term cards). Used on glossary pages.
 - **NumberedList** / **NumberedItem** — step-by-step or ordered flows in docs.
 - **IntegrateToc** — table of contents for the Integrate section.
-- **Changelog*** — changelog entries, tags, filters. Used on changelog pages.
+- **Changelog** — changelog entries, tags, filters. Used on changelog pages.
 
-Use them by importing from `@components/...` (or the path configured in your project) in the relevant Astro/MDX files. See `src/components/` and `astro.config.ts` for exact paths and usage.
+Use them by importing from `@components/...` or `@stainless-api/docs/components` (for Button/Callout) in the relevant Astro/MDX files. See `src/components/` and `astro.config.ts` for exact paths and usage.
 
 </details>
 
