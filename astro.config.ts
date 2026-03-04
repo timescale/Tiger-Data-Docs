@@ -47,6 +47,7 @@ export default defineConfig({
         starlightCompat: {
           components: {
             Header: "./src/components/Header.astro",
+            Pagination: "./src/components/PageNavigation.astro",
           },
         },
       },
