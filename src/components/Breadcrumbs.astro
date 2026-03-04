@@ -1,0 +1,111 @@
+---
+/**
+ * Breadcrumbs matching Figma (3245-7788, current item 3270-1911):
+ * - Geist 12px, weight 450; intermediate items & "/" in #555570 (--fg/emphasized)
+ * - Selected/current page: #15151E (--bg/default) so it reads slightly darker
+ * - 8px gap, "/" separators; every segment (including groups like "pgai") links to its section.
+ */
+import { findBreadcrumbTrail } from "../lib/breadcrumb";
+
+interface Props {
+  currentPath: string;
+  sidebarEntry: import("@astrojs/starlight/route-data").StarlightRouteData["sidebar"];
+}
+
+const { currentPath, sidebarEntry } = Astro.props;
+const trail = findBreadcrumbTrail(sidebarEntry, currentPath, true);
+---
+
+{trail && trail.length > 0 && (
+  <nav class="breadcrumbs" aria-label="Breadcrumb">
+    <ol class="breadcrumbs__list">
+      {trail.map((crumb, index) => {
+        const isLast = index === trail.length - 1;
+        return (
+          <li class="breadcrumbs__item">
+            {index > 0 && <span class="breadcrumbs__sep" aria-hidden="true">/</span>}
+            {isLast ? (
+              <span class="breadcrumbs__current" aria-current="page">
+                {crumb.title}
+              </span>
+            ) : crumb.href ? (
+              <a href={crumb.href} class="breadcrumbs__link">
+                {crumb.title}
+              </a>
+            ) : (
+              <span class="breadcrumbs__label">{crumb.title}</span>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  </nav>
+)}
+
+<style is:global>
+  @layer starlight.core {
+    .breadcrumbs,
+    .breadcrumbs a {
+      all: revert-layer;
+    }
+  }
+
+  .breadcrumbs {
+    /* Tokens from theme.css; fallbacks match Figma */
+  }
+
+  /* One size (12px) for all segments; color and weight only distinguish current page */
+  .breadcrumbs__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-family: var(--stl-font-family, "Geist Sans", sans-serif);
+    font-size: 12px;
+    font-weight: 450;
+    line-height: 1.5;
+    letter-spacing: 0.12px;
+    color: var(--breadcrumb-fg, #555570);
+  }
+
+  .breadcrumbs__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .breadcrumbs__sep {
+    color: var(--breadcrumb-fg, #555570);
+    user-select: none;
+  }
+
+  .breadcrumbs__link {
+    color: var(--breadcrumb-fg, #555570);
+    font-size: inherit;
+    font-weight: inherit;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .breadcrumbs__link:hover {
+    color: var(--breadcrumb-current, #15151e);
+    text-decoration: underline;
+  }
+
+  .breadcrumbs__label {
+    color: var(--breadcrumb-fg, #555570);
+  }
+
+  /* Current page: same 12px size; only color and weight distinguish it (Figma 3270-1911) */
+  .breadcrumbs .breadcrumbs__list .breadcrumbs__current {
+    color: var(--breadcrumb-current, #15151e);
+    font-weight: 500;
+    font-size: inherit;
+    font-family: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+  }
+</style>

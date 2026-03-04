@@ -1,0 +1,57 @@
+---
+/**
+ * Button component matching Figma designs:
+ * - 3245:9618 "Button enabled" – outline style (light bg, dark border, dark text)
+ * - 3245:9617 "Hover button" – filled style on hover (dark bg, white text)
+ *
+ * Uses theme tokens: --button-secondary-* for default, --stl-button-primary-* on hover.
+ * Optional down-arrow icon (Arrow / With base / Down) at 16px; 12px padding, 8px gap, 4px radius.
+ */
+export interface Props {
+  /** Button label (required). */
+  label: string;
+  /** If set, renders as <a href="..."> instead of <button>. */
+  href?: string;
+  /** "outline" = Figma enabled → hover fill (default). "accent" = primary CTA only. */
+  variant?: "outline" | "accent";
+  /** Show the down-arrow icon (Figma "Arrow / With base / Down"). */
+  icon?: "down" | boolean;
+  /** For <button>: type attribute (default "button"). */
+  type?: "button" | "submit" | "reset";
+  /** Additional class names. */
+  class?: string;
+}
+
+const { label, href, variant = "outline", icon, type = "button", class: className } = Astro.props;
+const showIcon = icon === "down" || icon === true;
+
+const baseClass = "stl-ui-button";
+const variantClass = variant === "outline" ? "stl-ui-button--outline" : "stl-ui-button--accent";
+const classes = [baseClass, variantClass, className].filter(Boolean).join(" ");
+---
+
+{href ? (
+  <a class={classes} href={href}>
+    {showIcon ? (
+      <span class="stl-ui-button__icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+          <path d="M8 3v6M8 9L5.5 6.5M8 9l2.5-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M3 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+      </span>
+    ) : null}
+    <span class="stl-ui-button__label">{label}</span>
+  </a>
+) : (
+  <button class={classes} type={type}>
+    {showIcon ? (
+      <span class="stl-ui-button__icon" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+          <path d="M8 3v6M8 9L5.5 6.5M8 9l2.5-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M3 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+      </span>
+    ) : null}
+    <span class="stl-ui-button__label">{label}</span>
+  </button>
+)}
