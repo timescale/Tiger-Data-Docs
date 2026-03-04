@@ -1,20 +1,31 @@
+import { createRequire } from "node:module";
 import { defineConfig } from "astro/config";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
 import aiChat from "@stainless-api/docs-ai-chat/plugin";
+
+const require = createRequire(import.meta.url);
+
+// Resolve package subpaths so aliasing the main "components" entry doesn't break ThemeSelect/SDKSelect.
+const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/components/scripts");
 
 // https://astro.build/config
 export default defineConfig({
   vite: {
     resolve: {
-      alias: {
-        "@components": new URL("./src/components", import.meta.url).pathname,
-        "@constants": new URL("./src/constants.ts", import.meta.url).pathname,
-        // Override Callout with our Figma-styled Tip (lightbulb icon) and structure
-        "@stainless-api/docs/components": new URL(
-          "./src/lib/docs-components.ts",
-          import.meta.url
-        ).pathname,
-      },
+      alias: [
+        { find: "@components", replacement: new URL("./src/components", import.meta.url).pathname },
+        { find: "@constants", replacement: new URL("./src/constants.ts", import.meta.url).pathname },
+        // Resolve scripts subpath to the package so ThemeSelect.astro / SDKSelect.astro keep working.
+        {
+          find: "@stainless-api/docs/components/scripts",
+          replacement: docsComponentsScriptsPath,
+        },
+        // Override Callout with our Figma-styled Tip (lightbulb icon). Exact match only.
+        {
+          find: /^@stainless-api\/docs\/components$/,
+          replacement: new URL("./src/lib/docs-components.ts", import.meta.url).pathname,
+        },
+      ],
     },
   },
   integrations: [
