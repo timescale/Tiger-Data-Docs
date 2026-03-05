@@ -8,12 +8,18 @@ integrationIndustry: ["IoT", "manufacturing"]
 integrationCardTitle: "S3"
 integrationPlatforms: ["aws", "azure", "self-hosted"]
 ---
+
+import { Callout } from "@stainless-api/docs/components";
+
 You use the source S3 connector in Tiger Cloud to synchronize CSV and Parquet files from an S3 bucket to your Tiger Cloud service in real time. The connector runs continuously, enabling you to leverage Tiger Cloud as your analytics database with data constantly synced from S3. This lets you take full advantage of Tiger Cloud‘s real-time analytics capabilities without having to develop or manage custom ETL solutions between S3 and Tiger Cloud. ![Tiger Cloud overview](/assets/images/migrate/tiger-console-connector-overview.png) You can use the source S3 connector to synchronize your existing and new data. Here’s what the connector can do:
+
+<Callout variant="important">
+The connector processes files in [lexicographical order](https://en.wikipedia.org/wiki/Lexicographic_order). It uses the name of the last file processed as a marker and fetches only files later in the alphabet in subsequent queries. Files added with names earlier in the alphabet than the marker are skipped and never synced. For example, if you add the file Bob when the marker is at Elephant, Bob is never processed.
+</Callout>
 
 -   Sync data from an S3 bucket instance to a Tiger Cloud service:
     -   Use glob patterns to identify the objects to sync.
     -   Watch an S3 bucket for new files and import them automatically. It runs on a configurable schedule and tracks processed files.
-    -   **Important**: the connector processes files in [lexicographical order](https://en.wikipedia.org/wiki/Lexicographic_order). It uses the name of the last file processed as a marker and fetches only files later in the alphabet in subsequent queries. Files added with names earlier in the alphabet than the marker are skipped and never synced. For example, if you add the file Bob when the marker is at Elephant, Bob is never processed.
     -   For large backlogs, check every minute until caught up.
 -   Sync data from multiple file formats:
     -   CSV: check for compression in GZ and ZIP format, then process using [timescaledb-parallel-copy](https://github.com/timescale/timescaledb-parallel-copy).
@@ -21,7 +27,11 @@ You use the source S3 connector in Tiger Cloud to synchronize CSV and Parquet fi
 -   The source S3 connector offers an option to enable a [hypertable](/open-source/timescaledb/hypertables) during the file-to-table schema mapping setup. You can enable [columnstore](/open-source/timescaledb/compression) and [continuous aggregates](/open-source/timescaledb/continuous-aggregates) through the SQL editor once the connector has started running.
 -   The connector offers a default 1-minute polling interval. This means that Tiger Cloud checks the S3 source every minute for new data. You can customize this interval by setting up a cron expression.
 
-The Source S3 connector continuously imports data from an Amazon S3 bucket into your database. It monitors your S3 bucket for new files matching a specified pattern and automatically imports them into your designated database table. **Note**: the connector currently only syncs existing and new files—it does not support updating or deleting records based on updates and deletes from S3 to tables in a Tiger Cloud service. If you have any questions or feedback about the source S3 connector, join us in the [Tiger Data community](https://app.slack.com/client/T4GT3N2JK/C086NU9EZ88).
+The Source S3 connector continuously imports data from an Amazon S3 bucket into your database. It monitors your S3 bucket for new files matching a specified pattern and automatically imports them into your designated database table.
+
+<Callout variant="note">
+The connector currently only syncs existing and new files—it does not support updating or deleting records based on updates and deletes from S3 to tables in a Tiger Cloud service. If you have any questions or feedback about the source S3 connector, join us in the [Tiger Data community](https://app.slack.com/client/T4GT3N2JK/C086NU9EZ88).
+</Callout>
 
 Prerequisites
 
@@ -40,7 +50,9 @@ To follow the steps on this page:
             -   `s3:ListBucket`.
     -   [Public anonymous user](https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html#example-bucket-policies-anonymous-user).
 
+<Callout variant="note">
 This feature is currently not supported for Tiger Cloud on Microsoft Azure.
+</Callout>
 
 Limitations
 
