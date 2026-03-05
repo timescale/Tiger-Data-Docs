@@ -1,156 +1,22 @@
 ---
 title: "Tiger Data cookbook"
 description: "Browse code examples from the Tiger community that resolve common issues and provide solutions for non-standard tasks"
+products: [cloud, self_hosted]
+keywords: [tutorials, cookbook, recipes, community, hypertables, IoT, best practices]
 ---
 
 import * as C from "@constants";
+import Hypertables from "../../../../partials/_cookbook-hypertables.mdx";
+import IOT from "../../../../partials/_cookbook-iot.mdx";
+import IntegrationPrereqs from "../../../../partials/_prereqs-cloud-and-self.mdx";
 
-This page contains suggestions from the [Tiger Data Community](https://timescaledb.slack.com/) about how to resolve common issues. Use these code examples as guidance to work with your own data.
+This page contains suggestions from the [{C.COMPANY} Community](https://timescaledb.slack.com/) about how to resolve
+common issues. Use these code examples as guidance to work with your own data.
 
-Prerequisites
+## Prerequisites
 
-To follow the steps on this page:
+<IntegrationPrereqs />
 
--   Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled.
-    
-    You need [your connection details](/integrate/find-connection-details). This procedure also works for [self-hosted TimescaleDB](/deploy/self-hosted/install-and-update/install-self-hosted).
+<Hypertables />
 
-Hypertable recipes
-
-This section contains recipes about hypertables.
-
-Remove duplicates from an existing hypertable
-
-Looking to remove duplicates from an existing hypertable? One method is to run a `PARTITION BY` query to get `ROW_NUMBER()` and then the `ctid` of rows where `row_number>1`. You then delete these rows. However, you need to check `tableoid` and `ctid`. This is because `ctid` is not unique and might be duplicated in different chunks. The following code example took 17 hours to process a table with 40 million rows: Shoutout to **Mathias Ose** and **Christopher Piggott** for this recipe.
-
-Get faster JOIN queries with Common Table Expressions
-
-Imagine there is a query that joins a hypertable to another table on a shared key: If you run `EXPLAIN` on this query, you see that the query planner performs a `NestedJoin` between these two tables, which means querying the hypertable multiple times. Even if the hypertable is well indexed, if it is also large, the query will be slow. How do you force a once-only lookup? Use materialized Common Table Expressions (CTEs). If you split the query into two parts using CTEs, you can `materialize` the hypertable lookup and force {C.PG} to perform it only once. Now if you run `EXPLAIN` once again, you see that this query performs only one lookup. Depending on the size of your hypertable, this could result in a multi-hour query taking mere seconds. Shoutout to **Rowan Molony** for this recipe.
-
-IoT recipes
-
-This section contains recipes for IoT issues:
-
-Work with columnar IoT data
-
-Narrow and medium width tables are a great way to store IoT data. A lot of reasons are outlined in [Designing Your Database Schema: Wide vs. Narrow {C.PG} Tables](https://www.tigerdata.com/learn/designing-your-database-schema-wide-vs-narrow-postgres-tables). One of the key advantages of narrow tables is that the schema does not have to change when you add new sensors. Another big advantage is that each sensor can sample at different rates and times. This helps support things like hysteresis, where new values are written infrequently unless the value changes by a certain amount.
-
-Narrow table format example
-
-Working with narrow table data structures presents a few challenges. In the IoT world one concern is that many data analysis approaches - including machine learning as well as more traditional data analysis - require that your data is resampled and synchronized to a common time basis. Fortunately, TimescaleDB provides you with [hyperfunctions](/api-reference/timescaledb/hyperfunctions) and other tools to help you work with this data. An example of a narrow table format is:
-
-ts
-
-sensor\_id
-
-value
-
-2024-10-31 11:17:30.000
-
-1007
-
-23.45
-
-Typically you would couple this with a sensor table:
-
-sensor\_id
-
-sensor\_name
-
-units
-
-1007
-
-temperature
-
-degreesC
-
-1012
-
-heat\_mode
-
-on/off
-
-1013
-
-cooling\_mode
-
-on/off
-
-1041
-
-occupancy
-
-number of people in room
-
-A medium table retains the generic structure but adds columns of various types so that you can use the same table to store float, int, bool, or even JSON (jsonb) data:
-
-ts
-
-sensor\_id
-
-d
-
-i
-
-b
-
-t
-
-j
-
-2024-10-31 11:17:30.000
-
-1007
-
-23.45
-
-null
-
-null
-
-null
-
-null
-
-2024-10-31 11:17:47.000
-
-1012
-
-null
-
-null
-
-TRUE
-
-null
-
-null
-
-2024-10-31 11:18:01.000
-
-1041
-
-null
-
-4
-
-null
-
-null
-
-null
-
-To remove all-null entries, use an optional constraint such as:
-
-Get the last value of every sensor
-
-There are several ways to get the latest value of every sensor. The following examples use the structure defined in [Narrow table format example](#narrow-table-format-example) as a reference
-
-##### SELECT DISTINCT ON
-
-If you have a list of sensors, the easy way to get the latest value of every sensor is to use `SELECT DISTINCT ON`: The common table expression (CTE) used above is not strictly necessary. However, it is an elegant way to join to the sensor list to get a sensor name in the output. If this is not something you care about, you can leave it out: It is important to take care when down-selecting this data. In the previous examples, the time that the query would scan back was limited. However, if there any sensors that have either not reported in a long time or in the worst case, never reported, this query devolves to a full table scan. In a database with 1000+ sensors and 41 million rows, an unconstrained query takes over an hour.
-
-JOIN LATERAL
-
-An alternative to [SELECT DISTINCT ON](#select-distinct-on) is to use a `JOIN LATERAL`. By selecting your entire sensor list from the sensors table rather than pulling the IDs out using `SELECT DISTINCT`, `JOIN LATERAL` can offer some improvements in performance: Limiting the time range is important, especially if you have a lot of data. Best practice is to use these kinds of queries for dashboards and quick status checks. To query over a much larger time range, encapsulate the previous example into a materialized query that refreshes infrequently, perhaps once a day. Shoutout to **Christopher Piggott** for this recipe.
+<IOT />
