@@ -1,0 +1,166 @@
+---
+/**
+ * Custom page navigation (prev/next) matching the Figma design:
+ * - Top border line (#15151E)
+ * - Left: "Previous" + page title, left chevron; right: "Next" + page title, right chevron
+ * - Default: text/icon #15151E; Hover: text/icon #4F6BED (Primary 900)
+ * - 12px uppercase labels, 56px height
+ *
+ * Replaces the default Stainless Pagination when registered in starlightCompat.components.
+ * Uses the same getPrevNextPage logic as Stainless so sidebar order and filtering match.
+ */
+import config from "virtual:starlight/user-config";
+import { getPrevNextPage } from "../lib/pagination";
+
+const result = await getPrevNextPage(Astro.locals.starlightRoute, config.pagination);
+const prev = result?.prev ?? undefined;
+const next = result?.next ?? undefined;
+const hasNav = prev || next;
+const t = Astro.locals.t ?? ((key: string) => (key === "page.previousLink" ? "Previous" : key === "page.nextLink" ? "Next" : key));
+---
+
+{hasNav && (
+  <nav class="page-nav print:hidden stl-ui-not-prose" aria-label="Page navigation">
+    <div class="page-nav__line" aria-hidden="true" />
+    <div class="page-nav__inner">
+      {prev && (
+        <a href={prev.href} class="page-nav__link page-nav__link--prev" rel="prev">
+          <span class="page-nav__icon page-nav__icon--left" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </span>
+          <span class="page-nav__text">
+            <span class="page-nav__label">{t("page.previousLink")}</span>
+            <span class="page-nav__title">{prev.label}</span>
+          </span>
+        </a>
+      )}
+      {next && (
+        <a href={next.href} class="page-nav__link page-nav__link--next" rel="next">
+          <span class="page-nav__text">
+            <span class="page-nav__label">{t("page.nextLink")}</span>
+            <span class="page-nav__title">{next.label}</span>
+          </span>
+          <span class="page-nav__icon page-nav__icon--right" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </span>
+        </a>
+      )}
+    </div>
+  </nav>
+)}
+
+<style is:global>
+  @layer starlight.core {
+    .page-nav,
+    .page-nav a,
+    .page-nav a:hover {
+      all: revert-layer;
+    }
+  }
+
+  .page-nav {
+    /* Tokens defined in theme.css; fallbacks match Figma specs */
+    min-height: 56px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding-bottom: 8px;
+    color: var(--page-nav-default, #15151e);
+  }
+
+  .page-nav__line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: var(--page-nav-line, #15151e);
+  }
+
+  .page-nav__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .page-nav__link {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    text-decoration: none;
+    color: var(--page-nav-default, #15151e);
+    font-size: 12px;
+    line-height: 1.5;
+    letter-spacing: 0.12px;
+    transition: color 0.15s ease;
+  }
+
+  .page-nav__link:hover {
+    color: var(--page-nav-hover, #4f6bed);
+  }
+
+  .page-nav__link:hover .page-nav__icon {
+    color: var(--page-nav-hover, #4f6bed);
+  }
+
+  .page-nav__link--prev {
+    justify-content: flex-start;
+  }
+
+  .page-nav__link--next {
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  .page-nav__icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    color: inherit;
+    transition: color 0.15s ease;
+  }
+
+  .page-nav__icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .page-nav__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .page-nav__link--next .page-nav__text {
+    align-items: flex-end;
+  }
+
+  .page-nav__label {
+    font-weight: 500;
+    letter-spacing: 0.36px;
+    text-transform: uppercase;
+  }
+
+  .page-nav__title {
+    font-size: 12px;
+    font-weight: 450;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+  }
+
+  @media (min-width: 50rem) {
+    .page-nav__title {
+      max-width: 320px;
+    }
+  }
+</style>

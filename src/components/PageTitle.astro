@@ -1,0 +1,82 @@
+---
+/**
+ * Custom PageTitle that uses Figma-styled breadcrumbs (Breadcrumbs.astro) with
+ * clickable links and "/" separators. Keeps Starlight title and description.
+ * AIDropdown is omitted here; re-add if the package exports it.
+ */
+import {
+  ENABLE_PROSE_MARKDOWN_RENDERING,
+  ENABLE_CONTEXT_MENU,
+  RENDER_PAGE_DESCRIPTIONS,
+} from "virtual:stl-docs-virtual-module";
+import type { StarlightRouteData } from "@astrojs/starlight/route-data";
+import Default from "@astrojs/starlight/components/PageTitle.astro";
+import Breadcrumbs from "./Breadcrumbs.astro";
+
+function sidebarHasEntry(
+  sidebarEntry: StarlightRouteData["sidebar"],
+  currentPath?: string
+) {
+  if (!currentPath) return false;
+  const normalizePath = (path: string) =>
+    path.endsWith("/") ? path : path + "/";
+  const normalizedCurrent = normalizePath(currentPath);
+  for (const entry of sidebarEntry) {
+    if (entry.type === "link") {
+      if (normalizePath(entry.href) === normalizedCurrent) return true;
+    } else if (entry.type === "group") {
+      if (sidebarHasEntry(entry.entries, currentPath)) return true;
+    }
+  }
+  return false;
+}
+
+const skipRenderingStarlightTitle =
+  Astro.locals._stlStarlightPage?.skipRenderingStarlightTitle ?? false;
+const hasMarkdownRoute =
+  Astro.locals._stlStarlightPage?.hasMarkdownRoute ?? true;
+const currentPath = Astro.url.pathname;
+
+function shouldShowAIDropdown() {
+  if (!sidebarHasEntry(Astro.locals.starlightRoute.sidebar, currentPath))
+    return false;
+  if (!hasMarkdownRoute) return false;
+  if (!ENABLE_PROSE_MARKDOWN_RENDERING) return false;
+  if (!ENABLE_CONTEXT_MENU) return false;
+  return true;
+}
+
+const showAIDropdown = shouldShowAIDropdown();
+const description = Astro.locals.starlightRoute.entry.data.description;
+const shouldRenderDescription = RENDER_PAGE_DESCRIPTIONS;
+---
+
+{
+  skipRenderingStarlightTitle ? null : (
+    <>
+      <div
+        class="stl-ui-not-prose stl-page-nav-container stl-prose-page-nav-container"
+        data-pagefind-ignore
+      >
+        <Breadcrumbs
+          currentPath={currentPath}
+          sidebarEntry={Astro.locals.starlightRoute.sidebar}
+        />
+      </div>
+      <Default />
+      {!!description && shouldRenderDescription && (
+        <p class="description">{description}</p>
+      )}
+    </>
+  )
+}
+
+<style>
+  p.description {
+    font-size: var(--stl-typography-scale-xl);
+    font-weight: 400;
+    line-height: 1.4;
+    letter-spacing: -0.02em;
+    margin-top: 0.4em;
+  }
+</style>
