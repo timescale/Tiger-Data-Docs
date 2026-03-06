@@ -264,7 +264,221 @@ export default defineConfig({
             {
               label: "TimescaleDB",
               collapsed: true,
-              autogenerate: { directory: "reference/timescaledb" },
+              items: [
+                { slug: "reference/timescaledb" },
+                {
+                  label: "Hypertables and chunks",
+                  collapsed: true,
+                  items: [
+                    { slug: "reference/timescaledb/hypertables" },
+                    {
+                      label: "Table creation",
+                      items: [
+                        "reference/timescaledb/hypertables/create_table",
+                        "reference/timescaledb/hypertables/create_hypertable",
+                        "reference/timescaledb/hypertables/create_index",
+                        "reference/timescaledb/hypertables/create_hypertable_old",
+                      ],
+                    },
+                    {
+                      label: "Chunk management",
+                      items: [
+                        "reference/timescaledb/hypertables/show_chunks",
+                        "reference/timescaledb/hypertables/drop_chunks",
+                        "reference/timescaledb/hypertables/move_chunk",
+                        "reference/timescaledb/hypertables/reorder_chunk",
+                        "reference/timescaledb/hypertables/merge_chunks",
+                        "reference/timescaledb/hypertables/split_chunk",
+                        "reference/timescaledb/hypertables/attach_chunk",
+                        "reference/timescaledb/hypertables/detach_chunk",
+                        "reference/timescaledb/hypertables/set_chunk_time_interval",
+                        "reference/timescaledb/hypertables/set_integer_now_func",
+                        "reference/timescaledb/hypertables/add_dimension",
+                        "reference/timescaledb/hypertables/add_dimension_old",
+                      ],
+                    },
+                    {
+                      label: "Size and statistics",
+                      items: [
+                        "reference/timescaledb/hypertables/hypertable_size",
+                        "reference/timescaledb/hypertables/hypertable_detailed_size",
+                        "reference/timescaledb/hypertables/hypertable_index_size",
+                        "reference/timescaledb/hypertables/hypertable_approximate_size",
+                        "reference/timescaledb/hypertables/hypertable_approximate_detailed_size",
+                        "reference/timescaledb/hypertables/chunks_detailed_size",
+                      ],
+                    },
+                    {
+                      label: "Tablespace management",
+                      items: [
+                        "reference/timescaledb/hypertables/attach_tablespace",
+                        "reference/timescaledb/hypertables/detach_tablespace",
+                        "reference/timescaledb/hypertables/detach_tablespaces",
+                        "reference/timescaledb/hypertables/show_tablespaces",
+                      ],
+                    },
+                    {
+                      label: "Reordering and policies",
+                      items: [
+                        "reference/timescaledb/hypertables/add_reorder_policy",
+                        "reference/timescaledb/hypertables/remove_reorder_policy",
+                      ],
+                    },
+                    {
+                      label: "Query optimization",
+                      items: [
+                        "reference/timescaledb/hypertables/enable_chunk_skipping",
+                        "reference/timescaledb/hypertables/disable_chunk_skipping",
+                      ],
+                    },
+                  ],
+                },
+                {
+                  label: "Hypercore",
+                  collapsed: true,
+                  items: [
+                    { slug: "reference/timescaledb/hypercore" },
+                    {
+                      label: "Policies",
+                      items: [
+                        "reference/timescaledb/hypercore/add_columnstore_policy",
+                        "reference/timescaledb/hypercore/remove_columnstore_policy",
+                      ],
+                    },
+                    {
+                      label: "Manual conversion",
+                      items: [
+                        "reference/timescaledb/hypercore/alter_table",
+                        "reference/timescaledb/hypercore/convert_to_columnstore",
+                        "reference/timescaledb/hypercore/convert_to_rowstore",
+                      ],
+                    },
+                    {
+                      label: "Statistics and information",
+                      items: [
+                        "reference/timescaledb/hypercore/chunk_columnstore_stats",
+                        "reference/timescaledb/hypercore/hypertable_columnstore_stats",
+                        "reference/timescaledb/hypercore/chunk_columnstore_settings",
+                        "reference/timescaledb/hypercore/hypertable_columnstore_settings",
+                      ],
+                    },
+                  ],
+                },
+                {
+                  label: "Continuous aggregates",
+                  collapsed: true,
+                  items: [
+                    { slug: "reference/timescaledb/continuous-aggregates" },
+                    {
+                      label: "Create and modify CAGGs",
+                      items: [
+                        "reference/timescaledb/continuous-aggregates/create_materialized_view",
+                        "reference/timescaledb/continuous-aggregates/alter_materialized_view",
+                        "reference/timescaledb/continuous-aggregates/drop_materialized_view",
+                        "reference/timescaledb/continuous-aggregates/cagg_migrate",
+                        "reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate",
+                      ],
+                    },
+                    {
+                      label: "Manage policies",
+                      items: [
+                        "reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy",
+                        "reference/timescaledb/continuous-aggregates/remove_continuous_aggregate_policy",
+                      ],
+                    },
+                    {
+                      label: "Experimental policy management",
+                      items: [
+                        "reference/timescaledb/continuous-aggregates/add_policies",
+                        "reference/timescaledb/continuous-aggregates/alter_policies",
+                        "reference/timescaledb/continuous-aggregates/remove_policies",
+                        "reference/timescaledb/continuous-aggregates/remove_all_policies",
+                        "reference/timescaledb/continuous-aggregates/show_policies",
+                      ],
+                    },
+                  ],
+                },
+                {
+                  label: "Hyperfunctions",
+                  collapsed: true,
+                  items: [
+                    { slug: "reference/timescaledb/hyperfunctions" },
+                    {
+                      label: "Time series utilities",
+                      autogenerate: { directory: "reference/timescaledb/hyperfunctions/time-series-utilities" },
+                    },
+                    {
+                      label: "Distribution analysis",
+                      autogenerate: { directory: "reference/timescaledb/hyperfunctions/distribution-analysis" },
+                    },
+                    {
+                      label: "Gapfilling",
+                      autogenerate: { directory: "reference/timescaledb/hyperfunctions/time_bucket_gapfill" },
+                    },
+                  ],
+                },
+                {
+                  label: "Data retention",
+                  collapsed: true,
+                  autogenerate: { directory: "reference/timescaledb/data-retention" },
+                },
+                {
+                  label: "Jobs and automation",
+                  collapsed: true,
+                  autogenerate: { directory: "reference/timescaledb/jobs-automation" },
+                },
+                {
+                  label: "UUIDv7 functions",
+                  collapsed: true,
+                  autogenerate: { directory: "reference/timescaledb/uuid-functions" },
+                },
+                {
+                  label: "Informational views",
+                  collapsed: true,
+                  items: [
+                    { slug: "reference/timescaledb/informational-views" },
+                    {
+                      label: "Hypertable and chunk information",
+                      items: [
+                        "reference/timescaledb/informational-views/chunks",
+                        "reference/timescaledb/informational-views/data_nodes",
+                        "reference/timescaledb/informational-views/dimensions",
+                        "reference/timescaledb/informational-views/hypertables",
+                        "reference/timescaledb/informational-views/continuous_aggregates",
+                      ],
+                    },
+                    {
+                      label: "Compression information",
+                      items: [
+                        "reference/timescaledb/informational-views/chunk_compression_settings",
+                        "reference/timescaledb/informational-views/compression_settings",
+                        "reference/timescaledb/informational-views/hypertable_compression_settings",
+                      ],
+                    },
+                    {
+                      label: "Jobs and policies",
+                      items: [
+                        "reference/timescaledb/informational-views/job_errors",
+                        "reference/timescaledb/informational-views/job_history",
+                        "reference/timescaledb/informational-views/job_stats",
+                        "reference/timescaledb/informational-views/jobs",
+                        "reference/timescaledb/informational-views/policies",
+                      ],
+                    },
+                  ],
+                },
+                {
+                  label: "Configuration",
+                  collapsed: true,
+                  autogenerate: { directory: "reference/timescaledb/configuration" },
+                },
+                {
+                  label: "Administration",
+                  collapsed: true,
+                  autogenerate: { directory: "reference/timescaledb/administration" },
+                },
+                "reference/timescaledb/tag-overview",
+              ],
             },
             {
               label: "Toolkit",
