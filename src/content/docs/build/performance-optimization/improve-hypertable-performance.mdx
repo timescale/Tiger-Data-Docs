@@ -16,13 +16,17 @@ and only contains data from that range. When you run a query, {C.TIMESCALE_DB} i
 the query on it, instead of going through the entire table. This page shows you how to tune {C.HYPERTABLE}s to increase
 performance even more.
 
-- [Optimize {C.HYPERTABLE} {C.CHUNK} intervals](#optimize-hypertable-chunk-intervals): choose the optimum {C.CHUNK} size for your data
+- [Optimize {C.HYPERTABLE} {C.CHUNK} intervals](#optimize-hypertable-chunk-intervals): choose the optimum {C.CHUNK} size for your data - manually or automatically
 - [Enable {C.CHUNK_SKIPPING}](#enable-chunk-skipping): skip {C.CHUNK}s on non-partitioning columns in {C.HYPERTABLE}s when you query your data
 - [Analyze your {C.HYPERTABLE}s](#analyze-your-hypertables): use {C.PG} `ANALYZE` to create the best query plan
 
 ## Optimize {C.HYPERTABLE} {C.CHUNK} intervals
 
-Adjusting your {C.HYPERTABLE} {C.CHUNK} interval can improve performance in your database.
+Tuning your {C.HYPERTABLE} {C.CHUNK} interval can improve performance in your database, especially as your workload evolves over time. With {C.TIMESCALE_DB}, you can do this manually or automatically.
+
+### Manual tuning
+
+To manually adjust the {C.CHUNK} size in your database, take the following steps:
 
 <NumberedList>
 
@@ -98,6 +102,82 @@ Adjusting your {C.HYPERTABLE} {C.CHUNK} interval can improve performance in your
 If you use expensive index types, such as some PostGIS geospatial indexes, take
 care to check the total size of the {C.CHUNK} and its index using
 [`chunks_detailed_size()`](/api-reference/timescaledb/hypertables/chunks_detailed_size).
+
+### Automated tuning
+
+Automated {C.CHUNK} tuning manages {C.CHUNK} intervals for you. {C.CLOUD_LONG} continuously evaluates your {C.HYPERTABLE} and adjusts the interval when it detects the current setting is no longer optimal. Updated {C.CHUNK} intervals apply to **new {C.CHUNK}s only**; existing historical {C.CHUNK}s are not affected.
+
+<Callout variant="note">
+Automated {C.CHUNK} tuning is currently in beta.
+</Callout>
+
+When you enable automated {C.CHUNK} tuning on a {C.HYPERTABLE}, the interval is evaluated and updated within 5 minutes if necessary. The interval is changed incrementally rather than jumping directly to the target interval:
+
+- **Large increase**: if the recommended interval is more than double the current one, the interval is only doubled each evaluation cycle rather than jumping directly to the target. For example, if the current interval is 1 day and the recommended interval is 8 days, the interval increases to 2 days first, then 4 days, then 8 days over successive evaluations.
+- **Large decrease**: if the recommended interval is less than half the current one, the interval is only halved each evaluation cycle rather than jumping directly to the target. For example, if the current interval is 8 days and the recommended interval is 1 day, the interval decreases to 4 days first, then 2 days, then 1 day over successive evaluations.
+- **Small change**: if the recommended interval is within 2x of the current one, bigger or smaller, the new interval is applied directly. For example, if the current interval is 4 days and the recommended interval is 6 days, the interval changes to 6 days immediately.
+
+If a {C.COLUMNSTORE} policy is configured on the {C.HYPERTABLE}, automated {C.CHUNK} tuning respects it. The {C.CHUNK} interval is never increased beyond the `after` value. For example, if your compression policy compresses data older than 1 day, the maximum {C.CHUNK} interval is `1 day`.
+
+You can track all interval changes in the `Activity` tab.
+
+Automated tuning is **off by default** and is configured at the individual {C.HYPERTABLE} level. Even when disabled, {C.CONSOLE_LONG} shows the recommended {C.CHUNK} interval for every {C.HYPERTABLE} so you can evaluate whether a change is warranted before opting in.
+
+#### Manage {C.CHUNK} tuning
+
+To enable automated {C.CHUNK} tuning:
+
+<NumberedList>
+
+  <NumberedItem title={`In ${C.CONSOLE_LONG}, select your ${C.SERVICE_SHORT}`}>
+  </NumberedItem>
+
+  <NumberedItem title={`Click Explorer and select your ${C.HYPERTABLE}`}>
+
+    ![Chunk auto-tuning in Tiger Cloud](https://assets.timescale.com/docs/images/tiger-cloud-console/automated-chunk-tuning.png)
+
+  </NumberedItem>
+
+  <NumberedItem title="Toggle on Automated chunk tuning">
+  </NumberedItem>
+
+  <NumberedItem title={`For a #prod-tagged ${C.SERVICE_SHORT}, click Request beta access`}>
+
+    Our team will manually review your {C.HYPERTABLE} and the recommended intervals before enabling.
+
+  </NumberedItem>
+
+</NumberedList>
+
+The recommended {C.CHUNK} interval is visible regardless of whether automated tuning is enabled, so you can preview the suggested value before turning it on.
+
+To disable automated {C.CHUNK} tuning:
+
+<NumberedList>
+
+  <NumberedItem title={`In ${C.CONSOLE_LONG}, select your ${C.SERVICE_SHORT}`}>
+  </NumberedItem>
+
+  <NumberedItem title={`Click Explorer and select your ${C.HYPERTABLE}`}>
+  </NumberedItem>
+
+  <NumberedItem title="Toggle off Automated chunk tuning">
+  </NumberedItem>
+
+  <NumberedItem title="Optionally set your preferred interval by clicking Change under the interval size">
+
+    The next new {C.CHUNK} will use the interval you specify.
+
+  </NumberedItem>
+
+</NumberedList>
+
+#### Limitations
+
+Automated {C.CHUNK} tuning is not supported for:
+
+- {C.HYPERTABLE_CAP}s not owned by `tsdbadmin`.
+- {C.HYPERTABLE_CAP}s that do not use a time-based partition column.
 
 ## Enable {C.CHUNK_SKIPPING}
 
