@@ -1,0 +1,41 @@
+---
+import { Badge } from '@stainless-api/docs/components';
+import { TagIcon, FlaskConicalIcon, CirclePlayIcon, SunsetIcon, ArchiveIcon } from 'lucide-react';
+import type { ComponentProps } from 'react';
+
+export type Props = {
+  version: string;
+  product: 'tsdb' | 'toolkit';
+  mode?: 'released' | 'early_access' | 'sunset' | 'deprecated';
+}
+
+const releasePages = {
+  tsdb: 'https://github.com/timescale/timescaledb/releases/tag/',
+  toolkit: 'https://github.com/timescale/timescaledb-toolkit/releases/tag/',
+} satisfies Record<Props['product'], `http${string}/releases/tag/`>;
+
+const url = new URL(Astro.props.version, releasePages[Astro.props.product]).href;
+
+const mode = Astro.props.mode ?? 'released';
+const intent = ({
+  released: 'accent',
+  early_access: 'accent',
+  sunset: 'danger',
+  deprecated: 'danger',
+} as const)[mode] satisfies ComponentProps<typeof Badge>['intent'];
+---
+
+<Badge intent={intent} size="md">
+  {mode === 'released' && <TagIcon slot="icon" />}
+  {mode === 'early_access' && <FlaskConicalIcon slot="icon" />}
+  {mode === 'sunset' && <SunsetIcon slot="icon" />}
+  {mode === 'deprecated' && <ArchiveIcon slot="icon" />}
+
+  {{
+    released: 'Since',
+    early_access: 'Early access since',
+    sunset: 'Sunsetted',
+    deprecated: 'Deprecated',
+  }[mode]}{' '}
+  <a href={url} target="_blank" rel="noopener noreferrer">{Astro.props.version}</a><slot />
+</Badge>

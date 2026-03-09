@@ -48,7 +48,7 @@ const PROPER_NOUNS = new Set(
     "Visual", "Studio", "CMake", "GitHub", "Git", "Markdown", "Diátaxis",
     "CloudWatch", "Transit", "Gateway", "Explorer", "Insights", "Notebooks",
     "Livesync", "Vectorizer", "Huggingface", "Chrome", "DevTools",
-    "Microsoft", "Google", "Grafana", "Alertmanager", "Looker", "Datadog", "OpenTelemetry", "MacPorts", "Compose", "Hugging", "Face", "macOS",
+    "Microsoft", "Google", "Grafana", "Alertmanager", "Looker", "Datadog", "OpenTelemetry", "MacPorts", "Compose", "macOS",
   ].map((s) => s.toLowerCase())
 );
 
@@ -64,18 +64,28 @@ const PROPER_NOUN_PHRASES = [
   "Google Vertex",
   "AWS Bedrock",
   "Azure AI",
-  "PostgreSQL",
-  "pg_textsearch",
-  "pgvectorscale",
-  "pgai",
-  "pgaudit",
-  "postgresql-unit",
-  "add_continuous_aggregate_policy",
-  "TimescaleDB",
-  "BuildSource",
-  "StyleGuide",
-  "MultiNodeDeprecation",
+  "Azure Marketplace",
+  "TimescaleDB Toolkit",
+  "Datadog Agent",
+  "Early Access",
+  "Public Beta",
+  "Google Cloud",
+  "Hugging Face",
 ];
+
+/**
+ * Pre-computed set of consecutive word pairs from PROPER_NOUN_PHRASES.
+ * For a phrase like "Tiger Data", stores "tiger|data".
+ * For a phrase like "TimescaleDB Toolkit", stores "timescaledb|toolkit".
+ * Used to allow capitalization of the second word in a proper noun phrase.
+ */
+const PHRASE_PAIRS = new Set<string>();
+for (const phrase of PROPER_NOUN_PHRASES) {
+  const words = phrase.split(/\s+/);
+  for (let i = 1; i < words.length; i++) {
+    PHRASE_PAIRS.add(`${words[i - 1].toLowerCase()}|${words[i].toLowerCase()}`);
+  }
+}
 
 const HEADING_RE = /^(#{1,6})\s+(.+)$/gm;
 
@@ -125,13 +135,6 @@ function checkSentenceCase(text: string): string | null {
   const words = trimmed.split(/\s+/);
   if (words.length === 0) return null;
 
-  /** Whether the previous word (after stripping punctuation) is or ends with a given token (lowercase). */
-  const prevWordIs = (idx: number, token: string) => {
-    if (idx < 1) return false;
-    const raw = words[idx - 1].replace(/[?!.,:;)(\-]+$/, "").replace(/^[(\-]+/, "").toLowerCase();
-    return raw === token || raw.endsWith(token);
-  };
-
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
     // Strip trailing punctuation for the check (e.g. "chunks?" -> "chunks")
@@ -153,14 +156,15 @@ function checkSentenceCase(text: string): string | null {
       continue;
     }
 
-    // Allow "Tiger Data", "Tiger Cloud", "Tiger Lake", "Tiger Console" (proper noun phrases)
-    if (prevWordIs(i, "tiger") && ["data", "cloud", "lake", "console"].includes(lower)) continue;
-    // Allow "Timescale Cloud", "Datadog Agent", "Azure Marketplace", "Early Access", "Public Beta"
-    if (prevWordIs(i, "timescale") && lower === "cloud") continue;
-    if (prevWordIs(i, "datadog") && lower === "agent") continue;
-    if (prevWordIs(i, "azure") && lower === "marketplace") continue;
-    if (prevWordIs(i, "early") && lower === "access") continue;
-    if (prevWordIs(i, "public") && lower === "beta") continue;
+    // Allow capitalized words that are part of a multi-word proper noun phrase
+    if (i > 0) {
+      const prevCore = words[i - 1].replace(/[?!.,:;)(\-]+$/, "").replace(/^[(\-]+/, "").toLowerCase();
+      if (PHRASE_PAIRS.has(`${prevCore}|${lower}`)) continue;
+    }
+    if (i < words.length - 1) {
+      const nextCore = words[i + 1].replace(/[?!.,:;)(\-]+$/, "").replace(/^[(\-]+/, "").toLowerCase();
+      if (PHRASE_PAIRS.has(`${lower}|${nextCore}`)) continue;
+    }
 
     // Subsequent words: should be lowercase unless allowed
     if (isCapitalized && rest !== rest.toUpperCase()) {
@@ -187,16 +191,13 @@ function toSentenceCaseSimple(text: string): string {
     const lower = core.toLowerCase();
     const upper = core.toUpperCase();
     const prev = out.length ? out[out.length - 1].replace(/[?!.,:;\-]+$/, "").toLowerCase() : "";
+    const next = i < parts.length - 1 ? parts[i + 1].replace(/[?!.,:;\-]+$/, "").toLowerCase() : "";
     const keepCap =
       i === 0 ||
       (core === upper && /[A-Z]/.test(core)) ||
       allowedCapitalized(core) ||
-      (["data", "cloud", "lake", "console"].includes(lower) && prev === "tiger") ||
-      (lower === "cloud" && prev === "timescale") ||
-      (lower === "agent" && prev === "datadog") ||
-      (lower === "marketplace" && prev === "azure") ||
-      (lower === "access" && prev === "early") ||
-      (lower === "beta" && prev === "public");
+      PHRASE_PAIRS.has(`${prev}|${lower}`) ||
+      PHRASE_PAIRS.has(`${lower}|${next}`);
     const newWord = keepCap ? core : core.charAt(0).toLowerCase() + core.slice(1);
     out.push(newWord + punct);
   }
