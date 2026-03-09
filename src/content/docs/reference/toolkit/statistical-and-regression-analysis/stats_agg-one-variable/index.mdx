@@ -1,0 +1,100 @@
+---
+title: stats_agg (one variable) overview
+sidebar:
+  label: Overview
+description: Statistical analysis functions for one-dimensional data
+topics: [hyperfunctions]
+license: community
+toolkit: true
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+Perform common statistical analyses, such as calculating averages and standard deviations, using this group of
+functions. These functions are similar to the [{C.PG} statistical aggregates][pg-stats-aggs], but they include more features and are
+easier to use in continuous aggregates and window functions.
+
+These functions work on one-dimensional data. To work with two-dimensional data, for example to perform linear
+regression, see [the two-dimensional `stats_agg` functions][stats_agg-2d].
+
+import TwoStepAggregation from '@partials/_two-step-aggregation.mdx';
+
+## Two-step aggregation
+
+<TwoStepAggregation />
+
+## Samples
+
+### Calculate statistical properties
+
+Create a statistical aggregate to summarize daily statistical data about the variable `val1`. Use the statistical
+aggregate to calculate average, standard deviation, and skewness of the variable:
+
+```sql
+WITH t AS (
+    SELECT
+        time_bucket('1 day'::interval, ts) AS dt,
+        stats_agg(val1) AS stats1D
+    FROM foo
+    WHERE id = 'bar'
+    GROUP BY time_bucket('1 day'::interval, ts)
+)
+SELECT
+    average(stats1D),
+    stddev(stats1D),
+    skewness(stats1D)
+FROM t;
+```
+
+## Available functions
+
+### Aggregate
+
+- [`stats_agg()`][stats_agg]: aggregate data into an intermediate statistical aggregate form for further calculation
+
+### Accessors
+
+- [`average()`][average]: calculate the average from a statistical aggregate
+- [`stddev()`][stddev]: calculate the standard deviation from a statistical aggregate
+- [`variance()`][variance]: calculate the variance from a statistical aggregate
+- [`skewness()`][skewness]: calculate the skewness from a statistical aggregate
+- [`kurtosis()`][kurtosis]: calculate the kurtosis from a statistical aggregate
+- [`sum()`][sum]: calculate the sum from a statistical aggregate
+- [`num_vals()`][num_vals]: get the number of values contained in a statistical aggregate
+
+### Rollup
+
+- [`rollup()`][rollup]: combine multiple one-dimensional statistical aggregates
+
+### Mutator
+
+- [`rolling()`][rolling]: create a rolling window aggregate for use in window functions
+
+[average]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/average
+
+[kurtosis]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/kurtosis
+
+[num_vals]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/num_vals
+
+[rolling]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/rolling
+
+[rollup]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/rollup
+
+[skewness]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/skewness
+
+[stats_agg]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/stats_agg
+
+[stats_agg-2d]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-two-variables
+
+[stddev]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/stddev
+
+[sum]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/sum
+
+[toolkit-1.3.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.3.0
+
+[two-step-aggregation]: #two-step-aggregation
+
+[pg-stats-aggs]: https://www.postgresql.org/docs/current/functions-aggregate.html#FUNCTIONS-AGGREGATE-STATISTICS-TABLE
+
+[variance]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/variance

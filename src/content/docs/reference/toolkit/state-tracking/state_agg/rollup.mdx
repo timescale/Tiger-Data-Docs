@@ -1,0 +1,57 @@
+---
+title: rollup()
+description: Combine multiple state aggregates
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: rollup
+  aggregates:
+    - state_agg()
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.15.0" product="toolkit" />
+
+Combine multiple state aggregates into a single state aggregate. For example, you can use `rollup` to combine state
+aggregates from 15-minute buckets into daily buckets.
+
+## Samples
+
+Combine multiple state aggregates and calculate the duration spent in the `START` state.
+
+```sql
+WITH buckets AS (SELECT
+    time_bucket('1 minute', ts) as dt,
+    state_agg(ts, state) AS sa
+FROM states_test
+GROUP BY time_bucket('1 minute', ts))
+SELECT duration_in(
+    'START',
+    rollup(buckets.sa)
+)
+FROM buckets;
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+rollup(
+    agg StateAgg
+) RETURNS StateAgg
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | StateAgg | - | ✔ | State aggregates created using `state_agg` |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| agg | StateAgg | A new state aggregate that combines the input state aggregates |

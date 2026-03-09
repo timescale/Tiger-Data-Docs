@@ -1,0 +1,62 @@
+---
+title: corr()
+description: Calculate the correlation coefficient from a counter aggregate
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: counters and gauges
+  type: accessor
+  aggregates:
+  - counter_agg()
+topics:
+- hyperfunctions
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.3.0" product="toolkit" />
+
+Calculate the correlation coefficient from a counter aggregate. The calculation uses a linear least-squares fit, and
+returns a value between 0.0 and 1.0, from no correlation to the strongest possible correlation.
+
+## Samples
+
+Calculate the correlation coefficient to determine the goodness of a linear fit between counter value and time.
+
+```sql
+SELECT
+    id,
+    bucket,
+    corr(summary)
+FROM (
+    SELECT
+        id,
+        time_bucket('15 min'::interval, ts) AS bucket,
+        counter_agg(ts, val) AS summary
+    FROM foo
+    GROUP BY id, time_bucket('15 min'::interval, ts)
+) t
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+corr(
+    summary CounterSummary
+) RETURNS DOUBLE PRECISION
+```
+
+| Name | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `summary` | `CounterSummary` | - | ✔ | A counter aggregate created using [`counter_agg`][counter-agg] |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| corr | DOUBLE PRECISION | The correlation coefficient calculated with time as the independent variable and counter value as the dependent variable. |
+
+[counter-agg]: /reference/toolkit/counters-and-gauges/counter_agg/counter_agg

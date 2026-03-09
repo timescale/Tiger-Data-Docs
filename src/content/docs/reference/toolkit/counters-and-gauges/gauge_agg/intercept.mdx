@@ -1,0 +1,65 @@
+---
+title: intercept()
+description: Calculate the y-intercept from a gauge aggregate
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: counters and gauges
+  type: accessor
+  aggregates:
+  - gauge_agg()
+topics:
+- hyperfunctions
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+import * as C from "@constants";
+
+<SinceRelease version="1.6.0" product="toolkit" mode="early_access" />
+
+Calculate the y-intercept of a linear least-squares fit between gauge value and time. This corresponds to the projected
+value at the {C.PG} epoch `(2000-01-01 00:00:00+00)`. You can use the y-intercept with the slope to plot a best-fit
+line.
+
+## Samples
+
+Calculate the y-intercept of the linear fit for each 15-minute gauge aggregate.
+
+```sql
+SELECT
+    id,
+    bucket,
+    intercept(summary)
+FROM (
+    SELECT
+        id,
+        time_bucket('15 min'::interval, ts) AS bucket,
+        gauge_agg(ts, val) AS summary
+    FROM foo
+    GROUP BY id, time_bucket('15 min'::interval, ts)
+) t
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+intercept(
+    summary GaugeSummary
+) RETURNS DOUBLE PRECISION
+```
+
+| Name | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `summary` | `GaugeSummary` | - | ✔ | A gauge aggregate created using [`gauge_agg`][gauge-agg] |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| intercept | DOUBLE PRECISION | The y-intercept of the linear least-squares fit |
+
+[gauge-agg]: /reference/toolkit/counters-and-gauges/gauge_agg/gauge_agg

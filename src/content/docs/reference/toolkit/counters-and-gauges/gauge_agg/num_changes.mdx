@@ -1,0 +1,61 @@
+---
+title: num_changes()
+description: Get the number of times a gauge changed from a gauge aggregate
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: counters and gauges
+  type: accessor
+  aggregates:
+  - gauge_agg()
+topics:
+- hyperfunctions
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.6.0" product="toolkit" mode="early_access" />
+
+Get the number of times the gauge changed during the period summarized by the gauge aggregate.
+
+## Samples
+
+Get the number of times the gauge changed over each 15-minute interval.
+
+```sql
+SELECT
+    id,
+    bucket,
+    num_changes(summary)
+FROM (
+    SELECT
+        id,
+        time_bucket('15 min'::interval, ts) AS bucket,
+        gauge_agg(ts, val) AS summary
+    FROM foo
+    GROUP BY id, time_bucket('15 min'::interval, ts)
+) t
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+num_changes(
+    summary GaugeSummary
+) RETURNS BIGINT
+```
+
+| Name | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `summary` | `GaugeSummary` | - | ✔ | A gauge summary created using [`gauge_agg`][gauge-agg] |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| num\_changes | BIGINT | The number of times the gauge changed |
+
+[gauge-agg]: /reference/toolkit/counters-and-gauges/gauge_agg/gauge_agg

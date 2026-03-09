@@ -1,0 +1,55 @@
+---
+title: trim_to()
+description: Reduce the covered interval of a heartbeat aggregate
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: accessor
+  aggregates:
+    - heartbeat_agg()
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.16.0" product="toolkit" />
+
+Reduce the time range covered by a heartbeat aggregate. This can only be used to narrow the covered interval, passing
+arguments that would extend beyond the range covered by the initial aggregate gives an error.
+
+## Samples
+
+Given a table called `liveness` containing weekly heartbeat aggregates in column `health` with timestamp column `date`,
+use this query to roll up several weeks and trim the result to an exact month:
+
+```sql
+SELECT trim_to(rollup(health), '03-1-2022 UTC', '1 month')
+FROM liveness
+WHERE date > '02-21-2022 UTC' AND date < '3-7-2022 UTC'
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+trim_to(
+    agg HEARTBEATAGG,
+    start TIMESTAMPTZ,
+    duration INTERVAL
+) RETURNS HEARTBEATAGG
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | HeartbeatAgg | - | ✔ | A heartbeat aggregate to trim down |
+| start | TimestampTz | - | | The start of the trimmed range. If not provided, the returned heartbeat aggregate starts from the same time as the starting one |
+| duration | Interval | - | | How long the resulting aggregate should cover. If not provided, the returned heartbeat aggregate ends at the same time as the starting one |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| trim\_to | heartbeat\_agg | The trimmed aggregate. |

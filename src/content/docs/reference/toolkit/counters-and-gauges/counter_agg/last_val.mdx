@@ -1,0 +1,61 @@
+---
+title: last_val()
+description: Get the last value from a counter aggregate
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: counters and gauges
+  type: accessor
+  aggregates:
+  - counter_agg()
+topics:
+- hyperfunctions
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.11.0" product="toolkit" />
+
+Get the value of the last point from a counter aggregate.
+
+## Samples
+
+Get the first and last value of each daily counter aggregate.
+
+```sql
+WITH t as (
+  SELECT
+      time_bucket('1 day'::interval, ts) as dt,
+      counter_agg(ts, val) AS cs -- get a CounterSummary
+  FROM table
+  GROUP BY time_bucket('1 day'::interval, ts)
+)
+SELECT
+    dt,
+    first_val(cs) -- extract the value of the first point in the CounterSummary
+    last_val(cs) -- extract the value of the last point in the CounterSummary
+FROM t;
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+last_val(
+    cs CounterSummary
+) RETURNS DOUBLE PRECISION
+```
+
+| Name | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `cs` | `CounterSummary` | - | ✔ | A counter aggregate produced using [`counter_agg`][counter-agg] |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| last\_val | DOUBLE PRECISION | The value of the last point in the counter aggregate |
+
+[counter-agg]: /reference/toolkit/counters-and-gauges/counter_agg/counter_agg

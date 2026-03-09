@@ -1,0 +1,60 @@
+---
+title: heartbeat_agg()
+description: Create a liveness aggregate from a set of heartbeats
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: aggregate
+  aggregates:
+    - heartbeat_agg()
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.15.0" product="toolkit" />
+
+Aggregate a set of heartbeat timestamps to track the liveness state of the underlying system for the specified time
+range.
+
+## Samples
+
+Given a table called `system_health` with a `ping_time` column, construct an aggregate of system liveness for 10 days
+starting from Jan 1, 2022. This assumes a system is unhealthy if it hasn't been heard from in a 5 minute window.
+
+```sql
+SELECT heartbeat_agg(
+  ping_time,
+  '01-01-2022 UTC',
+  '10 days',
+  '5 min')
+FROM system_health;
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+heartbeat_agg(
+    heartbeat TIMESTAMPTZ,
+    agg_start TIMESTAMPTZ,
+    agg_duration INTERVAL,
+    heartbeat_liveness INTERVAL
+) RETURNS HeartbeatAgg
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| heartbeat | TIMESTAMPTZ | - | ✔ | The column containing the timestamps of the heartbeats |
+| agg\_start | TIMESTAMPTZ | - | ✔ | The start of the time range over which this aggregate is tracking liveness |
+| agg\_duration | INTERVAL | - | ✔ | The length of the time range over which this aggregate is tracking liveness. Any point in this range that doesn't closely follow a heartbeat is considered to be dead |
+| heartbeat\_liveness | INTERVAL | - | ✔ | How long the system is considered to be live after each heartbeat |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| heartbeat\_agg | HeartbeatAgg | The liveness data for the heartbeated system over the provided interval. |

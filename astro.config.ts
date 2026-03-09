@@ -483,7 +483,141 @@ export default defineConfig({
             {
               label: "Toolkit",
               collapsed: true,
-              autogenerate: { directory: "reference/toolkit" },
+              items: [
+                { slug: "reference/toolkit" },
+                {
+                  label: "Approximate count distinct",
+                  collapsed: true,
+                  autogenerate: { directory: "reference/toolkit/hyperloglog" },
+                },
+                {
+                  label: "Statistical and regression analysis",
+                  collapsed: true,
+                  items: [
+                    { slug: "reference/toolkit/statistical-and-regression-analysis" },
+                    {
+                      label: "One variable",
+                      autogenerate: { directory: "reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable" },
+                    },
+                    {
+                      label: "Two variables",
+                      autogenerate: { directory: "reference/toolkit/statistical-and-regression-analysis/stats_agg-two-variables" },
+                    },
+                  ],
+                },
+                {
+                  label: "Minimum and maximum",
+                  collapsed: true,
+                  items: [
+                    { slug: "reference/toolkit/minimum-and-maximum" },
+                    {
+                      label: "Minimum values",
+                      autogenerate: { directory: "reference/toolkit/minimum-and-maximum/min_n" },
+                    },
+                    {
+                      label: "Maximum values",
+                      autogenerate: { directory: "reference/toolkit/minimum-and-maximum/max_n" },
+                    },
+                    {
+                      label: "Minimum values by",
+                      autogenerate: { directory: "reference/toolkit/minimum-and-maximum/min_n_by" },
+                    },
+                    {
+                      label: "Maximum values by",
+                      autogenerate: { directory: "reference/toolkit/minimum-and-maximum/max_n_by" },
+                    },
+                  ],
+                },
+                {
+                  label: "Financial analysis",
+                  collapsed: true,
+                  autogenerate: { directory: "reference/toolkit/candlestick_agg" },
+                },
+                {
+                  label: "Percentile approximation",
+                  collapsed: true,
+                  items: [
+                    { slug: "reference/toolkit/percentile-approximation" },
+                    {
+                      label: "UddSketch",
+                      autogenerate: { directory: "reference/toolkit/percentile-approximation/uddsketch" },
+                    },
+                    {
+                      label: "t-digest",
+                      autogenerate: { directory: "reference/toolkit/percentile-approximation/tdigest" },
+                    },
+                  ],
+                },
+                {
+                  label: "Counters and gauges",
+                  collapsed: true,
+                  items: [
+                    { slug: "reference/toolkit/counters-and-gauges" },
+                    {
+                      label: "Counter aggregation",
+                      autogenerate: { directory: "reference/toolkit/counters-and-gauges/counter_agg" },
+                    },
+                    {
+                      label: "Gauge aggregation",
+                      autogenerate: { directory: "reference/toolkit/counters-and-gauges/gauge_agg" },
+                    },
+                  ],
+                },
+                {
+                  label: "Time-weighted calculations",
+                  collapsed: true,
+                  autogenerate: { directory: "reference/toolkit/time_weight" },
+                },
+                {
+                  label: "Downsampling",
+                  collapsed: true,
+                  autogenerate: { directory: "reference/toolkit/downsampling" },
+                },
+                {
+                  label: "Timevector",
+                  collapsed: true,
+                  autogenerate: { directory: "reference/toolkit/timevector" },
+                },
+                {
+                  label: "Frequency analysis",
+                  collapsed: true,
+                  items: [
+                    { slug: "reference/toolkit/frequency-analysis" },
+                    {
+                      label: "Frequency aggregation",
+                      autogenerate: { directory: "reference/toolkit/frequency-analysis/freq_agg" },
+                    },
+                    {
+                      label: "Count-min sketch",
+                      autogenerate: { directory: "reference/toolkit/frequency-analysis/count_min_sketch" },
+                    },
+                  ],
+                },
+                {
+                  label: "State tracking",
+                  collapsed: true,
+                  items: [
+                    { slug: "reference/toolkit/state-tracking" },
+                    {
+                      label: "Compact state aggregation",
+                      autogenerate: { directory: "reference/toolkit/state-tracking/compact_state_agg" },
+                    },
+                    {
+                      label: "State aggregation",
+                      autogenerate: { directory: "reference/toolkit/state-tracking/state_agg" },
+                    },
+                    {
+                      label: "Heartbeat aggregation",
+                      autogenerate: { directory: "reference/toolkit/state-tracking/heartbeat_agg" },
+                    },
+                  ],
+                },
+                {
+                  label: "Saturating math",
+                  collapsed: true,
+                  autogenerate: { directory: "reference/toolkit/saturating-math" },
+                },
+              ],
             },
             {
               label: "pgai",
