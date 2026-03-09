@@ -1,0 +1,89 @@
+---
+title: create_chunk()
+description: Create a chunk with specified dimensional constraints
+keywords: [chunks, hypertables, create]
+license: community
+type: function
+---
+
+import * as C from "@constants";
+
+Manually create a {C.CHUNK} with specific time ranges and space partition boundaries in a {C.HYPERTABLE}.
+
+You can either create a new {C.CHUNK}, or attach an existing table as a {C.CHUNK}. When you add an existing table, {C.TIMESCALE_DB} attaches it to the {C.HYPERTABLE} and uses it as the data table for
+the new {C.CHUNK}. If necessary, {C.TIMESCALE_DB} renames the table and/or moves the table to the specified schema.
+
+Creating a {C.CHUNK} requires `INSERT` privileges on the {C.HYPERTABLE}. If `chunk_table` is provided, the table must
+have the same columns and compatible constraints as the {C.HYPERTABLE}. CHECK constraints must have the same names
+as the parent table.
+
+## Samples
+
+- **Create a new {C.CHUNK} for a {C.HYPERTABLE} with a time range**:
+
+  ```sql
+  SELECT * FROM _timescaledb_functions.create_chunk(
+      'conditions',
+      '{"time": ["2018-01-01 00:00:00", "2018-01-08 00:00:00"]}'
+  );
+  ```
+
+- **Create a {C.CHUNK} with a custom schema and table name**:
+
+  ```sql
+  SELECT * FROM _timescaledb_functions.create_chunk(
+      'conditions',
+      '{"time": ["2018-01-08 00:00:00", "2018-01-15 00:00:00"]}',
+      'custom_schema',
+      'custom_chunk_name'
+  );
+  ```
+
+- **Create a {C.CHUNK} from an existing table**:
+
+  ```sql
+  -- Create a table with the same structure as your hypertable
+  CREATE TABLE my_chunk_table (time timestamptz NOT NULL, device int, temp float);
+
+  -- Attach it as a chunk
+  SELECT * FROM _timescaledb_functions.create_chunk(
+      'conditions',
+      '{"time": ["2018-01-15 00:00:00", "2018-01-22 00:00:00"]}',
+      schema_name => 'public',
+      table_name => 'my_chunk',
+      chunk_table => 'my_chunk_table'
+  );
+  ```
+
+- **Create a {C.CHUNK} with space partitioning (advanced)**:
+
+  For {C.HYPERTABLE}s with additional space dimensions, specify all dimension constraints:
+
+  ```sql
+  SELECT * FROM _timescaledb_functions.create_chunk(
+      'conditions',
+      '{"time": ["2018-01-22 00:00:00", "2018-01-29 00:00:00"], "device": [-9223372036854775808, 1073741823]}'
+  );
+  ```
+
+## Arguments
+
+|Name|Type|Default|Required| Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+|-|-|-|-|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|`hypertable`|REGCLASS||✔| The {C.HYPERTABLE} to create the {C.CHUNK} for                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+|`slices`|JSONB||✔| A JSONB object specifying the dimensional constraints for the {C.CHUNK}. Specify each dimension with a two-element array `[range_start, range_end]`. <br /><br />Each key is a dimension column name as defined in `hypertable`, and each value is a two-element array `[range_start, range_end]`. <br /><br />For timestamp dimensions, use numeric values representing microseconds from Unix epoch or ISO 8601 timestamp strings. For example, `"2018-01-01 00:00:00"`. For integer or space dimensions, use numeric values matching the dimension's data type. <br /><br />Specify all dimensions defined in the {C.HYPERTABLE}. For example, `{"time": [1514419200000000, 1515024000000000], "device": [-9223372036854775808, 1073741823]}` |
+|`schema_name`|NAME|`NULL`|✖| Schema name for the {C.CHUNK}. If not specified,  {C.TIMESCALE_DB} uses the default {C.CHUNK} schema                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+|`table_name`|NAME|`NULL`|✖| Table name for the {C.CHUNK}. If not specified, {C.TIMESCALE_DB} generates a default {C.CHUNK} name                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+|`chunk_table`|REGCLASS|`NULL`|✖| Attach an existing table as the {C.CHUNK}. {C.TIMESCALE_DB} renames and/or moves the table as necessary to match `schema_name` and `table_name`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+
+## Returns
+
+|Column|Type| Description                                                                                                                                                                                    |
+|-|-|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|`chunk_id`|INTEGER| The internal ID of the {C.CHUNK}                                                                                                                                                                  |
+|`hypertable_id`|INTEGER| The internal ID of the {C.HYPERTABLE}                                                                                                                                                             |
+|`schema_name`|NAME| The schema name of the new {C.CHUNK}                                                                                                                                                              |
+|`table_name`|NAME| The table name of the new {C.CHUNK}                                                                                                                                                               |
+|`relkind`|CHAR| The relation kind, usually `r` for a regular table                                                                                                                                             |
+|`slices`|JSONB| The dimensional constraints that define the {C.CHUNK}                                                                                                                                             |
+|`created`|BOOLEAN| `true` if a new {C.CHUNK} was created. If a {C.CHUNK} with the same dimensional constraints already exists, the function returns information about the existing {C.CHUNK} with `created` set to `false` |

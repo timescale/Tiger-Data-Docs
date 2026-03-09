@@ -1,0 +1,123 @@
+---
+title: Hyperfunctions overview
+sidebar:
+  label: Overview
+description: Functions that enable you to analyze time-series data efficiently. These functions provide essential capabilities for time bucketing, data distribution analysis, and gapfilling.
+topics: [hyperfunctions]
+license: apache
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+For additional {C.HYPERFUNC}, use the [{C.TOOLKIT_LONG}][toolkit] {C.PG} extension.
+
+## Samples
+
+### Time bucketing with aggregates
+
+Bucket temperature readings into 5-minute intervals and calculate statistics:
+
+```sql
+SELECT
+  time_bucket('5 minutes', time) AS bucket,
+  avg(temperature) AS avg_temp,
+  first(temperature, time) AS first_temp,
+  last(temperature, time) AS last_temp
+FROM readings
+GROUP BY bucket
+ORDER BY bucket DESC;
+```
+
+### Gapfilling missing data
+
+Fill gaps in time-series data using last observation carried forward (LOCF):
+
+```sql
+SELECT
+  time_bucket_gapfill('1 hour', time) AS bucket,
+  device_id,
+  locf(avg(temperature)) AS filled_avg_temp
+FROM readings
+WHERE time >= NOW() - INTERVAL '1 day'
+GROUP BY bucket, device_id
+ORDER BY bucket DESC;
+```
+
+### Analyzing data distribution
+
+Create a histogram of response times to understand distribution patterns:
+
+```sql
+SELECT histogram(response_time_ms, 0, 1000, 10)
+FROM api_requests
+WHERE time > NOW() - INTERVAL '1 day';
+```
+
+### Approximate row counting
+
+Get a fast estimate of table size without scanning all data:
+
+```sql
+SELECT approximate_row_count('readings');
+```
+
+## Available functions
+
+### Time series utilities
+
+- [`time_bucket()`][time_bucket]: bucket rows by time interval
+- [`first()`][first]: get the first value ordered by another column
+- [`last()`][last]: get the last value ordered by another column
+- [`days_in_month()`][days_in_month]: calculate days in a month
+- [`month_normalize()`][month_normalize]: normalize monthly metrics
+
+### Gapfilling
+
+- [`time_bucket_gapfill()`][time_bucket_gapfill]: bucket time and fill gaps in results
+- [`locf()`][locf]: last observation carried forward for filling gaps
+- [`interpolate()`][interpolate]: linear interpolation for filling gaps
+
+### Distribution analysis
+
+- [`histogram()`][histogram]: create histograms to visualize data distribution
+- [`approximate_row_count()`][approximate_row_count]: fast approximate count of rows in a table
+
+### Additional hyperfunctions
+
+For advanced time-series analysis including statistical analysis, percentile approximation, state tracking, and more,
+see the [{C.TOOLKIT_LONG} API reference][toolkit].
+
+### Deprecated hyperfunctions
+
+- [`time_bucket_ng()`][time_bucket_ng]: next generation time bucketing with additional features
+
+[approximate_row_count]: /reference/timescaledb/hyperfunctions/distribution-analysis/approximate_row_count
+
+[days_in_month]: /reference/timescaledb/hyperfunctions/time-series-utilities/days_in_month
+
+[distribution-analysis]: /reference/timescaledb/hyperfunctions/distribution-analysis
+
+[first]: /reference/timescaledb/hyperfunctions/time-series-utilities/first
+
+[gapfilling]: /reference/timescaledb/hyperfunctions/time_bucket_gapfill
+
+[histogram]: /reference/timescaledb/hyperfunctions/distribution-analysis/histogram
+
+[interpolate]: /reference/timescaledb/hyperfunctions/time_bucket_gapfill/interpolate
+
+[last]: /reference/timescaledb/hyperfunctions/time-series-utilities/last
+
+[locf]: /reference/timescaledb/hyperfunctions/time_bucket_gapfill/locf
+
+[month_normalize]: /reference/timescaledb/hyperfunctions/time-series-utilities/month_normalize
+
+[time-series-utilities]: /reference/timescaledb/hyperfunctions/time-series-utilities
+
+[time_bucket]: /reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket
+
+[time_bucket_gapfill]: /reference/timescaledb/hyperfunctions/time_bucket_gapfill/time_bucket_gapfill
+
+[time_bucket_ng]: /reference/timescaledb/hyperfunctions/legacy/time_bucket_ng
+
+[toolkit]: /reference/timescaledb-toolkit

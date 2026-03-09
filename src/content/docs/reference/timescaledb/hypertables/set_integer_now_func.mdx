@@ -1,0 +1,81 @@
+---
+title: set_integer_now_func()
+description: Define the relationship between integer time values and actual time
+topics: [hypertables]
+keywords: [hypertables]
+tags: [integer time values]
+license: apache
+type: function
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.5.0" product="tsdb" />
+
+Override the [`now()`][now] date/time function used to
+set the current time in the integer `time` column in a {C.HYPERTABLE}. Many policies only apply to
+[{C.CHUNK}s][chunks] of a certain age. `integer_now_func` determines the age of each {C.CHUNK}.
+
+The function you set as `integer_now_func` has no arguments. It must be either:
+
+- `IMMUTABLE`: Use when you execute the query each time rather than prepare it prior to execution. The value
+  for `integer_now_func` is computed before the plan is generated. This generates a significantly smaller
+  plan, especially if you have a lot of {C.CHUNK}s.
+
+- `STABLE`: `integer_now_func` is evaluated just before query execution starts.
+  [{C.CHUNK} pruning][chunk-pruning] is executed at runtime. This generates a correct result, but may increase
+  planning time.
+
+`set_integer_now_func` does not work on tables where the `time` column type is `TIMESTAMP`, `TIMESTAMPTZ`, or
+`DATE`.
+
+## Samples
+
+Set the integer `now` function for a {C.HYPERTABLE} with a time column in [unix time][unix-time].
+
+- `IMMUTABLE`: when you execute the query each time:
+  ```sql
+  CREATE OR REPLACE FUNCTION unix_now_immutable() returns BIGINT LANGUAGE SQL IMMUTABLE as $$  SELECT extract (epoch from now())::BIGINT $$;
+
+  SELECT set_integer_now_func('hypertable_name', 'unix_now_immutable');
+  ```
+
+- `STABLE`: for prepared statements:
+  ```sql
+  CREATE OR REPLACE FUNCTION unix_now_stable() returns BIGINT LANGUAGE SQL STABLE AS $$ SELECT extract(epoch from now())::BIGINT $$;
+
+  SELECT set_integer_now_func('hypertable_name', 'unix_now_stable');
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT set_integer_now_func(
+    hypertable = '<hypertable_name>',
+    integer_now_func = '<function_name>',
+    replace_if_exists = true | false
+);
+```
+
+|Name|Type| Default | Required | Description |
+|-|-|-|-|-|
+|`hypertable`|REGCLASS| - | ✔ | The {C.HYPERTABLE} `integer_now_func` is used in. |
+|`integer_now_func`|REGPROC| - | ✔ | A function that returns the current time set in each row in the `time` column in the {C.HYPERTABLE}.|
+|`replace_if_exists`|BOOLEAN| `FALSE` | ✖ | Set to `true` to override `integer_now_func` when you have previously set a custom function. |
+
+## Returns
+
+This function returns void.
+
+[chunk-pruning]: https://www.timescale.com/blog/optimizing-queries-timescaledb-hypertables-with-partitions-postgresql-6366873a995d
+
+[chunks]: /use-timescale/hypertables/#hypertable-partitioning
+
+[now]: https://www.postgresql.org/docs/16/functions-datetime.html
+
+[unix-time]: https://en.wikipedia.org/wiki/Unix_time

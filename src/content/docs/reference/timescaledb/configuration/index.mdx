@@ -1,0 +1,88 @@
+---
+title: Service configuration
+description: Use the default PostgreSQL server configuration settings for your Tiger Cloud service, or customize them as needed
+keywords: [configure]
+products: [self_hosted, cloud]
+sidebar:
+  label: Overview
+---
+
+import * as C from "@constants";
+
+{C.TIMESCALE_DB} uses the default {C.PG} server configuration settings. You can optimize your {C.SERVICE_SHORT} configuration
+using the following {C.TIMESCALE_DB} and Grand Unified Configuration (GUC) parameters.
+
+## Samples
+
+### View current TimescaleDB settings
+
+Check all TimescaleDB-specific configuration settings:
+
+```sql
+SELECT name, setting, unit, short_desc
+FROM pg_settings
+WHERE name LIKE 'timescaledb%'
+ORDER BY name;
+```
+
+### Enable chunkwise aggregation
+
+Enable query optimization for aggregations:
+
+```sql
+ALTER DATABASE your_database SET timescaledb.enable_chunkwise_aggregation = 'on';
+```
+
+Or set it for your current session:
+
+```sql
+SET timescaledb.enable_chunkwise_aggregation = on;
+```
+
+### Enable vectorized aggregation
+
+Enable vectorized optimizations for compressed chunks:
+
+```sql
+ALTER DATABASE your_database SET timescaledb.vectorized_aggregation = 'on';
+```
+
+### Configure continuous aggregate refresh optimization
+
+Enable merge optimization for continuous aggregate refreshes:
+
+```sql
+SET timescaledb.enable_merge_on_cagg_refresh = on;
+```
+
+### Disable telemetry
+
+Turn off telemetry reporting:
+
+```sql
+ALTER SYSTEM SET timescaledb.telemetry_level = 'off';
+SELECT pg_reload_conf();
+```
+
+### Check TimescaleDB version and license
+
+View the current TimescaleDB version and license:
+
+```sql
+SELECT extname, extversion
+FROM pg_extension
+WHERE extname = 'timescaledb';
+
+SHOW timescaledb.license;
+```
+
+## Available configuration options
+
+- [TimescaleDB configuration and tuning][tigerpostgres-config]: configure the TimescaleDB settings related to policies,
+  query planning and execution, distributed hypertables, and administration
+- [Grand Unified Configuration (GUC) parameters][gucs]: optimize the behavior of TimescaleDB using Grand Unified
+  Configuration (GUC) parameters
+
+[gucs]: /reference/timescaledb/configuration/gucs
+
+[tigerpostgres-config]: /reference/timescaledb/configuration/tiger-postgres

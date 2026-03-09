@@ -1,0 +1,75 @@
+---
+title: timescaledb_experimental.policies
+description: Get information about all policies set on continuous aggregates
+keywords: [continuous aggregates, information]
+tags: [policies, compress, data retention, refresh, jobs]
+license: community
+type: view
+---
+
+import * as C from "@constants";
+
+import { Callout } from '@stainless-api/docs/components';
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="2.10.0" product="tsdb" mode="early_access" />
+
+The `policies` view provides information on all policies set on {C.CAGG}s.
+
+<Callout variant="info">
+  Only policies applying to {C.CAGG}s are shown in this view. Policies
+  applying to regular {C.HYPERTABLE}s or regular materialized views are not displayed.
+</Callout>
+
+## Samples
+
+Select from the `timescaledb_experimental.policies` table to view it:
+
+```sql
+SELECT * FROM timescaledb_experimental.policies;
+```
+
+Example of the returned output:
+
+```sql
+-[ RECORD 1 ]--------------------------------------------------------------------
+relation_name     | mat_m1
+relation_schema   | public
+schedule_interval | @ 1 hour
+proc_schema       | _timescaledb_internal
+proc_name         | policy_refresh_continuous_aggregate
+config            | {"end_offset": 1, "start_offset", 10, "mat_hypertable_id": 2}
+hypertable_schema | _timescaledb_internal
+hypertable_name   | _materialized_hypertable_2
+-[ RECORD 2 ]--------------------------------------------------------------------
+relation_name     | mat_m1
+relation_schema   | public
+schedule_interval | @ 1 day
+proc_schema       | _timescaledb_internal
+proc_name         | policy_compression
+config            | {"hypertable_id": 2, "compress_after", 11}
+hypertable_schema | _timescaledb_internal
+hypertable_name   | _materialized_hypertable_2
+-[ RECORD 3 ]--------------------------------------------------------------------
+relation_name     | mat_m1
+relation_schema   | public
+schedule_interval | @ 1 day
+proc_schema       | _timescaledb_internal
+proc_name         | policy_retention
+config            | {"drop_after": 20, "hypertable_id": 2}
+hypertable_schema | _timescaledb_internal
+hypertable_name   | _materialized_hypertable_2
+```
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `relation_name` | TEXT | Name of the {C.CAGG} |
+| `relation_schema` | TEXT | Schema of the {C.CAGG} |
+| `schedule_interval` | INTERVAL | How often the policy job runs |
+| `proc_schema` | TEXT | Schema of the policy job |
+| `proc_name` | TEXT | Name of the policy job |
+| `config` | JSONB | Configuration details for the policy job |
+| `hypertable_schema` | TEXT | Schema of the {C.HYPERTABLE} that contains the actual data for the {C.CAGG} view |
+| `hypertable_name` | TEXT | Name of the {C.HYPERTABLE} that contains the actual data for the {C.CAGG} view |

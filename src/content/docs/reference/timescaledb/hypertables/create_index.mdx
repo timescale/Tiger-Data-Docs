@@ -1,0 +1,70 @@
+---
+title: CREATE INDEX (Transaction Per Chunk)
+description: Create a hypertable index using a separate transaction for each chunk
+topics: [hypertables]
+keywords: [hypertables, indexes, chunks, create]
+license: apache
+type: command
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<SinceRelease version="1.3.0" product="tsdb" />
+
+```sql
+CREATE INDEX ... WITH (timescaledb.transaction_per_chunk, ...);
+```
+
+This option extends [`CREATE INDEX`][postgres-createindex] with the ability to
+use a separate transaction for each {C.CHUNK} it creates an index on, instead of
+using a single transaction for the entire {C.HYPERTABLE}. This allows `INSERT`s, and
+other operations to be performed concurrently during most of the duration of the
+`CREATE INDEX` command. While the index is being created on an individual {C.CHUNK},
+it functions as if a regular `CREATE INDEX` were called on that {C.CHUNK}, however
+other {C.CHUNK}s are completely unblocked.
+
+This version of `CREATE INDEX` can be used as an alternative to
+`CREATE INDEX CONCURRENTLY`, which is not currently supported on {C.HYPERTABLE}s.
+
+<Callout variant="warning">
+  - Not supported for `CREATE UNIQUE INDEX`.
+  - If the operation fails partway through, indexes might not be created on all
+    {C.HYPERTABLE} {C.CHUNK}s. If this occurs, the index on the root table of the {C.HYPERTABLE}
+    is marked as invalid. You can check this by running `\d+` on the {C.HYPERTABLE}. The
+    index still works, and is created on new {C.CHUNK}s, but if you want to ensure all
+    {C.CHUNK}s have a copy of the index, drop and recreate it.
+
+    You can also use the following query to find all invalid indexes:
+
+    ```sql
+    SELECT * FROM pg_index i WHERE i.indisvalid IS FALSE;
+    ```
+</Callout>
+
+## Samples
+
+Create an anonymous index:
+
+```sql
+CREATE INDEX ON conditions(time, device_id)
+    WITH (timescaledb.transaction_per_chunk);
+```
+
+Alternatively:
+
+```sql
+CREATE INDEX ON conditions USING brin(time, location)
+    WITH (timescaledb.transaction_per_chunk);
+```
+
+## Returns
+
+The `CREATE INDEX` command does not return a value. Upon successful completion, an index is created on the {C.HYPERTABLE} and all its {C.CHUNK}s.
+
+[postgres-createindex]: https://www.postgresql.org/docs/current/sql-createindex.html
+

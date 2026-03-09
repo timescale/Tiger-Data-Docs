@@ -1,0 +1,75 @@
+---
+title: alter_policies()
+description: Alter refresh, compression, or data retention policies on a continuous aggregate
+topics: [continuous aggregates, jobs, compression, data retention]
+keywords: [continuous aggregates, policies, alter, compress, data retention]
+tags: [change]
+license: community
+type: function
+experimental: true
+products: [cloud, self_hosted, mst]
+---
+
+import * as C from "@constants";
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="2.10.0" product="tsdb" mode="early_access" />
+
+Alter refresh, {C.COLUMNSTORE}, or data retention policies on a {C.CAGG}. The altered {C.COLUMNSTORE} and retention policies
+apply to the
+{C.CAGG}, *not* to the original {C.HYPERTABLE}.
+
+```sql
+timescaledb_experimental.alter_policies(
+     relation REGCLASS,
+     if_exists BOOL = false,
+     refresh_start_offset "any" = NULL,
+     refresh_end_offset "any" = NULL,
+     compress_after "any" = NULL,
+     drop_after "any" = NULL
+) RETURNS BOOL
+```
+
+## Samples
+
+Given a {C.CAGG} named `example_continuous_aggregate` with an
+existing {C.COLUMNSTORE} policy, alter the {C.COLUMNSTORE} policy to compress data older
+than 16 days:
+
+```sql
+SELECT timescaledb_experimental.alter_policies(
+    'continuous_agg_max_mat_date',
+    compress_after => '16 days'::interval
+);
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT timescaledb_experimental.alter_policies(
+    relation = '<view_name>',
+    refresh_start_offset = <interval>,
+    refresh_end_offset = <interval>,
+    compress_after = <interval>,
+    drop_after = <interval>
+);
+```
+
+| Name | Type | Default | Required | Description |
+|-|-|-|-|-|
+| `relation` | `REGCLASS` | - | ✔ | The {C.CAGG} that you want to alter policies for |
+| `if_exists` | `BOOL` | false | - | When true, prints a warning instead of erroring if the policy doesn't exist. |
+| `refresh_start_offset` | `INTERVAL` or `INTEGER` | - | - | The start of the {C.CAGG} refresh window, expressed as an offset from the policy run time. |
+| `refresh_end_offset` | `INTERVAL` or `INTEGER` | - | - | The end of the {C.CAGG} refresh window, expressed as an offset from the policy run time. Must be greater than `refresh_start_offset`. |
+| `compress_after` | `INTERVAL` or `INTEGER` | - | - | {C.CAGG} {C.CHUNK}s are compressed into the {C.COLUMNSTORE} if they exclusively contain data older than this interval. |
+| `drop_after` | `INTERVAL` or `INTEGER` | - | - | {C.CAGG} {C.CHUNK}s are dropped if they exclusively contain data older than this interval. |
+
+For arguments that could be either an `INTERVAL` or an `INTEGER`, use an
+`INTERVAL` if your time bucket is based on timestamps. Use an `INTEGER` if your
+time bucket is based on integers.
+
+## Returns
+
+Returns `true` if successful.

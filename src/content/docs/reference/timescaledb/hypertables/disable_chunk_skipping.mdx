@@ -1,0 +1,76 @@
+---
+title: disable_chunk_skipping()
+description: Disable range tracking for columns of chunks from a hypertable
+topics: [hypertables]
+keywords: [hypertables, chunks, range-tracking, skipping]
+tags: [columns, ranges, min-max, chunks]
+license: apache
+type: function
+experimental: true
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<SinceRelease version="2.16.0" product="tsdb" mode="early_access" />
+
+Disable range tracking for a specific column in a {C.HYPERTABLE} **in the {C.COLUMNSTORE}**.
+
+## Samples
+
+In this sample, you convert the `conditions` table to a {C.HYPERTABLE} with
+partitioning on the `time` column. You then specify and enable additional
+columns to track ranges for. You then disable range tracking:
+
+```sql
+SELECT create_hypertable('conditions', 'time');
+SELECT enable_chunk_skipping('conditions', 'device_id');
+SELECT disable_chunk_skipping('conditions', 'device_id');
+```
+
+<Callout variant="note">
+  Best practice is to enable range tracking on columns which are correlated to the
+  partitioning column. In other words, enable tracking on secondary columns that are
+  referenced in the `WHERE` clauses in your queries.
+  Use this API to disable range tracking on columns when the query patterns don't
+  use this secondary column anymore.
+</Callout>
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT disable_chunk_skipping(
+    hypertable = '<hypertable_name>',
+    column_name = '<column_name>',
+    if_not_exists = true | false
+);
+```
+
+|Name|Type| Default | Required | Description|
+|-|-|-|-|-|
+|`hypertable`|REGCLASS| - | ✔ |Hypertable that the column belongs to|
+|`column_name`|NAME| - | ✔ |Column to disable tracking range statistics for|
+|`if_not_exists`|BOOLEAN| `FALSE` | ✖ |Set to `true` so that a notice is sent when ranges are not being tracked for a column. By default, an error is thrown|
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+|`hypertable_id`|INTEGER|ID of the {C.HYPERTABLE} in {C.TIMESCALE_DB}.|
+|`column_name`|NAME|Name of the column range tracking is disabled for|
+|`disabled`|BOOLEAN|Returns `true` when tracking is disabled. `false` when `if_not_exists` is `true` and the entry was not removed|
+
+<Callout variant="note">
+  To `disable_chunk_skipping()`, you must have first called [enable\_chunk\_skipping][enable_chunk_skipping]
+  and enabled range tracking on a column in the hypertable.
+</Callout>
+
+[enable_chunk_skipping]: /reference/timescaledb/hypertables/enable_chunk_skipping
+
+[tsdb-2.16.0]: https://github.com/timescale/timescaledb/releases/tag/2.16.0

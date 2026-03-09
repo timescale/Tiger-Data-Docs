@@ -1,0 +1,76 @@
+---
+title: attach_tablespace()
+description: Attach a tablespace to a hypertable
+topics: [hypertables]
+keywords: [hypertables, tablespaces]
+tags: [chunks, attach]
+license: apache
+type: function
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="0.7.0" product="tsdb" />
+
+Attach a tablespace to a {C.HYPERTABLE} and use it to store {C.CHUNK}s. A
+[tablespace][postgres-tablespaces] is a directory on the filesystem
+that allows control over where individual tables and indexes are
+stored on the filesystem. A common use case is to create a tablespace
+for a particular storage disk, allowing tables to be stored
+there. To learn more, see the [{C.PG} documentation on
+tablespaces][postgres-tablespaces].
+
+{C.TIMESCALE_DB} can manage a set of tablespaces for each {C.HYPERTABLE},
+automatically spreading {C.CHUNK}s across the set of tablespaces attached
+to a {C.HYPERTABLE}. If a {C.HYPERTABLE} is hash partitioned, {C.TIMESCALE_DB}
+tries to place {C.CHUNK}s that belong to the same partition in the same
+tablespace. Changing the set of tablespaces attached to a {C.HYPERTABLE}
+may also change the placement behavior. A {C.HYPERTABLE} with no attached
+tablespaces has its {C.CHUNK}s placed in the database's default
+tablespace.
+
+## Samples
+
+Attach the tablespace `disk1` to the {C.HYPERTABLE} `conditions`:
+
+```sql
+SELECT attach_tablespace('disk1', 'conditions');
+SELECT attach_tablespace('disk2', 'conditions', if_not_attached => true);
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT attach_tablespace(
+    tablespace = '<tablespace_name>',
+    hypertable = '<hypertable_name>',
+    if_not_attached = true | false
+);
+```
+
+|Name|Type| Default | Required | Description|
+|---|---|-|-|---|
+| `tablespace` | TEXT | - | ✔ | Name of the tablespace to attach.|
+| `hypertable` | REGCLASS | - | ✔ | {C.HYPERTABLE_CAP} to attach the tablespace to.|
+| `if_not_attached` | BOOLEAN | `false` | ✖ | Set to true to avoid throwing an error if the tablespace is already attached to the table. A notice is issued instead. Defaults to false. |
+
+Tablespaces need to be [created][postgres-createtablespace] before
+being attached to a {C.HYPERTABLE}. Once created, tablespaces can be
+attached to multiple {C.HYPERTABLE}s simultaneously to share the
+underlying disk storage. Associating a regular table with a tablespace
+using the `TABLESPACE` option to `CREATE TABLE`, prior to calling
+`create_hypertable`, has the same effect as calling
+`attach_tablespace` immediately following `create_hypertable`.
+
+## Returns
+
+This function returns void.
+
+[postgres-createtablespace]: https://www.postgresql.org/docs/current/sql-createtablespace.html
+
+[postgres-tablespaces]: https://www.postgresql.org/docs/current/manage-ag-tablespaces.html

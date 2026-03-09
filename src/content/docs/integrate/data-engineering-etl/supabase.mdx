@@ -17,7 +17,7 @@ Prerequisites
 To follow the steps on this page:
 
 -   Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled.
-    
+
     You need [your connection details](/integrate/find-connection-details). This procedure also works for [self-hosted TimescaleDB](/deploy/self-hosted/install-and-update/install-self-hosted).
 
 -   Create a [Supabase project](https://supabase.com/dashboard/new)
@@ -26,7 +26,7 @@ Set up your service
 
 To set up a Tiger Cloud service optimized for analytics to receive data from Supabase:
 
-1.  **Optimize time-series data in hypertables** Time-series data represents how a system, process, or behavior changes over time. [Hypertables](/build/data-management/understand-hypertables) are {C.PG} tables that help you improve insert and query performance by automatically partitioning your data by time. [Connect to your Tiger Cloud service](/deploy/tiger-cloud/get-started/run-queries-from-console) and create a table that will point to a Supabase database: When you create a hypertable using [CREATE TABLE … WITH …](/api-reference/timescaledb/hypertables/create_table), the default partitioning column is automatically the first column with a timestamp data type. Also, TimescaleDB creates a [columnstore policy](/api-reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts your data to the columnstore, after an interval equal to the value of the [chunk\_interval](/api-reference/timescaledb/hypertables/create_table#arguments), defined through `compress_after` in the policy. This columnar format enables fast scanning and aggregation, optimizing performance for analytical workloads while also saving significant storage space. In the columnstore conversion, hypertable chunks are compressed by up to 98%, and organized for efficient, large-scale queries. You can customize this policy later using [alter\_job](/api-reference/timescaledb/jobs-automation/alter_job#samples). However, to change `after` or `created_before`, the compression settings, or the hypertable the policy is acting on, you must [remove the columnstore policy](/api-reference/timescaledb/hypercore/remove_columnstore_policy) and [add a new one](/api-reference/timescaledb/hypercore/add_columnstore_policy). You can also manually [convert chunks](/api-reference/timescaledb/hypercore/convert_to_columnstore) in a hypertable to the columnstore.
+1.  **Optimize time-series data in hypertables** Time-series data represents how a system, process, or behavior changes over time. [Hypertables](/build/data-management/understand-hypertables) are {C.PG} tables that help you improve insert and query performance by automatically partitioning your data by time. [Connect to your Tiger Cloud service](/deploy/tiger-cloud/get-started/run-queries-from-console) and create a table that will point to a Supabase database: When you create a hypertable using [CREATE TABLE … WITH …](/reference/timescaledb/hypertables/create_table), the default partitioning column is automatically the first column with a timestamp data type. Also, TimescaleDB creates a [columnstore policy](/reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts your data to the columnstore, after an interval equal to the value of the [chunk\_interval](/reference/timescaledb/hypertables/create_table#arguments), defined through `compress_after` in the policy. This columnar format enables fast scanning and aggregation, optimizing performance for analytical workloads while also saving significant storage space. In the columnstore conversion, hypertable chunks are compressed by up to 98%, and organized for efficient, large-scale queries. You can customize this policy later using [alter\_job](/reference/timescaledb/jobs-automation/alter_job#samples). However, to change `after` or `created_before`, the compression settings, or the hypertable the policy is acting on, you must [remove the columnstore policy](/reference/timescaledb/hypercore/remove_columnstore_policy) and [add a new one](/reference/timescaledb/hypercore/add_columnstore_policy). You can also manually [convert chunks](/reference/timescaledb/hypercore/convert_to_columnstore) in a hypertable to the columnstore.
 2.  **Optimize cooling data for analytics** Hypercore is the hybrid row-columnar storage engine in TimescaleDB, designed specifically for real-time analytics and powered by time-series data. The advantage of hypercore is its ability to seamlessly switch between row-oriented and column-oriented storage. This flexibility enables TimescaleDB to deliver the best of both worlds, solving the key challenges in real-time analytics.
 3.  **Create optimized analytical queries** Continuous aggregates are designed to make queries on very large datasets run faster. Continuous aggregates in Tiger Cloud use {C.PG} [materialized views](https://www.postgresql.org/docs/current/rules-materializedviews.html) to continuously, and incrementally refresh a query in the background, so that when you run the query, only the data that has changed needs to be computed, not the entire dataset.
     1.  Create a continuous aggregate pointing to the Supabase database.
@@ -44,10 +44,10 @@ To set up a Supabase database that injects data into your Tiger Cloud service:
     3.  Create a foreign server that points to your Tiger Cloud service. Update the following command with your [connection details](/integrate/find-connection-details), then run it in the Supabase database:
 2.  **Create the user mapping for the foreign server** Update the following command with your [connection details](/integrate/find-connection-details), the run it in the Supabase database:
 3.  **Create a foreign table that points to a table in your Tiger Cloud service.** This query introduced the following columns:
-    
+
     -   `time`: with a default value of `now()`. This is because the `time` column is used by Tiger Cloud to optimize data in the columnstore.
     -   `origin_time`: store the original timestamp of the data.
-    
+
     Using both columns, you understand the delay between Supabase (`origin_time`) and the time the data is inserted into your Tiger Cloud service (`time`).
 4.  **Create a foreign table in Supabase**
     1.  Create a foreign table that matches the `signs_per_minute` view in your Tiger Cloud service. It represents a top level view of the data.
@@ -59,18 +59,18 @@ To inject data into your Tiger Cloud service from a Supabase database using a fo
 
 1.  **Insert data into your Supabase database** Connect to Supabase and run the following query:
 2.  **Check the data in your Tiger Cloud service** [Connect to your Tiger Cloud service](/deploy/tiger-cloud/get-started/run-queries-from-console) and run the following query: You see something like:
-    
+
     origin\_time
-    
+
     time
-    
+
     name
-    
+
     2025-02-27 16:30:04.682391+00
-    
+
     2025-02-27 16:30:04.682391+00
-    
+
     test
-    
+
 
 You have successfully integrated Supabase with your Tiger Cloud service.

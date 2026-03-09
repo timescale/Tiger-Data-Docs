@@ -1,0 +1,100 @@
+---
+title: time_bucket_gapfill()
+description: Bucket rows by time interval while filling gaps in data
+topics: [hyperfunctions]
+license: community
+type: function
+hyperfunction:
+  family: gapfilling
+  type: bucket
+  bucket_function: time_bucket_gapfill()
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.2.0" product="tsdb" />
+
+Group data into buckets based on time interval, while filling in gaps of missing data.
+If you don't provide a gapfilling algorithm, such as `locf` or `interpolate`, gaps are left as `NULL` in the returned
+data.
+
+## Samples
+
+1. **Create a {C.HYPERTABLE}**
+
+   ```sql
+   CREATE TABLE sensor_data (
+      time TIMESTAMPTZ NOT NULL,
+      sensor_id INTEGER,
+      temperature DOUBLE PRECISION
+   ) WITH (tsdb.hypertable);
+   ```
+
+2. **Fill missing hourly sensor data with gapfilling and interpolation**
+
+   ```sql
+   SELECT
+     time_bucket_gapfill('1 hour', time) AS hour,
+     sensor_id,
+     AVG(temperature) AS avg_temp,
+     interpolate(AVG(temperature)) AS interpolated_temp,
+     locf(AVG(temperature)) AS locf_temp
+   FROM sensor_data
+   WHERE time >= NOW() - INTERVAL '1 day'
+     AND time < NOW()  -- Must have upper bound for gapfill to work
+     AND sensor_id IN (1, 2, 3)
+   GROUP BY hour, sensor_id
+   ORDER BY hour;
+   ```
+
+   Returns something like:
+
+   | hour | sensor\_id | avg\_temp | interpolated\_temp | locf\_temp |
+   | --- | --- | --- | --- | --- |
+   | 2025-12-10 09:00:00+00 | 1 | 23.54183788470983 | 23.54183788470983 | 23.54183788470983 |
+   | 2025-12-10 09:00:00+00 | 3 | 23.501428105258427 | 23.501428105258427 | 23.501428105258427 |
+   | 2025-12-10 09:00:00+00 | 2 | 23.561574556138247 | 23.561574556138247 | 23.561574556138247 |
+   | 2025-12-10 10:00:00+00 | 1 | 22.51280004019483 | 22.51280004019483 | 22.51280004019483 |
+   | 2025-12-10 10:00:00+00 | 2 | 22.49593389975133 | 22.49593389975133 | 22.49593389975133 |
+   | 2025-12-10 10:00:00+00 | 3 | 22.512339294279585 | 22.512339294279585 | 22.512339294279585 |
+   | 2025-12-10 11:00:00+00 | 1 | 21.258753537111346 | 21.258753537111346 | 21.258753537111346 |
+   | 2025-12-10 11:00:00+00 | 2 | 21.320573198758982 | 21.320573198758982 | 21.320573198758982 |
+   | 2025-12-10 11:00:00+00 | 3 | 21.29395273116155 | 21.29395273116155 | 21.29395273116155 |
+   | 2025-12-10 12:00:00+00 | 1 | 20.01722603628097 | 20.01722603628097 | 20.01722603628097 |
+   | 2025-12-10 12:00:00+00 | 2 | 19.985153555974925 | 19.985153555974925 | 19.985153555974925 |
+   | 2025-12-10 12:00:00+00 | 3 | 20.002541510158228 | 20.002541510158228 | 20.002541510158228 |
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT time_bucket_gapfill(
+    bucket_width = <interval>,
+    ts = <timestamp>,
+    start = <timestamp>,
+    finish = <timestamp>,
+    timezone = '<timezone>'
+) AS bucket
+FROM <table_name>
+WHERE <timestamp> >= <start>
+  AND <timestamp> < <finish>
+GROUP BY bucket;
+```
+
+| Name | Type | Default | Required | Description |
+|--|--|--|--|--|
+| `bucket_width` | INTERVAL | INTEGER | - | ✔ | A {C.PG} time interval to specify the length of each bucket. For example, use `1 day` to get daily buckets. Use `INTEGER` only if your time column is integer-based. |
+| `ts` | TIMESTAMPTZ | TIMESTAMP | DATE | SMALLINT | INT | BIGINT | - | ✔ | The timestamp on which to base the bucket |
+| `timezone` | TEXT | - | - | The timezone to use for bucketing. For example, `Europe/Berlin`. Available in {C.TIMESCALE_DB} 2.9 or later. Does not work for integer-based time. If you have an untyped `start` or `finish` argument and a `timezone` argument, you might run into a problem where you are not passing your arguments for the parameter that you expect. To solve this, either name your arguments or explicitly type cast them. |
+| `start` | TIMESTAMPTZ | INTEGER | - | - | The start of the period to gapfill. Values before `start` are passed through, but no gapfilling is performed. Use `INTEGER` only if your time column is integer-based. Best practice is to use the `WHERE` clause. Specifying `start` is legacy. The `WHERE` is more performant, because the query planner can filter out {C.CHUNK}s by constraint exclusion. |
+| `finish` | TIMESTAMPTZ | INTEGER | - | - | The end of the period to gapfill. Values after `finish` are passed through, but no gapfilling is performed. Use `INTEGER` only if your time column is integer-based. Best practice is to use the `WHERE` clause. Specifying `finish` is legacy. The `WHERE` is more performant, because the query planner can filter out {C.CHUNK}s by constraint exclusion. |
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+| `time_bucket_gapfill` | TIMESTAMPTZ or INTEGER | The start time of the time bucket. The return type matches the input `time` type. |
