@@ -1,0 +1,72 @@
+---
+title: attach_chunk()
+description: Attach a chunk to a hypertable
+topics: [hypertables]
+keywords: [chunks, hypertables, split]
+license: community
+type: function
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="2.21.0" product="tsdb" />
+
+import ReturnsVoid from '@partials/_returns-void.mdx';
+
+Attach a {C.HYPERTABLE} as a {C.CHUNK} in another {C.HYPERTABLE} at a given slice in a dimension.
+
+![Hypertable structure][hypertable-structure]
+
+The schema, name, existing constraints, and indexes of `chunk` do not change, even
+if a constraint conflicts with a {C.CHUNK} constraint in `hypertable`.
+
+The `hypertable` you attach `chunk` to does not need to have the same dimension columns as the
+{C.HYPERTABLE} you previously [detached `chunk`][hypertable-detach-chunk] from.
+
+While attaching `chunk` to `hypertable`:
+
+- Dimension columns in `chunk` are set as `NOT NULL`.
+- Any foreign keys in `hypertable` are created in `chunk`.
+
+You cannot:
+
+- Attaching a {C.CHUNK} that is still attached to another {C.HYPERTABLE}. First call
+  [detach\_chunk][hypertable-detach-chunk].
+- Attaching foreign tables are not supported.
+
+## Samples
+
+Attach a {C.HYPERTABLE} as a {C.CHUNK} in another {C.HYPERTABLE} for a specific slice in a dimension:
+
+```sql
+CALL attach_chunk('ht', '_timescaledb_internal._hyper_1_2_chunk', '{"device_id": [0, 1000]}');
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+CALL attach_chunk(
+    hypertable = '<hypertable_name>',
+    chunk = '<chunk_name>',
+    slices = '<jsonb_slices>'
+);
+```
+
+|Name|Type| Default | Required | Description                                                                                                                                   |
+|---|---|-|-|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `hypertable` | REGCLASS | - | ✔ | Name of the {C.HYPERTABLE} to attach `chunk` to.                                                                                                  |
+| `chunk` | REGCLASS | - | ✔ | Name of the {C.CHUNK} to attach.                                                                                                                  |
+| `slices` | JSONB | - | ✔ | The slice `chunk` will occupy in `hypertable`. `slices` cannot clash with the slice already occupied by an existing {C.CHUNK} in `hypertable`. |
+
+## Returns
+
+<ReturnsVoid />
+
+[hypertable-detach-chunk]: /reference/timescaledb/hypertables/detach_chunk
+
+[hypertable-structure]: https://assets.timescale.com/docs/images/hypertable-structure.png

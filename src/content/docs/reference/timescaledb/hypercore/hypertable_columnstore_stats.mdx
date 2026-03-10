@@ -1,0 +1,98 @@
+---
+title: hypertable_columnstore_stats()
+description: Get columnstore statistics related to the columnstore
+license: community
+type: function
+topics: [hypercore, columnstore]
+keywords: [hypercore, columnstore, hypertables, information]
+tags: [statistics, size]
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<SinceRelease version="2.18.0" product="tsdb" />
+
+<Callout variant="info">
+  `hypertable_columnstore_stats()` replaces `hypertable_compression_stats()`, deprecated in 2.18.0. The parameters are the same.
+</Callout>
+
+Retrieve compression statistics for the {C.COLUMNSTORE}.
+
+For more information about using {C.HYPERTABLE}s, including {C.CHUNK} size partitioning,
+see [{C.HYPERTABLE}s][hypertable-docs].
+
+## Samples
+
+To retrieve compression statistics:
+
+- **Show the compression status of the `conditions` {C.HYPERTABLE}**:
+
+  ```sql
+  SELECT * FROM hypertable_columnstore_stats('conditions');
+  ```
+
+  Returns:
+
+  ```sql
+  -[ RECORD 1 ]------------------+------
+  total_chunks                   | 4
+  number_compressed_chunks       | 1
+  before_compression_table_bytes | 8192
+  before_compression_index_bytes | 32768
+  before_compression_toast_bytes | 0
+  before_compression_total_bytes | 40960
+  after_compression_table_bytes  | 8192
+  after_compression_index_bytes  | 32768
+  after_compression_toast_bytes  | 8192
+  after_compression_total_bytes  | 49152
+  node_name                      |
+  ```
+
+- **Use `pg_size_pretty` get the output in a more human friendly format**:
+
+  ```sql
+  SELECT pg_size_pretty(after_compression_total_bytes) as total
+    FROM hypertable_columnstore_stats('conditions');
+  ```
+
+  Returns:
+
+  ```sql
+  -[ RECORD 1 ]--+------
+  total | 48 kB
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT * FROM hypertable_columnstore_stats('<hypertable_name>');
+```
+
+|Name|Type|Description|
+|-|-|-|
+|`hypertable`|REGCLASS|{C.HYPERTABLE} to show statistics for|
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+|`total_chunks`|BIGINT|The number of {C.CHUNK}s used by the {C.HYPERTABLE}. Returns `NULL` if `compression_status` == `Uncompressed`. |
+|`number_compressed_chunks`|BIGINT|The number of {C.CHUNK}s used by the {C.HYPERTABLE} that are currently compressed. Returns `NULL` if `compression_status` == `Uncompressed`. |
+|`before_compression_table_bytes`|BIGINT|Size of the heap before compression. Returns `NULL` if `compression_status` == `Uncompressed`. |
+|`before_compression_index_bytes`|BIGINT|Size of all the indexes before compression. Returns `NULL` if `compression_status` == `Uncompressed`. |
+|`before_compression_toast_bytes`|BIGINT|Size the TOAST table before compression. Returns `NULL` if `compression_status` == `Uncompressed`. |
+|`before_compression_total_bytes`|BIGINT|Size of the entire table (`before_compression_table_bytes` + `before_compression_index_bytes` + `before_compression_toast_bytes`) before compression. Returns `NULL` if `compression_status` == `Uncompressed`.|
+|`after_compression_table_bytes`|BIGINT|Size of the heap after compression. Returns `NULL` if `compression_status` == `Uncompressed`. |
+|`after_compression_index_bytes`|BIGINT|Size of all the indexes after compression. Returns `NULL` if `compression_status` == `Uncompressed`. |
+|`after_compression_toast_bytes`|BIGINT|Size the TOAST table after compression. Returns `NULL` if `compression_status` == `Uncompressed`. |
+|`after_compression_total_bytes`|BIGINT|Size of the entire table (`after_compression_table_bytes` + `after_compression_index_bytes `+ `after_compression_toast_bytes`) after compression. Returns `NULL` if `compression_status` == `Uncompressed`. |
+|`node_name`|NAME|nodes on which the {C.HYPERTABLE} is located, applicable only to distributed {C.HYPERTABLE}s. Returns `NULL` if `compression_status` == `Uncompressed`. |
+
+[hypertable-docs]: /manage-data/capabilities/hypertables

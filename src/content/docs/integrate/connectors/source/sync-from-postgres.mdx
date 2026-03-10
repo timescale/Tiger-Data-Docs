@@ -50,6 +50,11 @@ You use the {C.PG_CONNECTOR} for data synchronization, rather than migration. Th
 - Enable features such as [{C.HYPERTABLE}s][hypertables-section], [{C.COLUMNSTORE}][compression], and [{C.CAGG}s][caggs] on your logical replica.
 
 This {C.PG_CONNECTOR} is not yet supported for production use. If you have any questions or feedback, talk to us in <a href="https://app.slack.com/client/T4GT3N2JK/C086NU9EZ88">#livesync in the {C.COMPANY} Community</a>.
+- Indexes, primary key, unique constraints, and sequences are **not** migrated. Create needed indexes on the target for your queries.
+- TimescaleDB as source has limited support (e.g. no continuous aggregates).
+- Schema changes must be coordinated: apply compatible changes on the target first, then on the source.
+- WAL volume on the source increases during large table copy.
+- **Continuous aggregates:** The connector uses `session_replication_role=replica` during copy, so triggers (including continuous aggregate invalidation) do not run. Data synced during initial load below a continuous aggregate’s materialization watermark may not appear in the aggregate until you manually refresh. If the aggregate exists on the source, include it in the connector’s publication; if only on the target, use the `force` option of [refresh_continuous_aggregate](/reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate) to refresh affected ranges.
 
 <Tabs>
   <Tab title="Tiger Cloud Console">

@@ -1,0 +1,66 @@
+---
+title: counter_agg()
+description: Aggregate counter data into an intermediate form for further analysis
+license: community
+type: aggregate
+toolkit: true
+hyperfunction:
+  family: counters and gauges
+  type: aggregate
+  aggregates:
+  - counter_agg()
+topics:
+- hyperfunctions
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.3.0" product="toolkit" />
+
+This is the first step for performing any aggregate calculations
+on counter data. Use `counter_agg` to create an intermediate aggregate
+from your data. This intermediate form can then be used
+by one or more accessors in this group to compute final results. Optionally,
+you can combine multiple intermediate aggregate objects using
+[`rollup()`][rollup] before an accessor is applied.
+
+## Samples
+
+Create a counter aggregate to summarize daily counter data.
+
+```sql
+SELECT
+  time_bucket('1 day'::interval, ts) as dt,
+  counter_agg(ts, val) AS cs
+FROM foo
+WHERE id = 'bar'
+GROUP BY time_bucket('1 day'::interval, ts)
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+counter_agg(
+  ts TIMESTAMPTZ,
+  value DOUBLE PRECISION
+  [, bounds TSTZRANGE]
+) RETURNS CounterSummary
+```
+
+| Name | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `ts` | `TIMESTAMPTZ` | - | ✔ | The time at each point |
+| `value` | `DOUBLE PRECISION` | - | ✔ | The value of the counter at each point |
+| `bounds` | `TSTZRANGE` | - |  | The smallest and largest possible times that can be input to this aggregate. Bounds are required for extrapolation, but not for other accessor functions. If you don't specify bounds at aggregate creation time, you can add them later using the [`with_bounds`][with-bounds] function. |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| counter\_agg | CounterSummary | The counter aggregate, containing data about the variables in an intermediate form. Pass the aggregate to accessor functions in the counter aggregates API to perform final calculations. Or, pass the aggregate to rollup functions to combine multiple counter aggregates into larger aggregates. |
+
+[rollup]: /reference/toolkit/counters-and-gauges/counter_agg/rollup
+
+[with-bounds]: /reference/toolkit/counters-and-gauges/counter_agg/with_bounds

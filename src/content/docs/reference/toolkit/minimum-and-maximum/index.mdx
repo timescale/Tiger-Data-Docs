@@ -1,0 +1,165 @@
+---
+title: Minimum and maximum overview
+description: Find the smallest and largest values in a dataset
+sidebar:
+  label: Overview
+---
+
+import TwoStepAggregation from '@partials/_two-step-aggregation.mdx';
+
+Find the smallest and largest values in a dataset. These specialized hyperfunctions make
+it easier to write queries that identify extreme values in your data.
+
+They help you answer questions such as:
+
+- What are the N smallest or largest values in my dataset?
+- Which rows contain the minimum or maximum values?
+- How can I efficiently track top/bottom values over time?
+
+This function family provides four related function groups:
+
+- [`min_n()`][min_n]: Get the N smallest values from a column
+- [`max_n()`][max_n]: Get the N largest values from a column
+- [`min_n_by()`][min_n_by]: Get the N smallest values with accompanying data (like full rows)
+- [`max_n_by()`][max_n_by]: Get the N largest values with accompanying data (like full rows)
+
+These function groups use the [two-step aggregation][two-step-aggregation]
+pattern. Each group includes an aggregate function to create intermediate aggregates,
+accessor functions to extract results, and rollup functions to combine aggregates.
+
+The minimum and maximum functions give the same results as the regular SQL query
+`SELECT ... ORDER BY ... LIMIT n`. But unlike the SQL query, they can be composed
+and combined like other aggregate hyperfunctions.
+
+## Two-step aggregation
+
+<TwoStepAggregation />
+
+## Samples
+
+### Find the smallest values
+
+Get the 5 smallest values from a calculation. This example uses `min_n()` to
+find the bottom 5 values from `i * 13 % 10007` for i = 1 to 10000:
+
+```sql
+SELECT into_array(
+    min_n(sub.val, 5))
+FROM (
+  SELECT (i * 13) % 10007 AS val
+  FROM generate_series(1,10000) as i
+) sub;
+```
+
+Output:
+
+```sql
+into_array
+---------------------------------
+{1,2,3,4,5}
+```
+
+### Find the largest values
+
+Get the 5 largest values from a calculation. This example uses `max_n()` to
+find the top 5 values from `i * 13 % 10007` for i = 1 to 10000:
+
+```sql
+SELECT into_array(
+    max_n(sub.val, 5))
+FROM (
+  SELECT (i * 13) % 10007 AS val
+  FROM generate_series(1,10000) as i
+) sub;
+```
+
+Output:
+
+```sql
+into_array
+---------------------------------
+{10006,10005,10004,10003,10002}
+```
+
+### Find the smallest transactions with details
+
+This example assumes you have a table of stock trades:
+
+```sql
+CREATE TABLE stock_sales(
+    ts TIMESTAMPTZ,
+    symbol TEXT,
+    price FLOAT,
+    volume INT
+);
+```
+
+Find the 10 smallest transactions each day with their timestamps and symbols.
+This example uses `min_n_by()` to track both the transaction size and
+associated row data:
+
+```sql
+WITH daily_min AS (
+    SELECT
+        time_bucket('1 day'::interval, ts) as day,
+        min_n_by(price * volume, stock_sales, 10) AS min_transactions
+    FROM stock_sales
+    GROUP BY day
+)
+SELECT
+    day,
+    (data).ts,
+    (data).symbol,
+    value AS transaction_size
+FROM daily_min,
+     LATERAL into_values(min_transactions, NULL::stock_sales);
+```
+
+### Find the largest transactions with details
+
+Find the 10 largest transactions each day. This example uses `max_n_by()`:
+
+```sql
+WITH daily_max AS (
+    SELECT
+        time_bucket('1 day'::interval, ts) as day,
+        max_n_by(price * volume, stock_sales, 10) AS max_transactions
+    FROM stock_sales
+    GROUP BY day
+)
+SELECT
+    day,
+    (data).ts,
+    (data).symbol,
+    value AS transaction_size
+FROM daily_max,
+     LATERAL into_values(max_transactions, NULL::stock_sales);
+```
+
+## Available functions
+
+### Minimum values
+
+- [`min_n()`][min_n]: get the N smallest values from a column
+
+### Maximum values
+
+- [`max_n()`][max_n]: get the N largest values from a column
+
+### Minimum values with data
+
+- [`min_n_by()`][min_n_by]: get the N smallest values with accompanying data
+
+### Maximum values with data
+
+- [`max_n_by()`][max_n_by]: get the N largest values with accompanying data
+
+[max_n]: /reference/toolkit/minimum-and-maximum/max_n
+
+[max_n_by]: /reference/toolkit/minimum-and-maximum/max_n_by
+
+[min_n]: /reference/toolkit/minimum-and-maximum/min_n
+
+[min_n_by]: /reference/toolkit/minimum-and-maximum/min_n_by
+
+[two-step-aggregation]: #two-step-aggregation

@@ -1,0 +1,56 @@
+---
+title: approx_count()
+description: Estimate the number of times a value appears from a `CountMinSketch`
+topics: [hyperfunctions]
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: frequency analysis
+  type: accessor
+  aggregates:
+    - count_min_sketch()
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.8.0" product="toolkit" mode="early_access" />
+
+Estimate the number of times a given text value appears in a column.
+
+## Samples
+
+Given a table of stock data, estimate how many times the symbol `AAPL` appears:
+
+```sql
+WITH t AS (
+  SELECT toolkit_experimental.count_min_sketch(symbol, 0.01, 0.01) AS symbol_sketch
+  FROM crypto_ticks
+)
+SELECT toolkit_experimental.approx_count('AAPL', symbol_sketch)
+FROM t;
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+approx_count (
+    item TEXT,
+    agg CountMinSketch
+) RETURNS BIGINT
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| `item` | TEXT | - | ✔ | The value you want to estimate occurrences of |
+| `agg` | CountMinSketch | - | ✔ | A `CountMinSketch` object created using [`count_min_sketch`][count-min-sketch] |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| approx\_count | BIGINT | The estimated number of times `item` appeared in the sketch |
+
+[count-min-sketch]: /reference/toolkit/frequency-analysis/count_min_sketch/count_min_sketch

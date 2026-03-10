@@ -1,0 +1,72 @@
+---
+title: extrapolated_delta()
+description: Calculate the extrapolated change from a gauge aggregate
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: counters and gauges
+  type: accessor
+  aggregates:
+  - gauge_agg()
+topics:
+- hyperfunctions
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.6.0" product="toolkit" mode="early_access" />
+
+Calculate the change in a gauge during the time period specified by the bounds
+in the gauge aggregate. The bounds must be specified for the `extrapolated_delta`
+function to work. You can provide them as part of the original [`gauge_agg`][gauge-agg]
+call, or by using the [`with_bounds`][with-bounds] function on an existing
+gauge aggregate.
+
+## Samples
+
+Extrapolate the change in a gauge over every 15-minute interval.
+
+```sql
+SELECT
+    id,
+    bucket,
+    extrapolated_delta(
+        with_bounds(
+            summary,
+            toolkit_experimental.time_bucket_range('15 min'::interval, bucket)
+        )
+    )
+FROM (
+    SELECT
+        id,
+        time_bucket('15 min'::interval, ts) AS bucket,
+        gauge_agg(ts, val) AS summary
+    FROM foo
+    GROUP BY id, time_bucket('15 min'::interval, ts)
+) t;
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+extrapolated_delta(
+    summary GaugeSummary
+) RETURNS DOUBLE PRECISION
+```
+
+| Name | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `summary` | `GaugeSummary` | - | ✔ | A gauge aggregate created using [`gauge_agg`][gauge-agg] |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| extrapolated\_delta | DOUBLE PRECISION | The extrapolated change in the gauge over the time period of the gauge aggregate. |
+
+[gauge-agg]: /reference/toolkit/counters-and-gauges/gauge_agg/gauge_agg
+
+[with-bounds]: /reference/toolkit/counters-and-gauges/gauge_agg/with_bounds

@@ -1,0 +1,68 @@
+---
+title: timescaledb_information.chunk_columnstore_settings
+description: Get information about settings on each chunk in the columnstore
+license: community
+type: view
+topics: [hypercore, information, columnstore, chunk]
+keywords: [columnstore, hypercore, chunk, information]
+tags: [chunk, columnstore settings]
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<SinceRelease version="2.18.0" product="tsdb" />
+
+<Callout variant="info">
+  `timescaledb_information.chunk_columnstore_settings` replaces `timescaledb_information.chunk_compression_settings`, deprecated in 2.18.0. The columns are the same.
+</Callout>
+
+Retrieve the compression settings for each {C.CHUNK} in the {C.COLUMNSTORE}.
+
+## Samples
+
+To retrieve information about settings:
+
+- **Show settings for all {C.CHUNK}s in the {C.COLUMNSTORE}**:
+
+  ```sql
+  SELECT * FROM timescaledb_information.chunk_columnstore_settings
+  ```
+
+  Returns:
+
+  ```sql
+  hypertable | chunk | segmentby | orderby
+  ------------+-------+-----------+---------
+  measurements | _timescaledb_internal._hyper_1_1_chunk| | "time" DESC
+  ```
+
+* **Find all {C.CHUNK} {C.COLUMNSTORE} settings for a specific {C.HYPERTABLE}**:
+
+  ```sql
+  SELECT *
+  FROM timescaledb_information.chunk_columnstore_settings
+  WHERE hypertable::TEXT LIKE 'metrics';
+  ```
+
+  Returns:
+
+  ```sql
+  hypertable | chunk | segmentby | orderby
+  ------------+-------+-----------+---------
+  metrics | _timescaledb_internal._hyper_2_3_chunk | metric_id | "time"
+  ```
+
+## Returns
+
+| Name | Type | Description |
+|--|--|--|
+|`hypertable`|`REGCLASS`| The name of the {C.HYPERTABLE} in the {C.COLUMNSTORE}. |
+|`chunk`|`REGCLASS`| The name of the {C.CHUNK} in the `hypertable`.  |
+|`segmentby`|`TEXT`| The list of columns used to segment the `hypertable`. |
+|`orderby`|`TEXT`| The list of columns used to order the data in the `hypertable`, along with the ordering and `NULL` ordering information. |
+|`index`| `JSONB` | The sparse index details.  |

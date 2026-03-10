@@ -1,0 +1,83 @@
+---
+title: Frequency analysis overview
+sidebar:
+  label: Overview
+description: Functions for analyzing the frequency of values in time-series data
+topics: [hyperfunctions]
+license: community
+toolkit: true
+products: [cloud, mst, self_hosted]
+---
+
+Analyze the frequency of values in time-series data using memory-efficient probabilistic data structures. These
+functions help you identify the most common elements and estimate occurrence counts without storing every individual
+value.
+
+TimescaleDB Toolkit provides two approaches to frequency analysis:
+
+- **freq\_agg**: Get the most common elements and their relative frequency using the SpaceSaving algorithm
+- **count\_min\_sketch**: Estimate the absolute number of times a specific value appears using the count-min sketch data
+  structure
+
+import TwoStepAggregation from '@partials/_two-step-aggregation.mdx';
+
+## Two-step aggregation
+
+<TwoStepAggregation />
+
+## Samples
+
+### Find the most common values
+
+Get the 5 most common values from a dataset:
+
+```sql
+CREATE TABLE value_test(value INTEGER);
+INSERT INTO value_test SELECT floor(sqrt(random() * 400)) FROM generate_series(1,100000);
+
+SELECT topn(
+    toolkit_experimental.freq_agg(0.05, value),
+    5)
+FROM value_test;
+```
+
+### Get frequency information for common values
+
+Return values that represent more than 5% of the input, along with their frequency bounds:
+
+```sql
+SELECT value, min_freq, max_freq
+FROM into_values(
+    (SELECT toolkit_experimental.freq_agg(0.05, value) FROM value_test));
+```
+
+### Estimate absolute counts
+
+Use count-min sketch to estimate how many times specific values appear:
+
+```sql
+WITH sketch AS (
+    SELECT toolkit_experimental.count_min_sketch(user_id::text, 0.01, 0.01) AS cms
+    FROM user_events
+)
+SELECT toolkit_experimental.approx_count(cms, 'user123') AS estimated_count
+FROM sketch;
+```
+
+## Available functions
+
+### Frequency aggregation
+
+- [`freq_agg()`][freq_agg]: track the most common values using a minimum frequency cutoff
+
+### Count-min sketch
+
+- [`count_min_sketch()`][count_min_sketch]: estimate absolute counts using the count-min sketch data structure
+
+[count_min_sketch]: /reference/toolkit/frequency-analysis/count_min_sketch
+
+[freq_agg]: /reference/toolkit/frequency-analysis/freq_agg
+
+[toolkit-1.5.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.5.0
+
+[two-step-aggregation]: #two-step-aggregation

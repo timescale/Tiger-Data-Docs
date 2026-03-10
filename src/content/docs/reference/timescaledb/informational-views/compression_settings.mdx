@@ -1,0 +1,101 @@
+---
+title: timescaledb_information.compression_settings
+sidebar:
+  label: compression_settings
+description: Get information about compression settings for hypertables
+keywords: [compression]
+tags: [informational, settings, hypertables, schemas, indexes]
+deprecated: true
+license: community
+type: view
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<SinceRelease mode="deprecated" version="2.0.0" product="tsdb" /><br />
+<SinceRelease version="1.5.0" product="tsdb" />
+
+This view exists for backwards compatibility. The supported views to retrieve information about compression are:
+
+- [timescaledb\_information.hypertable\_compression\_settings][hypertable_compression_settings]
+- [timescaledb\_information.chunk\_compression\_settings][chunk_compression_settings].
+
+Get information about compression-related settings for {C.HYPERTABLE}s.
+Each row of the view provides information about individual `orderby`
+and `segmentby` columns used by compression.
+
+How you use `segmentby` is the single most important thing for compression. It
+affects compresion rates, query performance, and what is compressed or
+decompressed by mutable compression.
+
+## Samples
+
+```sql
+CREATE TABLE hypertab (a_col integer, b_col integer, c_col integer, d_col integer, e_col integer) WITH (
+  tsdb.hypertable,
+  tsdb.partition_column = 'a_col',
+  tsdb.chunk_interval = '864000000'
+);
+
+ALTER TABLE hypertab SET (timescaledb.compress, timescaledb.compress_segmentby = 'a_col,b_col',
+  timescaledb.compress_orderby = 'c_col desc, d_col asc nulls last');
+
+SELECT * FROM timescaledb_information.compression_settings WHERE hypertable_name = 'hypertab';
+
+-[ RECORD 1 ]----------+---------
+hypertable_schema      | public
+hypertable_name        | hypertab
+attname                | a_col
+segmentby_column_index | 1
+orderby_column_index   |
+orderby_asc            |
+orderby_nullsfirst     |
+-[ RECORD 2 ]----------+---------
+hypertable_schema      | public
+hypertable_name        | hypertab
+attname                | b_col
+segmentby_column_index | 2
+orderby_column_index   |
+orderby_asc            |
+orderby_nullsfirst     |
+-[ RECORD 3 ]----------+---------
+hypertable_schema      | public
+hypertable_name        | hypertab
+attname                | c_col
+segmentby_column_index |
+orderby_column_index   | 1
+orderby_asc            | f
+orderby_nullsfirst     | t
+-[ RECORD 4 ]----------+---------
+hypertable_schema      | public
+hypertable_name        | hypertab
+attname                | d_col
+segmentby_column_index |
+orderby_column_index   | 2
+orderby_asc            | t
+orderby_nullsfirst     | f
+```
+
+<Callout variant="info">
+  The `by_range` dimension builder is an addition to {C.TIMESCALE_DB} 2.13.
+</Callout>
+
+## Returns
+
+| Name | Type | Description |
+|------|------|-------------|
+| `hypertable_schema` | TEXT | Schema name of the hypertable |
+| `hypertable_name` | TEXT | Table name of the hypertable |
+| `attname` | TEXT | Name of the column used in the compression settings |
+| `segmentby_column_index` | SMALLINT | Position of attname in the compress\_segmentby list |
+| `orderby_column_index` | SMALLINT | Position of attname in the compress\_orderby list |
+| `orderby_asc` | BOOLEAN | True if this is used for order by ASC, False for order by DESC |
+| `orderby_nullsfirst` | BOOLEAN | True if nulls are ordered first for this column, False if nulls are ordered last |
+
+[chunk_compression_settings]: /reference/timescaledb/informational-views/chunk_compression_settings
+
+[hypertable_compression_settings]: /reference/timescaledb/informational-views/hypertable_compression_settings

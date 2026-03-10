@@ -1,0 +1,150 @@
+---
+title: show_chunks()
+description: Show the chunks belonging to a hypertable
+topics: [hypertables]
+keywords: [chunks, hypertables]
+tags: [show, get]
+license: apache
+type: function
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<SinceRelease version="0.9.0" product="tsdb" />
+
+Get the list of {C.CHUNK}s associated with a {C.HYPERTABLE}. This function accepts the same
+arguments as [`drop_chunks`][drop_chunks].
+
+## Samples
+
+- **Get the list of all {C.CHUNK}s associated with a table**:
+
+  ```sql
+  SELECT show_chunks('conditions');
+  ```
+
+- **For {C.HYPERTABLE}s with mixed-case names, include double quotes within the string literal**:
+
+  ```sql
+  SELECT show_chunks('"MyMixedCaseTable"');
+  ```
+
+- **Or with schema qualification**:
+
+  ```sql
+  SELECT show_chunks('public."MyMixedCaseTable"');
+  ```
+
+- **Get all {C.CHUNK}s from the {C.HYPERTABLE} called `conditions` that are older than 3 months**:
+
+  ```sql
+  SELECT show_chunks('conditions', older_than => INTERVAL '3 months');
+  ```
+
+- **Get all {C.CHUNK}s from the {C.HYPERTABLE} called `conditions` created earlier than 3 months before**:
+
+  ```sql
+  SELECT show_chunks('conditions', created_before => INTERVAL '3 months');
+  ```
+
+- **Get all {C.CHUNK}s from the {C.HYPERTABLE} `conditions` created in the previous month**:
+
+  ```sql
+  SELECT show_chunks('conditions', created_after => INTERVAL '1 month');
+  ```
+
+- **Get all {C.CHUNK}s from the {C.HYPERTABLE} `conditions` created before 2017**:
+
+  ```sql
+  SELECT show_chunks('conditions', older_than => DATE '2017-01-01');
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT show_chunks(
+    relation = '<hypertable_or_cagg_name>',
+    older_than = <interval>,
+    newer_than = <interval>,
+    created_before = <interval>,
+    created_after = <interval>
+);
+```
+
+| Name | Type | Default | Required | Description |
+|-|-|-|-|-|
+| `relation` | REGCLASS | - | ✔ | {C.HYPERTABLE_CAP} or {C.CAGG} from which to select {C.CHUNK}s. |
+| `older_than` | ANY | - | ✖ | Specification of cut-off point where any {C.CHUNK}s older than this timestamp should be shown. |
+| `newer_than` | ANY | - | ✖ | Specification of cut-off point where any {C.CHUNK}s newer than this timestamp should be shown. |
+| `created_before` | ANY | - | ✖ | Specification of cut-off point where any {C.CHUNK}s created before this timestamp should be shown. |
+| `created_after` | ANY | - | ✖ | Specification of cut-off point where any {C.CHUNK}s created after this timestamp should be shown. |
+
+The `older_than` and `newer_than` parameters can be specified in two ways:
+
+- **interval type:** The cut-off point is computed as `now() -
+  older_than` and similarly `now() - newer_than`. An error is returned if an
+  INTERVAL is supplied and the time column is not one of a TIMESTAMP,
+  TIMESTAMPTZ, or DATE.
+
+- **timestamp, date, or integer type:** The cut-off point is explicitly given
+  as a TIMESTAMP / TIMESTAMPTZ / DATE or as a SMALLINT / INT / BIGINT. The
+  choice of timestamp or integer must follow the type of the {C.HYPERTABLE}'s time
+  column.
+
+The `created_before` and `created_after` parameters can be specified in two ways:
+
+- **interval type:** The cut-off point is computed as `now() -
+  created_before` and similarly `now() - created_after`.  This uses
+  the {C.CHUNK} creation time for the filtering.
+
+- **timestamp, date, or integer type:** The cut-off point is
+  explicitly given as a `TIMESTAMP` / `TIMESTAMPTZ` / `DATE` or as a
+  `SMALLINT` / `INT` / `BIGINT`. The choice of integer value
+  must follow the type of the {C.HYPERTABLE}'s partitioning column. Otherwise
+  the {C.CHUNK} creation time is used for the filtering.
+
+When both `older_than` and `newer_than` arguments are used, the
+function returns the intersection of the resulting two ranges. For
+example, specifying `newer_than => 4 months` and `older_than => 3
+months` shows all {C.CHUNK}s between 3 and 4 months old.
+Similarly, specifying `newer_than => '2017-01-01'` and `older_than => '2017-02-01'` shows all {C.CHUNK}s between '2017-01-01' and
+'2017-02-01'. Specifying parameters that do not result in an
+overlapping intersection between two ranges results in an error.
+
+When both `created_before` and `created_after` arguments are used, the
+function returns the intersection of the resulting two ranges. For
+example, specifying `created_after => 4 months` and `created_before => 3
+months` shows all {C.CHUNK}s created between 3 and 4 months from now.
+Similarly, specifying `created_after => '2017-01-01'` and `created_before => '2017-02-01'` shows all {C.CHUNK}s created between '2017-01-01' and
+'2017-02-01'. Specifying parameters that do not result in an
+overlapping intersection between two ranges results in an error.
+
+<Callout variant="note">
+  The `created_before`/`created_after` parameters cannot be used together with
+  `older_than`/`newer_than`.
+</Callout>
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| show\_chunks | REGCLASS | Name of the {C.CHUNK} matching the criteria |
+
+This function returns a set of rows, one for each {C.CHUNK} that matches the specified criteria.
+
+On failure, an error is returned:
+
+| Error | Description |
+|-------|-------------|
+| `invalid hypertable or continuous aggregate` | The specified relation is not a valid {C.HYPERTABLE} or {C.CAGG} |
+| `invalid time range` | The specified time range parameters do not result in a valid overlapping range |
+
+[drop_chunks]: /reference/timescaledb/hypertables/drop_chunks
+

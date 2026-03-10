@@ -1,0 +1,134 @@
+---
+title: Gauge aggregation overview
+sidebar:
+  label: Overview
+description: Functions for analyzing gauge metrics that can increase or decrease
+topics: [hyperfunctions]
+license: community
+toolkit: true
+products: [cloud, mst, self_hosted]
+---
+
+Analyze data coming from gauges. Unlike counters, gauges can decrease as well as increase.
+
+If your value can only increase, use [`counter_agg`][counter_agg] instead to appropriately account for resets.
+
+import TwoStepAggregation from '@partials/_two-step-aggregation.mdx';
+
+## Two-step aggregation
+
+<TwoStepAggregation />
+
+## Samples
+
+### Analyze gauge metrics
+
+Create hourly gauge aggregates and calculate changes:
+
+```sql
+SELECT
+    time_bucket('1 hour'::interval, ts) AS hour,
+    gauge_agg(ts, temperature) AS gauge_summary
+FROM sensors
+WHERE location = 'warehouse'
+GROUP BY hour;
+```
+
+Calculate the delta and rate of change for gauge values:
+
+```sql
+WITH hourly AS (
+    SELECT
+        time_bucket('1 hour'::interval, ts) AS hour,
+        gauge_agg(ts, temperature) AS gauge_summary
+    FROM sensors
+    WHERE location = 'warehouse'
+    GROUP BY hour
+)
+SELECT
+    hour,
+    delta(gauge_summary) AS temp_change,
+    rate(gauge_summary) AS temp_change_rate
+FROM hourly
+ORDER BY hour;
+```
+
+## Available functions
+
+### Aggregate
+
+- [`gauge_agg()`][gauge_agg]: aggregate gauge data into an intermediate form for further analysis
+
+### Accessors
+
+- [`corr()`][corr]: calculate the correlation coefficient from a gauge aggregate
+- [`delta()`][delta]: calculate the change in a gauge's value
+- [`extrapolated_delta()`][extrapolated_delta]: estimate the total change in a gauge over a time period
+- [`extrapolated_rate()`][extrapolated_rate]: estimate the average rate of change over a time period
+- [`gauge_zero_time()`][gauge_zero_time]: calculate the time when a gauge value was zero
+- [`idelta_left()`][idelta_left]: calculate the instantaneous change at the left boundary
+- [`idelta_right()`][idelta_right]: calculate the instantaneous change at the right boundary
+- [`intercept()`][intercept]: calculate the y-intercept from a gauge aggregate
+- [`interpolated_delta()`][interpolated_delta]: calculate the change over a specific time range with interpolation
+- [`interpolated_rate()`][interpolated_rate]: calculate the rate of change over a specific time range with interpolation
+- [`irate_left()`][irate_left]: calculate the instantaneous rate at the left boundary
+- [`irate_right()`][irate_right]: calculate the instantaneous rate at the right boundary
+- [`num_changes()`][num_changes]: get the number of times the gauge changed value
+- [`num_elements()`][num_elements]: get the number of points in a gauge aggregate
+- [`rate()`][rate]: calculate the average rate of change
+- [`slope()`][slope]: calculate the slope from a gauge aggregate
+- [`time_delta()`][time_delta]: calculate the elapsed time in a gauge aggregate
+
+### Rollup
+
+- [`rollup()`][rollup]: combine multiple gauge aggregates
+
+### Mutator
+
+- [`with_bounds()`][with_bounds]: add time bounds to a gauge aggregate for extrapolation
+
+[corr]: /reference/toolkit/counters-and-gauges/gauge_agg/corr
+
+[counter_agg]: /reference/toolkit/counters-and-gauges/counter_agg
+
+[delta]: /reference/toolkit/counters-and-gauges/gauge_agg/delta
+
+[extrapolated_delta]: /reference/toolkit/counters-and-gauges/gauge_agg/extrapolated_delta
+
+[extrapolated_rate]: /reference/toolkit/counters-and-gauges/gauge_agg/extrapolated_rate
+
+[gauge_agg]: /reference/toolkit/counters-and-gauges/gauge_agg/gauge_agg
+
+[gauge_zero_time]: /reference/toolkit/counters-and-gauges/gauge_agg/gauge_zero_time
+
+[idelta_left]: /reference/toolkit/counters-and-gauges/gauge_agg/idelta_left
+
+[idelta_right]: /reference/toolkit/counters-and-gauges/gauge_agg/idelta_right
+
+[intercept]: /reference/toolkit/counters-and-gauges/gauge_agg/intercept
+
+[interpolated_delta]: /reference/toolkit/counters-and-gauges/gauge_agg/interpolated_delta
+
+[interpolated_rate]: /reference/toolkit/counters-and-gauges/gauge_agg/interpolated_rate
+
+[irate_left]: /reference/toolkit/counters-and-gauges/gauge_agg/irate_left
+
+[irate_right]: /reference/toolkit/counters-and-gauges/gauge_agg/irate_right
+
+[num_changes]: /reference/toolkit/counters-and-gauges/gauge_agg/num_changes
+
+[num_elements]: /reference/toolkit/counters-and-gauges/gauge_agg/num_elements
+
+[rate]: /reference/toolkit/counters-and-gauges/gauge_agg/rate
+
+[rollup]: /reference/toolkit/counters-and-gauges/gauge_agg/rollup
+
+[slope]: /reference/toolkit/counters-and-gauges/gauge_agg/slope
+
+[time_delta]: /reference/toolkit/counters-and-gauges/gauge_agg/time_delta
+
+[toolkit-1.6.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.6.0
+
+[two-step-aggregation]: #two-step-aggregation
+
+[with_bounds]: /reference/toolkit/counters-and-gauges/gauge_agg/with_bounds

@@ -1,0 +1,72 @@
+---
+title: timescaledb_information.hypertable_columnstore_settings
+description: Get information about columnstore settings for all hypertables
+license: community
+type: view
+topics: [hypercore, information, columnstore, hypertable]
+keywords: [columnstore, hypercore, hypertable, information]
+tags: [hypertable columnstore, columnstore settings]
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<SinceRelease version="2.18.0" product="tsdb" />
+
+<Callout variant="info">
+  `timescaledb_information.hypertable_columnstore_settings` replaces `timescaledb_information.hypertable_compression_settings`, deprecated in 2.18.0. The columns are the same.
+</Callout>
+
+Retrieve information about the settings for all {C.HYPERTABLE}s in the {C.COLUMNSTORE}.
+
+## Samples
+
+To retrieve information about settings:
+
+- **Show {C.COLUMNSTORE} settings for all {C.HYPERTABLE}s**:
+
+  ```sql
+  SELECT * FROM timescaledb_information.hypertable_columnstore_settings;
+  ```
+
+  Returns:
+
+  ```sql
+  hypertable               | measurements
+  segmentby                |
+  orderby                  | "time" DESC
+  compress_interval_length |
+  ```
+
+- **Retrieve {C.COLUMNSTORE} settings for a specific {C.HYPERTABLE}**:
+
+  ```sql
+  SELECT * FROM timescaledb_information.hypertable_columnstore_settings WHERE hypertable::TEXT LIKE 'metrics';
+  ```
+
+  Returns:
+
+  ```sql
+  hypertable               | metrics
+  segmentby                | metric_id
+  orderby                  | "time"
+  compress_interval_length |
+  ```
+
+## Returns
+
+|Name|Type| Description   |
+|-|-|-------------------------------------------------------------------------------------------|
+|`hypertable`|`REGCLASS`| A {C.HYPERTABLE} which has the [{C.COLUMNSTORE} enabled][compression_alter-table].|
+|`segmentby`|`TEXT`| The list of columns used to segment data. |
+|`orderby`|`TEXT`| List of columns used to order the data, along with ordering and NULL ordering information. |
+|`compress_interval_length`|`TEXT`| Interval used for [rolling up {C.CHUNK}s during compression][rollup-compression]. |
+|`index`| `JSONB` | The sparse index details.  |
+
+[compression_alter-table]: /reference/timescaledb/hypercore/alter_table
+
+[rollup-compression]: /manage-data/capabilities/compression/manual-compression/#roll-up-uncompressed-chunks-when-compressing

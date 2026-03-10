@@ -1,0 +1,157 @@
+---
+title: Informational views overview
+sidebar:
+  label: Overview
+description: The full list of informational views available in TimescaleDB. Informational views provide detailed information about the state of your data, hypertables, chunks, and any jobs or policies you have in place
+keywords: [information]
+tags: [statistics, background jobs, scheduled jobs, hypertables, continuous aggregates, compression]
+---
+
+import * as C from "@constants";
+
+{C.TIMESCALE_DB} makes complex database features like partitioning and data retention easy to use with
+our comprehensive APIs. {C.TIMESCALE_DB} works hard to provide detailed information about the state of
+your data, {C.HYPERTABLE}s, {C.CHUNK}s, and any jobs or policies you have in place.
+
+These informational views query {C.TIMESCALE_DB}'s internal catalog—system tables that store metadata
+about your database objects, configurations, and jobs. When you create a {C.HYPERTABLE}, add a
+retention policy, or schedule a job, {C.TIMESCALE_DB} registers this information in its catalog. The
+views provide a convenient, user-friendly interface to access this metadata without directly querying
+internal tables.
+
+## Samples
+
+### Get all hypertables in your database
+
+View all {C.HYPERTABLE}s with their size and compression status:
+
+```sql
+SELECT hypertable_name,
+       num_dimensions,
+       num_chunks,
+       compression_enabled
+FROM timescaledb_information.hypertables;
+```
+
+### Check chunk information for a hypertable
+
+View all {C.CHUNK}s for a specific {C.HYPERTABLE}:
+
+```sql
+SELECT chunk_name,
+       range_start,
+       range_end,
+       is_compressed
+FROM timescaledb_information.chunks
+WHERE hypertable_name = 'conditions'
+ORDER BY range_start DESC;
+```
+
+### Monitor background jobs
+
+View all scheduled jobs and their next execution time:
+
+```sql
+SELECT job_id,
+       application_name,
+       schedule_interval,
+       next_start
+FROM timescaledb_information.jobs
+ORDER BY next_start;
+```
+
+### Check job execution history
+
+View recent job runs and their success/failure status:
+
+```sql
+SELECT job_id,
+       last_run_started_at,
+       last_successful_finish,
+       last_run_status,
+       total_runs,
+       total_failures
+FROM timescaledb_information.job_stats
+ORDER BY last_run_started_at DESC
+LIMIT 10;
+```
+
+### View continuous aggregate details
+
+Get information about all {C.CAGG}s:
+
+```sql
+SELECT view_name,
+       view_definition,
+       materialized_only,
+       compression_enabled,
+       finalized
+FROM timescaledb_information.continuous_aggregates;
+```
+
+### Check compression settings
+
+View compression settings for all {C.HYPERTABLE}s:
+
+```sql
+SELECT hypertable,
+       segmentby,
+       orderby,
+       compress_interval_length
+FROM timescaledb_information.hypertable_compression_settings
+ORDER BY hypertable;
+```
+
+## Available views
+
+### Hypertable and chunk information
+
+- [`timescaledb_information.chunks`][chunks]: get metadata about {C.HYPERTABLE} {C.CHUNK}s
+- [`timescaledb_information.dimensions`][dimensions]: get information on the dimensions of {C.HYPERTABLE}s
+- [`timescaledb_information.hypertables`][hypertables]: get metadata about {C.HYPERTABLE}s
+
+### Compression information
+
+- [`timescaledb_information.chunk_compression_settings`][chunk_compression_settings]: get information about compression
+  settings for all {C.CHUNK}s
+- [`timescaledb_information.compression_settings`][compression_settings]: get information about compression settings
+  for {C.HYPERTABLE}s (deprecated)
+- [`timescaledb_information.hypertable_compression_settings`][hypertable_compression_settings]: get information about
+  compression settings for all {C.HYPERTABLE}s
+
+### Continuous aggregates
+
+- [`timescaledb_information.continuous_aggregates`][continuous_aggregates]: get metadata and settings information for
+  {C.CAGG}s
+
+### Jobs and policies
+
+- [`timescaledb_information.job_errors`][job_errors]: get information about background job errors
+- [`timescaledb_information.job_history`][job_history]: get information about background job execution
+- [`timescaledb_information.job_stats`][job_stats]: get information and statistics about automatically run jobs
+- [`timescaledb_information.jobs`][jobs]: get information about all jobs registered with the automatic scheduler
+- [`timescaledb_experimental.policies`][policies]: get information about all policies set on {C.CAGG}s
+
+[chunk_compression_settings]: /reference/timescaledb/informational-views/chunk_compression_settings
+
+[chunks]: /reference/timescaledb/informational-views/chunks
+
+[compression_settings]: /reference/timescaledb/informational-views/compression_settings
+
+[continuous_aggregates]: /reference/timescaledb/informational-views/continuous_aggregates
+
+[dimensions]: /reference/timescaledb/informational-views/dimensions
+
+[hypertable_compression_settings]: /reference/timescaledb/informational-views/hypertable_compression_settings
+
+[hypertables]: /reference/timescaledb/informational-views/hypertables
+
+[job_errors]: /reference/timescaledb/informational-views/job_errors
+
+[job_history]: /reference/timescaledb/informational-views/job_history
+
+[job_stats]: /reference/timescaledb/informational-views/job_stats
+
+[jobs]: /reference/timescaledb/informational-views/jobs
+
+[policies]: /reference/timescaledb/informational-views/policies

@@ -1,0 +1,72 @@
+---
+title: remove_policies()
+description: Remove refresh, compression, or data retention policies from a continuous aggregate
+topics: [continuous aggregates, jobs, compression, data retention]
+keywords: [continuous aggregates, policies, remove, compress, data retention]
+license: community
+type: function
+experimental: true
+products: [cloud, self_hosted, mst]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="2.10.0" product="tsdb" mode="early_access" />
+
+Remove refresh, {C.COLUMNSTORE}, and data retention policies from a {C.CAGG}. The removed {C.COLUMNSTORE} and retention
+policies apply to the
+{C.CAGG}, *not* to the original {C.HYPERTABLE}.
+
+```sql
+timescaledb_experimental.remove_policies(
+     relation REGCLASS,
+     if_exists BOOL = false,
+     VARIADIC policy_names TEXT[] = NULL
+) RETURNS BOOL
+```
+
+To remove all policies on a {C.CAGG}, see
+[`remove_all_policies()`][remove-all-policies].
+
+## Samples
+
+Given a {C.CAGG} named `example_continuous_aggregate` with a refresh
+policy and a data retention policy, remove both policies.
+
+Throw an error if either policy doesn't exist. If the {C.CAGG} has a
+{C.COLUMNSTORE} policy, leave it unchanged:
+
+```sql
+SELECT timescaledb_experimental.remove_policies(
+    'example_continuous_aggregate',
+    false,
+    'policy_refresh_continuous_aggregate',
+    'policy_retention'
+);
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT timescaledb_experimental.remove_policies(
+    relation = '<view_name>',
+    if_exists = true | false,
+    policy_names = '<policy_name>', ...
+);
+```
+
+| Name | Type | Default | Required | Description |
+|-|-|-|-|-|
+| `relation` | `REGCLASS` | - | ✔ | The {C.CAGG} to remove policies from |
+| `if_exists` | `BOOL` | false | - | When true, prints a warning instead of erroring if the policy doesn't exist. |
+| `policy_names` | `TEXT` | - | - | The policies to remove. You can list multiple policies, separated by a comma. Allowed policy names are `policy_refresh_continuous_aggregate`, `policy_compression`, and `policy_retention`. |
+
+## Returns
+
+Returns `true` if successful.
+
+[remove-all-policies]: /reference/timescaledb/continuous-aggregates/remove_all_policies

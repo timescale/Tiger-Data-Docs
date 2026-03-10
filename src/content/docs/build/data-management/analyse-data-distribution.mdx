@@ -11,24 +11,24 @@ Technically, a percentile divides a group into 100 equally sized pieces, while a
 
 Approximation algorithms
 
-TimescaleDB provides two algorithms for percentile approximation: [`uddsketch`](/api-reference/timescaledb-toolkit/percentile-approximation/uddsketch) and [`tdigest`](/api-reference/timescaledb-toolkit/percentile-approximation/tdigest). Each algorithm has different features that make one better than another depending on your use case.
+TimescaleDB provides two algorithms for percentile approximation: [`uddsketch`](/reference/toolkit/percentile-approximation/uddsketch) and [`tdigest`](/reference/toolkit/percentile-approximation/tdigest). Each algorithm has different features that make one better than another depending on your use case.
 
--   **[`uddsketch`](/api-reference/timescaledb-toolkit/percentile-approximation/uddsketch)**: The default algorithm. It uses exponentially sized buckets to guarantee the approximation falls within a known error range, relative to the true discrete percentile. This algorithm offers the ability to tune the size and maximum error target of the sketch. **Advantages:**
-    
+-   **[`uddsketch`](/reference/toolkit/percentile-approximation/uddsketch)**: The default algorithm. It uses exponentially sized buckets to guarantee the approximation falls within a known error range, relative to the true discrete percentile. This algorithm offers the ability to tune the size and maximum error target of the sketch. **Advantages:**
+
     -   Stable bucketing function that always returns the same percentile estimate for the same data, regardless of ordering or re-aggregation
     -   Guaranteed relative error bounds that are easier to characterize
     -   Smaller memory and disk footprint than `tdigest`
     -   Simpler to increase accuracy by adding more buckets
-    
+
     **Considerations:**
     -   Uses exponential bucketing, which can cause varying absolute errors if the dataset covers a large range. For example, if data is evenly distributed over \[1,100\], estimates at the high end have about 100 times the absolute error of those at the low end
     -   Provides discrete percentile estimates (using {C.PG}‘s [`percentile_disc`](https://www.postgresql.org/docs/current/functions-aggregate.html#FUNCTIONS-ORDEREDSET-TABLE) definition)
--   **[`tdigest`](/api-reference/timescaledb-toolkit/percentile-approximation/tdigest)**: Buckets data more aggressively toward the center of the quantile range, giving it greater accuracy at the tails of the range, around 0.001 or 0.995. **Advantages:**
-    
+-   **[`tdigest`](/reference/toolkit/percentile-approximation/tdigest)**: Buckets data more aggressively toward the center of the quantile range, giving it greater accuracy at the tails of the range, around 0.001 or 0.995. **Advantages:**
+
     -   Optimized for accurate estimates at the extremes (for example, ninety-ninth percentiles)
     -   More stable absolute error across the data range
     -   Provides continuous percentile estimates (using {C.PG}‘s [`percentile_cont`](https://www.postgresql.org/docs/current/functions-aggregate.html#FUNCTIONS-ORDEREDSET-TABLE) definition)
-    
+
     **Considerations:**
     -   Builds incremental buckets based on averages of nearby points, which can result in subtle differences in estimates unless order and batching are strictly controlled
     -   More difficult to calculate precise error bars, especially when merging multiple sub-digests
@@ -48,7 +48,7 @@ Prerequisites
 To follow the steps on this page:
 
 -   Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled.
-    
+
     You need [your connection details](/integrate/find-connection-details). This procedure also works for [self-hosted TimescaleDB](/deploy/self-hosted/install-and-update/install-self-hosted).
 
 Calculate percentiles
@@ -57,8 +57,8 @@ This example uses a `response_times` table that tracks how long a server takes t
 
 1.  **Create the `response_times` hypertable**
 2.  **Insert sample data** Generate response times with occasional slow responses to demonstrate percentile analysis:
-3.  **Create a continuous aggregate with daily percentile aggregates** Use [`percentile_agg()`](/api-reference/timescaledb-toolkit/percentile-approximation/percentile_agg) to create the aggregate:
-4.  **Query the ninety-fifth percentile over the last 30 days** Use [`approx_percentile()`](/api-reference/timescaledb-toolkit/percentile-approximation/approx_percentile) and [`rollup()`](/api-reference/timescaledb-toolkit/percentile-approximation/rollup) to query the aggregated data:
+3.  **Create a continuous aggregate with daily percentile aggregates** Use [`percentile_agg()`](/reference/toolkit/percentile-approximation/percentile_agg) to create the aggregate:
+4.  **Query the ninety-fifth percentile over the last 30 days** Use [`approx_percentile()`](/reference/toolkit/percentile-approximation/approx_percentile) and [`rollup()`](/reference/toolkit/percentile-approximation/rollup) to query the aggregated data:
 5.  **Create an alert for slow responses** Detect requests that exceed the ninety-fifth percentile threshold:
 
 For more information about how percentile approximation works, read the [percentile approximation blog](https://www.tigerdata.com/blog/how-percentile-approximation-works-and-why-its-more-useful-than-averages).

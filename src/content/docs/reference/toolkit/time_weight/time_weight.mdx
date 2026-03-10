@@ -1,0 +1,65 @@
+---
+title: time_weight()
+description: Aggregate data into an intermediate time-weighted aggregate form for further calculation
+topics: [hyperfunctions]
+license: community
+type: aggregate
+toolkit: true
+hyperfunction:
+  family: time-weighted calculations
+  type: aggregate
+  aggregates:
+    - time_weight()
+products: [cloud, mst, self_hosted]
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.0.0" product="toolkit" />
+
+This is the first step for performing any time-weighted calculations. Use
+`time_weight` to create an intermediate aggregate (`TimeWeightSummary`) from
+your data. This intermediate form can then be used by one or more accessors
+in this group to compute final results.
+
+Optionally, multiple such intermediate aggregate objects can be combined
+using [`rollup()`][rollup] before an accessor is applied.
+
+## Samples
+
+Aggregate data from column `val` into daily time-weighted aggregates,
+using the linear interpolation method.
+
+```sql
+SELECT
+    time_bucket('1 day'::interval, ts) as dt,
+    time_weight('Linear', ts, val) AS tw
+FROM foo
+GROUP BY time_bucket('1 day'::interval, ts)
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+time_weight(
+    method TEXT,
+    ts TIMESTAMPTZ,
+    value DOUBLE PRECISION
+) RETURNS TimeWeightSummary
+```
+
+| Name | Type | Default | Required | Description |
+|--|--|--|--|--|
+| `method` | TEXT | - | ✔ | The weighting method to use. The available methods are `linear` (or its alias `trapezoidal`, for those familiar with numeric integration methods) and `LOCF`, which stands for 'last observation carried forward'. `linear` fills in missing data by interpolating linearly between the start and end points of the gap. `LOCF` fills in the gap by assuming that the value remains constant until the next value is seen. `LOCF` is most useful when a measurement is taken only when a value changes. `linear` is most useful if there are no such guarantees on the measurement. The method names are case-insensitive. |
+| `ts` | TIMESTAMPTZ | - | ✔ | The time at each point. Null values are ignored. An aggregate evaluated on only `null` values returns `null`. |
+| `value` | DOUBLE PRECISION | - | ✔ | The value at each point to use for the time-weighted aggregate. Null values are ignored. An aggregate evaluated on only `null` values returns `null`. |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| time\_weight | TimeWeightSummary | A `TimeWeightSummary` object that can be passed to other functions within the time-weighting API |
+
+[rollup]: /reference/toolkit/time_weight/rollup

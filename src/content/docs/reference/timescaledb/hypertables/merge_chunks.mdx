@@ -1,0 +1,100 @@
+---
+title: merge_chunks()
+description: Merge two or more chunks into one chunk
+topics: [hypertables]
+keywords: [hypertables, chunk, merge]
+license: community
+type: procedure
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="2.18.0" product="tsdb" />
+
+Merge two or more {C.CHUNK}s into one.
+
+The partition boundaries for the new {C.CHUNK} is the union of all partitions of the merged {C.CHUNK}s.
+The new {C.CHUNK} retains the name, constraints, and triggers of the *first* {C.CHUNK} in the partition order.
+
+You can only merge {C.CHUNK}s that have directly adjacent partitions. It is not possible to merge
+{C.CHUNK}s that have another {C.CHUNK}, or an empty range between them in any of the partitioning
+dimensions.
+
+{C.CHUNK} merging has the following limitations. You cannot:
+
+- Merge {C.CHUNK}s with tiered data
+- Write to {C.CHUNK}s that are being merged
+
+## Concurrent mode
+
+When a merge is executed using the `concurrently` option, other processes can
+simultaneously read from the {C.CHUNK}s being merged and insert into other {C.CHUNK}s.
+The merge happens across two transactions: the first one rewrites the {C.CHUNK}s
+into a temporary relation without taking any locks that prevent reads, while
+the second transaction locks out all other operations before swapping the old
+relations for the new one. The second operation completes quickly so it
+should not significantly affect other operations.
+
+## Samples
+
+- Merge two {C.CHUNK}s:
+
+  ```sql
+  CALL merge_chunks('_timescaledb_internal._hyper_1_1_chunk', '_timescaledb_internal._hyper_1_2_chunk');
+  ```
+
+- Merge more than two {C.CHUNK}s:
+
+  ```sql
+  CALL merge_chunks('{_timescaledb_internal._hyper_1_1_chunk, _timescaledb_internal._hyper_1_2_chunk, _timescaledb_internal._hyper_1_3_chunk}');
+  ```
+
+- Merge two {C.CHUNK}s concurrently, allowing reads:
+
+  ```sql
+  CALL merge_chunks('_timescaledb_internal._hyper_1_1_chunk', '_timescaledb_internal._hyper_1_2_chunk', concurrently => true);
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+-- Merge two chunks:
+CALL merge_chunks(
+    chunk1 = '<chunk_name_1>',
+    chunk2 = '<chunk_name_2>',
+    concurrently = true | false
+);
+
+-- Merge multiple chunks:
+CALL merge_chunks(
+    chunks = ARRAY['<chunk_name_1>', '<chunk_name_2>', ...]::REGCLASS[]
+);
+
+-- Merge multiple chunks concurrently:
+CALL merge_chunks_concurrently(
+    chunks = ARRAY['<chunk_name_1>', '<chunk_name_2>', ...]::REGCLASS[]
+);
+```
+
+You can merge either two {C.CHUNK}s, or an arbitrary number of {C.CHUNK}s specified as an array of {C.CHUNK} identifiers.
+When you call `merge_chunks`, you must specify either `chunk1` and `chunk2`, or `chunks`. You cannot use both
+arguments.
+
+The `concurrently` option is only available for the two-chunk overload. To merge an array of {C.CHUNK}s concurrently,
+use `merge_chunks_concurrently()` instead.
+
+| Name               | Type        | Default | Required | Description                                    |
+|--------------------|-------------|--|--|------------------------------------------------|
+| `chunk1`, `chunk2` | REGCLASS    | - | ✖ | The two {C.CHUNK}s to merge in partition order |
+| `chunks`           | REGCLASS\[]  |- | ✖ | The array of {C.CHUNK}s to merge in partition order |
+| `concurrently`     | BOOLEAN     | `false` | ✖ | Set to `true` to allow reads on the merging {C.CHUNK}s. Only available for the two-chunk overload. |
+
+## Returns
+
+This procedure does not return a value. Upon successful completion, the specified {C.CHUNK}s are merged into a single {C.CHUNK}.
+

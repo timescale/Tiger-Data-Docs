@@ -1,0 +1,62 @@
+---
+title: idelta_left()
+description: Calculate the instantaneous change at the left, or earliest, edge of a gauge aggregate
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: counters and gauges
+  type: accessor
+  aggregates:
+  - gauge_agg()
+topics:
+- hyperfunctions
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.6.0" product="toolkit" mode="early_access" />
+
+Calculate the instantaneous change at the left, or earliest, edge of a gauge aggregate. This is equal to the second
+value minus the first value.
+
+## Samples
+
+Get the instantaneous change at the start of each 15-minute gauge aggregate.
+
+```sql
+SELECT
+    id,
+    bucket,
+    idelta_left(summary)
+FROM (
+    SELECT
+        id,
+        time_bucket('15 min'::interval, ts) AS bucket,
+        gauge_agg(ts, val) AS summary
+    FROM foo
+    GROUP BY id, time_bucket('15 min'::interval, ts)
+) t
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+idelta_left(
+  summary GaugeSummary
+) RETURNS DOUBLE PRECISION
+```
+
+| Name | Type | Default | Required | Description |
+| --- | --- | --- | --- | --- |
+| `summary` | `GaugeSummary` | - | ✔ | A gauge aggregate created using [`gauge_agg`][gauge-agg] |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| idelta\_left | DOUBLE PRECISION | The instantaneous delta at the left, or earliest, edge of the gauge aggregate |
+
+[gauge-agg]: /reference/toolkit/counters-and-gauges/gauge_agg/gauge_agg

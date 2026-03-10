@@ -1,0 +1,86 @@
+---
+title: add_job()
+description: Add a job to run a function or procedure automatically
+license: community
+type: function
+topics: [jobs]
+keywords: [jobs]
+tags: [scheduled jobs, background jobs, automation framework]
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import CommunityBadge from '@components/CommunityBadge.astro';
+import SinceRelease from '@components/SinceRelease.astro';
+
+<CommunityBadge /> <SinceRelease version="1.2.0" product="tsdb" />
+
+Register a {C.JOB_CAP} for scheduling by the automation framework. For more information about scheduling, including
+example {C.JOB}s, see the [jobs documentation section][using-jobs].
+
+## Samples
+
+Register the `user_defined_action` procedure to run every hour:
+
+```sql
+CREATE OR REPLACE PROCEDURE user_defined_action(job_id int, config jsonb) LANGUAGE PLPGSQL AS
+$$
+BEGIN
+  RAISE NOTICE 'Executing action % with config %', job_id, config;
+END
+$$;
+
+SELECT add_job('user_defined_action','1h');
+SELECT add_job('user_defined_action','1h', fixed_schedule => false);
+```
+
+Register the `user_defined_action` procedure to run at midnight every Sunday.
+The `initial_start` provided must satisfy these requirements, so it must be a Sunday midnight:
+
+```sql
+-- December 4, 2022 is a Sunday
+SELECT add_job('user_defined_action','1 week', initial_start => '2022-12-04 00:00:00+00'::timestamptz);
+-- if subject to DST
+SELECT add_job('user_defined_action','1 week', initial_start => '2022-12-04 00:00:00+00'::timestamptz, timezone => 'Europe/Berlin');
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT add_job(
+    proc = '<procedure_name>',
+    schedule_interval = <interval>,
+    config = '<jsonb_config>',
+    initial_start = <timestamptz>,
+    scheduled = true | false,
+    check_config = '<procedure_name>',
+    fixed_schedule = true | false,
+    timezone = '<timezone>',
+    job_name = '<job_name>'
+);
+```
+
+| Name | Type | Default | Required | Description |
+|-|-|-|-|-|
+| `proc` | REGPROC | - | ✔ | Name of the function or procedure to register as a {C.JOB}. |
+| `schedule_interval` | INTERVAL | 24 hours | ✔ | Interval between executions of this {C.JOB}. Defaults to 24 hours |
+| `config` | JSONB | - | ✖ | {C.JOB_CAP}-specific configuration, passed to the function when it runs |
+| `initial_start` | TIMESTAMPTZ | - | ✖ | Time the {C.JOB} is first run. In the case of fixed schedules, this also serves as the origin on which {C.JOB} executions are aligned. If omitted, the current time is used as origin in the case of fixed schedules. |
+| `scheduled` | BOOLEAN | true | ✖ | Set to `FALSE` to exclude this {C.JOB} from scheduling. Defaults to `TRUE`. |
+| `check_config` | `REGPROC` | - | ✖ | A function that takes a single argument, the `JSONB` `config` structure. The function is expected to raise an error if the configuration is not valid, and return nothing otherwise. Can be used to validate the configuration when adding a {C.JOB}. Only functions, not procedures, are allowed as values for `check_config`. |
+| `fixed_schedule` | BOOLEAN | true | ✖ | Set to `FALSE` if you want the next start of a {C.JOB} to be determined as its last finish time plus the schedule interval. Set to `TRUE` if you want the next start of a {C.JOB} to begin `schedule_interval` after the last start. Defaults to `TRUE` |
+| `timezone` | TEXT | - | ✖ | A valid time zone. If fixed\_schedule is `TRUE`, subsequent executions of the {C.JOB} are aligned on its initial start. However, daylight savings time (DST) changes may shift this alignment. Set to a valid time zone if you want to mitigate this issue. Defaults to `NULL`. |
+| `job_name` | TEXT | `NULL` | ✖ | A name for the {C.JOB}. |
+
+## Returns
+
+| Column | Type | Description |
+|-|-|-|
+| `job_id` | INTEGER | TimescaleDB background job ID |
+
+[tsdb-1.2.0]: https://github.com/timescale/timescaledb/releases/tag/1.2.0
+
+[using-jobs]: /use-timescale/jobs

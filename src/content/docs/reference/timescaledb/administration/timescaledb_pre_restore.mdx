@@ -1,0 +1,48 @@
+---
+title: timescaledb_pre_restore()
+description: Prepare the database for a restore operation
+keywords: [administration, restore, backup]
+tags: [backup, restore]
+products: [cloud, mst, self_hosted]
+license: apache
+type: function
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<SinceRelease version="0.9.0" product="tsdb" />
+
+Perform the required operations so that you can restore the database using `pg_restore`. Specifically, this sets the
+`timescaledb.restoring` GUC to `on` and stops any background workers which could have been performing tasks.
+
+The background workers are stopped until the [`timescaledb_post_restore()`][timescaledb_post_restore] function is run,
+after the restore operation is complete.
+
+For more information, see [Migrate using pg\_dump and pg\_restore][pg-dump-restore].
+
+<Callout variant="warning">
+  After using `timescaledb_pre_restore()`, you need to run [`timescaledb_post_restore()`][timescaledb_post_restore] before
+  you can use the database normally.
+</Callout>
+
+## Samples
+
+Prepare to restore the database:
+
+```sql
+SELECT timescaledb_pre_restore();
+```
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+|success|BOOLEAN|TRUE if the operation completed successfully|
+
+[pg-dump-restore]: /migrate/postgres/pg-dump-and-restore
+
+[timescaledb_post_restore]: /reference/timescaledb/administration/timescaledb_post_restore

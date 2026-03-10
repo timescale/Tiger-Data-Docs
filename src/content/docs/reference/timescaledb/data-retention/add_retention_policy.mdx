@@ -1,0 +1,92 @@
+---
+title: add_retention_policy()
+description: Add a policy to drop older chunks
+topics: [data retention, jobs]
+keywords: [data retention, policies, delete]
+tags: [hypertables, drop]
+license: community
+type: function
+products: [cloud, self_hosted, mst]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+import CommunityBadge from '@components/CommunityBadge.astro';
+
+<CommunityBadge /> <SinceRelease version="1.2.0" product="tsdb" />
+
+Create a policy to drop {C.CHUNK}s older than a given interval of a particular {C.HYPERTABLE} or {C.CAGG} on a schedule in the
+background. For more information, see [drop\_chunks][drop_chunks]. This implements a data retention policy
+and removes data on a schedule. Only one retention policy may exist per {C.HYPERTABLE}.
+
+When you create a retention policy on a {C.HYPERTABLE} with an integer based time column, you must set the
+[integer\_now\_func][set_integer_now_func] to match your data. If you are seeing `invalid value` issues when you call
+`add_retention_policy`, set `VERBOSITY verbose` to see the full context.
+
+## Samples
+
+- **Create a data retention policy to discard chunks greater than 6 months old**:
+
+  ```sql
+  SELECT add_retention_policy('conditions', drop_after => INTERVAL '6 months');
+  ```
+
+  When you call `drop_after`, the time data range present in the partitioning time column is used to select the target
+  {C.CHUNK}s.
+
+- **Create a data retention policy with an integer-based time column**:
+
+  ```sql
+  SELECT add_retention_policy('conditions', drop_after => BIGINT '600000');
+  ```
+
+- **Create a data retention policy to discard chunks created before 6 months**:
+
+  ```sql
+  SELECT add_retention_policy('conditions', drop_created_before => INTERVAL '6 months');
+  ```
+
+  When you call `drop_created_before`, {C.CHUNK}s created 3 months ago are selected.
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT add_retention_policy(
+    relation = '<hypertable_or_cagg_name>',
+    drop_after = <interval>,
+    if_not_exists = true | false,
+    schedule_interval = <interval>,
+    initial_start = <timestamptz>,
+    timezone = '<timezone>',
+    drop_created_before = <interval>
+);
+```
+
+| Name | Type | Default | Required | Description |
+|-|-|-|-|-|
+|`relation`|REGCLASS|-|✔| Name of the hypertable or continuous aggregate to create the policy for |
+|`drop_after`|INTERVAL or INTEGER|`NULL`|-| {C.CHUNK}s fully older than this interval when the policy is run are dropped. You must specify either `drop_after` or `drop_created_before`. You specify `drop_after` differently depending on the {C.HYPERTABLE} time column type: <ul><li>TIMESTAMP, TIMESTAMPTZ, and DATE: use INTERVAL type</li><li>Integer-based timestamps: use INTEGER type. You must set [integer\_now\_func][set_integer_now_func] to match your data</li></ul> |
+|`schedule_interval`|INTERVAL|`NULL`|-| The interval between the finish time of the last execution and the next start. |
+|`initial_start`|TIMESTAMPTZ|`NULL`|-| Time the policy is first run. If omitted, then the schedule interval is the interval between the finish time of the last execution and the next start. If provided, it serves as the origin with respect to which the next\_start is calculated. |
+|`timezone`|TEXT|`NULL`|-| A valid time zone. If `initial_start` is also specified, subsequent executions of the retention policy are aligned on its initial start. However, daylight savings time (DST) changes may shift this alignment. Set to a valid time zone if this is an issue you want to mitigate. If omitted, UTC bucketing is performed. |
+|`if_not_exists`|BOOLEAN|`false`|-| Set to `true` to avoid an error if the `drop_chunks_policy` already exists. A notice is issued instead. |
+|`drop_created_before`|INTERVAL|`NULL`|-| {C.CHUNK}s with creation time older than this cut-off point are dropped. The cut-off point is computed as `now() - drop_created_before`. Not supported for {C.CAGG}s yet. |
+
+You specify `drop_after` differently depending on the {C.HYPERTABLE} time column type:
+
+- TIMESTAMP, TIMESTAMPTZ, and DATE time columns: the time interval should be an INTERVAL type.
+- Integer-based timestamps: the time interval should be an integer type. You must set the
+  [integer\_now\_func][set_integer_now_func].
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+|`job_id`|INTEGER|{C.TIMESCALE_DB} background job ID created to implement this policy|
+
+[drop_chunks]: /reference/timescaledb/hypertables/drop_chunks
+
+[set_integer_now_func]: /reference/timescaledb/hypertables/set_integer_now_func

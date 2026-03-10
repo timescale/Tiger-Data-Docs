@@ -1,0 +1,83 @@
+---
+title: Time series utilities overview
+sidebar:
+  label: Overview
+description: Functions for time bucketing, ordered selection, and time-based calculations
+topics: [hyperfunctions]
+license: apache
+products: [cloud, mst, self_hosted]
+---
+
+Time series utilities provide essential functions for working with time-series data, including bucketing data by time
+intervals, selecting values based on temporal ordering, and performing time-based calculations.
+
+## Samples
+
+### Time bucketing
+
+Bucket temperature readings into 5-minute intervals and calculate the average:
+
+```sql
+SELECT time_bucket('5 minutes', time) AS five_min, avg(temperature)
+FROM readings
+GROUP BY five_min
+ORDER BY five_min DESC;
+```
+
+### Ordered selection
+
+Get the first and last temperature values for each device in 1-hour buckets:
+
+```sql
+SELECT
+  device_id,
+  time_bucket('1 hour', time) AS hour,
+  first(temperature, time) AS first_temp,
+  last(temperature, time) AS last_temp
+FROM readings
+GROUP BY device_id, hour
+ORDER BY hour DESC;
+```
+
+### Month normalization
+
+Normalize monthly sales metrics to account for varying month lengths:
+
+```sql
+SELECT
+  time_bucket('1 month', sale_date) AS month,
+  SUM(amount) AS total_sales,
+  month_normalize(SUM(amount), time_bucket('1 month', sale_date)) AS normalized_sales
+FROM sales
+GROUP BY month
+ORDER BY month;
+```
+
+## Available functions
+
+### Time bucketing
+
+- [`time_bucket()`][time_bucket]: bucket rows by time interval to calculate aggregates
+- [`time_bucket_ng()`][time_bucket_ng]: next generation time bucketing with additional features
+
+### Ordered selection
+
+- [`first()`][first]: get the first value in one column when rows are ordered by another column
+- [`last()`][last]: get the last value in one column when rows are ordered by another column
+
+### Time utilities
+
+- [`days_in_month()`][days_in_month]: calculate the number of days in a month given a timestamp
+- [`month_normalize()`][month_normalize]: normalize a monthly metric based on the number of days in the month
+
+[days_in_month]: /reference/timescaledb/hyperfunctions/time-series-utilities/days_in_month
+
+[first]: /reference/timescaledb/hyperfunctions/time-series-utilities/first
+
+[last]: /reference/timescaledb/hyperfunctions/time-series-utilities/last
+
+[month_normalize]: /reference/timescaledb/hyperfunctions/time-series-utilities/month_normalize
+
+[time_bucket]: /reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket
+
+[time_bucket_ng]: /reference/timescaledb/hyperfunctions/legacy/time_bucket_ng

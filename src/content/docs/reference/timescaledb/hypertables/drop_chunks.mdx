@@ -1,0 +1,187 @@
+---
+title: drop_chunks()
+description: Delete chunks by time range
+topics: [data retention]
+keywords: [data retention, chunks, delete]
+tags: [drop]
+license: apache
+type: function
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<SinceRelease version="0.1.0" product="tsdb" />
+
+Removes data {C.CHUNK}s whose time range falls completely before (or
+after) a specified time. Shows a list of the {C.CHUNK}s that were
+dropped, in the same style as the `show_chunks` [function][show_chunks].
+
+{C.CHUNK}s are constrained by a start and end time and the start time is
+always before the end time. A {C.CHUNK} is dropped if its end time is
+older than the `older_than` timestamp or, if `newer_than` is given,
+its start time is newer than the `newer_than` timestamp.
+
+Note that, because {C.CHUNK}s are removed if and only if their time range
+falls fully before (or after) the specified timestamp, the remaining
+data may still contain timestamps that are before (or after) the
+specified one.
+
+{C.CHUNK}s can only be dropped based on their time intervals. They cannot be dropped
+based on a hash partition.
+
+## Samples
+
+- **Drop all {C.CHUNK}s from {C.HYPERTABLE} `conditions` older than 3 months**:
+
+  ```sql
+  SELECT drop_chunks('conditions', INTERVAL '3 months');
+  ```
+
+  Example output:
+
+  ```sql
+                drop_chunks
+  ----------------------------------------
+   _timescaledb_internal._hyper_3_5_chunk
+   _timescaledb_internal._hyper_3_6_chunk
+   _timescaledb_internal._hyper_3_7_chunk
+   _timescaledb_internal._hyper_3_8_chunk
+   _timescaledb_internal._hyper_3_9_chunk
+  (5 rows)
+  ```
+
+- **Drop all {C.CHUNK}s from {C.HYPERTABLE} `conditions` created before 3 months**:
+
+  ```sql
+  SELECT drop_chunks('conditions', created_before => now() -  INTERVAL '3 months');
+  ```
+
+- **Drop all {C.CHUNK}s more than 3 months in the future from {C.HYPERTABLE} `conditions`**:
+
+  This is useful for correcting data ingested with incorrect clocks:
+
+  ```sql
+  SELECT drop_chunks('conditions', newer_than => now() + interval '3 months');
+  ```
+
+- **Drop all {C.CHUNK}s from {C.HYPERTABLE} `conditions` before 2017**:
+
+  ```sql
+  SELECT drop_chunks('conditions', '2017-01-01'::date);
+  ```
+
+- **Drop all {C.CHUNK}s from {C.HYPERTABLE} `conditions` before 2017, where time column is given in milliseconds from the UNIX epoch**:
+
+  ```sql
+  SELECT drop_chunks('conditions', 1483228800000);
+  ```
+
+- **Drop all {C.CHUNK}s older than 3 months ago and newer than 4 months ago from {C.HYPERTABLE} `conditions`**:
+
+  ```sql
+  SELECT drop_chunks('conditions', older_than => INTERVAL '3 months', newer_than => INTERVAL '4 months')
+  ```
+
+- **Drop all {C.CHUNK}s created 3 months ago and created 4 months before from {C.HYPERTABLE} `conditions`**:
+
+  ```sql
+  SELECT drop_chunks('conditions', created_before => INTERVAL '3 months', created_after => INTERVAL '4 months')
+  ```
+
+- **Drop all {C.CHUNK}s older than 3 months ago across all {C.HYPERTABLE}s**:
+
+  ```sql
+  SELECT drop_chunks(format('%I.%I', hypertable_schema, hypertable_name)::regclass, INTERVAL '3 months')
+    FROM timescaledb_information.hypertables;
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT drop_chunks(
+    relation = '<hypertable_or_cagg_name>',
+    older_than = <interval>,
+    newer_than = <interval>,
+    verbose = true | false,
+    created_before = <interval>,
+    created_after = <interval>
+);
+```
+
+|Name|Type| Default | Required | Description|
+|-|-|-|-|-|
+|`relation`|REGCLASS| - | ✔ |{C.HYPERTABLE} or {C.CAGG} from which to drop {C.CHUNK}s.|
+|`older_than`|ANY| - | ✖ |Specification of cut-off point where any {C.CHUNK}s older than this timestamp should be removed.|
+|`newer_than`|ANY| - | ✖ |Specification of cut-off point where any {C.CHUNK}s newer than this timestamp should be removed.|
+|`verbose`|BOOLEAN| `FALSE` | ✖ |Setting to true displays messages about the progress of the drop\_chunks command.|
+|`created_before`|ANY| - | ✖ |Specification of cut-off point where any {C.CHUNK}s created before this timestamp should be removed.|
+|`created_after`|ANY| - | ✖ |Specification of cut-off point where any {C.CHUNK}s created after this timestamp should be removed.|
+
+The `older_than` and `newer_than` parameters can be specified in two ways:
+
+- **interval type:** The cut-off point is computed as `now() -
+  older_than` and similarly `now() - newer_than`.  An error is
+  returned if an INTERVAL is supplied and the time column is not one
+  of a `TIMESTAMP`, `TIMESTAMPTZ`, or `DATE`.
+
+- **timestamp, date, or integer type:** The cut-off point is
+  explicitly given as a `TIMESTAMP` / `TIMESTAMPTZ` / `DATE` or as a
+  `SMALLINT` / `INT` / `BIGINT`. The choice of timestamp or integer
+  must follow the type of the {C.HYPERTABLE}'s time column.
+
+The `created_before` and `created_after` parameters can be specified in two ways:
+
+- **interval type:** The cut-off point is computed as `now() -
+  created_before` and similarly `now() - created_after`.  This uses
+  the {C.CHUNK} creation time relative to the current time for the filtering.
+
+- **timestamp, date, or integer type:** The cut-off point is
+  explicitly given as a `TIMESTAMP` / `TIMESTAMPTZ` / `DATE` or as a
+  `SMALLINT` / `INT` / `BIGINT`. The choice of integer value
+  must follow the type of the {C.HYPERTABLE}'s partitioning column. Otherwise
+  the {C.CHUNK} creation time is used for the filtering.
+
+<Callout variant="warning">
+  When using just an interval type, the function assumes that
+  you are removing things *in the past*. If you want to remove data
+  in the future, for example to delete erroneous entries, use a timestamp.
+</Callout>
+
+When both `older_than` and `newer_than` arguments are used, the
+function returns the intersection of the resulting two ranges. For
+example, specifying `newer_than => 4 months` and `older_than => 3
+months` drops all {C.CHUNK}s between 3 and 4 months old.
+Similarly, specifying `newer_than => '2017-01-01'` and `older_than => '2017-02-01'` drops all {C.CHUNK}s between '2017-01-01' and
+'2017-02-01'. Specifying parameters that do not result in an
+overlapping intersection between two ranges results in an error.
+
+When both `created_before` and `created_after` arguments are used, the
+function returns the intersection of the resulting two ranges. For
+example, specifying `created_after` => 4 months`and`created\_before`=> 3
+months` drops all {C.CHUNK}s created between 3 and 4 months from now.
+Similarly, specifying `created_after`=> '2017-01-01'`and`created\_before` => '2017-02-01'` drops all {C.CHUNK}s created between '2017-01-01' and
+'2017-02-01'. Specifying parameters that do not result in an
+overlapping intersection between two ranges results in an error.
+
+<Callout variant="note">
+  The `created_before`/`created_after` parameters cannot be used together with
+  `older_than`/`newer_than`.
+</Callout>
+
+## Returns
+
+| Column | Type | Description |
+|-|-|-|
+| drop\_chunks | TEXT | The name of each {C.CHUNK} that was dropped. Returns one row per dropped {C.CHUNK}. |
+
+The function returns a set of {C.CHUNK} names in the format `_timescaledb_internal._hyper_X_Y_chunk`, where each row represents a {C.CHUNK} that was successfully dropped. If no {C.CHUNK}s match the specified criteria, the function returns an empty result set.
+
+[show_chunks]: /reference/timescaledb/hypertables/show_chunks
+

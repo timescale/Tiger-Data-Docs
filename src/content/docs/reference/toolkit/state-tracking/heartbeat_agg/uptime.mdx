@@ -1,0 +1,64 @@
+---
+title: uptime()
+description: Get the total time live during a heartbeat aggregate
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: accessor
+  aggregates:
+    - heartbeat_agg()
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.15.0" product="toolkit" />
+
+Sum all the ranges where the system was live and return the total from a heartbeat aggregate.
+
+There may appear to be some downtime between the start of the aggregate and the first heartbeat. If there is a heartbeat
+aggregate covering the previous period, you can use its last heartbeat to correct for this using
+[`interpolated_uptime()`][interpolated_uptime].
+
+## Samples
+
+Given a table called `liveness` containing weekly heartbeat aggregates in column `health` with timestamp column `date`,
+use this command to get the total uptime of the system during the week of Jan 9, 2022.
+
+```sql
+SELECT uptime(health)
+FROM liveness
+WHERE date = '01-9-2022 UTC'
+```
+
+Returns:
+
+```
+    uptime
+-----------------
+6 days 23:55:35
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+uptime(
+    agg HEARTBEATAGG
+) RETURNS INTERVAL
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | HeartbeatAgg | - | ✔ | A heartbeat aggregate to get the liveness data from |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| uptime | INTERVAL | The sum of all the live ranges in the aggregate. |
+
+[interpolated_uptime]: /reference/toolkit/state-tracking/heartbeat_agg/interpolated_uptime

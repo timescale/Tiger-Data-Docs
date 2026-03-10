@@ -1,0 +1,64 @@
+---
+title: Count-min sketch overview
+sidebar:
+  label: Overview
+description: Functions for estimating value counts using the count-min sketch data structure
+topics: [hyperfunctions]
+license: community
+toolkit: true
+products: [cloud, mst, self_hosted]
+---
+
+Count the number of times a value appears in a column, using the probabilistic
+[count-min sketch][count-min-sketch] data structure and its associated algorithms. For applications where a small error rate is tolerable, this can result in huge savings in both
+CPU time and memory, especially for large datasets.
+
+The count-min sketch produces a biased estimator of frequency. It might overestimate the item count, but it can't
+underestimate. You can control the relative error and the probability that the estimate falls outside the error bounds.
+
+import TwoStepAggregation from '@partials/_two-step-aggregation.mdx';
+
+## Two-step aggregation
+
+<TwoStepAggregation />
+
+## Samples
+
+### Estimate counts for specific values
+
+Create a count-min sketch and estimate how many times specific user IDs appear:
+
+```sql
+WITH sketch AS (
+    SELECT toolkit_experimental.count_min_sketch(
+        user_id::text,
+        0.01,  -- 1% error tolerance
+        0.01   -- 1% probability of exceeding error bounds
+    ) AS cms
+    FROM user_events
+)
+SELECT
+    toolkit_experimental.approx_count(cms, 'user123') AS user123_count,
+    toolkit_experimental.approx_count(cms, 'user456') AS user456_count
+FROM sketch;
+```
+
+## Available functions
+
+### Aggregate
+
+- [`count_min_sketch()`][count_min_sketch]: aggregate data into a count-min sketch for approximate counting
+
+### Accessor
+
+- [`approx_count()`][approx_count]: estimate the number of times a value appears in a count-min sketch
+
+[approx_count]: /reference/toolkit/frequency-analysis/count_min_sketch/approx_count
+
+[count-min-sketch]: http://dimacs.rutgers.edu/~graham/pubs/papers/cm-full.pdf
+
+[count_min_sketch]: /reference/toolkit/frequency-analysis/count_min_sketch/count_min_sketch
+
+[toolkit-1.8.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.8.0
+
+[two-step-aggregation]: #two-step-aggregation

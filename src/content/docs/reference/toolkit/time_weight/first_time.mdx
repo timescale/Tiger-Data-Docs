@@ -1,0 +1,58 @@
+---
+title: first_time()
+description: Get the first timestamp from a TimeWeightSummary aggregate
+topics: [hyperfunctions]
+license: community
+type: function
+toolkit: true
+products: [cloud, mst, self_hosted]
+hyperfunction:
+  family: time-weighted calculations
+  type: accessor
+  aggregates:
+    - time_weight()
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.11.0" product="toolkit" />
+
+Get the timestamp of the first point in a TimeWeightSummary aggregate.
+
+## Samples
+
+Produce a linear TimeWeightSummary over the column `val` and get the first timestamp:
+
+```sql
+WITH t as (
+    SELECT
+        time_bucket('1 day'::interval, ts) as dt,
+        time_weight('Linear', ts, val) AS tw
+    FROM table
+    GROUP BY time_bucket('1 day'::interval, ts)
+)
+SELECT
+    dt,
+    first_time(tw)
+FROM t;
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+first_time(
+    tw TimeWeightSummary
+) RETURNS TIMESTAMPTZ
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| tws | TimeWeightSummary | - | ✔ | The input TimeWeightSummary from a time\_weight() call |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| first\_time | TIMESTAMPTZ | The time of the first point in the `TimeWeightSummary` |

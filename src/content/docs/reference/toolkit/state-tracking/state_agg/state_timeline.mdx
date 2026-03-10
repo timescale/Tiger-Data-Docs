@@ -1,0 +1,73 @@
+---
+title: state_timeline()
+description: Get a timeline of all states from a state aggregate
+license: community
+type: function
+toolkit: true
+topics: [hyperfunctions]
+hyperfunction:
+  family: state tracking
+  type: accessor
+  aggregates:
+    - state_agg()
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.15.0" product="toolkit" />
+
+Get a timeline of all states, showing each time a state is entered and exited.
+
+If you have multiple state aggregates and need to interpolate the state across interval boundaries, use
+[`interpolated_state_timeline`][interpolated_state_timeline].
+
+## Samples
+
+Get the history of states from a state aggregate.
+
+```sql
+SELECT state, start_time, end_time
+  FROM state_timeline(
+    (SELECT state_agg(ts, state) FROM states_test)
+  );
+```
+
+Returns:
+
+```
+ state |       start_time       |        end_time
+-------+------------------------+------------------------
+ START | 2020-01-01 00:00:00+00 | 2020-01-01 00:00:11+00
+ OK    | 2020-01-01 00:00:11+00 | 2020-01-01 00:01:00+00
+ ERROR | 2020-01-01 00:01:00+00 | 2020-01-01 00:01:03+00
+ OK    | 2020-01-01 00:01:03+00 | 2020-01-01 00:02:00+00
+ STOP  | 2020-01-01 00:02:00+00 | 2020-01-01 00:02:00+00
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+state_timeline(
+    agg StateAgg
+) RETURNS (TEXT, TIMESTAMPTZ, TIMESTAMPTZ)
+
+state_int_timeline(
+    agg StateAgg
+) RETURNS (BIGINT, TIMESTAMPTZ, TIMESTAMPTZ)
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| agg | StateAgg | - | ✔ | The aggregate from which to get a timeline |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| state | TEXT | BIGINT | A state found in the state aggregate |
+| start\_time | TIMESTAMPTZ | The time when the state started (inclusive) |
+| end\_time | TIMESTAMPTZ | The time when the state ended (exclusive) |
+
+[interpolated_state_timeline]: /reference/toolkit/state-tracking/state_agg/interpolated_state_timeline

@@ -1,0 +1,48 @@
+---
+title: locf()
+description: Fill in missing values by carrying the last observed value forward
+topics: [hyperfunctions]
+license: community
+type: function
+hyperfunction:
+  family: gapfilling
+  type: interpolator
+  bucket_function: time_bucket_gapfill()
+products: [cloud, mst, self_hosted]
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.1.1" product="tsdb" />
+
+Fill in missing values by carrying the last observed value forward.
+Use in the same query as [`time_bucket_gapfill`][time_bucket_gapfill].
+`locf` cannot be nested inside another function call.
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT locf(
+    value = <anyelement>,
+    prev = <anyelement>,
+    treat_null_as_missing = true | false
+);
+```
+
+| Name | Type | Default | Required | Description |
+|--|--|--|--|--|
+| `value` | ANY ELEMENT | - | ✔ | The value to carry forward |
+| `prev` | EXPRESSION | - | - | If no previous value is available for gapfilling, use the `prev` lookup expression to get a previous value. For example, you can use `prev` to fill in the first bucket in a queried time range. The expression must return just a value (not a tuple as expected by the [`interpolate`][interpolate] function) with the same type as the `value` parameter. |
+| `treat_null_as_missing` | BOOLEAN | - | - | When `true`, `NULL` values are ignored, and only non-`NULL` values are carried forward. |
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+| `locf` | ANY ELEMENT | The gapfilled value. The return type matches the input `value` type. |
+
+[interpolate]: /reference/timescaledb/hyperfunctions/time_bucket_gapfill/interpolate
+
+[time_bucket_gapfill]: /reference/timescaledb/hyperfunctions/time_bucket_gapfill/time_bucket_gapfill

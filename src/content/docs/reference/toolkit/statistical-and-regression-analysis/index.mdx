@@ -1,0 +1,98 @@
+---
+title: Statistical and regression analysis overview
+sidebar:
+  label: Overview
+description: Functions for statistical analysis and linear regression on time-series data
+topics: [hyperfunctions]
+license: community
+toolkit: true
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+
+Perform statistical analysis and linear regression on time-series data. These functions are similar to {C.PG}
+statistical aggregates, but they include more features and are easier to use in continuous aggregates and window
+functions.
+
+import TwoStepAggregation from '@partials/_two-step-aggregation.mdx';
+
+## Two-step aggregation
+
+<TwoStepAggregation />
+
+## Samples
+
+### One-dimensional statistical analysis
+
+Calculate the average, standard deviation, and skewness of daily temperature readings:
+
+```sql
+WITH daily_stats AS (
+    SELECT
+        time_bucket('1 day'::interval, time) AS day,
+        stats_agg(temperature) AS stats
+    FROM weather_data
+    GROUP BY day
+)
+SELECT
+    day,
+    average(stats) AS avg_temp,
+    stddev(stats) AS std_dev,
+    skewness(stats) AS skew
+FROM daily_stats
+ORDER BY day;
+```
+
+### Two-dimensional regression analysis
+
+Calculate the correlation coefficient and linear regression slope between two variables:
+
+```sql
+WITH daily_stats AS (
+    SELECT
+        time_bucket('1 day'::interval, time) AS day,
+        stats_agg(sales, temperature) AS stats
+    FROM store_data
+    GROUP BY day
+)
+SELECT
+    day,
+    corr(stats) AS correlation,
+    slope(stats) AS regression_slope,
+    intercept(stats) AS y_intercept
+FROM daily_stats
+ORDER BY day;
+```
+
+### Rolling window calculations
+
+Calculate a 7-day rolling average using the rolling window function:
+
+```sql
+SELECT
+    time_bucket('1 day'::interval, time) AS day,
+    average(rolling(stats_agg(temperature)) OVER (ORDER BY time_bucket('1 day'::interval, time) ROWS 6 PRECEDING)) AS rolling_avg_7day
+FROM weather_data
+GROUP BY day
+ORDER BY day;
+```
+
+## Available functions
+
+### One-dimensional statistics
+
+- [`stats_agg() (one variable)`][stats_agg-one-variable]: analyze statistical properties of a single variable
+
+### Two-dimensional statistics and regression
+
+- [`stats_agg() (two variables)`][stats_agg-two-variables]: analyze statistical properties and linear regression of two
+  variables
+
+[stats_agg-one-variable]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable
+
+[stats_agg-two-variables]: /reference/toolkit/statistical-and-regression-analysis/stats_agg-two-variables
+
+[toolkit-1.3.0]: https://github.com/timescale/timescaledb-toolkit/releases/tag/1.3.0
+
+[two-step-aggregation]: #two-step-aggregation

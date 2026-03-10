@@ -1,0 +1,78 @@
+---
+title: lttb()
+description: Downsample a time series using the Largest Triangle Three Buckets method
+topics: [hyperfunctions]
+license: community
+type: aggregate
+toolkit: true
+hyperfunction:
+  family: downsampling
+  type: aggregate
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.10.1" product="toolkit" />
+
+Downsample your data with the [Largest Triangle Three Buckets algorithm][largest-triangle-three-buckets-algorithm]. This algorithm tries to retain visual similarity between the downsampled data and the original dataset.
+
+## Samples
+
+This example uses a table with raw data generated as a sine wave. You can use LTTB to dramatically reduce the number of
+points while still capturing the peaks and valleys in the data.
+
+```sql
+SET TIME ZONE 'UTC';
+CREATE TABLE metrics(date TIMESTAMPTZ, reading DOUBLE PRECISION);
+INSERT INTO metrics
+SELECT
+    '2020-1-1 UTC'::timestamptz + make_interval(hours=>foo),
+    (5 + 5 * sin(foo / 24.0 * PI()))
+    FROM generate_series(1,168) foo;
+
+SELECT time, value
+FROM unnest((
+    SELECT lttb(date, reading, 8)
+    FROM metrics))
+```
+
+```text
+time                    |               value
+------------------------+---------------------
+2020-01-01 01:00:00+00  |   5.652630961100257
+2020-01-01 13:00:00+00  |   9.957224306869053
+2020-01-02 11:00:00+00  | 0.04277569313094798
+2020-01-03 11:00:00+00  |   9.957224306869051
+2020-01-04 13:00:00+00  | 0.04277569313094709
+2020-01-05 16:00:00+00  |   9.330127018922191
+2020-01-06 20:00:00+00  |  2.4999999999999996
+2020-01-08 00:00:00+00  |   5.000000000000004
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+lttb(
+  ts TIMESTAMPTZ,
+  value DOUBLE PRECISION,
+  resolution INT
+) RETURNS Timevector
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| ts | TIMESTAMPTZ | - | ✔ | Timestamps for each data point |
+| value | DOUBLE PRECISION | - | ✔ | The value at each timestamp |
+| resolution | INT | - | ✔ | The approximate number of points to return. Determines the horizontal resolution of the resulting graph. |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| lttb | Timevector | An object representing a series of values occurring at set intervals from a starting time. It can be unpacked with `unnest`. For more information, see the documentation on [timevectors][timevectors]. |
+
+[largest-triangle-three-buckets-algorithm]: https://github.com/sveinn-steinarsson/flot-downsample
+
+[timevectors]: /reference/toolkit/timevector/
