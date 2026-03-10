@@ -51,6 +51,7 @@ export default defineConfig({
       },
       favicon: "favicon.ico",
       customCss: ["./theme.css"],
+      lastUpdated: true,
       header: {
         layout: "stacked",
         links: [
