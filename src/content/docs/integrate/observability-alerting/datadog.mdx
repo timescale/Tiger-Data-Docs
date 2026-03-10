@@ -1,251 +1,160 @@
 ---
 title: "Integrate Datadog with Tiger Cloud"
 description: "Export telemetry data and collect metrics to monitor your service performance"
-integrationCategory: observability-alerting
-connectorType: external
-sortOrder: 3
-integrationIndustry: ["healthcare", "manufacturing"]
-integrationPlatforms: ["aws", "azure", "self-hosted"]
+keywords: ["datadog integration","apm","metrics collection","monitoring","observability","telemetry","log aggregation"]
+sidebar:
+  label: "Datadog"
 ---
 
 import * as C from "@constants";
-import { Callout } from "@stainless-api/docs/components";
-import { NumberedList, NumberedItem } from "@components/NumberedList";
 
-[Datadog](https://www.datadoghq.com) is a cloud-based monitoring and analytics platform that provides comprehensive visibility into applications, infrastructure, and systems through real-time monitoring, logging, and analytics.
+import DataDogExporter from '@partials/_datadog-data-exporter.mdx';
+import IntegrationPrereqsCloud from '@partials/_integration-prereqs-cloud-only.mdx';
+import ManageDataExporter from '@partials/_manage-a-data-exporter.mdx';
+import NotSupportedAzure from '@partials/_not-supported-for-azure.mdx';
+
+[Datadog][datadog] is a cloud-based monitoring and analytics platform that provides comprehensive visibility into
+applications, infrastructure, and systems through real-time monitoring, logging, and analytics.
 
 This page explains how to:
 
-- **Monitor {C.CLOUD_LONG} service metrics with Datadog** — Export telemetry using a {C.CLOUD_LONG} data exporter. This integration is available for [Scale and Enterprise](/deploy/tiger-cloud/understand/pricing-and-account-management#features-included-in-each-plan) pricing plans.
-- **Configure Datadog Agent to collect metrics for your {C.CLOUD_LONG} service** — Use the Postgres integration in Datadog Agent. This integration is available for all pricing plans.
+- [Monitor {C.SERVICE_LONG} metrics with Datadog][datadog-monitor-cloud]
+
+  This integration is available for [{C.SCALE} and {C.ENTERPRISE}][pricing-plan-features] {C.PRICING_PLAN}s.
+
+- Configure Datadog Agent to collect metrics for your {C.SERVICE_LONG}
+
+  This integration is available for all {C.PRICING_PLAN}s.
 
 ## Prerequisites
 
-To follow the steps on this page:
+<IntegrationPrereqsCloud />
 
-- Create a target [{C.SERVICE_LONG}](/deploy/tiger-cloud/get-started/create-services) with the Real-time analytics capability. You need your [connection details](/integrate/find-connection-details).
-- Sign up for [Datadog](https://www.datadoghq.com). You need your [Datadog API key](https://docs.datadoghq.com/account_management/api-app-keys/#add-an-api-key-or-client-token) to follow this procedure.
-- Install [Datadog Agent](https://docs.datadoghq.com/getting_started/agent/#installation).
+- Sign up for [Datadog][datadog].
 
-<Callout variant="note">
-  This feature is currently not supported for {C.CLOUD_LONG} on Microsoft Azure.
-</Callout>
+  You need your [Datadog API key][datadog-api-key] to follow this procedure.
 
-## Monitor Tiger Cloud service metrics with Datadog
+- Install [Datadog Agent][datadog-agent-install].
 
-Export telemetry data from your {C.CLOUD_LONG} services with the time-series and analytics capability enabled to Datadog using a {C.CLOUD_LONG} data exporter. The available metrics include CPU usage, RAM usage, and storage.
+<NotSupportedAzure />
+
+## Monitor {C.SERVICE_LONG} metrics with Datadog
+
+Export telemetry data from your {C.SERVICE_LONG}s with the time-series and analytics capability enabled to
+Datadog using a {C.CLOUD_LONG} data exporter. The available metrics include CPU usage, RAM usage, and storage.
 
 ### Create a data exporter
 
-A {C.CLOUD_LONG} data exporter sends telemetry data from a {C.CLOUD_LONG} service to a third-party monitoring tool. You create an exporter on the [{C.CLOUD_LONG} project level](/deploy/tiger-cloud/secure-access/configure-role-based-access), in the same AWS region as your service:
+A {C.CLOUD_LONG} data exporter sends telemetry data from a {C.SERVICE_LONG} to a third-party monitoring
+tool. You create an exporter on the [{C.PROJECT_LONG} level][projects], in the same AWS region as your {C.SERVICE_SHORT}:
 
-<NumberedList>
+<DataDogExporter />
 
-<NumberedItem title={`In ${C.CONSOLE}, open Exporters`}>
-Open the [Exporters](https://console.cloud.timescale.com/dashboard/integrations) page, under the integrations section of your Tiger Data console dashboard.
-</NumberedItem>
+<ManageDataExporter />
 
-<NumberedItem title="Click New exporter">
-</NumberedItem>
+## Configure Datadog Agent to collect metrics for your services
 
-<NumberedItem title="Select Metrics for Data type and Datadog for provider">
+Datadog Agent includes a [{C.PG} integration][datadog-install] that you use to collect detailed {C.PG} database
+metrics about your {C.SERVICE_LONG}s.
 
-![Add Datadog exporter](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-cloud-integrations-datadog.png)
+1. **Connect to your {C.SERVICE_LONG}**
 
-</NumberedItem>
+   For {C.CLOUD_LONG}, open an [SQL editor][in-console-editors] in [{C.CONSOLE}][services-portal]. For {C.SELF_LONG}, use [`psql`][psql].
 
-<NumberedItem title="Choose your AWS region and provide the API key">
-The AWS region must be the same for your {C.CLOUD_LONG} exporter and the Datadog provider.
-</NumberedItem>
+2. **Add the `datadog` user to your {C.SERVICE_LONG}**
 
-<NumberedItem title="Set Site to your Datadog region, then click Create exporter">
-</NumberedItem>
+   ```sql
+   create user datadog with password '<password>';
+   ```
 
-</NumberedList>
+   ```sql
+   grant pg_monitor to datadog;
+   ```
 
-### Attach a data exporter to a Tiger Cloud service
+   ```sql
+   grant SELECT ON pg_stat_database to datadog;
+   ```
 
-To send telemetry data to an external monitoring tool, you attach a data exporter to your {C.CLOUD_LONG} service. You can attach only one exporter to a service.
+3. **Test the connection and rights for the datadog user**
 
-To attach an exporter:
+   Update the following command with your [connection details][connection-info], then run it from the command line:
 
-<NumberedList>
+   ```bash
+    psql "postgres://datadog:<datadog password>@<host>:<port>/tsdb?sslmode=require" -c \
+    "select * from pg_stat_database LIMIT(1);" \
+    && echo -e "\e[0;32mPostgres connection - OK\e[0m" || echo -e "\e[0;31mCannot connect to Postgres\e[0m"
+   ```
 
-<NumberedItem title={`In ${C.CONSOLE}, choose the service`}>
-</NumberedItem>
+   You see the output from the `pg_stat_database` table, which means you have given the correct rights to `datadog`.
 
-<NumberedItem title="Click Operations > Exporters">
-</NumberedItem>
+4. **Connect Datadog to your {C.SERVICE_LONG}**
 
-<NumberedItem title="Select the exporter from the list, then click Attach exporter">
-</NumberedItem>
+   1. Configure the [Datadog Agent {C.PG} configuration file][datadog-config]; it is usually located on the Datadog Agent host at:
+      - **Linux**: `/etc/datadog-agent/conf.d/postgres.d/conf.yaml`
+      - **MacOS**: `/opt/datadog-agent/etc/conf.d/postgres.d/conf.yaml`
+      - **Windows**: `C:\ProgramData\Datadog\conf.d\postgres.d\conf.yaml`
 
-<NumberedItem title="Restart the service if attaching a first Logs exporter">
-If you are attaching a first `Logs` data type exporter, the service will need to be restarted.
-</NumberedItem>
+   2. Integrate Datadog Agent with your {C.SERVICE_LONG}:
 
-</NumberedList>
+      Use your [connection details][connection-info] to update the following and add it to the Datadog Agent {C.PG}
+      configuration file:
 
-### Monitor Tiger Cloud service metrics
+      ```yaml
+      init_config:
 
-You can now monitor your service metrics. Use the following metrics to check the service is running correctly:
+      instances:
+      - host: <host>
+        port: <port>
+        username: datadog
+        password: <datadog's password>>
+        dbname: tsdb
+        disable_generic_tags: true
+      ```
 
-- `timescale.cloud.system.cpu.usage.millicores`
-- `timescale.cloud.system.cpu.total.millicores`
-- `timescale.cloud.system.memory.usage.bytes`
-- `timescale.cloud.system.memory.total.bytes`
-- `timescale.cloud.system.disk.usage.bytes`
-- `timescale.cloud.system.disk.total.bytes`
+5. **Add {C.CLOUD_LONG} metrics**
 
-Additionally, use the following tags to filter your results:
+   Tags to make it easier for build Datadog dashboards that combine metrics from the {C.CLOUD_LONG} data exporter and
+   Datadog Agent. Use your [connection details][connection-info] to update the following and add it to
+   `<datadog_home>/datadog.yaml`:
 
-| Tag          | Example variable           | Description               |
-| ------------ | -------------------------- | ------------------------- |
-| `host`       | `us-east-1.timescale.cloud` | Host identifier           |
-| `project-id` | —                          | Project identifier        |
-| `service-id` | —                          | Service identifier        |
-| `region`     | `us-east-1`                | AWS region                |
-| `role`       | `replica` or `primary`    | For services with replicas |
-| `node-id`    | —                          | For multi-node services   |
+   ```yaml
+   tags:
+     - project-id:<project-id>
+     - service-id:<service-id>
+     - region:<region>
+   ```
 
-### Edit a data exporter
+6. **Restart Datadog Agent**
 
-To update a data exporter:
+   See how to [Start, stop, and restart Datadog Agent][datadog-agent-restart].
 
-<NumberedList>
+Metrics for your {C.SERVICE_LONG} are now visible in Datadog. Check the Datadog {C.PG} integration documentation for a
+comprehensive list of [metrics][datadog-postgres-metrics] collected.
 
-<NumberedItem title={`In ${C.CONSOLE}, open Exporters`}>
-Open the [Exporters](https://console.cloud.timescale.com/dashboard/integrations) page.
-</NumberedItem>
+[connection-info]: /integrate/find-connection-details
 
-<NumberedItem title="Next to the exporter you want to edit, click the menu > Edit">
-</NumberedItem>
+[datadog]: https://www.datadoghq.com/
 
-<NumberedItem title="Edit the exporter fields and save your changes">
-</NumberedItem>
+[datadog-agent-install]: https://docs.datadoghq.com/getting_started/agent/#installation
 
-</NumberedList>
+[datadog-agent-restart]: https://docs.datadoghq.com/agent/configuration/agent-commands/#start-stop-and-restart-the-agent
 
-<Callout variant="warning">
-  You cannot change fields such as the provider or the AWS region.
-</Callout>
+[datadog-api-key]: https://docs.datadoghq.com/account_management/api-app-keys/#add-an-api-key-or-client-token
 
-### Delete a data exporter
+[datadog-config]: https://docs.datadoghq.com/database_monitoring/setup_postgres/selfhosted?tab=postgres15
 
-To remove a data exporter that you no longer need:
+[datadog-install]: https://docs.datadoghq.com/integrate/postgres/
 
-<NumberedList>
+[datadog-monitor-cloud]: #monitor-tiger-cloud-service-metrics-with-datadog
 
-<NumberedItem title={`Disconnect the data exporter from your ${C.CLOUD_LONG} services`}>
+[datadog-postgres-metrics]: https://docs.datadoghq.com/integrate/postgres/?tab=host#metrics
 
-<ol type="a">
-  <li>In {C.CONSOLE}, choose the service.</li>
-  <li>Click `Operations` &gt; `Exporters`.</li>
-  <li>Click the trash can icon.</li>
-  <li>Repeat for every service attached to the exporter you want to remove.</li>
-</ol>
+[in-console-editors]: /deploy-and-operate/tiger-cloud/get-started/run-queries-from-console
 
-The data exporter is now unattached from all services. However, it still exists in your project.
+[pricing-plan-features]: /deploy-and-operate/tiger-cloud/understand/pricing-and-account-management#features-included-in-each-pricing-plan
 
-</NumberedItem>
+[projects]: /deploy-and-operate/tiger-cloud/secure-access/configure-role-based-access
 
-<NumberedItem title="Delete the exporter on the project level">
+[psql]: /integrate/query-administration/psql
 
-<ol type="a">
-  <li>In {C.CONSOLE}, open [Exporters](https://console.cloud.timescale.com/dashboard/integrations).</li>
-  <li>Next to the exporter you want to remove, click menu &gt; `Delete`.</li>
-  <li>Confirm that you want to delete the data exporter.</li>
-</ol>
-
-</NumberedItem>
-
-</NumberedList>
-
-### Reference
-
-When you create the IAM OIDC provider, the URL must match the region you create the exporter in. It must be one of the following:
-
-| Region         | Zone          | Location       | URL                                                                     |
-| -------------- | ------------- | -------------- | ----------------------------------------------------------------------- |
-| `ap-southeast-1` | Asia Pacific  | Singapore      | `irsa-oidc-discovery-prod-ap-southeast-1.s3.ap-southeast-1.amazonaws.com` |
-| `ap-southeast-2` | Asia Pacific  | Sydney         | `irsa-oidc-discovery-prod-ap-southeast-2.s3.ap-southeast-2.amazonaws.com` |
-| `ap-northeast-1` | Asia Pacific  | Tokyo          | `irsa-oidc-discovery-prod-ap-northeast-1.s3.ap-northeast-1.amazonaws.com` |
-| `ca-central-1`   | Canada        | Central        | `irsa-oidc-discovery-prod-ca-central-1.s3.ca-central-1.amazonaws.com`   |
-| `eu-central-1`   | Europe        | Frankfurt      | `irsa-oidc-discovery-prod-eu-central-1.s3.eu-central-1.amazonaws.com`   |
-| `eu-west-1`      | Europe        | Ireland        | `irsa-oidc-discovery-prod-eu-west-1.s3.eu-west-1.amazonaws.com`         |
-| `eu-west-2`      | Europe        | London         | `irsa-oidc-discovery-prod-eu-west-2.s3.eu-west-2.amazonaws.com`          |
-| `sa-east-1`      | South America | São Paulo      | `irsa-oidc-discovery-prod-sa-east-1.s3.sa-east-1.amazonaws.com`          |
-| `us-east-1`      | United States | North Virginia | `irsa-oidc-discovery-prod.s3.us-east-1.amazonaws.com`                   |
-| `us-east-2`      | United States | Ohio           | `irsa-oidc-discovery-prod-us-east-2.s3.us-east-2.amazonaws.com`         |
-| `us-west-2`      | United States | Oregon         | `irsa-oidc-discovery-prod-us-west-2.s3.us-west-2.amazonaws.com`         |
-
-## Configure Datadog Agent to collect metrics for your Tiger Cloud services
-
-Datadog Agent includes a [{C.PG} integration](https://docs.datadoghq.com/integrations/postgres/) that you use to collect detailed {C.PG} database metrics about your {C.CLOUD_LONG} services.
-
-<NumberedList>
-
-<NumberedItem title="Connect to your Tiger Cloud service">
-For {C.CLOUD_LONG}, open an [SQL editor](/deploy/tiger-cloud/get-started/run-queries-from-console) in [Tiger Console](https://console.cloud.timescale.com/dashboard/services). For self-hosted TimescaleDB, use [psql](/integrate/query-administration/psql).
-</NumberedItem>
-
-<NumberedItem title="Add the datadog user to your Tiger Cloud service">
-
-Run the following SQL (replace `&lt;password&gt;` with a secure password):
-
-```sql
-CREATE USER datadog WITH PASSWORD '<password>';
-GRANT pg_monitor TO datadog;
-GRANT SELECT ON pg_stat_database TO datadog;
-```
-
-</NumberedItem>
-
-<NumberedItem title="Test the connection and rights for the datadog user">
-
-Update the following command with your [connection details](/integrate/find-connection-details), then run it from the command line. You should see output from the `pg_stat_database` table, which means you have given the correct rights to `datadog`.
-
-```bash
-psql "postgres://datadog:<datadog password>@<host>:<port>/tsdb?sslmode=require" -c "SELECT * FROM pg_stat_database LIMIT(1);" && echo -e "\e[0;32mPostgres connection - OK\e[0m" || echo -e "\e[0;31mCannot connect to Postgres\e[0m"
-```
-
-</NumberedItem>
-
-<NumberedItem title="Connect Datadog to your Tiger Cloud service">
-
-Configure the [Datadog Agent {C.PG} configuration file](https://docs.datadoghq.com/database_monitoring/setup_postgres/selfhosted?tab=postgres15). It is usually located on the Datadog Agent host at: **Linux** `/etc/datadog-agent/conf.d/postgres.d/conf.yaml`, **MacOS** `/opt/datadog-agent/etc/conf.d/postgres.d/conf.yaml`, **Windows** `C:\ProgramData\Datadog\conf.d\postgres.d\conf.yaml`. Use your [connection details](/integrate/find-connection-details) to update the following and add it to the configuration file:
-
-```yaml
-init_config:
-
-instances:
-  - host: <host>
-    port: <port>
-    username: datadog
-    password: "<datadog's password>"
-    dbname: tsdb
-    disable_generic_tags: true
-```
-
-</NumberedItem>
-
-<NumberedItem title="Add Tiger Cloud metrics tags">
-
-Tags make it easier to build Datadog dashboards that combine metrics from the {C.CLOUD_LONG} data exporter and Datadog Agent. Use your [connection details](/integrate/find-connection-details) to update the following and add it to `&lt;datadog_home&gt;/datadog.yaml`:
-
-```yaml
-tags:
-  - project-id:<project-id>
-  - service-id:<service-id>
-  - region:<region>
-```
-
-</NumberedItem>
-
-<NumberedItem title="Restart Datadog Agent">
-See how to [Start, stop, and restart Datadog Agent](https://docs.datadoghq.com/agent/configuration/agent-commands/#start-stop-and-restart-the-agent).
-</NumberedItem>
-
-</NumberedList>
-
-Metrics for your {C.CLOUD_LONG} service are now visible in Datadog. Check the Datadog {C.PG} integration documentation for a comprehensive list of [metrics](https://docs.datadoghq.com/integrations/postgres/?tab=host#metrics) collected.
+[services-portal]: https://console.cloud.timescale.com/dashboard/services

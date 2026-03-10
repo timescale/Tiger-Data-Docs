@@ -49,7 +49,8 @@ const PROPER_NOUNS = new Set(
     "CloudWatch", "Transit", "Gateway", "Explorer", "Insights", "Notebooks",
     "Livesync", "Vectorizer", "Huggingface", "Chrome", "DevTools",
     "Microsoft", "Google", "Grafana", "Alertmanager", "Looker", "Datadog", "OpenTelemetry", "MacPorts", "Compose", "macOS",
-    "TimeWeightSummary",
+    "Telegraf", "Supabase", "Decodable", "Debezium", "Node", "Apache", "Airflow",
+    "SageMaker", "DBeaver", "Fivetran", "Confluent",
   ].map((s) => s.toLowerCase())
 );
 
@@ -72,6 +73,11 @@ const PROPER_NOUN_PHRASES = [
   "Public Beta",
   "Google Cloud",
   "Hugging Face",
+  "AWS Lambda",
+  "Azure Data Studio",
+  "Power BI",
+  "Confluent Cloud",
+  "Confluent Cloud Schema Registry"
 ];
 
 /**

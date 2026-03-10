@@ -1,57 +1,145 @@
 ---
 title: "Integrate Apache Airflow with Tiger Cloud"
 description: "Author, schedule, and monitor workflows to orchestrate your data pipelines"
-integrationCategory: data-engineering-etl
-connectorType: external
-sortOrder: 1
-integrationIndustry: ["IoT", "manufacturing"]
-integrationPlatforms: ["aws", "azure", "self-hosted"]
+keywords: ["workflow orchestration","data pipelines","scheduling","airflow integration","etl automation","dag","workflow management"]
+sidebar:
+  label: "Apache Airflow"
 ---
 
 import * as C from "@constants";
 
-A [DAG (Directed Acyclic Graph)](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html#dags) is the core concept of Airflow, collecting [Tasks](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html) together, organized with dependencies and relationships to say how they should run. You declare a DAG in a Python file in the `$AIRFLOW_HOME/dags` folder of your Airflow instance. This page shows you how to use a Python connector in a DAG to integrate Apache Airflow with a Tiger Cloud service.
+import IntegrationPrereqs from '@partials/_prereqs-cloud-and-self.mdx';
 
-Prerequisites
+A [DAG (Directed Acyclic Graph)][airflow-dag] is the core concept of Airflow, collecting [Tasks][airflow-task] together,
+organized with dependencies and relationships to say how they should run. You declare a DAG in a Python file
+in the `$AIRFLOW_HOME/dags` folder of your Airflow instance.
 
-To follow the steps on this page:
+This page shows you how to use a Python connector in a DAG to integrate Apache Airflow with a {C.SERVICE_LONG}.
 
--   Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled.
-    
-    You need [your connection details](/integrate/find-connection-details). This procedure also works for [self-hosted TimescaleDB](/deploy/self-hosted/install-and-update/install-self-hosted).
+## Prerequisites
 
--   Install [Python3 and pip3](https://docs.python.org/3/using/index.html)
--   Install [Apache Airflow](https://airflow.apache.org/docs/apache-airflow/stable/start.html) Ensure that your Airflow instance has network access to Tiger Cloud.
+<IntegrationPrereqs />
 
-This example DAG uses the `company` table you create in [Optimize time-series data in hypertables](/get-started/try-key-features-timescale-products#optimize-time-series-data-in-hypertables-with-hypercore)
+- Install [Python3 and pip3][install-python-pip]
+- Install [Apache Airflow][install-apache-airflow]
 
-Install python connectivity libraries
+  Ensure that your Airflow instance has network access to {C.CLOUD_LONG}.
 
-To install the Python libraries required to connect to Tiger Cloud:
+This example DAG uses the `company` table you create in [Optimize time-series data in hypertables][ingest-data]
 
-1.  **Enable {C.PG} connections between Airflow and Tiger Cloud**
-2.  **Enable {C.PG} connection types in the Airflow UI**
+## Install python connectivity libraries
 
-Create a connection between Airflow and your service
+To install the Python libraries required to connect to {C.CLOUD_LONG}:
 
-In your Airflow instance, securely connect to your Tiger Cloud service:
+1. **Enable {C.PG} connections between Airflow and {C.CLOUD_LONG}**
 
-1.  **Run Airflow** On your development machine, run the following command: The username and password for Airflow UI are displayed in the `standalone | Login with username` line in the output.
-2.  **Add a connection from Airflow to your Tiger Cloud service**
-    1.  In your browser, navigate to `localhost:8080`, then select `Admin` > `Connections`.
-    2.  Click `+` (Add a new record), then use your [connection info](/integrate/find-connection-details) to fill in the form. The `Connection Type` is `{C.PG}`.
+   ```bash
+   pip install psycopg2-binary
+   ```
 
-Exchange data between Airflow and your service
+2. **Enable {C.PG} connection types in the Airflow UI**
 
-To exchange data between Airflow and your Tiger Cloud service:
+   ```bash
+   pip install apache-airflow-providers-postgres
+   ```
 
-1.  **Create and execute a DAG** To insert data in your Tiger Cloud service from Airflow:
-    1.  In `$AIRFLOW_HOME/dags/timescale_dag.py`, add the following code: This DAG uses the `company` table created in [Create regular {C.PG} tables for relational data](/get-started/try-key-features-timescale-products#optimize-time-series-data-in-hypertables-with-hypercore).
-    2.  In your browser, refresh the Airflow UI.
-    3.  In `Search DAGS`, type `timescale_dag` and press ENTER.
-    4.  Press the play icon and trigger the DAG: ![daily eth volume of assets](https://assets.timescale.com/docs/images/integrations-apache-airflow.png) 
-2.  **Verify that the data appears in Tiger Cloud**
-    1.  In [Tiger Console](https://console.cloud.timescale.com/), navigate to your service and click `SQL editor`.
-    2.  Run a query to view your data. For example: `SELECT symbol, name FROM company;`. You see the new rows inserted in the table.
+## Create a connection between Airflow and your service
 
-You have successfully integrated Apache Airflow with Tiger Cloud and created a data pipeline.
+In your Airflow instance, securely connect to your {C.SERVICE_LONG}:
+
+1. **Run Airflow**
+
+   On your development machine, run the following command:
+
+   ```bash
+   airflow standalone
+   ```
+
+   The username and password for Airflow UI are displayed in the `standalone | Login with username`
+   line in the output.
+
+2. **Add a connection from Airflow to your {C.SERVICE_LONG}**
+
+   1. In your browser, navigate to `localhost:8080`, then select `Admin` > `Connections`.
+   2. Click `+` (Add a new record), then use your [connection info][connection-info] to fill in
+      the form. The `Connection Type` is `Postgres`.
+
+## Exchange data between Airflow and your service
+
+To exchange data between Airflow and your {C.SERVICE_LONG}:
+
+1. **Create and execute a DAG**
+
+   To insert data in your {C.SERVICE_LONG} from Airflow:
+
+   1. In `$AIRFLOW_HOME/dags/timescale_dag.py`, add the following code:
+
+      ```python
+      from airflow import DAG
+      from airflow.operators.python_operator import PythonOperator
+      from airflow.hooks.postgres_hook import PostgresHook
+      from datetime import datetime
+
+      def insert_data_to_timescale():
+          hook = PostgresHook(postgres_conn_id='the ID of the connenction you created')
+          conn = hook.get_conn()
+          cursor = conn.cursor()
+          """
+            This could be any query. This example inserts data into the table
+            you create in:
+
+            https://www.tigerdata.com/docs/getting-started/latest/try-key-features-timescale-products/#optimize-time-series-data-in-hypertables-with-hypercore
+           """
+          cursor.execute("INSERT INTO crypto_assets (symbol, name) VALUES (%s, %s)",
+           ('NEW/Asset','New Asset Name'))
+          conn.commit()
+          cursor.close()
+          conn.close()
+
+      default_args = {
+          'owner': 'airflow',
+          'start_date': datetime(2023, 1, 1),
+          'retries': 1,
+      }
+
+      dag = DAG('timescale_dag', default_args=default_args, schedule_interval='@daily')
+
+      insert_task = PythonOperator(
+          task_id='insert_data',
+          python_callable=insert_data_to_timescale,
+          dag=dag,
+      )
+      ```
+
+      This DAG uses the `company` table created in [Create regular {C.PG} tables for relational data][ingest-data].
+
+   2. In your browser, refresh the Airflow UI.
+
+   3. In `Search DAGS`, type `timescale_dag` and press ENTER.
+
+   4. Press the play icon and trigger the DAG:
+      ![daily eth volume of assets][daily-eth-volume-of-assets]
+2. **Verify that the data appears in {C.CLOUD_LONG}**
+
+   1. In [{C.CONSOLE}][cloud-login], navigate to your service and click `SQL editor`.
+   2. Run a query to view your data. For example: `SELECT symbol, name FROM company;`.
+
+      You see the new rows inserted in the table.
+
+You have successfully integrated Apache Airflow with {C.CLOUD_LONG} and created a data pipeline.
+
+[airflow-dag]: https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html#dags
+
+[airflow-task]: https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html
+
+[cloud-login]: https://console.cloud.timescale.com/
+
+[connection-info]: /integrate/find-connection-details
+
+[daily-eth-volume-of-assets]: https://assets.timescale.com/docs/images/integrate-apache-airflow.png
+
+[ingest-data]: /getting-started/try-key-features-timescale-products#optimize-time-series-data-in-hypertables-with-hypercore
+
+[install-apache-airflow]: https://airflow.apache.org/docs/apache-airflow/stable/start.html
+
+[install-python-pip]: https://docs.python.org/3/using/index.html

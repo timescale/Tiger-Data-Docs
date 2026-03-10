@@ -1,85 +1,45 @@
 ---
 title: "Integrate Google Cloud with Tiger Cloud"
 description: "Connect your Google Cloud infrastructure to Tiger Cloud using AWS Transit Gateway"
-integrationCategory: secure-connectivity
-connectorType: external
-sortOrder: 3
-integrationIndustry: ["manufacturing"]
-integrationPlatforms: ["aws", "azure", "self-hosted"]
+keywords: ["google cloud integration","transit gateway","vpc connectivity","network peering","cross-cloud connectivity","gcp networking","secure connection"]
+sidebar:
+  label: "Google Cloud"
 ---
 
-import { Callout } from "@stainless-api/docs/components";
-import { NumberedList, NumberedItem } from "@components/NumberedList";
+import * as C from "@constants";
 
-[Google Cloud](https://cloud.google.com/) is a suite of cloud computing services, offering scalable infrastructure, AI, analytics, databases, security, and developer tools to help businesses build, deploy, and manage applications.
+import IntegrationPrereqsCloud from "@partials/_integration-prereqs-cloud-only.mdx";
+import TransitGateway from "@partials/_transit-gateway.mdx";
+import NotSupportedAzure from "@partials/_not-supported-for-azure.mdx";
 
-This page explains how to integrate your Google Cloud infrastructure with Tiger Cloud using [AWS Transit Gateway](https://aws.amazon.com/transit-gateway/).
+[Google Cloud][google-cloud] is a suite of cloud computing services, offering scalable infrastructure, AI, analytics, databases, security, and developer tools to help businesses build, deploy, and manage applications.
+
+This page explains how to integrate your Google Cloud infrastructure with {C.CLOUD_LONG} using [AWS Transit Gateway][aws-transit-gateway].
 
 ## Prerequisites
 
-To follow the steps on this page:
+<IntegrationPrereqsCloud />
 
-- Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with the Real-time analytics capability. You need your [connection details](/integrate/find-connection-details).
-- Set up [AWS Transit Gateway](https://docs.aws.amazon.com/vpc/latest/tgw/tgw-getting-started.html).
-- Establish connectivity between Google Cloud and AWS. See [Connect HA VPN to AWS peer gateways](https://cloud.google.com/network-connectivity/docs/vpn/how-to/connect-ha-vpn-aws-peer-gateway).
+- Set up [AWS Transit Gateway][gtw-setup].
 
-<Callout variant="note">
-  This feature is currently not supported for Tiger Cloud on Microsoft Azure.
-</Callout>
+- Establish connectivity between Google Cloud and AWS.
 
-## Connect your Google Cloud infrastructure to your Tiger Cloud services
+  See [Connect HA VPN to AWS peer gateways][gcp-aws].
 
-To connect to Tiger Cloud:
+<NotSupportedAzure />
 
-<NumberedList>
+## Connect your Google Cloud infrastructure to your services
 
-<NumberedItem title="Connect your infrastructure to AWS Transit Gateway">
+To connect to {C.CLOUD_LONG}:
 
-Establish connectivity between Google Cloud and AWS. See [Connect HA VPN to AWS peer gateways](https://cloud.google.com/network-connectivity/docs/vpn/how-to/connect-ha-vpn-aws-peer-gateway).
+<TransitGateway />
 
-</NumberedItem>
+You have successfully integrated your Google Cloud infrastructure with {C.CLOUD_LONG}.
 
-<NumberedItem title="Create a Peering VPC in Tiger Console">
+[aws-transit-gateway]: https://aws.amazon.com/transit-gateway/
 
-<ol type="a">
-  <li>In [Tiger Console](https://console.cloud.timescale.com/), go to `Security` &gt; `VPC`, then click `Create a VPC` (see screenshot below).</li>
-  <li>Choose your region and IP range, name your VPC, then click `Create VPC`. Your service and Peering VPC must be in the same AWS region. The number of Peering VPCs you can create in your project depends on your [pricing plan](/deploy/tiger-cloud/understand/pricing-and-account-management). If you need another Peering VPC, either contact [support@tigerdata.com](mailto:support@tigerdata.com) or change your plan in [Tiger Console](https://console.cloud.timescale.com/).</li>
-  <li>Add a peering connection: in the `VPC Peering` column click `Add`; provide your AWS account ID, Transit Gateway ID, CIDR ranges, and AWS region (Tiger Cloud creates a new isolated connection for every unique Transit Gateway ID); then click `Add connection` (see screenshot below).</li>
-</ol>
+[gcp-aws]: https://cloud.google.com/network-connectivity/docs/vpn/how-to/connect-ha-vpn-aws-peer-gateway
 
-![Tiger Cloud new VPC](https://assets.timescale.com/docs/images/tiger-cloud-console/add-peering-vpc-tiger-cloud.png)
+[google-cloud]: https://cloud.google.com/?hl=en
 
-![Create a new VPC in Tiger Cloud](https://assets.timescale.com/docs/images/tiger-cloud-console/configure-peering-vpc-tiger-cloud.png)
-
-![Add peering](https://assets.timescale.com/docs/images/tiger-cloud-console/add-peering-tiger-cloud.png)
-
-</NumberedItem>
-
-<NumberedItem title="Accept and configure peering connection in your AWS account">
-
-Once your peering connection appears as `Processing`, you can accept and configure it in AWS:
-
-<ol type="a">
-  <li>Accept the peering request coming from Tiger Cloud. The request can take up to 5 min to arrive. Within 5 more minutes after accepting, the peering should appear as `Connected` in Tiger Console.</li>
-  <li>Configure at least the following in your AWS account networking: your subnet route table to route traffic to your Transit Gateway for the Peering VPC CIDRs; your Transit Gateway route table to route traffic to the newly created Transit Gateway peering attachment for the Peering VPC CIDRs; and security groups to allow outbound TCP 5432.</li>
-</ol>
-
-</NumberedItem>
-
-<NumberedItem title="Attach a Tiger Cloud service to the Peering VPC in Tiger Console">
-
-<ol type="a">
-  <li>In [Tiger Console](https://console.cloud.timescale.com/dashboard/services), select the service you want to connect to the Peering VPC.</li>
-  <li>Click `Operations` &gt; `Security` &gt; `VPC`.</li>
-  <li>Select the VPC, then click `Attach VPC`.</li>
-</ol>
-
-<Callout variant="warning">
-  You cannot attach a Tiger Cloud service to multiple Tiger Cloud VPCs at the same time.
-</Callout>
-
-</NumberedItem>
-
-</NumberedList>
-
-You have successfully integrated your Google Cloud infrastructure with Tiger Cloud.
+[gtw-setup]: https://docs.aws.amazon.com/vpc/latest/tgw/tgw-getting-started.html
