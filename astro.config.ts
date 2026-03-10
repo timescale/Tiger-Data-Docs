@@ -1,10 +1,14 @@
 import { createRequire } from "node:module";
 import { defineConfig } from "astro/config";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
-import starlightLinksValidator from 'starlight-links-validator';
 import aiChat from "@stainless-api/docs-ai-chat/plugin";
 
 const require = createRequire(import.meta.url);
+
+// Only load when running link checks (e.g. pnpm run lint:links); avoids requiring the package for dev/build.
+const starlightLinksValidator = process.env.CHECK_LINKS
+  ? require("starlight-links-validator").default
+  : null;
 
 // Resolve package subpaths so aliasing the main "components" entry doesn't break ThemeSelect/SDKSelect.
 const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/components/scripts");
@@ -68,7 +72,7 @@ export default defineConfig({
             Pagination: "./src/components/PageNavigation.astro",
             Callout: "./src/components/Callout.astro",
           },
-          plugins: process.env.CHECK_LINKS ? [starlightLinksValidator()] : [],
+          plugins: starlightLinksValidator ? [starlightLinksValidator()] : [],
         },
       },
       tabs: [
