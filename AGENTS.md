@@ -158,3 +158,13 @@ import { Callout, Tabs, TabItem, Cards, Card } from "@stainless-api/docs/compone
 ### Environment
 
 Requires `STAINLESS_API_KEY` for API reference generation (see `.env.example`).
+
+### Hosting, search, and cache (self-hosted)
+
+When not using Stainless hosting, the site can be built with `pnpm build` and deployed anywhere that serves static files (Vercel, Netlify, Cloudflare Pages, etc.).
+
+- **Search**: By default the build uses [Pagefind](https://pagefind.app/) for site search (header search bar and ⌘K). For Algolia-backed search, set the Algolia env vars in `.env.example` before building.
+- **Cache headers**: So the site is performant, set cache headers per [Stainless’ recommendation](https://www.stainless.com/docs/docs-platform/hosting-and-deploys/#configuring-cache-headers):
+  - `/_astro/*`: long-lived (e.g. `Cache-Control: public, max-age=604800, immutable`) — versioned assets.
+  - Other files (HTML, etc.): shorter TTL (e.g. `max-age=3600`).
+  - This repo sets these via `public/_headers` (Netlify, Cloudflare Pages) and `vercel.json` (Vercel). For other hosts, configure equivalent headers in the platform’s config.
