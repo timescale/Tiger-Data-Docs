@@ -91,6 +91,10 @@ export default defineConfig({
               label: "Quickstart",
               autogenerate: { directory: "get-started" },
             },
+            {
+              label: "Contribute to the docs",
+              link: "/get-started/contributing",
+            },
           ],
         },
         // Learn tab
