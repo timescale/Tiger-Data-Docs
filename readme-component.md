@@ -207,6 +207,94 @@ No MDX import is required for these; they are part of the default layout.
 
 ---
 
+## Integration Prereqs (partials) – when to use
+
+<details>
+<summary><strong>IntegrationPrereqs and related partials: cloud, self-hosted, or both</strong></summary>
+
+The **Integration Prereqs** partials are reusable MDX fragments that tell the reader what they need before following a doc (e.g. a Tiger Cloud service or a self-hosted instance). They live in `src/partials/`. Use the one that matches your page’s deployment options so readers get the right prerequisites and links.
+
+### Summary: which partial to use
+
+| Partial | Use when the doc applies to… | Rendered content (summary) |
+| ------- | --------------------------- | -------------------------- |
+| **IntegrationPrereqs** (`_integration-prereqs.mdx`) | **Cloud or self-hosted**; you want to mention “Real-time analytics” and connection details. | Create a target Tiger Cloud service (Real-time analytics) or use self-hosted; need connection details. |
+| **IntegrationPrereqs** (`_prereqs-cloud-and-self.mdx`) | **Cloud or self-hosted**; shorter, generic “procedure” wording. | Create a target Tiger Cloud service; procedure also works for self-hosted. |
+| **IntegrationPrereqsCloud** (`_integration-prereqs-cloud-only.mdx`) | **Tiger Cloud only.** | Create a target Tiger Cloud service (Real-time analytics); need connection details. |
+| **IntegrationPrereqsSelfOnly** (`_integration-prereqs-self-only.mdx`) | **Self-hosted only.** | Create a target self-hosted instance; need connection details. |
+
+### When to use which
+
+- **Learn, get-started, or general “follow along” pages** that work on both Tiger Cloud and self-hosted  
+  → Use **`_integration-prereqs.mdx`** (more detail: Real-time analytics, connection details) or **`_prereqs-cloud-and-self.mdx`** (shorter, “procedure also works for self-hosted”).  
+  Examples: get-started key-features, learn/fundamentals, learn/examples (e.g. simulate-iot-sensor-data, analyze-energy-consumption).
+
+- **Integrate guides** (tools, connectors, BI, observability, etc.) that support both cloud and self-hosted  
+  → Use **`_prereqs-cloud-and-self.mdx`**.  
+  Examples: integrate/query-administration (psql, pgAdmin, DBeaver), integrate/data-engineering-etl (Airflow, Fivetran), integrate/bi-vizualization (Tableau, Power BI).
+
+- **Integrate or deploy guides that are Tiger Cloud–only** (e.g. cloud-specific secure connectivity or exporters)  
+  → Use **`_integration-prereqs-cloud-only.mdx`**.  
+  Examples: integrate/secure-connectivity (AWS, GCP, Azure, corporate data center), integrate/observability (Grafana, Datadog, CloudWatch), connectors that target Tiger Cloud only.
+
+- **Guides that are self-hosted–only** (e.g. local or on-prem setup)  
+  → Use **`_integration-prereqs-self-only.mdx`**.  
+  Examples: start-coding-* partials (Node, Python, Ruby, etc.), Debezium self-hosted.
+
+### Import and usage
+
+Import from `src/partials/` using the `@partials` alias (or a relative path from your doc). Use a single `<ComponentName />` in the **Prerequisites** (or equivalent) section.
+
+**Cloud + self-hosted (detailed – Real-time analytics + connection details):**
+
+```mdx
+import IntegrationPrereqs from '@partials/_integration-prereqs.mdx';
+
+## Prerequisites
+
+<IntegrationPrereqs />
+```
+
+**Cloud + self-hosted (shorter – “procedure also works for self-hosted”):**
+
+```mdx
+import IntegrationPrereqs from '@partials/_prereqs-cloud-and-self.mdx';
+
+## Prerequisites
+
+<IntegrationPrereqs />
+```
+
+**Cloud only:**
+
+```mdx
+import IntegrationPrereqsCloud from '@partials/_integration-prereqs-cloud-only.mdx';
+
+## Prerequisites
+
+<IntegrationPrereqsCloud />
+```
+
+**Self-hosted only:**
+
+```mdx
+import IntegrationPrereqsSelfOnly from '@partials/_integration-prereqs-self-only.mdx';
+
+## Prerequisites
+
+<IntegrationPrereqsSelfOnly />
+```
+
+If `@partials` is not configured in your environment, use a relative path from your doc to `src/partials/`, e.g. from `src/content/docs/learn/examples/`:
+
+```mdx
+import IntegrationPrereqs from "../../../../partials/_prereqs-cloud-and-self.mdx";
+```
+
+</details>
+
+---
+
 ## Other custom components
 
 <details>
