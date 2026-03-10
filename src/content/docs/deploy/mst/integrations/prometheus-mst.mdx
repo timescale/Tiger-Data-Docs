@@ -1,0 +1,108 @@
+---
+title: Set up a Prometheus endpoint
+description: Use Prometheus to monitor your Managed Service for TimescaleDB
+products: [mst]
+keywords: [prometheus, monitor, integration]
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+You can get more insights into the performance of your {C.MST_SERVICE_LONG} by monitoring it using [Prometheus](https://prometheus.io), a popular
+open source metrics-based systems monitoring solution.
+
+## Before you begin
+
+*   Create a {C.MST_SERVICE_LONG}.
+*   Make a note of the `Port` and `Host` for your {C.MST_SERVICE_SHORT}.
+
+## Enabling Prometheus service integration
+
+<NumberedList>
+
+<NumberedItem title="Create a new Prometheus endpoint">
+
+<ol type="a">
+<li>
+
+In [{C.MST_CONSOLE_SHORT}](https://portal.managed.timescale.com/login), choose a project and navigate to `Integration Endpoints`. Navigate to `Prometheus`, and click `Create new`.
+
+</li>
+<li>
+
+In the `Create new Prometheus endpoint` dialog, complete these fields:
+
+*   In the `Endpoint name` field, type a name for your endpoint.
+*   In the `Username` field, type your username.
+*   In the `Password` field, type your password.
+
+</li>
+<li>
+
+Click `Create` to create the endpoint.
+
+</li>
+</ol>
+
+These details are used when setting up your Prometheus installation, in the
+`prometheus.yml` configuration file. This allows you to make this {C.MST_LONG} endpoint a target for Prometheus to scrape.
+
+</NumberedItem>
+
+<NumberedItem title="Configure Prometheus">
+
+Use this sample configuration file to set up your Prometheus installation,
+by substituting `<PORT>`, `<HOST>`, `<USER>`, and `<PASSWORD>` with those of
+your {C.MST_SERVICE_LONG}:
+
+```yaml
+global:
+  scrape_interval:     10s
+  evaluation_interval: 10s
+scrape_configs:
+  - job_name: prometheus
+    scheme: https
+    static_configs:
+      - targets: ['<HOST>:<PORT>']
+    tls_config:
+      insecure_skip_verify: true
+    basic_auth:
+      username: <USER>
+      password: <PASSWORD>
+remote_write:
+  - url: "http://<HOST>:9201/write"
+remote_read:
+  - url: "http://<HOST>:9201/read"
+```
+
+</NumberedItem>
+
+<NumberedItem title="Enable Prometheus for a service">
+
+<ol type="a">
+<li>
+
+In the {C.MST_CONSOLE_SHORT}, navigate to `Services` and select the {C.MST_SERVICE_SHORT} you want to monitor.
+
+</li>
+<li>
+
+In the `Integrations` tab, go to `External integrations` section and select `Prometheus`.
+
+</li>
+<li>
+
+In the `Prometheus integrations` dialog, select the Prometheus endpoint that you created and click `Enable`.
+
+</li>
+</ol>
+
+The Prometheus endpoint is listed under `Enabled integrations` for the
+{C.MST_SERVICE_LONG}.
+
+</NumberedItem>
+
+</NumberedList>
