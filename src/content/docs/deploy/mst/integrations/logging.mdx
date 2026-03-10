@@ -1,0 +1,119 @@
+---
+title: Logging
+description: Retrieve logging information on Managed Service for TimescaleDB
+products: [mst]
+keywords: [logging, loggly, integration]
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+There are a number of different ways to review logs and metrics for your {C.MST_SERVICE_LONG}s. You can use the native logging tool
+in {C.MST_CONSOLE_SHORT}, retrieve detailed logs using the Aiven CLI tool, or
+integrate a third-party service, such as [SolarWinds Loggly](https://www.loggly.com/).
+
+## Native logging
+
+To see the most recent logged events for your {C.MST_SERVICE_SHORT}:
+
+<NumberedList>
+
+<NumberedItem title="Find the service">
+
+In [{C.MST_CONSOLE_SHORT}](https://portal.managed.timescale.com/login), in the `Services` tab, find the {C.MST_SERVICE_SHORT} you want to review, and check it is
+marked as `Running`.
+
+</NumberedItem>
+
+<NumberedItem title="View the logs">
+
+Navigate to the `Logs` tab to see a constantly updated list of logged events.
+
+![Managed Service for TimescaleDB native logging](https://assets.timescale.com/docs/images/mst/view-logs.png)
+
+</NumberedItem>
+
+</NumberedList>
+
+## Dump logs to a text file with the Aiven CLI
+
+If you want to dump your {C.MST_LONG} logs to a text file or
+an archive for use later on, you can use the Aiven CLI.
+
+Sign in to your {C.MST_LONG} account from the Aiven CLI tool,
+and use this command to dump your logs to a text file called `tslogs.txt`:
+
+```bash
+avn service logs -S desc -f --project <project name> <service_name> > tslogs.txt
+```
+
+For more information about the Aiven CLI tool, see the
+[Aiven Client section](/deploy/mst/aiven-client).
+
+## Logging integrations
+
+If you need to access logs for your {C.MST_SERVICE_SHORT}s regularly, or if you need more
+detailed logging than {C.MST_LONG} can provide in {C.MST_CONSOLE_SHORT}, you can connect your {C.MST_LONG} to a logging
+service such as [SolarWinds Loggly](https://www.loggly.com/).
+
+This section covers how to create a service integration to Loggly with {C.MST_LONG}.
+
+<NumberedList>
+
+<NumberedItem title="Create or log in to Loggly">
+
+Navigate to [SolarWinds Loggly](https://www.loggly.com/) and create or log in to your account.
+
+</NumberedItem>
+
+<NumberedItem title="Create a customer token">
+
+From the Loggly Home screen, navigate to `Logs`→`Source Setup`. Click
+`Customer Tokens` from the top menu bar.
+
+On the `Customer Tokens` page, click `Add New` to create a new token. Give your
+token a name, and click `Save`. Copy your new token to your clipboard.
+
+</NumberedItem>
+
+<NumberedItem title="Add a new Syslog endpoint">
+
+Log in to your {C.MST_LONG} account, and navigate
+to `Service Integrations`. Navigate to `Syslog`, and click
+`Add new endpoint`.
+
+</NumberedItem>
+
+<NumberedItem title="Configure the Syslog endpoint">
+
+In the `Create new syslog endpoint` dialog, complete these fields:
+
+*   In the `Endpoint name` field, type a name for your endpoint.
+*   In the `Server` field, type `logs-01.loggly.com`.
+*   In the `Port` field, type `514`.
+*   Uncheck the `TLS` checkbox.
+*   In the `Format` field, select `rfc5425`.
+*   In the `Structured Data` field, type `<LOGGLY_TOKEN>@41058`, using the
+    Loggly token you copied earlier. You can also add a tag here, which
+    you can use to more easily search for your logs in Loggly. For
+    example,
+    `8480330f5-aa09-46b0-b220-a0efa372b17b@41058 TAG="example-tag"`.
+
+Click `Create` to create the endpoint. When the endpoint has been created,
+it shows as an enabled service integration, with a green `active` indicator.
+
+</NumberedItem>
+
+<NumberedItem title="View incoming logs in Loggly">
+
+In the Loggly dashboard, navigate to `Search` to see your incoming logs.
+From here, you can create custom dashboards and view reports for your logs.
+
+![Viewing incoming MST logs in Loggly](https://assets.timescale.com/docs/images/loggly-view-logs.webp)
+
+</NumberedItem>
+
+</NumberedList>

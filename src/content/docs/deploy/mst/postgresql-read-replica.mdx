@@ -1,0 +1,106 @@
+---
+title: Create a read-only replica
+description: Create and use a read-only replica for your services in Managed Service for TimescaleDB
+products: [mst]
+keywords: [replica, read-only, postgresql]
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+{C.PG} read-only replicas allow you to perform read-only queries against
+the replica and reduce the load on the primary server. You can optimize query
+response times across different geographical locations because the replica can
+be created in different regions or on different cloud providers.
+For information about creating a read-only replica using the Aiven client,
+see the documentation on [creating a read replica using the CLI](/deploy/mst/aiven-client).
+
+<Callout variant="note">
+
+If you are running a {C.MST_LONG} [Pro plan](/deploy/mst/about-mst),
+you have standby nodes available in a high availability setup. The standby nodes
+support read-only queries to reduce the effect of slow queries on the primary
+node.
+
+</Callout>
+
+## Creating a replica
+
+<NumberedList>
+
+<NumberedItem title="Select the service">
+
+In [{C.MST_CONSOLE_LONG}](https://portal.managed.timescale.com/login), click the
+service you want to create a remote replica for.
+
+</NumberedItem>
+
+<NumberedItem title="Create a read replica">
+
+In `Overview`, click `Create a read replica`.
+
+</NumberedItem>
+
+<NumberedItem title="Configure and create">
+
+In `Create a PostgreSQL read replica`, type a name for the remote replica,
+select the cloud provider, location, plan that you want to use, and click
+`Create`.
+
+</NumberedItem>
+
+</NumberedList>
+
+When the read-only replica is created it is listed as a service in your
+project. The `Overview` tab of the replica also lists the name of the primary
+service for the replica. To promote a read-only replica as a master database,
+click the `Promote to master` button.
+
+## Using read-only replica for the service on {C.MST_SHORT}
+
+<NumberedList>
+
+<NumberedItem title="Copy the Service URI">
+
+In the `Overview` page of the read-only replica for the service on {C.MST_SHORT}, copy
+the `Service URI`.
+
+</NumberedItem>
+
+<NumberedItem title="Connect to the read-only service">
+
+At the psql prompt, connect to the read-only service:
+
+```sql
+psql <SERVICE_URI>
+```
+
+</NumberedItem>
+
+<NumberedItem title="Check the connection type">
+
+To check whether you are connected to a primary or replica node:
+
+```sql
+SELECT * FROM pg_is_in_recovery();
+```
+
+If the output is `TRUE` you are connected to the replica, and if the output is
+`FALSE` you are connected to the primary server.
+
+</NumberedItem>
+
+</NumberedList>
+
+<Callout variant="note">
+
+{C.MST_LONG} uses asynchronous replication, so some lag is
+expected. When you run an `INSERT` operation on the primary node, a small
+delay of less than a second is expected for the change to propagate to the
+replica.
+
+</Callout>
