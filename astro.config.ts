@@ -265,7 +265,7 @@ export default defineConfig({
               label: "TimescaleDB",
               collapsed: true,
               items: [
-                { slug: "reference/timescaledb" },
+                { label: "Overview", link: "/reference/timescaledb" },
                 {
                   label: "Hypertables and chunks",
                   collapsed: true,
@@ -484,7 +484,7 @@ export default defineConfig({
               label: "TimescaleDB Toolkit",
               collapsed: true,
               items: [
-                { slug: "reference/toolkit" },
+                { label: "Overview", link: "/reference/toolkit" },
                 {
                   label: "Approximate count distinct",
                   collapsed: true,
