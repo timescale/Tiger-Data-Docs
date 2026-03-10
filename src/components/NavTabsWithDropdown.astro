@@ -54,11 +54,14 @@ interface SidebarEntryLike {
 function getDropdownLinks(sidebar: SidebarEntryLike[] | undefined): { label: string; href: string }[] {
   if (!sidebar?.length) return [];
   return sidebar
-    .filter((entry) => typeof entry.link === "string" || entry.autogenerate?.directory)
-    .map((entry) => ({
-      label: entry.label,
-      href: typeof entry.link === "string" ? entry.link : `/${entry.autogenerate!.directory}`,
-    }));
+    .filter((entry) => typeof entry.link === "string" || entry.autogenerate?.directory || entry.items?.length)
+    .map((entry) => {
+      if (typeof entry.link === "string") return { label: entry.label, href: entry.link };
+      if (entry.autogenerate?.directory) return { label: entry.label, href: `/${entry.autogenerate.directory}` };
+      // Group with items — use the first child's link as href
+      const firstChild = entry.items?.find((c): c is SidebarEntryLike => typeof (c as SidebarEntryLike).link === "string");
+      return { label: entry.label, href: firstChild?.link ?? "#" };
+    });
 }
 ---
 
