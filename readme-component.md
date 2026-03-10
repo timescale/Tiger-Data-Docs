@@ -353,6 +353,7 @@ See **Main / primary button** above for when to use primary vs outline and how i
 
 - **Glossary** (`Glossary/`) — glossary UI (filters, letter nav, term cards). Used on glossary pages.
 - **NumberedList** / **NumberedItem** — step-by-step or ordered flows in docs.
+- **AuthorByline** — compact author card for tutorials (avatar from GitHub, name, role, GitHub · Email · LinkedIn links). Use in learn/examples or any tutorial. Import: `import AuthorByline from "@components/AuthorByline.astro";` then `<AuthorByline name="..." role="..." githubUsername="..." email="..." linkedinUrl="..." />`. Optional: `avatarUrl` to override the default GitHub avatar.
 - **IntegrateToc** — table of contents for the Integrate section.
 - **Changelog** — changelog entries, tags, filters. Used on changelog pages.
 
