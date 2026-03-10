@@ -1,0 +1,166 @@
+---
+title: Migrate data from self-hosted TimescaleDB to MST
+description: Migrate a self-hosted TimescaleDB database to Managed Service for TimescaleDB
+products: [mst, self_hosted]
+keywords: [data migration, database, pg_dump, pg_restore]
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+You can migrate your data from {C.SELF_LONG} to {C.MST_LONG} and automate most of the common operational tasks.
+
+Each {C.MST_SERVICE_SHORT} has a database named `defaultdb`, and a default user account named `tsdbadmin`. You use
+{C.MST_CONSOLE_SHORT} to create additional users and databases using the `Users` and `Databases` tabs.
+
+You can switch between different plan sizes in {C.MST_LONG}.
+However, during the migration process, choose a plan size that has the same
+storage size or slightly larger than the currently allocated plan. This allows
+you to limit the downtime during the migration process and have sufficient compute and storage resources.
+
+<Callout variant="info">
+
+Depending on your database size and network speed, migration can take a very
+long time. During this time, any new writes that happen during the migration
+process are not included. To prevent data loss, turn off all the
+writes to the source {C.SELF_LONG} database before you start migration.
+
+Before migrating for production, do a cold run without turning off writes to the source {C.SELF_LONG} database.
+This gives you an estimate of the time the migration process takes, and helps you to practice migrating without causing
+downtime to your customers.
+
+</Callout>
+
+If you prefer the features of {C.CLOUD_LONG}, you can easily [migrate your data](/migrate/live-migration/) from an {C.MST_SERVICE_SHORT}
+to a {C.SERVICE_LONG}.
+
+## Before you begin
+
+*   Set up the migration machine:
+
+    You run the migration commands on the migration machine. It must have enough disk space to hold the dump file.
+    *   Install the {C.PG} [`pg_dump`](https://www.postgresql.org/docs/current/app-pgdump.html) and [`pg_restore`](https://www.postgresql.org/docs/current/app-pgrestore.html) utilities on a migration machine.
+    *   Install a client to connect to {C.SELF_LONG} and {C.MST_LONG}.
+        These instructions use [`psql`](https://www.postgresql.org/docs/current/app-psql.html), but any client works.
+
+*   [Create a target {C.MST_SERVICE_SHORT}](/get-started/create-mst-service):
+
+    Provision your target {C.MST_SERVICE_SHORT} with enough space for all your data.
+
+*   On the source {C.SELF_LONG} and the target {C.MST_SERVICE_SHORT}, ensure that you are running:
+    *   The same major version of {C.PG}. For information, see [upgrade {C.PG}](https://www.tigerdata.com/docs/self-hosted/latest/upgrades/upgrade-pg/).
+    *   The same major version of {C.TIMESCALE_DB}. For more information, see [upgrade {C.TIMESCALE_DB} to a major version](https://www.tigerdata.com/docs/self-hosted/latest/upgrades/major-upgrade/).
+
+## Migrate your data to an {C.MST_SERVICE_SHORT}
+
+To move your data from {C.SELF_LONG} instance to a {C.MST_SERVICE_SHORT}, run the following commands from your migration
+machine:
+
+<NumberedList>
+
+<NumberedItem title="Take offline the applications that connect to the source">
+
+The duration of migration is proportional to the amount of data stored in your database. By
+disconnecting your app from your database, you avoid possible data loss.
+
+</NumberedItem>
+
+<NumberedItem title="Set your connection strings">
+
+These variables hold the connection information for the source {C.SELF_LONG} instance and the target {C.MST_SERVICE_SHORT}:
+
+```bash
+export SOURCE="postgres://<user>:<password>@<source host>:<source port>/<db_name>"
+export TARGET="postgres://tsdbadmin:<password>@<host>:<port>/defaultdb?sslmode=require"
+```
+
+</NumberedItem>
+
+<NumberedItem title="Dump the data from your source service">
+
+```bash
+pg_dump -d "$SOURCE" --no-owner -Fc -v -f dump.bak
+```
+
+</NumberedItem>
+
+<NumberedItem title="Restore the data to your target service">
+
+<ol type="a">
+<li>
+
+Put your target {C.MST_SERVICE_SHORT} in the right state for restoring:
+
+```bash
+psql -d "$TARGET" -c "SELECT timescaledb_pre_restore();"
+```
+
+</li>
+<li>
+
+Upload your data to the target {C.MST_SERVICE_SHORT}:
+
+```bash
+pg_restore -d "$TARGET" --jobs 4 -Fc dump.bak
+```
+
+The `--jobs` option specifies the number of CPUs to use to dump and restore the database concurrently.
+
+</li>
+<li>
+
+Return your target {C.MST_SERVICE_SHORT} to normal operations:
+
+```bash
+psql -d "$TARGET" -c "SELECT timescaledb_post_restore();"
+```
+
+</li>
+</ol>
+
+</NumberedItem>
+
+<NumberedItem title="Update table statistics">
+
+Connect to your new database and update your table statistics by running
+[`ANALYZE`](https://www.postgresql.org/docs/current/sql-analyze.html) on your entire dataset:
+
+```bash
+psql -d "$TARGET" -c "ANALYZE;"
+```
+
+</NumberedItem>
+
+</NumberedList>
+
+To migrate from multiple databases, you repeat this migration procedure one database after another.
+
+## Troubleshooting
+
+If you see the following errors during migration, you can safely ignore them. The migration still runs
+successfully.
+
+-  For `pg_dump`:
+
+    ```bash
+    pg_dump: warning: there are circular foreign-key constraints on this table:
+    pg_dump: hypertable
+    pg_dump: You might not be able to restore the dump without using --disable-triggers or temporarily dropping the constraints.
+    pg_dump: Consider using a full dump instead of a --data-only dump to avoid this problem.
+    pg_dump: NOTICE:  hypertable data are in the chunks, no data will be copied
+    DETAIL:  Data for hypertables are stored in the chunks of a hypertable so COPY TO of a hypertable will not copy any data.
+    HINT:  Use "COPY (SELECT * FROM <hypertable>) TO ..." to copy all data in hypertable, or copy each chunk individually.
+    ```
+
+- For `pg_restore`:
+
+   ```bash
+   pg_restore: while PROCESSING TOC:
+   pg_restore: from TOC entry 4142; 0 0 COMMENT EXTENSION timescaledb
+   pg_restore: error: could not execute query: ERROR:  must be owner of extension timescaledb
+   Command was: COMMENT ON EXTENSION timescaledb IS 'Enables scalable inserts and complex queries for time-series data';
+   ```
