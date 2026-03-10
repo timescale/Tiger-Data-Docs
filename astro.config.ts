@@ -102,6 +102,10 @@ export default defineConfig({
               link: "/learn",
             },
             {
+              label: "Template tutorial (preview)",
+              link: "/learn/examples/00-template-tutorial-render",
+            },
+            {
               label: "Fundamentals",
               autogenerate: { directory: "learn/fundamentals" },
             },
