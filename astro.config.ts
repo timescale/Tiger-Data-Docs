@@ -106,6 +106,10 @@ export default defineConfig({
               link: "/learn/examples/00-template-tutorial-render",
             },
             {
+              label: "Aggregate organizational data with AI agents",
+              link: "/learn/examples/aggregate-organizational-data-with-ai/",
+            },
+            {
               label: "Fundamentals",
               autogenerate: { directory: "learn/fundamentals" },
             },
