@@ -1,0 +1,88 @@
+---
+title: AWS Transit Gateway
+description: Secure your Managed Service for TimescaleDB instance with Transit Gateway on AWS
+products: [mst]
+keywords: [vpc, peer, aws, transit gateway]
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+AWS Transit Gateway (TGW) enables transitive routing from on-premises networks
+through VPN and from other VPC. By creating a Transit Gateway VPC attachment,
+{C.MST_SERVICE_SHORT}s in an {C.MST_SHORT} Project VPC can route traffic to all other networks
+attached - directly or indirectly - to the Transit Gateway.
+
+## Before you begin
+
+*   Set up a [VPC peering for your project in {C.MST_SHORT}](/deploy/mst/vpc-peering/vpc-peering).
+*   In your AWS console, go to `My Account` and make a note of your `account ID`.
+*   In your AWS console, go to `Transit Gateways`, find the transit gateway that
+    you want to attach, and make a note of the ID.
+
+## Attaching a VPC to an AWS Transit Gateway
+
+<NumberedList>
+
+<NumberedItem title="Select the VPC connection">
+
+In [{C.MST_CONSOLE_SHORT}](https://portal.managed.timescale.com/login), click `VPC` and select the VPC connection that you
+created.
+
+</NumberedItem>
+
+<NumberedItem title="Select Transit Gateway VPC Attachment">
+
+In the `VPC Peering connections` page select `Transit Gateway VPC Attachment`.
+
+</NumberedItem>
+
+<NumberedItem title="Enter your AWS account ID">
+
+Type the account ID of your AWS account in `AWS Account ID`.
+
+</NumberedItem>
+
+<NumberedItem title="Enter the Transit Gateway ID">
+
+Type the ID of the Transit Gateway of AWS in `Transit Gateway ID`.
+
+</NumberedItem>
+
+<NumberedItem title="Set the IP range">
+
+Type the IP range in the `Network cidrs` field.
+
+Each Transit Gateway has a route table of its own, and by default routes
+traffic to each attached network directly to attached VPCs or indirectly
+through VPN attachments. The attached VPCs' route tables need to be updated
+to include the TGW as a target for any IP range (CIDR) that should be routed
+using the VPC attachment. These IP ranges must be configured when creating
+the attachment for an {C.MST_SHORT} Project VPC.
+
+</NumberedItem>
+
+<NumberedItem title="Add the peering connection">
+
+Click `Add peering connection`.
+
+A new connection with a status of `Pending Acceptance` is listed in your
+AWS console. Verify that the account ID and transit gateway ID match those
+listed in {C.MST_CONSOLE_SHORT}.
+
+</NumberedItem>
+
+<NumberedItem title="Accept the request in AWS">
+
+In the AWS console, go to `Actions` and select `Accept Request`. Update your
+AWS route tables to match your {C.MST_LONG} CIDR settings.
+
+After you accept the request in AWS Console, the peering connection is active in
+the {C.MST_CONSOLE_SHORT}.
+
+</NumberedItem>
+
+</NumberedList>
