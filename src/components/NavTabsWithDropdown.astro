@@ -47,20 +47,28 @@ const DEFAULT_OVERVIEW_DESC = "Overview and key topics";
 interface SidebarEntryLike {
   label: string;
   link?: string;
+  slug?: string;
   autogenerate?: { directory: string };
   items?: unknown[];
+}
+/** Extract href from a sidebar entry that may use link or slug. */
+function entryHref(entry: SidebarEntryLike): string | undefined {
+  if (typeof entry.link === "string") return entry.link;
+  if (typeof entry.slug === "string") return `/${entry.slug}`;
+  return undefined;
 }
 /** Resolve a sidebar entry to { label, href } for dropdown links. */
 function getDropdownLinks(sidebar: SidebarEntryLike[] | undefined): { label: string; href: string }[] {
   if (!sidebar?.length) return [];
   return sidebar
-    .filter((entry) => typeof entry.link === "string" || entry.autogenerate?.directory || entry.items?.length)
+    .filter((entry) => entryHref(entry) || entry.autogenerate?.directory || entry.items?.length)
     .map((entry) => {
-      if (typeof entry.link === "string") return { label: entry.label, href: entry.link };
+      const direct = entryHref(entry);
+      if (direct) return { label: entry.label, href: direct };
       if (entry.autogenerate?.directory) return { label: entry.label, href: `/${entry.autogenerate.directory}` };
-      // Group with items — use the first child's link as href
-      const firstChild = entry.items?.find((c): c is SidebarEntryLike => typeof (c as SidebarEntryLike).link === "string");
-      return { label: entry.label, href: firstChild?.link ?? "#" };
+      // Group with items — use the first child's link/slug as href
+      const firstChild = entry.items?.find((c): c is SidebarEntryLike => entryHref(c as SidebarEntryLike) !== undefined) as SidebarEntryLike | undefined;
+      return { label: entry.label, href: (firstChild && entryHref(firstChild)) ?? "#" };
     });
 }
 ---
