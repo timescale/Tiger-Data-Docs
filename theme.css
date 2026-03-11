@@ -429,6 +429,7 @@ a:hover {
 
 .stl-callout[data-variant="note"] {
   --tw-prose-body: var(--callout-note-text);
+  --callout-note-icon-bg: var(--callout-tip-icon);
   background-color: var(--callout-note-bg);
   border: 1px solid var(--callout-note-border);
   border-radius: var(--tiger-radius-md);
@@ -436,14 +437,14 @@ a:hover {
   margin: var(--tiger-space-md) 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
 }
 
 .stl-callout[data-variant="note"] > :first-child,
 .stl-callout[data-variant="note"] [data-callout-header] {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   font-family: var(--stl-font-family);
   font-size: 18px;
   font-weight: 600;
@@ -456,8 +457,8 @@ a:hover {
 .stl-callout[data-variant="note"] [data-callout-header] svg,
 .stl-callout[data-variant="note"] > :first-child img,
 .stl-callout[data-variant="note"] > :first-child svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
   display: block;
 }
@@ -730,6 +731,12 @@ a:hover {
   margin: 0;
 }
 
+/* Icon-to-title spacing: same 8px for Tip and Note (shared so both match) */
+.stl-callout[data-variant="tip"] .stl-callout__header,
+.stl-callout[data-variant="note"] .stl-callout__header {
+  gap: 8px;
+}
+
 .stl-callout[data-variant="tip"] [data-callout-header] img,
 .stl-callout[data-variant="tip"] [data-callout-header] svg,
 .stl-callout[data-variant="tip"] > :first-child img,
@@ -753,6 +760,20 @@ a:hover {
   font-weight: 450;
   line-height: 1.5;
   color: var(--callout-tip-body-text);
+}
+
+/* Remove top margin on body first child / first p so header-to-body spacing is exactly the container gap (16px) */
+.stl-callout[data-variant="tip"] [data-callout-body] > *:first-child,
+.stl-callout[data-variant="tip"] .stl-callout__body > *:first-child,
+.stl-callout[data-variant="note"] [data-callout-body] > *:first-child,
+.stl-callout[data-variant="note"] .stl-callout__body > *:first-child {
+  margin-top: 0;
+}
+.stl-callout[data-variant="tip"] [data-callout-body] p:first-of-type,
+.stl-callout[data-variant="tip"] .stl-callout__body p:first-of-type,
+.stl-callout[data-variant="note"] [data-callout-body] p:first-of-type,
+.stl-callout[data-variant="note"] .stl-callout__body p:first-of-type {
+  margin-top: 0;
 }
 
 /* Inline code inside Tip – Figma: white bg, 8px horizontal / 4px vertical padding */
@@ -921,6 +942,42 @@ nav.sidebar .sidebar-content ul ul {
 }
 
 /* ============================================
+   Heading anchor link icon (hover on section titles)
+   ============================================ */
+/*
+ * Heading anchor link: Starlight uses padding-inline-end on the heading (icon-size + gap)
+ * and margin-inline-start: -icon-size on the link to pull the icon into that space.
+ * So the visual gap between heading text and icon = --sl-anchor-icon-gap only.
+ * Do NOT set margin-inline-start on the link or you override the pull and push the icon right.
+ */
+:root {
+  --sl-anchor-icon-size: 24px;
+  --sl-anchor-icon-gap: 2px;
+}
+
+/* 24px icon; gap is controlled by --sl-anchor-icon-gap (2px). Leave link margin to Starlight. */
+main .sl-anchor-link,
+.sl-markdown-content .sl-anchor-link,
+.l-markdown-content .sl-anchor-link,
+[class*="markdown-content"] .sl-anchor-link {
+  --sl-anchor-icon-size: 24px;
+  --sl-anchor-icon-gap: 2px;
+  min-width: 24px;
+  min-height: 24px;
+}
+main .sl-anchor-link .sl-anchor-icon svg,
+main .sl-anchor-link svg,
+.sl-markdown-content .sl-anchor-link .sl-anchor-icon svg,
+.sl-markdown-content .sl-anchor-link svg,
+.l-markdown-content .sl-anchor-link svg,
+[class*="markdown-content"] .sl-anchor-link svg {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+/* ============================================
    Right sidebar – "On this page" TOC (Figma 3245-7750, 3245-7752 left-aligned)
    ============================================ */
 :root {
@@ -1025,14 +1082,20 @@ starlight-toc a:hover {
   color: var(--toc-title-active);
 }
 
-/* Active TOC item – selection bar left, text aligns with heading (2px + 8px = 10px = --toc-inset) */
+/* Active TOC item – straight vertical bar left (no radius), text aligns with heading (2px + 8px = 10px = --toc-inset) */
 .right-sidebar-container starlight-toc a[aria-current="true"],
 .right-sidebar-panel starlight-toc a[aria-current="true"],
 starlight-toc a[aria-current="true"] {
   color: var(--toc-title-active);
   border-inline-start: 2px solid var(--toc-selection-line);
+  border-radius: 0;
   padding-inline-start: 8px !important;
   margin-inline-start: 0;
+}
+.right-sidebar-container starlight-toc li:has(a[aria-current="true"]),
+.right-sidebar-panel starlight-toc li:has(a[aria-current="true"]),
+starlight-toc li:has(a[aria-current="true"]) {
+  border-radius: 0;
 }
 
 /* Version selector in right nav: label + icon #15151E, value #4F6BED */
@@ -1259,26 +1322,43 @@ tr:hover td {
 }
 
 /* ============================================
-   Numbered list (instruction steps)
-   Use via React component: NumberedList + NumberedItem from src/components/NumberedList
+   Numbered list (instruction steps) – Figma 3387-359
+   Optional heading, 32px dark circles + white number, vertical connector line, 16px/36px spacing.
+   Use via NumberedList + NumberedItem from src/components/NumberedList
    ============================================ */
+.numbered-list-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: 1.5rem 0;
+}
+
+.numbered-list__heading {
+  font-family: var(--stl-font-family);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
+  margin: 0;
+}
+
 .numbered-list {
   list-style: none;
-  padding-left: 0;
-  margin: 1.25rem 0;
+  padding: 0 0 0 48px;
+  margin: 0;
   counter-reset: step;
   position: relative;
 }
 
-/* Vertical line connecting step circles */
+/* Vertical line connecting step circles (center of 32px circle at 16px) */
 .numbered-list::before {
   content: "";
   position: absolute;
-  left: 2rem;
-  top: 2rem;
-  bottom: 2rem;
+  left: 16px;
+  top: 16px;
+  bottom: 16px;
   width: 2px;
-  background: light-dark(#c4b5fd, #5b21b6);
+  background: light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
   border-radius: 1px;
   z-index: 0;
   pointer-events: none;
@@ -1288,13 +1368,9 @@ tr:hover td {
   counter-increment: step;
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-  line-height: 1.6;
-  padding: 1rem 1.25rem;
-  border-radius: 10px;
-  background: light-dark(#f8fafc, #1e293b);
-  border: 1px solid light-dark(#e2e8f0, #334155);
+  gap: 16px;
+  margin-bottom: 36px;
+  padding: 12px 0 0 0;
   position: relative;
   z-index: 1;
 }
@@ -1303,20 +1379,24 @@ tr:hover td {
   margin-bottom: 0;
 }
 
+/* Circle: 32px, dark bg, white number – Figma 3245-7815 / Code large */
 .numbered-list .numbered-list__item::before {
   content: counter(step);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
+  width: 32px;
+  height: 32px;
+  margin-left: -48px;
   border-radius: 50%;
-  background: light-dark(#6446fb, #a78bfa);
-  color: light-dark(#ffffff, #1e1b4b);
-  font-weight: 700;
-  font-size: 0.875rem;
-  line-height: 1;
+  background: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
+  color: light-dark(var(--tiger-white), var(--tiger-grey-900));
+  font-family: var(--stl-font-family-mono);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  letter-spacing: -0.16px;
 }
 
 .numbered-list__item-content {
@@ -1324,18 +1404,24 @@ tr:hover td {
   min-width: 0;
 }
 
+/* Step title – bold label */
 .numbered-list__item-title {
   display: block;
+  font-family: var(--stl-font-family);
   font-weight: 600;
   font-size: 1rem;
-  color: light-dark(#111827, #f9fafb);
+  line-height: 1.5;
+  color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
   margin-bottom: 0.25rem;
 }
 
+/* Step body – Body/16/Regular per Figma */
 .numbered-list__item-body {
-  font-weight: normal;
-  font-size: 0.9375rem;
-  color: light-dark(#475569, #cbd5e1);
+  font-family: var(--stl-font-family);
+  font-weight: 450;
+  font-size: 16px;
+  line-height: 1.5;
+  color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
 }
 
 /* Spacing for code blocks and Callouts inside a step */
