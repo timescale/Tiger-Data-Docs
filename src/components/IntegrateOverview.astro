@@ -9,7 +9,7 @@
  * Relies on frontmatter on each integration page: integrationIndustry[], connectorType, sortOrder.
  */
 import { getEntry } from "astro:content";
-import { CardGrid } from "@astrojs/starlight/components";
+/** Grid layout matches related content cards (Figma 3387-363) */
 
 // Glob only to get list of integration doc paths; we use getEntry for frontmatter.
 const pathMap = import.meta.glob("../content/docs/integrate/**/*.mdx");
@@ -229,7 +229,7 @@ const externalToc = external.map(({ slug, data }) => ({
   </div>
 
   <div id="integrate-view-all" class="integrate-view" data-view="all">
-    <CardGrid>
+    <div class="related-content-cards__grid">
       {
         allIntegrations.map(({ slug, data }) => {
           const platforms = getPlatforms(data);
@@ -252,7 +252,7 @@ const externalToc = external.map(({ slug, data }) => ({
           );
         })
       }
-    </CardGrid>
+    </div>
   </div>
 
   <div id="integrate-view-category" class="integrate-view" data-view="category" hidden>
@@ -266,7 +266,7 @@ const externalToc = external.map(({ slug, data }) => ({
                 <span class="integrate-category-chevron" aria-hidden="true"></span>
               </summary>
               <div class="integrate-category-content">
-                <CardGrid>
+                <div class="related-content-cards__grid">
                   {
                     (categoryGroups[category] ?? []).map(({ slug, data }) => {
                       const platforms = getPlatforms(data);
@@ -288,7 +288,7 @@ const externalToc = external.map(({ slug, data }) => ({
                       );
                     })
                   }
-                </CardGrid>
+                </div>
               </div>
             </details>
           </section>
@@ -310,7 +310,7 @@ const externalToc = external.map(({ slug, data }) => ({
                 <span class="integrate-category-chevron" aria-hidden="true"></span>
               </summary>
               <div class="integrate-category-content">
-                <CardGrid>
+                <div class="related-content-cards__grid">
                   {
                     industryGroups[industry].map(({ slug, data }) => {
                       const platforms = getPlatforms(data);
@@ -332,7 +332,7 @@ const externalToc = external.map(({ slug, data }) => ({
                       );
                     })
                   }
-                </CardGrid>
+                </div>
               </div>
             </details>
           </section>
@@ -346,7 +346,7 @@ const externalToc = external.map(({ slug, data }) => ({
   <div id="integrate-view-tiger-data" class="integrate-view" data-view="tiger-data" hidden>
     {
       tigerData.length > 0 ? (
-        <CardGrid>
+        <div class="related-content-cards__grid">
           {
             tigerData.map(({ slug, data }) => {
               const platforms = getPlatforms(data);
@@ -369,7 +369,7 @@ const externalToc = external.map(({ slug, data }) => ({
               );
             })
           }
-        </CardGrid>
+        </div>
       ) : (
         <p class="integrate-empty">No Tiger Data connectors yet. Set <code>connectorType: "tiger-data"</code> in frontmatter.</p>
       )
@@ -379,7 +379,7 @@ const externalToc = external.map(({ slug, data }) => ({
   <div id="integrate-view-external" class="integrate-view" data-view="external" hidden>
     {
       external.length > 0 ? (
-        <CardGrid>
+        <div class="related-content-cards__grid">
           {
             external.map(({ slug, data }) => {
               const platforms = getPlatforms(data);
@@ -402,7 +402,7 @@ const externalToc = external.map(({ slug, data }) => ({
               );
             })
           }
-        </CardGrid>
+        </div>
       ) : (
         <p class="integrate-empty">No external integrations yet. Set <code>connectorType: "external"</code> in frontmatter.</p>
       )
@@ -630,7 +630,7 @@ const externalToc = external.map(({ slug, data }) => ({
   }
 
   /* Grid: stretch cards so every card in a row has the same height */
-  #integrate-overview-root :global(.card-grid) {
+  #integrate-overview-root :global(.related-content-cards__grid) {
     align-items: stretch;
   }
   .integrate-card-wrapper {
@@ -643,21 +643,21 @@ const externalToc = external.map(({ slug, data }) => ({
   .integrate-card-link {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 0.5rem;
+    gap: var(--tiger-space-md, 16px);
     align-items: start;
     flex: 1;
     min-height: 0;
-    border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-800));
-    border-radius: var(--tiger-radius-lg, 0.5rem);
-    padding: 1.5rem;
+    border: 1px solid light-dark(#dddde3, var(--tiger-grey-700));
+    border-radius: var(--tiger-radius-md, 8px);
+    padding: var(--tiger-space-lg, 24px);
+    background: light-dark(#ffffff, var(--tiger-grey-900));
     text-decoration: none;
     color: inherit;
-    transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
   }
   .integrate-card-link:hover {
-    border-color: var(--stl-color-accent-high, var(--stl-color-accent));
-    background-color: var(--stl-color-accent-low, transparent);
-    box-shadow: var(--tiger-shadow-md, 0 4px 6px -1px rgb(0 0 0 / 0.1));
+    background: light-dark(#f5f5ff, color-mix(in srgb, var(--tiger-vivid-purple) 18%, var(--tiger-black)));
+    border-color: light-dark(#8f93f9, var(--tiger-vivid-purple));
   }
   .integrate-card-inner {
     display: flex;
@@ -668,10 +668,10 @@ const externalToc = external.map(({ slug, data }) => ({
     min-height: 0;
   }
   .integrate-card-title {
-    font-weight: 600;
-    font-size: var(--sl-text-lg, 1.125rem);
-    line-height: var(--sl-line-height-headings, 1.25);
-    color: var(--sl-color-text);
+    font-weight: 450;
+    font-size: 16px;
+    line-height: 1.2;
+    color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
   }
   .integrate-card-chips {
     display: flex;
@@ -692,9 +692,9 @@ const externalToc = external.map(({ slug, data }) => ({
   }
   .integrate-card-description {
     margin: 0;
-    font-size: inherit;
+    font-size: 14px;
     line-height: 1.5;
-    color: var(--sl-color-text);
+    color: light-dark(#555570, var(--tiger-grey-300));
     flex: 1;
     min-height: 0;
   }
