@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { defineConfig } from "astro/config";
+import { defineConfig, fontProviders } from "astro/config";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
 import aiChat from "@stainless-api/docs-ai-chat/plugin";
 
@@ -15,6 +15,21 @@ const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/component
 
 // https://astro.build/config
 export default defineConfig({
+  // Astro 6 moved fonts from experimental.fonts to a top-level key.
+  // The @stainless-api/docs integration still sets experimental.fonts,
+  // so we register the same fonts here for Astro 6 compatibility.
+  fonts: [
+    {
+      provider: fontProviders.fontsource(),
+      name: "Geist Sans",
+      cssVariable: "--stl-typography-font",
+    },
+    {
+      provider: fontProviders.fontsource(),
+      name: "Geist Mono",
+      cssVariable: "--stl-typography-font-mono",
+    },
+  ],
   vite: {
     resolve: {
       alias: [
