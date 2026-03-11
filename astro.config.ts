@@ -282,7 +282,7 @@ export default defineConfig({
               label: "TimescaleDB",
               collapsed: true,
               items: [
-                { slug: "reference/timescaledb" },
+                { label: "Overview", link: "/reference/timescaledb" },
                 {
                   label: "Hypertables and chunks",
                   collapsed: true,
@@ -498,10 +498,10 @@ export default defineConfig({
               ],
             },
             {
-              label: "Toolkit",
+              label: "TimescaleDB Toolkit",
               collapsed: true,
               items: [
-                { slug: "reference/toolkit" },
+                { label: "Overview", link: "/reference/toolkit" },
                 {
                   label: "Approximate count distinct",
                   collapsed: true,
@@ -637,27 +637,7 @@ export default defineConfig({
               ],
             },
             {
-              label: "pgai",
-              collapsed: true,
-              autogenerate: { directory: "reference/pgai" },
-            },
-            {
-              label: "pgvectorscale",
-              collapsed: true,
-              autogenerate: { directory: "reference/pgvectorscale" },
-            },
-            {
-              label: "Tiger Cloud API",
-              collapsed: true,
-              autogenerate: { directory: "reference/tiger-cloud-api" },
-            },
-            {
-              label: "Configuration",
-              collapsed: true,
-              autogenerate: { directory: "reference/configuration" },
-            },
-            {
-              label: "Cloud API Reference",
+              label: "Tiger Cloud REST API",
               collapsed: true,
               items: generateAPIReferenceItems({
                 excludeResourceOverviewPages: true,
