@@ -1,3 +1,4 @@
+import type { Plugin } from "vite";
 import { createRequire } from "node:module";
 import { defineConfig, fontProviders } from "astro/config";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
@@ -12,6 +13,37 @@ const starlightLinksValidator = process.env.CHECK_LINKS
 
 // Resolve package subpaths so aliasing the main "components" entry doesn't break ThemeSelect/SDKSelect.
 const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/components/scripts");
+
+/**
+ * Vite 7 compat: some plugins (e.g. from @stainless-api/docs built for Vite 6)
+ * declare a `transform` (or other hook) as an object with a `filter` but no
+ * `handler`, which crashes EnvironmentPluginContainer because getHookHandler()
+ * returns undefined. This plugin patches those hooks at config-resolution time.
+ */
+function vite7CompatPlugin(): Plugin {
+  const HOOK_NAMES = ["transform", "load", "resolveId"] as const;
+  return {
+    name: "vite7-compat-patch-hooks",
+    enforce: "pre",
+    configResolved(config) {
+      for (const plugin of config.plugins) {
+        for (const hookName of HOOK_NAMES) {
+          const hook = (plugin as any)[hookName];
+          if (
+            hook &&
+            typeof hook === "object" &&
+            typeof hook.handler !== "function" &&
+            typeof hook !== "function"
+          ) {
+            // The hook is an object without a callable handler — remove it so
+            // Vite doesn't try to call undefined.
+            (plugin as any)[hookName] = undefined;
+          }
+        }
+      }
+    },
+  };
+}
 
 // https://astro.build/config
 export default defineConfig({
@@ -31,6 +63,7 @@ export default defineConfig({
     },
   ],
   vite: {
+    plugins: [vite7CompatPlugin()],
     resolve: {
       alias: [
         { find: "@components", replacement: new URL("./src/components", import.meta.url).pathname },
@@ -128,6 +161,10 @@ export default defineConfig({
             {
               label: "Aggregate organizational data with AI agents",
               link: "/learn/examples/aggregate-organizational-data-with-ai/",
+            },
+            {
+              label: "Create Tiger Cloud services with Terraform",
+              link: "/learn/examples/create-services-with-terraform",
             },
             {
               label: "Fundamentals",
