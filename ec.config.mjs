@@ -6,7 +6,8 @@
 import { defineEcConfig } from "@astrojs/starlight/expressive-code";
 
 export default defineEcConfig({
-  themes: ["github-dark"],
+  // Include both themes so the bundle has github-light (required by API reference/markdown) and github-dark (our code blocks).
+  themes: ["github-dark", "github-light"],
   styleOverrides: {
     codeBackground: "#333",
     codeForeground: "#ffffff",
