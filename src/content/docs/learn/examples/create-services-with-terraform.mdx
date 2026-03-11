@@ -14,9 +14,9 @@ import AuthorByline from "@components/AuthorByline.astro";
 import * as C from "@constants";
 
 <AuthorByline
-  name="Jamesín Huq"
-  role="Developer Advocate"
-  githubUsername="jamesinhuq"
+  name="Mathis Van Eetvelde"
+  role="Software Engineer"
+  githubUsername="mathisve"
 />
 
 ## Overview
@@ -35,9 +35,11 @@ By the end, you'll be able to:
 
 ## Background
 
-Terraform is an infrastructure-as-code tool that lets you declaratively configure cloud resources. Your cloud infrastructure becomes a one-to-one representation of your configuration files, which improves security, auditability, and deployment speed.
+Terraform is an infrastructure-as-code tool that lets you declaratively configure cloud resources. Your cloud infrastructure becomes a one-to-one representation of your configuration files, which improves security, auditability, and accountability. One of the biggest practical benefits is deployment speed — instead of manually clicking through a console, you can deploy, reuse, and recycle configurations in seconds.
 
-The Tiger Data Terraform provider brings these benefits to {C.CLOUD_LONG}, letting you create, configure, and destroy services without using the UI.
+Terraform's idempotent nature also makes recovery straightforward. If something goes wrong during a deployment, re-running `terraform apply` brings your infrastructure back to the desired state without manual intervention.
+
+The Tiger Data Terraform provider brings these benefits to {C.CLOUD_LONG}, letting you create, configure, and destroy services entirely from code — no UI required.
 
 <Callout variant="tip">
   As of the Terraform provider v1.2.0, you can also create {C.READ_REPLICA}s
@@ -86,7 +88,7 @@ terraform {
 }
 ```
 
-Using the `~>` operator pins to the latest compatible minor version.
+Using the `~>` operator pins to the latest compatible minor version. You can also omit the `version` argument entirely to always use the latest release.
 
   </NumberedItem>
 
@@ -138,7 +140,13 @@ export TF_VAR_ts_secret_key="<your-secret-key>"
   To find your Project ID, go to the Services tab in {C.CONSOLE} and click the
   kebab menu (⋮) in the top-right corner. To create credentials, go to **Project
   Settings** and click **Create credentials**. Copy both the public and private
-  keys to a secure location — this is the only time you can retrieve them.
+  keys to a secure location (such as a password manager) — this is the only time
+  you can retrieve them.
+</Callout>
+
+<Callout variant="warning">
+  Never share your secret key with anyone. It grants full ability to create and
+  delete {C.SERVICE_LONG}s in your project until the credentials are revoked.
 </Callout>
 
   </NumberedItem>
@@ -151,7 +159,7 @@ Define and deploy a {C.SERVICE_LONG} using your Terraform configuration.
 <NumberedList>
   <NumberedItem title="Add the service resource">
 
-Add a `timescale_service` resource to your `main.tf` file:
+Add a `timescale_service` resource to your `main.tf` file. Configuring a service through Terraform is similar to the advanced configuration menu in the {C.CLOUD_LONG} UI:
 
 ```hcl
 resource "timescale_service" "my_service" {
@@ -166,7 +174,11 @@ resource "timescale_service" "my_service" {
 }
 ```
 
-This creates a service with 1 CPU and 4 GB of memory in `us-east-1`. Only specific CPU and memory combinations are supported — consult the [provider documentation][terraform-provider] for details.
+Here's what each field does:
+
+- **`name`**: The display name for your service. This doesn't need to match the Terraform resource name (`my_service` in this example).
+- **`milli_cpu`** and **`memory_gb`**: CPU and memory allocation. This example uses 1 CPU (1000 milli-CPU) and 4 GB of memory. Only specific combinations are supported — consult the [provider documentation][terraform-provider] for valid options.
+- **`region_code`**: The cloud region for your service. This example uses `us-east-1`, but you can choose any [supported region][terraform-provider].
 
 {C.CLOUD_LONG} automatically allocates and charges only for the storage you use, so you don't need to pre-provision a specific storage size.
 
@@ -189,9 +201,25 @@ terraform plan
 terraform apply
 ```
 
-Terraform shows you the planned changes. Enter `yes` when prompted to confirm:
+Terraform shows you the planned changes, including the resource attributes that will be created. Enter `yes` when prompted to confirm:
 
 ```
+Terraform will perform the following actions:
+
+  # timescale_service.my_service will be created
+  + resource "timescale_service" "my_service" {
+      + enable_ha_replica = false
+      + hostname          = (known after apply)
+      + id                = (known after apply)
+      + memory_gb         = 4
+      + milli_cpu         = 1000
+      + name              = "my-service"
+      + password          = (sensitive value)
+      + port              = (known after apply)
+      + region_code       = "us-east-1"
+      + username          = (known after apply)
+    }
+
 Plan: 1 to add, 0 to change, 0 to destroy.
 
 Do you want to perform these actions?
@@ -206,12 +234,14 @@ timescale_service.my_service: Creation complete after 38s
 Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
 ```
 
+Notice that values like `hostname`, `port`, `username`, and `password` are marked as `(known after apply)` — these are only available after the service is created. You retrieve them using Terraform outputs in the next section.
+
   </NumberedItem>
 </NumberedList>
 
 ## Retrieve service connection details
 
-After deploying the service, use Terraform outputs to retrieve the connection details, including the password.
+After deploying the service, your first instinct might be to go to the {C.CLOUD_LONG} console and copy the connection string. However, the console connection string doesn't include the password. The only way to retrieve the password for a Terraform-managed service is through Terraform outputs.
 
 <NumberedList>
   <NumberedItem title="Define the outputs">
@@ -248,7 +278,22 @@ terraform apply
 terraform output
 ```
 
-Terraform shows the hostname, port, and username, but keeps the password hidden because it is marked `sensitive`. To retrieve the password, use the `-json` flag:
+Terraform shows the hostname, port, and username in plain text, but keeps the password hidden:
+
+```
+service_hostname = "abc123.tsdb.cloud.tigerdata.com"
+service_password = <sensitive>
+service_port = "30211"
+service_username = "tsdbadmin"
+```
+
+This is because the password is marked `sensitive` — Terraform avoids printing it to the terminal since you never know where your logs might end up. To retrieve the password, use the `-json` flag to output all values in JSON format:
+
+```bash
+terraform output -json
+```
+
+This prints all outputs including sensitive values. To extract just the password, pipe the output through `jq`:
 
 ```bash
 terraform output -json | jq -r ".service_password.value"
