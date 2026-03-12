@@ -672,7 +672,74 @@ export default defineConfig({
             {
               label: "Self-Hosted",
               collapsed: true,
-              autogenerate: { directory: "deploy/self-hosted" },
+              items: [
+                { label: "Overview", link: "/deploy/self-hosted" },
+                {
+                  label: "Configuration",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/deploy/self-hosted/configuration" },
+                    { label: "About configuration", link: "/deploy/self-hosted/configuration/about-configuration" },
+                    { label: "Using timescaledb-tune", link: "/deploy/self-hosted/configuration/timescaledb-tune" },
+                    { label: "Manual PostgreSQL configuration", link: "/deploy/self-hosted/configuration/postgres-config" },
+                    { label: "TimescaleDB configuration", link: "/deploy/self-hosted/configuration/timescaledb-config" },
+                    { label: "Docker configuration", link: "/deploy/self-hosted/configuration/docker-config" },
+                    { label: "Telemetry", link: "/deploy/self-hosted/configuration/telemetry" },
+                  ],
+                },
+                {
+                  label: "Backup and restore",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/deploy/self-hosted/backup-and-restore" },
+                    { label: "Logical backup", link: "/deploy/self-hosted/backup-and-restore/logical-backup" },
+                    { label: "Physical backups", link: "/deploy/self-hosted/backup-and-restore/physical" },
+                  ],
+                },
+                {
+                  label: "Migrate to self-hosted TimescaleDB",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/deploy/self-hosted/migration" },
+                    { label: "Migrate entire database", link: "/deploy/self-hosted/migration/entire-database" },
+                    { label: "Migrate schema then data", link: "/deploy/self-hosted/migration/schema-then-data" },
+                    { label: "Migrate tables from the same database", link: "/deploy/self-hosted/migration/same-db" },
+                    { label: "Migrate data from InfluxDB", link: "/deploy/self-hosted/migration/migrate-influxdb" },
+                  ],
+                },
+                { label: "Manage storage using tablespaces", link: "/deploy/self-hosted/manage-storage" },
+                {
+                  label: "Replication and high availability",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/deploy/self-hosted/replication-and-ha" },
+                    { label: "About high availability", link: "/deploy/self-hosted/replication-and-ha/about-ha" },
+                    { label: "Configure replication", link: "/deploy/self-hosted/replication-and-ha/configure-replication" },
+                  ],
+                },
+                {
+                  label: "Additional tooling",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/deploy/self-hosted/tooling" },
+                    { label: "TimescaleDB Tune", link: "/deploy/self-hosted/tooling/about-timescaledb-tune" },
+                    { label: "Install and update TimescaleDB Toolkit", link: "/deploy/self-hosted/tooling/install-toolkit" },
+                  ],
+                },
+                {
+                  label: "Upgrade self-hosted TimescaleDB",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/deploy/self-hosted/upgrades" },
+                    { label: "Upgrade to a minor version", link: "/deploy/self-hosted/upgrades/minor-upgrade" },
+                    { label: "Upgrade to a major version", link: "/deploy/self-hosted/upgrades/major-upgrade" },
+                    { label: "Upgrade TimescaleDB in Docker", link: "/deploy/self-hosted/upgrades/upgrade-docker" },
+                    { label: "Upgrade PostgreSQL", link: "/deploy/self-hosted/upgrades/upgrade-pg" },
+                    { label: "Downgrade to a minor version", link: "/deploy/self-hosted/upgrades/downgrade" },
+                  ],
+                },
+                { label: "Uninstall self-hosted TimescaleDB", link: "/deploy/self-hosted/uninstall" },
+              ],
             },
             {
               label: "Managed Service (MST)",

@@ -1,0 +1,74 @@
+---
+title: Manual PostgreSQL configuration and tuning
+description: Manually configure your self-hosted database using the PostgreSQL configuration file
+products: [self_hosted]
+keywords: [configuration, settings]
+---
+
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+If you prefer to tune settings yourself, or for settings not covered by
+`timescaledb-tune`, you can manually configure your installation using the
+{C.PG} configuration file.
+
+For some common configuration settings you might want to adjust, see the
+[about configuration](/deploy/self-hosted/configuration/about-configuration) page.
+
+For more information about the {C.PG} configuration page, see the
+[{C.PG} documentation](https://www.postgresql.org/docs/current/config-setting.html).
+
+## Edit the {C.PG} configuration file
+
+The location of the {C.PG} configuration file depends on your operating
+system and installation.
+
+<NumberedList>
+<NumberedItem title="Find the location of the config file for your instance">
+<ol type="a">
+<li>
+
+Connect to your database:
+```shell
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+
+</li>
+<li>
+
+Retrieve the database file location from the database internal configuration.
+```sql
+SHOW config_file;
+```
+{C.PG} returns the path to your configuration file. For example:
+```sql
+--------------------------------------------
+/home/postgres/pgdata/data/postgresql.conf
+(1 row)
+```
+
+</li>
+</ol>
+</NumberedItem>
+<NumberedItem title={`Open the config file, then edit your ${C.PG} configuration`}>
+See the [{C.PG} documentation](https://www.postgresql.org/docs/current/config-setting.html) for details on available settings.
+```shell
+vi /home/postgres/pgdata/data/postgresql.conf
+```
+</NumberedItem>
+<NumberedItem title="Save your updated configuration">
+When you have saved the changes you make to the configuration file, the new configuration is
+not applied immediately. The configuration file is automatically reloaded when the server
+receives a `SIGHUP` signal. To manually reload the file, use the `pg_ctl` command.
+</NumberedItem>
+</NumberedList>
+
+## Setting parameters at the command prompt
+
+If you don't want to open the configuration file to make changes, you can also
+set parameters directly from the command prompt, using the `postgres` command.
+For example:
+
+```sql
+postgres -c log_connections=yes -c log_destination='syslog'
+```
