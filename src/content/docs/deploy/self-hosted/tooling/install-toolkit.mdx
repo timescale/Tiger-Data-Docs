@@ -1,0 +1,908 @@
+---
+title: Install, update, and uninstall TimescaleDB Toolkit
+description: Install, update, and uninstall the TimescaleDB Toolkit extension to access more hyperfunctions and function pipelines
+products: [self_hosted]
+keywords: [Toolkit, installation, uninstallation, hyperfunctions, function pipelines]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+Some hyperfunctions are included by default in {C.TIMESCALE_DB}. For additional
+hyperfunctions, you need to install the {C.TOOLKIT_LONG} {C.PG}
+extension.
+
+If you're hosting the {C.TIMESCALE_DB} extension on your self-hosted database, you can install {C.TOOLKIT_SHORT} by:
+
+*   Using the {C.TIMESCALE_DB} high-availability Docker image
+*   Using a package manager such as `yum`, `apt`, or `brew` on platforms where
+    pre-built binaries are available
+*   Building from source. For more information, see the [{C.TOOLKIT_SHORT} developer documentation](https://github.com/timescale/timescaledb-toolkit#-installing-from-source)
+
+<Tabs>
+
+<TabItem label="Docker">
+
+## Install {C.TOOLKIT_LONG}
+
+The {C.TOOLKIT_SHORT} extension is pre-installed and pre-enabled when you
+install the {C.TIMESCALE_DB} HA docker image from a Docker container. Once you
+start the container, the extension is already active in your database and ready to use. No additional
+installation steps are required.
+
+## Update {C.TOOLKIT_LONG}
+
+To get the latest version of {C.TOOLKIT_SHORT}, update the {C.TIMESCALE_DB} HA docker image.
+
+## Uninstall {C.TOOLKIT_LONG}
+
+{C.TOOLKIT_SHORT} is included in the {C.TIMESCALE_DB} HA Docker image and cannot be uninstalled separately. To remove {C.TOOLKIT_SHORT}, you need to remove the entire {C.TIMESCALE_DB} container. See [Uninstall {C.TIMESCALE_DB} from Docker](/deploy/self-hosted/uninstall).
+
+To remove the extension from a specific database without removing the container:
+
+<NumberedList>
+<NumberedItem title="Connect to your database">
+
+```bash
+docker exec -it timescaledb psql -U postgres -d <database_name>
+```
+</NumberedItem>
+<NumberedItem title={`Drop the ${C.TOOLKIT_SHORT} extension`}>
+
+```sql
+DROP EXTENSION IF EXISTS timescaledb_toolkit CASCADE;
+```
+
+<Callout variant="warning">
+Using `CASCADE` drops all objects that depend on the {C.TOOLKIT_SHORT} extension. Ensure you have backed up any
+data you want to keep.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="Kubernetes">
+
+## Install {C.TOOLKIT_LONG}
+
+The {C.TOOLKIT_SHORT} extension is pre-installed and pre-enabled when you
+install {C.TIMESCALE_DB} on Kubernetes. Once you start the container, the extension is already
+active in your database and ready to use. No additional installation steps are required.
+
+## Update {C.TOOLKIT_LONG}
+
+To get the latest version of {C.TOOLKIT_SHORT}, update the {C.TIMESCALE_DB} HA Docker image used by your Kubernetes StatefulSet:
+
+<NumberedList>
+<NumberedItem title="Update the StatefulSet to use the latest image">
+Replace `<new-version>` with the desired version tag. For example, `pg18`. You find the available tags on
+the [{C.TIMESCALE_DB} HA Docker Hub page](https://hub.docker.com/r/timescale/timescaledb-ha/tags).
+
+```shell
+kubectl set image statefulset/timescaledb timescaledb=timescale/timescaledb-ha:<new-version> -n tigerdata
+```
+
+Kubernetes performs a rolling update, replacing the pod with the new image version.
+</NumberedItem>
+<NumberedItem title="Verify the new image is running">
+
+```shell
+kubectl get statefulset timescaledb -n tigerdata -o jsonpath='{.spec.template.spec.containers[0].image}'
+```
+</NumberedItem>
+<NumberedItem title={`Connect to your ${C.TIMESCALE_DB} pod and verify the extension versions`}>
+
+```shell
+kubectl exec -it test-pod -- bash -c "psql -h \$PGHOST -U \$PGUSER -d \$PGDATABASE"
+\dx
+```
+</NumberedItem>
+</NumberedList>
+
+## Uninstall {C.TOOLKIT_LONG}
+
+{C.TOOLKIT_SHORT} is included in the TimescaleDB HA Docker image and cannot be uninstalled separately. To remove {C.TOOLKIT_SHORT}, you need to remove the entire TimescaleDB deployment. See [Uninstall TimescaleDB from Kubernetes](/deploy/self-hosted/uninstall).
+
+If you only want to remove the extension from a specific database without removing the deployment:
+
+<NumberedList>
+<NumberedItem title={`Connect to your ${C.TIMESCALE_DB} pod`}>
+
+```shell
+kubectl exec -it test-pod -- bash -c "psql -h \$PGHOST -U \$PGUSER -d \$PGDATABASE"
+```
+</NumberedItem>
+<NumberedItem title={`Drop the ${C.TOOLKIT_SHORT} extension`}>
+At the `psql` prompt:
+
+```sql
+DROP EXTENSION timescaledb_toolkit;
+```
+
+<Callout variant="warning">
+Using `CASCADE` drops all objects that depend on the {C.TOOLKIT_SHORT} extension. Ensure you have backed up any data
+you want to keep.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="Linux">
+
+<Tabs>
+
+<TabItem label="Debian">
+
+## Install {C.TOOLKIT_LONG}
+
+These instructions use the `apt` package manager.
+
+<NumberedList>
+<NumberedItem title="Update your local repository list">
+
+```bash
+sudo apt update
+```
+</NumberedItem>
+<NumberedItem title="Install TimescaleDB Toolkit">
+
+```bash
+sudo apt install timescaledb-toolkit-postgresql-18
+```
+</NumberedItem>
+<NumberedItem title={`Connect to the database where you want to use ${C.TOOLKIT_SHORT}`}>
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+</NumberedItem>
+<NumberedItem title={`Create the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+CREATE EXTENSION timescaledb_toolkit;
+```
+</NumberedItem>
+</NumberedList>
+
+## Update {C.TOOLKIT_LONG}
+
+Update {C.TOOLKIT_SHORT} by installing the latest version and running `ALTER EXTENSION`.
+
+<NumberedList>
+<NumberedItem title="Update your local repository list">
+
+```bash
+apt update
+```
+</NumberedItem>
+<NumberedItem title={`Install the latest version of ${C.TOOLKIT_LONG}`}>
+
+```bash
+apt install timescaledb-toolkit-postgresql-18
+```
+</NumberedItem>
+<NumberedItem title={`Connect to the database where you want to use ${C.TOOLKIT_SHORT}`}>
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+</NumberedItem>
+<NumberedItem title={`Update the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+ALTER EXTENSION timescaledb_toolkit UPDATE;
+```
+
+<Callout variant="note">
+For some {C.TOOLKIT_SHORT} versions, you might need to disconnect and reconnect active
+sessions.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+## Uninstall {C.TOOLKIT_LONG}
+
+If you no longer need {C.TOOLKIT_SHORT}, you can remove it without uninstalling {C.TIMESCALE_DB} or {C.PG}.
+
+<NumberedList>
+<NumberedItem title={`Drop the ${C.TOOLKIT_SHORT} extension from your databases`}>
+Connect to each database where {C.TOOLKIT_SHORT} is enabled and remove the extension:
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+
+At the `psql` prompt:
+
+```sql
+DROP EXTENSION IF EXISTS timescaledb_toolkit CASCADE;
+```
+
+Repeat this for all databases with {C.TOOLKIT_SHORT} enabled. To exit psql, type `\q`.
+
+<Callout variant="warning">
+Using `CASCADE` will drop all objects that depend on the {C.TOOLKIT_SHORT} extension. Ensure you have backed up any data you want to keep.
+</Callout>
+</NumberedItem>
+<NumberedItem title={`Uninstall the ${C.TOOLKIT_SHORT} package`}>
+
+```bash
+sudo apt remove timescaledb-toolkit-postgresql-18
+```
+
+Replace `18` with your {C.PG} version if different.
+</NumberedItem>
+<NumberedItem title="(Optional) Remove dependencies">
+To also remove unused dependencies:
+
+```bash
+sudo apt autoremove
+```
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="Ubuntu">
+
+## Install {C.TOOLKIT_LONG}
+
+These instructions use the `apt` package manager.
+
+<NumberedList>
+<NumberedItem title="Update your local repository list">
+
+```bash
+sudo apt update
+```
+</NumberedItem>
+<NumberedItem title="Install TimescaleDB Toolkit">
+
+```bash
+sudo apt install timescaledb-toolkit-postgresql-18
+```
+</NumberedItem>
+<NumberedItem title={`Connect to the database where you want to use ${C.TOOLKIT_SHORT}`}>
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+</NumberedItem>
+<NumberedItem title={`Create the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+CREATE EXTENSION timescaledb_toolkit;
+```
+</NumberedItem>
+</NumberedList>
+
+## Update {C.TOOLKIT_LONG}
+
+Update {C.TOOLKIT_SHORT} by installing the latest version and running `ALTER EXTENSION`.
+
+<NumberedList>
+<NumberedItem title="Update your local repository list">
+
+```bash
+apt update
+```
+</NumberedItem>
+<NumberedItem title={`Install the latest version of ${C.TOOLKIT_LONG}`}>
+
+```bash
+apt install timescaledb-toolkit-postgresql-18
+```
+</NumberedItem>
+<NumberedItem title={`Connect to the database where you want to use ${C.TOOLKIT_SHORT}`}>
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+</NumberedItem>
+<NumberedItem title={`Update the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+ALTER EXTENSION timescaledb_toolkit UPDATE;
+```
+
+<Callout variant="note">
+For some {C.TOOLKIT_SHORT} versions, you might need to disconnect and reconnect active
+sessions.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+## Uninstall {C.TOOLKIT_LONG}
+
+If you no longer need {C.TOOLKIT_SHORT}, you can remove it without uninstalling {C.TIMESCALE_DB} or {C.PG}.
+
+<NumberedList>
+<NumberedItem title={`Drop the ${C.TOOLKIT_SHORT} extension from your databases`}>
+Connect to each database where {C.TOOLKIT_SHORT} is enabled and remove the extension:
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+
+At the `psql` prompt:
+
+```sql
+DROP EXTENSION IF EXISTS timescaledb_toolkit CASCADE;
+```
+
+Repeat this for all databases with {C.TOOLKIT_SHORT} enabled. To exit psql, type `\q`.
+
+<Callout variant="warning">
+Using `CASCADE` will drop all objects that depend on the {C.TOOLKIT_SHORT} extension. Ensure you have backed up any data you want to keep.
+</Callout>
+</NumberedItem>
+<NumberedItem title={`Uninstall the ${C.TOOLKIT_SHORT} package`}>
+
+```bash
+sudo apt remove timescaledb-toolkit-postgresql-18
+```
+
+Replace `18` with your {C.PG} version if different.
+</NumberedItem>
+<NumberedItem title="(Optional) Remove dependencies">
+To also remove unused dependencies:
+
+```bash
+sudo apt autoremove
+```
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="Red Hat">
+
+## Install {C.TOOLKIT_LONG}
+
+These instructions use the `yum` package manager.
+
+<NumberedList>
+<NumberedItem title="Update your local repository list">
+
+```bash
+sudo yum update
+```
+</NumberedItem>
+<NumberedItem title={`Install ${C.TOOLKIT_LONG}`}>
+
+```bash
+sudo yum install timescaledb-toolkit-postgresql-18
+```
+</NumberedItem>
+<NumberedItem title={`Connect to the database where you want to use ${C.TOOLKIT_SHORT}`}>
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+</NumberedItem>
+<NumberedItem title={`Create the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+CREATE EXTENSION timescaledb_toolkit;
+```
+</NumberedItem>
+</NumberedList>
+
+## Update {C.TOOLKIT_LONG}
+
+Update {C.TOOLKIT_SHORT} by installing the latest version and running `ALTER EXTENSION`.
+
+<NumberedList>
+<NumberedItem title="Update your local repository list">
+
+```bash
+yum update
+```
+</NumberedItem>
+<NumberedItem title={`Install the latest version of ${C.TOOLKIT_LONG}`}>
+
+```bash
+yum install timescaledb-toolkit-postgresql-18
+```
+</NumberedItem>
+<NumberedItem title={`Connect to the database where you want to use ${C.TOOLKIT_SHORT}`}>
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+</NumberedItem>
+<NumberedItem title={`Update the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+ALTER EXTENSION timescaledb_toolkit UPDATE;
+```
+
+<Callout variant="note">
+For some {C.TOOLKIT_SHORT} versions, you might need to disconnect and reconnect active
+sessions.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+## Uninstall {C.TOOLKIT_LONG}
+
+If you no longer need {C.TOOLKIT_SHORT}, you can remove it without uninstalling {C.TIMESCALE_DB} or {C.PG}.
+
+<NumberedList>
+<NumberedItem title={`Drop the ${C.TOOLKIT_SHORT} extension from your databases`}>
+Connect to each database where {C.TOOLKIT_SHORT} is enabled and remove the extension:
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+
+At the `psql` prompt:
+
+```sql
+DROP EXTENSION IF EXISTS timescaledb_toolkit CASCADE;
+```
+
+Repeat this for all databases with {C.TOOLKIT_SHORT} enabled. To exit psql, type `\q`.
+
+<Callout variant="warning">
+Using `CASCADE` will drop all objects that depend on the {C.TOOLKIT_SHORT} extension. Ensure you have backed up any data you want to keep.
+</Callout>
+</NumberedItem>
+<NumberedItem title={`Uninstall the ${C.TOOLKIT_SHORT} package`}>
+
+```bash
+sudo yum remove timescaledb-toolkit-postgresql-18
+```
+
+Replace `18` with your {C.PG} version if different.
+</NumberedItem>
+<NumberedItem title="(Optional) Remove dependencies">
+To also remove unused dependencies:
+
+```bash
+sudo yum autoremove
+```
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="Fedora">
+
+## Install {C.TOOLKIT_LONG}
+
+These instructions use the `yum` package manager.
+
+<NumberedList>
+<NumberedItem title="Update your local repository list">
+
+```bash
+sudo yum update
+```
+</NumberedItem>
+<NumberedItem title={`Install ${C.TOOLKIT_LONG}`}>
+
+```bash
+sudo yum install timescaledb-toolkit-postgresql-18
+```
+</NumberedItem>
+<NumberedItem title={`Connect to the database where you want to use ${C.TOOLKIT_SHORT}`}>
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+</NumberedItem>
+<NumberedItem title={`Create the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+CREATE EXTENSION timescaledb_toolkit;
+```
+</NumberedItem>
+</NumberedList>
+
+## Update {C.TOOLKIT_LONG}
+
+Update {C.TOOLKIT_SHORT} by installing the latest version and running `ALTER EXTENSION`.
+
+<NumberedList>
+<NumberedItem title="Update your local repository list">
+
+```bash
+yum update
+```
+</NumberedItem>
+<NumberedItem title={`Install the latest version of ${C.TOOLKIT_LONG}`}>
+
+```bash
+yum install timescaledb-toolkit-postgresql-18
+```
+</NumberedItem>
+<NumberedItem title={`Connect to the database where you want to use ${C.TOOLKIT_SHORT}`}>
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+</NumberedItem>
+<NumberedItem title={`Update the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+ALTER EXTENSION timescaledb_toolkit UPDATE;
+```
+
+<Callout variant="note">
+For some {C.TOOLKIT_SHORT} versions, you might need to disconnect and reconnect active
+sessions.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+## Uninstall {C.TOOLKIT_LONG}
+
+If you no longer need {C.TOOLKIT_SHORT}, you can remove it without uninstalling {C.TIMESCALE_DB} or {C.PG}.
+
+<NumberedList>
+<NumberedItem title={`Drop the ${C.TOOLKIT_SHORT} extension from your databases`}>
+Connect to each database where {C.TOOLKIT_SHORT} is enabled and remove the extension:
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+
+At the `psql` prompt:
+
+```sql
+DROP EXTENSION IF EXISTS timescaledb_toolkit CASCADE;
+```
+
+Repeat this for all databases with {C.TOOLKIT_SHORT} enabled. To exit psql, type `\q`.
+
+<Callout variant="warning">
+Using `CASCADE` will drop all objects that depend on the {C.TOOLKIT_SHORT} extension. Ensure you have backed up any data you want to keep.
+</Callout>
+</NumberedItem>
+<NumberedItem title={`Uninstall the ${C.TOOLKIT_SHORT} package`}>
+
+```bash
+sudo yum remove timescaledb-toolkit-postgresql-18
+```
+
+Replace `18` with your {C.PG} version if different.
+</NumberedItem>
+<NumberedItem title="(Optional) Remove dependencies">
+To also remove unused dependencies:
+
+```bash
+sudo yum autoremove
+```
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="RockyLinux">
+
+## Install {C.TOOLKIT_LONG}
+
+These instructions use the `dnf` package manager.
+
+<NumberedList>
+<NumberedItem title="Update your local repository list">
+
+```bash
+sudo dnf update
+```
+</NumberedItem>
+<NumberedItem title={`Install ${C.TOOLKIT_LONG}`}>
+
+```bash
+sudo dnf install timescaledb-toolkit-postgresql-18
+```
+</NumberedItem>
+<NumberedItem title={`Connect to the database where you want to use ${C.TOOLKIT_SHORT}`}>
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+</NumberedItem>
+<NumberedItem title={`Create the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+CREATE EXTENSION timescaledb_toolkit;
+```
+</NumberedItem>
+</NumberedList>
+
+## Update {C.TOOLKIT_LONG}
+
+Update {C.TOOLKIT_SHORT} by installing the latest version and running `ALTER EXTENSION`.
+
+<NumberedList>
+<NumberedItem title="Update your local repository list">
+
+```bash
+sudo dnf update
+```
+</NumberedItem>
+<NumberedItem title={`Install the latest version of ${C.TOOLKIT_LONG}`}>
+
+```bash
+sudo dnf install timescaledb-toolkit-postgresql-18
+```
+</NumberedItem>
+<NumberedItem title={`Connect to the database where you want to use ${C.TOOLKIT_SHORT}`}>
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+</NumberedItem>
+<NumberedItem title={`Update the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+ALTER EXTENSION timescaledb_toolkit UPDATE;
+```
+
+<Callout variant="note">
+For some {C.TOOLKIT_SHORT} versions, you might need to disconnect and reconnect active
+sessions.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+## Uninstall {C.TOOLKIT_LONG}
+
+If you no longer need {C.TOOLKIT_SHORT}, you can remove it without uninstalling {C.TIMESCALE_DB} or {C.PG}.
+
+<NumberedList>
+<NumberedItem title={`Drop the ${C.TOOLKIT_SHORT} extension from your databases`}>
+Connect to each database where {C.TOOLKIT_SHORT} is enabled and remove the extension:
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+
+At the `psql` prompt:
+
+```sql
+DROP EXTENSION IF EXISTS timescaledb_toolkit CASCADE;
+```
+
+Repeat this for all databases with {C.TOOLKIT_SHORT} enabled. To exit psql, type `\q`.
+
+<Callout variant="warning">
+Using `CASCADE` will drop all objects that depend on the {C.TOOLKIT_SHORT} extension. Ensure you have backed up any data you want to keep.
+</Callout>
+</NumberedItem>
+<NumberedItem title={`Uninstall the ${C.TOOLKIT_SHORT} package`}>
+
+```bash
+sudo dnf remove timescaledb-toolkit-postgresql-18
+```
+
+Replace `18` with your {C.PG} version if different.
+</NumberedItem>
+<NumberedItem title="(Optional) Remove dependencies">
+To also remove unused dependencies:
+
+```bash
+sudo dnf autoremove
+```
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+
+</Tabs>
+
+</TabItem>
+
+<TabItem label="macOS">
+
+## Install {C.TOOLKIT_LONG}
+
+These instructions use the `brew` package manager. For more information on
+installing or using Homebrew, see [the `brew` homepage](https://brew.sh).
+
+<NumberedList>
+<NumberedItem title={`Tap the ${C.COMPANY} formula repository`}>
+This also contains formulae for
+{C.TIMESCALE_DB} and `timescaledb-tune`.
+
+```bash
+brew tap timescale/tap
+```
+</NumberedItem>
+<NumberedItem title="Update your local brew installation">
+
+```bash
+brew update
+```
+</NumberedItem>
+<NumberedItem title={`Install ${C.TOOLKIT_LONG}`}>
+
+```bash
+brew install timescaledb-toolkit
+```
+</NumberedItem>
+<NumberedItem title={`Connect to ${C.PG}`}>
+
+```bash
+psql postgres
+```
+</NumberedItem>
+<NumberedItem title={`Create the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+CREATE EXTENSION timescaledb_toolkit;
+```
+
+<Callout variant="warning">
+If you encounter an error like `could not access file "$libdir/timescaledb_toolkit-X.XX.X"`, you may need to create a symlink from `.so` to `.dylib` format:
+
+```bash
+ln -sf $(pg_config --pkglibdir)/timescaledb_toolkit-*.so \
+       $(pg_config --pkglibdir)/timescaledb_toolkit-*.dylib
+```
+
+This is due to a known issue in the Homebrew formula where the library is installed with a `.so` extension, but {C.PG} on macOS expects a `.dylib` extension.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+## Update {C.TOOLKIT_LONG}
+
+Update {C.TOOLKIT_SHORT} by installing the latest version and running `ALTER EXTENSION`.
+
+<NumberedList>
+<NumberedItem title="Update your local repository list">
+
+```bash
+brew update
+```
+</NumberedItem>
+<NumberedItem title={`Install the latest version of ${C.TOOLKIT_LONG}`}>
+
+```bash
+brew upgrade timescaledb-toolkit
+```
+</NumberedItem>
+<NumberedItem title={`Connect to ${C.PG}`}>
+
+```bash
+psql postgres
+```
+</NumberedItem>
+<NumberedItem title={`Update the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+ALTER EXTENSION timescaledb_toolkit UPDATE;
+```
+
+<Callout variant="note">
+For some {C.TOOLKIT_SHORT} versions, you might need to disconnect and reconnect active
+sessions.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+## Uninstall {C.TOOLKIT_LONG}
+
+If you no longer need {C.TOOLKIT_SHORT}, you can remove it without uninstalling {C.TIMESCALE_DB} or {C.PG}.
+
+<NumberedList>
+<NumberedItem title={`Drop the ${C.TOOLKIT_SHORT} extension from your databases`}>
+Connect to each database where {C.TOOLKIT_SHORT} is enabled and remove the extension:
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+
+At the `psql` prompt:
+
+```sql
+DROP EXTENSION IF EXISTS timescaledb_toolkit CASCADE;
+```
+
+Repeat this for all databases with {C.TOOLKIT_SHORT} enabled. To exit psql, type `\q`.
+
+<Callout variant="warning">
+Using `CASCADE` will drop all objects that depend on the {C.TOOLKIT_SHORT} extension. Ensure you have backed up any data you want to keep.
+</Callout>
+</NumberedItem>
+<NumberedItem title={`Uninstall the ${C.TOOLKIT_SHORT} package`}>
+
+```bash
+brew uninstall timescaledb-toolkit
+```
+</NumberedItem>
+<NumberedItem title="(Optional) Remove manual symlinks">
+If you created a manual `.dylib` symlink as a workaround during installation, remove it:
+
+```bash
+rm $(pg_config --pkglibdir)/timescaledb_toolkit-*.dylib 2>/dev/null || true
+```
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="Source">
+
+## Install {C.TOOLKIT_LONG}
+
+To install {C.TOOLKIT_SHORT} from source:
+
+<NumberedList>
+<NumberedItem title="Build the extension from the latest source code">
+Follow the build instructions in the [TimescaleDB Toolkit GitHub repository](https://github.com/timescale/timescaledb-toolkit#-installing-from-source) to download and
+build the latest version.
+</NumberedItem>
+<NumberedItem title="Connect to your database">
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+</NumberedItem>
+<NumberedItem title={`Create the ${C.TOOLKIT_SHORT} extension in the database`}>
+
+```sql
+CREATE EXTENSION timescaledb_toolkit;
+```
+</NumberedItem>
+</NumberedList>
+
+## Update {C.TOOLKIT_LONG}
+
+To update {C.TOOLKIT_SHORT} installed from source:
+
+<NumberedList>
+<NumberedItem title="Build the extension from the latest source code">
+Follow the build instructions in the [TimescaleDB Toolkit GitHub repository](https://github.com/timescale/timescaledb-toolkit#-installing-from-source) to download and
+build the latest version.
+</NumberedItem>
+<NumberedItem title="Connect to your database">
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+</NumberedItem>
+<NumberedItem title="Update the Toolkit extension in the database">
+
+```sql
+ALTER EXTENSION timescaledb_toolkit UPDATE;
+```
+</NumberedItem>
+</NumberedList>
+
+## Uninstall {C.TOOLKIT_LONG}
+
+If you installed {C.TOOLKIT_SHORT} by building from source, you can uninstall it without removing {C.TIMESCALE_DB} or {C.PG}.
+
+<NumberedList>
+<NumberedItem title={`Drop the ${C.TOOLKIT_SHORT} extension from your databases`}>
+Connect to each database where {C.TOOLKIT_SHORT} is enabled and remove the extension:
+
+```bash
+psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"
+```
+
+At the `psql` prompt:
+
+```sql
+DROP EXTENSION IF EXISTS timescaledb_toolkit CASCADE;
+```
+
+Repeat this for all databases with {C.TOOLKIT_SHORT} enabled. To exit psql, type `\q`.
+
+<Callout variant="warning">
+Using `CASCADE` will drop all objects that depend on the {C.TOOLKIT_SHORT} extension. Ensure you have backed up any data you want to keep.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+
+</Tabs>
