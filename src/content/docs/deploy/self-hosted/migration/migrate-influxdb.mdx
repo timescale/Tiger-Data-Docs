@@ -1,0 +1,149 @@
+---
+title: Migrate data to TimescaleDB from InfluxDB
+description: Migrate data into your self-hosted TimescaleDB installation using the Outflux tool
+products: [self_hosted]
+keywords: [data migration, InfluxDB, Outflux]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+You can migrate data to {C.TIMESCALE_DB} from InfluxDB using the Outflux tool.
+[Outflux](https://github.com/timescale/outflux) is an open source tool built by {C.COMPANY} for fast, seamless
+migrations. It pipes exported data directly to {C.SELF_LONG}, and manages schema
+discovery, validation, and creation.
+
+<Callout variant="warning">
+Outflux works with earlier versions of InfluxDB. It does not work with InfluxDB
+version 2 and later.
+</Callout>
+
+## Prerequisites
+
+Before you start, make sure you have:
+
+*   A running instance of InfluxDB and a means to connect to it.
+*   A {C.SELF_LONG} instance and a means to connect to it.
+*   Data in your InfluxDB instance.
+
+## Procedures
+
+To import data from Outflux, follow these procedures:
+
+1.  [Install Outflux](#install-outflux)
+1.  [Discover, validate, and transfer schema](#discover-validate-and-transfer-schema) to {C.SELF_LONG} (optional)
+1.  [Migrate data to {C.TIMESCALE_DB}](#migrate-data-to-timescaledb)
+
+## Install Outflux
+
+Install Outflux from the GitHub repository. There are builds for Linux, Windows,
+and MacOS.
+
+<NumberedList>
+<NumberedItem title="Go to the releases section of the Outflux repository">
+Open the [Outflux releases page](https://github.com/timescale/outflux/releases).
+</NumberedItem>
+<NumberedItem title="Download the latest compressed tarball for your platform">
+</NumberedItem>
+<NumberedItem title="Extract it to a preferred location">
+<Callout variant="note">
+If you prefer to build Outflux from source, see the [Outflux README](https://github.com/timescale/outflux/blob/master/README.md) for
+instructions.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+To get help with Outflux, run `./outflux --help` from the directory
+where you installed it.
+
+## Discover, validate, and transfer schema
+
+Outflux can:
+
+*   Discover the schema of an InfluxDB measurement
+*   Validate whether a table exists that can hold the transferred data
+*   Create a new table to satisfy the schema requirements if no valid table
+    exists
+
+<Callout variant="note">
+Outflux's `migrate` command does schema transfer and data migration in one step.
+For more information, see the [migrate](#migrate-data-to-timescaledb) section.
+Use this section if you want to validate and transfer your schema independently
+of data migration.
+</Callout>
+
+To transfer your schema from InfluxDB to Timescale, run `outflux
+schema-transfer`:
+
+```bash
+outflux schema-transfer <DATABASE_NAME> <INFLUX_MEASUREMENT_NAME> \
+--input-server=http://localhost:8086 \
+--output-conn="dbname=tsdb user=tsdbadmin"
+```
+
+To transfer all measurements from the database, leave out the measurement name
+argument.
+
+<Callout variant="note">
+This example uses the `postgres` user and database to connect to the {C.SELF_LONG} instance. For other connection options and configuration, see the [Outflux
+GitHub repo](https://github.com/timescale/outflux#connection).
+</Callout>
+
+### Schema transfer options
+
+Outflux's `schema-transfer` can use 1 of 4 schema strategies:
+
+*   `ValidateOnly`: checks that {C.SELF_LONG} is installed and that the specified
+    database has a properly partitioned hypertable with the correct columns, but
+    doesn't perform modifications
+*   `CreateIfMissing`: runs the same checks as `ValidateOnly`, and creates and
+    properly partitions any missing hypertables
+*   `DropAndCreate`: drops any existing table with the same name as the
+    measurement, and creates a new hypertable and partitions it properly
+*   `DropCascadeAndCreate`: performs the same action as `DropAndCreate`, and
+    also executes a cascade table drop if there is an existing table with the
+    same name as the measurement
+
+You can specify your schema strategy by passing a value to the
+`--schema-strategy` option in the `schema-transfer` command. The default
+strategy is `CreateIfMissing`.
+
+By default, each tag and field in InfluxDB is treated as a separate column in
+your {C.TIMESCALE_DB} tables. To transfer tags and fields as a single JSONB column,
+use the flag `--tags-as-json`.
+
+## Migrate data to {C.TIMESCALE_DB}
+
+Transfer your schema and migrate your data all at once with the `migrate`
+command.
+
+For example, run:
+
+```bash
+outflux migrate <DATABASE_NAME> <INFLUX_MEASUREMENT_NAME> \
+--input-server=http://localhost:8086 \
+--output-conn="dbname=tsdb user=tsdbadmin"
+```
+
+The schema strategy and connection options are the same as for
+`schema-transfer`. For more information, see
+[Discover, validate, and transfer schema](#discover-validate-and-transfer-schema).
+
+In addition, `outflux migrate` also takes the following flags:
+
+*   `--limit`: Pass a number, `N`, to `--limit` to export only the first `N`
+    rows, ordered by time.
+*   `--from` and `to`: Pass a timestamp to `--from` or `--to` to specify a time
+    window of data to migrate.
+*   `chunk-size`: Changes the size of data chunks transferred. Data is pulled
+    from the InfluxDB server in chunks of default size 15 000.
+*   `batch-size`: Changes the number of rows in an insertion batch. Data is
+    inserted into a {C.SELF_LONG} database in batches that are 8000 rows by default.
+
+For more flags, see the [GitHub documentation for `outflux
+migrate`](https://github.com/timescale/outflux#migrate). Alternatively, see the command line help:
+
+```bash
+outflux migrate --help
+```
