@@ -51,9 +51,9 @@
   --stl-color-accent-inverse-foreground: var(--tiger-black);
   --stl-color-text-selection: var(--stl-color-accent);
 
-  /* Link color – Figma Docs Navigation "Body/Link" (node 3245-9609), highlight/fg #4f6bed */
-  --stl-color-link: light-dark(#4f6bed, #6b8aff);
-  --stl-color-link-hover: light-dark(#3d5bd6, #849bff);
+  /* Link color – match brand accent (purple) so inline links don’t switch to blue; same as CTA/accents */
+  --stl-color-link: light-dark(var(--tiger-vivid-purple), var(--tiger-electric-yellow));
+  --stl-color-link-hover: light-dark(#6446fb, color-mix(in srgb, var(--tiger-electric-yellow) 85%, var(--tiger-black)));
 
   /* Background & Foreground */
   --stl-color-background: light-dark(var(--tiger-white), var(--tiger-black));
@@ -242,7 +242,7 @@ code, pre, kbd, samp {
 
 /* ============================================
    Link Styles (Figma: Body/16/Link, Body/14/Link – node 3245-9609)
-   - Color: highlight/fg #4f6bed
+   - Color: accent (purple in light, yellow in dark) – same as brand so links don’t switch to blue
    - Underline: solid, always visible
    - Typography: body font, 16px (md) / 14px (sm), weight 450, line-height 1.5
    ============================================ */
@@ -389,16 +389,89 @@ a:hover {
 }
 
 /* ============================================
-   Code Block Styles
+   Code Block Styles – Figma 3388-1893 (dark block, 14px, 24px padding, 8px radius)
+   Applies to Expressive Code blocks (.expressive-code) and fallback pre/code.
    ============================================ */
-:root[data-theme="light"] pre {
-  background-color: var(--tiger-grey-50);
-  border: 1px solid var(--tiger-grey-200);
+/* Wrapper: dark bg, padding, radius (Figma 3388-1893). Default text #fff; token colors from Shiki dark theme. */
+.expressive-code {
+  background-color: #333 !important;
+  border-radius: var(--tiger-radius-md, 8px) !important;
+  padding: var(--tiger-space-lg, 24px) !important;
+  margin: 1rem 0 !important;
+  border: none !important;
+  color: #ffffff;
+}
+.expressive-code figure,
+.expressive-code .frame {
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
 }
 
-:root[data-theme="dark"] pre {
-  background-color: var(--tiger-grey-900);
-  border: 1px solid var(--tiger-grey-800);
+/* Don’t force color on pre/code so Shiki token colors (from dark theme) show. Default text
+   is set via styleOverrides in ec.config.mjs;   wrapper sets a fallback for unstyled text. */
+/* Hide code block header/caption (e.g. "Terminal window") */
+.expressive-code figcaption.header,
+.expressive-code .frame .header,
+.expressive-code .header {
+  display: none !important;
+}
+.expressive-code pre,
+.expressive-code figure pre,
+.expressive-code .frame pre {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  color: inherit !important;
+}
+
+.expressive-code pre code,
+.expressive-code figure pre code,
+.expressive-code .frame pre code {
+  background: transparent !important;
+  padding: 0 !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  color: inherit !important;
+  font-family: var(--stl-font-family-mono) !important;
+}
+
+/* Line numbers in Expressive Code (if present) – muted, 14px */
+.expressive-code [class*="line-number"],
+.expressive-code .ec-line-numbers span,
+.expressive-code .line-numbers {
+  color: rgba(255, 255, 255, 0.5) !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+/* Fallback: pre not inside .expressive-code (e.g. raw markdown code blocks) */
+:root[data-theme="light"] pre:not(.expressive-code pre),
+main pre:not(.expressive-code pre) {
+  background-color: #333 !important;
+  border: none !important;
+  border-radius: var(--tiger-radius-md, 8px) !important;
+  padding: var(--tiger-space-lg, 24px) !important;
+  color: #ffffff !important;
+}
+
+:root[data-theme="dark"] pre:not(.expressive-code pre),
+main pre:not(.expressive-code pre) {
+  background-color: #333 !important;
+  border: none !important;
+  border-radius: var(--tiger-radius-md, 8px) !important;
+  padding: var(--tiger-space-lg, 24px) !important;
+  color: #ffffff !important;
+}
+
+main pre code,
+pre code {
+  font-size: 14px !important;
+  line-height: 1.5 !important;
 }
 
 /* Inline code */
@@ -407,6 +480,128 @@ a:hover {
   padding: 2px 6px;
   border-radius: var(--tiger-radius-sm);
   font-size: 0.9em;
+}
+
+/* ============================================
+   Prerequisites banner – Figma 3492-619 (Type=Prereqs)
+   Success-styled box: checkmark icon, title, intro, body (lists/paragraphs). Use <Prerequisites> in MDX.
+   ============================================ */
+.prerequisites {
+  --prerequisites-icon-bg: #0d9488;
+  background: light-dark(#f0fcf9, color-mix(in srgb, #0d9488 18%, var(--tiger-black)));
+  border: 1px solid light-dark(#b8e5da, color-mix(in srgb, #0d9488 40%, var(--tiger-black)));
+  border-radius: var(--tiger-radius-md, 8px);
+  padding: var(--tiger-space-lg, 24px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tiger-space-md, 16px);
+  margin: 1.5rem 0;
+}
+
+.prerequisites__header {
+  display: flex;
+  align-items: center;
+  gap: var(--tiger-space-sm, 8px);
+}
+
+.prerequisites__icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.prerequisites__title {
+  font-family: var(--stl-font-family);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
+  margin: 0;
+}
+
+.prerequisites__body {
+  font-family: var(--stl-font-family);
+  font-size: 16px;
+  font-weight: 450;
+  line-height: 1.5;
+  color: light-dark(#555570, var(--tiger-grey-300));
+}
+
+.prerequisites__body p,
+.prerequisites__body ul,
+.prerequisites__body ol {
+  margin: 0 0 0.5rem 0;
+}
+
+.prerequisites__body p:last-child,
+.prerequisites__body ul:last-child,
+.prerequisites__body ol:last-child {
+  margin-bottom: 0;
+}
+
+.prerequisites__intro {
+  margin-bottom: 0.5rem;
+}
+
+.prerequisites__body a {
+  color: light-dark(#666bff, var(--tiger-grey-200));
+  text-decoration: underline;
+  text-decoration-style: solid;
+}
+
+.prerequisites__body ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+}
+
+.prerequisites__body ul ul {
+  list-style-type: disc;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ============================================
+   Page labels – tags at top of page (Figma 3387-1829, 1817, 1833, 1845, 1850)
+   Driven by frontmatter `pageLabels`. Variants: neutral, highlight, experimental.
+   ============================================ */
+.page-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tiger-space-xs, 4px);
+  margin-top: var(--tiger-space-sm, 8px);
+  margin-bottom: 0;
+}
+
+.page-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-family: var(--stl-font-family);
+  font-size: 12px;
+  font-weight: 450;
+  line-height: 1.5;
+  letter-spacing: 0.12px;
+  white-space: nowrap;
+}
+
+/* Neutral (e.g. Toolkit, Community) – Figma 3387-1829, 3387-1817 */
+.page-label--neutral {
+  background: light-dark(#eeeef1, var(--tiger-grey-700));
+  color: light-dark(#6d6d8a, var(--tiger-grey-300));
+}
+
+/* Highlight (e.g. Popular feature, Optional) – Figma 3387-1845, 3387-1850 */
+.page-label--highlight {
+  background: light-dark(#e4e5ff, color-mix(in srgb, var(--tiger-vivid-purple) 25%, var(--tiger-black)));
+  color: light-dark(#4f6bed, var(--tiger-grey-200));
+}
+
+/* Experimental – Figma 3387-1833 */
+.page-label--experimental {
+  background: light-dark(#ffeae4, color-mix(in srgb, var(--tiger-blood) 15%, var(--tiger-black)));
+  color: light-dark(#e94716, #ff9b7a);
 }
 
 /* ============================================
@@ -429,6 +624,7 @@ a:hover {
 
 .stl-callout[data-variant="note"] {
   --tw-prose-body: var(--callout-note-text);
+  --callout-note-icon-bg: var(--callout-tip-icon);
   background-color: var(--callout-note-bg);
   border: 1px solid var(--callout-note-border);
   border-radius: var(--tiger-radius-md);
@@ -436,14 +632,14 @@ a:hover {
   margin: var(--tiger-space-md) 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
 }
 
 .stl-callout[data-variant="note"] > :first-child,
 .stl-callout[data-variant="note"] [data-callout-header] {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   font-family: var(--stl-font-family);
   font-size: 18px;
   font-weight: 600;
@@ -456,8 +652,8 @@ a:hover {
 .stl-callout[data-variant="note"] [data-callout-header] svg,
 .stl-callout[data-variant="note"] > :first-child img,
 .stl-callout[data-variant="note"] > :first-child svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
   display: block;
 }
@@ -467,13 +663,12 @@ a:hover {
 .stl-callout[data-variant="note"] .stl-callout__body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   font-family: var(--stl-font-family);
   font-size: 16px;
-  font-weight: 400;
-  line-height: 26px;
-  letter-spacing: -0.16px;
-  color: var(--callout-note-text);
+  font-weight: 450;
+  line-height: 1.5;
+  color: light-dark(#555570, var(--tiger-grey-300));
 }
 
 .stl-callout[data-variant="note"] code,
@@ -505,14 +700,14 @@ a:hover {
   margin: var(--tiger-space-md) 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
 }
 
 .stl-callout[data-variant="important"] > :first-child,
 .stl-callout[data-variant="important"] [data-callout-header] {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   font-family: var(--stl-font-family);
   font-size: 18px;
   font-weight: 600;
@@ -536,12 +731,11 @@ a:hover {
 .stl-callout[data-variant="important"] .stl-callout__body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   font-family: var(--stl-font-family);
   font-size: 16px;
-  font-weight: 400;
-  line-height: 26px;
-  letter-spacing: -0.16px;
+  font-weight: 450;
+  line-height: 1.5;
   color: var(--callout-important-text);
 }
 
@@ -557,11 +751,12 @@ a:hover {
   color: var(--callout-important-text);
 }
 
-/* Warning callout – Figma 3387-373 (Type=Warning) */
+/* Warning callout – Figma 3387-373 (Type=Warning); icon solid orange */
 :root {
   --callout-warning-bg: light-dark(#fff4f1, color-mix(in srgb, var(--tiger-blood) 12%, var(--tiger-black)));
   --callout-warning-border: light-dark(#ffd9ce, color-mix(in srgb, var(--tiger-blood) 35%, var(--tiger-black)));
   --callout-warning-text: light-dark(#15151e, var(--tiger-grey-100));
+  --callout-warning-icon: light-dark(#E87909, #F97316);
   --callout-warning-code-bg: light-dark(#ffffff, var(--tiger-grey-800));
 }
 
@@ -574,14 +769,14 @@ a:hover {
   margin: var(--tiger-space-md) 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
 }
 
 .stl-callout[data-variant="warning"] > :first-child,
 .stl-callout[data-variant="warning"] [data-callout-header] {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   font-family: var(--stl-font-family);
   font-size: 18px;
   font-weight: 600;
@@ -590,14 +785,22 @@ a:hover {
   margin: 0;
 }
 
+/* Warning icon: solid orange; target both .stl-callout and .tl-callout (framework may use either) */
 .stl-callout[data-variant="warning"] [data-callout-header] img,
 .stl-callout[data-variant="warning"] [data-callout-header] svg,
 .stl-callout[data-variant="warning"] > :first-child img,
-.stl-callout[data-variant="warning"] > :first-child svg {
+.stl-callout[data-variant="warning"] > :first-child svg,
+.tl-callout[data-variant="warning"] [data-callout-header] img,
+.tl-callout[data-variant="warning"] [data-callout-header] svg,
+.tl-callout[data-variant="warning"] .tl-callout__icon img,
+.tl-callout[data-variant="warning"] .tl-callout__icon svg,
+.tl-callout[data-variant="warning"] .stl-callout__header img,
+.tl-callout[data-variant="warning"] .stl-callout__header svg {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
   display: block;
+  color: var(--callout-warning-icon);
 }
 
 .stl-callout[data-variant="warning"] [data-callout-body],
@@ -605,12 +808,11 @@ a:hover {
 .stl-callout[data-variant="warning"] .stl-callout__body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   font-family: var(--stl-font-family);
   font-size: 16px;
-  font-weight: 400;
-  line-height: 26px;
-  letter-spacing: -0.16px;
+  font-weight: 450;
+  line-height: 1.5;
   color: var(--callout-warning-text);
 }
 
@@ -644,14 +846,14 @@ a:hover {
   margin: var(--tiger-space-md) 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 16px;
 }
 
 .stl-callout[data-variant="callout"] > :first-child,
 .stl-callout[data-variant="callout"] [data-callout-header] {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   font-family: var(--stl-font-family);
   font-size: 18px;
   font-weight: 600;
@@ -664,12 +866,11 @@ a:hover {
 .stl-callout[data-variant="callout"] .stl-callout__body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   font-family: var(--stl-font-family);
   font-size: 16px;
-  font-weight: 400;
-  line-height: 26px;
-  letter-spacing: -0.16px;
+  font-weight: 450;
+  line-height: 1.5;
   color: var(--callout-callout-text);
 }
 
@@ -700,7 +901,8 @@ a:hover {
   --callout-tip-border: light-dark(#ced0ff, color-mix(in srgb, var(--tiger-vivid-purple) 35%, var(--tiger-black)));
   --callout-tip-text: light-dark(#15151e, var(--tiger-grey-100));
   --callout-tip-body-text: light-dark(#555570, var(--tiger-grey-300));
-  --callout-tip-icon: light-dark(var(--tiger-vivid-purple), var(--tiger-electric-yellow));
+  /* Tips icon: solid orange per Figma (Light-Bulb for Type=Tips) */
+  --callout-tip-icon: light-dark(#E87909, #F97316);
   --callout-tip-code-bg: light-dark(#ffffff, var(--tiger-grey-800));
 }
 
@@ -730,10 +932,23 @@ a:hover {
   margin: 0;
 }
 
+/* Icon-to-title spacing: same 8px for Tip and Note (shared so both match) */
+.stl-callout[data-variant="tip"] .stl-callout__header,
+.stl-callout[data-variant="note"] .stl-callout__header {
+  gap: 8px;
+}
+
+/* Tip icon: solid orange; target both .stl-callout and .tl-callout */
 .stl-callout[data-variant="tip"] [data-callout-header] img,
 .stl-callout[data-variant="tip"] [data-callout-header] svg,
 .stl-callout[data-variant="tip"] > :first-child img,
-.stl-callout[data-variant="tip"] > :first-child svg {
+.stl-callout[data-variant="tip"] > :first-child svg,
+.tl-callout[data-variant="tip"] [data-callout-header] img,
+.tl-callout[data-variant="tip"] [data-callout-header] svg,
+.tl-callout[data-variant="tip"] .tl-callout__icon img,
+.tl-callout[data-variant="tip"] .tl-callout__icon svg,
+.tl-callout[data-variant="tip"] .stl-callout__header img,
+.tl-callout[data-variant="tip"] .stl-callout__header svg {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
@@ -741,18 +956,38 @@ a:hover {
   color: var(--callout-tip-icon);
 }
 
-/* Tip body – Figma Body/16/Regular: 16px, line-height 1.5, fg/emphasized (#555570) */
+/* Tip body – Figma Body/16/Regular: 16px, line-height 1.5, fg/emphasized (#555570); tight spacing like Note */
 .stl-callout[data-variant="tip"] [data-callout-body],
 .stl-callout[data-variant="tip"] > div:not(:first-child),
 .stl-callout[data-variant="tip"] .stl-callout__body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   font-family: var(--stl-font-family);
   font-size: 16px;
   font-weight: 450;
   line-height: 1.5;
   color: var(--callout-tip-body-text);
+}
+
+/* Keep header-to-body at 16px: no extra margin on header or body or first body element (override prose/markdown) */
+.stl-callout [data-callout-header],
+.stl-callout .stl-callout__header {
+  margin-bottom: 0 !important;
+}
+.stl-callout [data-callout-body],
+.stl-callout .stl-callout__body {
+  margin-top: 0 !important;
+}
+.stl-callout [data-callout-body] > *:first-child,
+.stl-callout .stl-callout__body > *:first-child,
+.stl-callout [data-callout-body] > p:first-child,
+.stl-callout .stl-callout__body > p:first-child {
+  margin-top: 0 !important;
+}
+.stl-callout [data-callout-body] p:first-of-type,
+.stl-callout .stl-callout__body p:first-of-type {
+  margin-top: 0 !important;
 }
 
 /* Inline code inside Tip – Figma: white bg, 8px horizontal / 4px vertical padding */
@@ -921,6 +1156,42 @@ nav.sidebar .sidebar-content ul ul {
 }
 
 /* ============================================
+   Heading anchor link icon (hover on section titles)
+   ============================================ */
+/*
+ * Heading anchor link: Starlight uses padding-inline-end on the heading (icon-size + gap)
+ * and margin-inline-start: -icon-size on the link to pull the icon into that space.
+ * So the visual gap between heading text and icon = --sl-anchor-icon-gap only.
+ * Do NOT set margin-inline-start on the link or you override the pull and push the icon right.
+ */
+:root {
+  --sl-anchor-icon-size: 24px;
+  --sl-anchor-icon-gap: 2px;
+}
+
+/* 24px icon; gap is controlled by --sl-anchor-icon-gap (2px). Leave link margin to Starlight. */
+main .sl-anchor-link,
+.sl-markdown-content .sl-anchor-link,
+.l-markdown-content .sl-anchor-link,
+[class*="markdown-content"] .sl-anchor-link {
+  --sl-anchor-icon-size: 24px;
+  --sl-anchor-icon-gap: 2px;
+  min-width: 24px;
+  min-height: 24px;
+}
+main .sl-anchor-link .sl-anchor-icon svg,
+main .sl-anchor-link svg,
+.sl-markdown-content .sl-anchor-link .sl-anchor-icon svg,
+.sl-markdown-content .sl-anchor-link svg,
+.l-markdown-content .sl-anchor-link svg,
+[class*="markdown-content"] .sl-anchor-link svg {
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+/* ============================================
    Right sidebar – "On this page" TOC (Figma 3245-7750, 3245-7752 left-aligned)
    ============================================ */
 :root {
@@ -1025,14 +1296,20 @@ starlight-toc a:hover {
   color: var(--toc-title-active);
 }
 
-/* Active TOC item – selection bar left, text aligns with heading (2px + 8px = 10px = --toc-inset) */
+/* Active TOC item – straight vertical bar left (no radius), text aligns with heading (2px + 8px = 10px = --toc-inset) */
 .right-sidebar-container starlight-toc a[aria-current="true"],
 .right-sidebar-panel starlight-toc a[aria-current="true"],
 starlight-toc a[aria-current="true"] {
   color: var(--toc-title-active);
   border-inline-start: 2px solid var(--toc-selection-line);
+  border-radius: 0;
   padding-inline-start: 8px !important;
   margin-inline-start: 0;
+}
+.right-sidebar-container starlight-toc li:has(a[aria-current="true"]),
+.right-sidebar-panel starlight-toc li:has(a[aria-current="true"]),
+starlight-toc li:has(a[aria-current="true"]) {
+  border-radius: 0;
 }
 
 /* Version selector in right nav: label + icon #15151E, value #4F6BED */
@@ -1259,26 +1536,190 @@ tr:hover td {
 }
 
 /* ============================================
-   Numbered list (instruction steps)
-   Use via React component: NumberedList + NumberedItem from src/components/NumberedList
+   Step cards (link cards for tools, guides, pages) – Figma 3387-360, 3387-361
+   Use via StepCards + StepCard from @components/StepCards
    ============================================ */
+.step-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tiger-space-md);
+  margin: 1.5rem 0;
+}
+
+.step-cards__heading {
+  font-family: var(--stl-font-family);
+  font-size: 18px;
+  font-weight: 450;
+  line-height: 1.2;
+  color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
+  margin: 0;
+}
+
+.step-cards__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--tiger-space-md);
+}
+
+/* Single card: default state (Figma 3387-360 – State=Inactive) */
+.step-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tiger-space-md);
+  padding: var(--tiger-space-lg);
+  border-radius: var(--tiger-radius-md);
+  background: light-dark(#ffffff, var(--tiger-grey-900));
+  border: 1px solid light-dark(#dddde3, var(--tiger-grey-700));
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Hover state (Figma 3387-361 – State=Hover) */
+.step-card:hover {
+  background: light-dark(#f5f5ff, color-mix(in srgb, var(--tiger-vivid-purple) 18%, var(--tiger-black)));
+  border-color: light-dark(#8f93f9, var(--tiger-vivid-purple));
+}
+
+.step-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tiger-space-xl);
+  min-width: 0;
+}
+
+.step-card__title {
+  font-family: var(--stl-font-family);
+  font-size: 18px;
+  font-weight: 450;
+  line-height: 1.2;
+  color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
+  flex: 1;
+  min-width: 0;
+}
+
+.step-card__icon-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+}
+
+.step-card__icon {
+  width: 24px;
+  height: 24px;
+}
+
+.step-card__description {
+  font-family: var(--stl-font-family);
+  font-size: 16px;
+  font-weight: 450;
+  line-height: 1.5;
+  color: light-dark(#555570, var(--tiger-grey-300));
+  margin: 0;
+}
+
+/* ============================================
+   Related content cards – Figma 3387-363 (Related content tiles)
+   Title 16px Regular, description 14px; no icon. Use via RelatedContentCards + RelatedContentCard
+   ============================================ */
+.related-content-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tiger-space-md);
+  margin: 1.5rem 0;
+}
+
+.related-content-cards__heading {
+  font-family: var(--stl-font-family);
+  font-size: 18px;
+  font-weight: 450;
+  line-height: 1.2;
+  color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
+  margin: 0;
+}
+
+.related-content-cards__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--tiger-space-md);
+}
+
+.related-content-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tiger-space-md);
+  padding: var(--tiger-space-lg);
+  border-radius: var(--tiger-radius-md);
+  background: light-dark(#ffffff, var(--tiger-grey-900));
+  border: 1px solid light-dark(#dddde3, var(--tiger-grey-700));
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.related-content-card:hover {
+  background: light-dark(#f5f5ff, color-mix(in srgb, var(--tiger-vivid-purple) 18%, var(--tiger-black)));
+  border-color: light-dark(#8f93f9, var(--tiger-vivid-purple));
+}
+
+.related-content-card__title {
+  font-family: var(--stl-font-family);
+  font-size: 16px;
+  font-weight: 450;
+  line-height: 1.2;
+  color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
+}
+
+.related-content-card__description {
+  font-family: var(--stl-font-family);
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 1.5;
+  color: light-dark(#555570, var(--tiger-grey-300));
+  margin: 0;
+}
+
+/* ============================================
+   Numbered list (instruction steps) – Figma 3387-359
+   Optional heading, 32px dark circles + white number, vertical connector line, 16px/36px spacing.
+   Use via NumberedList + NumberedItem from src/components/NumberedList
+   ============================================ */
+.numbered-list-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin: 1.5rem 0;
+}
+
+.numbered-list__heading {
+  font-family: var(--stl-font-family);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
+  margin: 0;
+}
+
 .numbered-list {
   list-style: none;
-  padding-left: 0;
-  margin: 1.25rem 0;
+  padding: 0 0 0 48px;
+  margin: 0;
   counter-reset: step;
   position: relative;
 }
 
-/* Vertical line connecting step circles */
+/* Vertical line connecting step circles (center of 32px circle at 16px) */
 .numbered-list::before {
   content: "";
   position: absolute;
-  left: 2rem;
-  top: 2rem;
-  bottom: 2rem;
+  left: 16px;
+  top: 16px;
+  bottom: 16px;
   width: 2px;
-  background: light-dark(#c4b5fd, #5b21b6);
+  background: light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
   border-radius: 1px;
   z-index: 0;
   pointer-events: none;
@@ -1288,13 +1729,9 @@ tr:hover td {
   counter-increment: step;
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-  line-height: 1.6;
-  padding: 1rem 1.25rem;
-  border-radius: 10px;
-  background: light-dark(#f8fafc, #1e293b);
-  border: 1px solid light-dark(#e2e8f0, #334155);
+  gap: 16px;
+  margin-bottom: 36px;
+  padding: 12px 0 0 0;
   position: relative;
   z-index: 1;
 }
@@ -1303,20 +1740,24 @@ tr:hover td {
   margin-bottom: 0;
 }
 
+/* Circle: 32px, dark bg, white number – Figma 3245-7815 / Code large */
 .numbered-list .numbered-list__item::before {
   content: counter(step);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
+  width: 32px;
+  height: 32px;
+  margin-left: -48px;
   border-radius: 50%;
-  background: light-dark(#6446fb, #a78bfa);
-  color: light-dark(#ffffff, #1e1b4b);
-  font-weight: 700;
-  font-size: 0.875rem;
-  line-height: 1;
+  background: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
+  color: light-dark(var(--tiger-white), var(--tiger-grey-900));
+  font-family: var(--stl-font-family-mono);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  letter-spacing: -0.16px;
 }
 
 .numbered-list__item-content {
@@ -1324,18 +1765,24 @@ tr:hover td {
   min-width: 0;
 }
 
+/* Step title – bold label */
 .numbered-list__item-title {
   display: block;
+  font-family: var(--stl-font-family);
   font-weight: 600;
   font-size: 1rem;
-  color: light-dark(#111827, #f9fafb);
+  line-height: 1.5;
+  color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
   margin-bottom: 0.25rem;
 }
 
+/* Step body – Body/16/Regular per Figma */
 .numbered-list__item-body {
-  font-weight: normal;
-  font-size: 0.9375rem;
-  color: light-dark(#475569, #cbd5e1);
+  font-family: var(--stl-font-family);
+  font-weight: 450;
+  font-size: 16px;
+  line-height: 1.5;
+  color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
 }
 
 /* Spacing for code blocks and Callouts inside a step */

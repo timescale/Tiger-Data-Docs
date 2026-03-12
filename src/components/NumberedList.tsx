@@ -33,9 +33,16 @@ export function NumberedItem({ title, children }: NumberedItemProps) {
 }
 
 export interface NumberedListProps {
+  /** Optional heading above the steps (Figma: Heading 18 Strong) */
+  heading?: string;
   children?: ReactNode;
 }
 
-export function NumberedList({ children }: NumberedListProps) {
-  return <ol className="numbered-list">{children}</ol>;
+export function NumberedList({ heading, children }: NumberedListProps) {
+  return (
+    <div className="numbered-list-wrapper">
+      {heading ? <h2 className="numbered-list__heading">{heading}</h2> : null}
+      <ol className="numbered-list">{children}</ol>
+    </div>
+  );
 }

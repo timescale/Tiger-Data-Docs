@@ -9,6 +9,14 @@ const overviewDescriptionSchema = z.object({
 });
 
 /**
+ * Page labels – tags at the top of the page to define/categorize content (Figma 3387-1829, 1817, 1833, 1845, 1850).
+ * Each string is one tag; variant is inferred: "Experimental" → error, "Popular feature" | "Optional" → highlight, else neutral.
+ */
+const pageLabelsSchema = z.object({
+  pageLabels: z.array(z.string()).optional(),
+});
+
+/**
  * Integration-specific frontmatter for the Integrate section.
  * Used to power the integrate index views: by category, by industry, Tiger Data connectors, and external tools.
  */
@@ -31,7 +39,7 @@ export const collections = {
   docs: defineCollection({
     loader: docsLoader(),
     schema: docsSchema({
-      extend: overviewDescriptionSchema.merge(integrationSchema),
+      extend: overviewDescriptionSchema.merge(integrationSchema).merge(pageLabelsSchema),
     }),
   }),
 };
