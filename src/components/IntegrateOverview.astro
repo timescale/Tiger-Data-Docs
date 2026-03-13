@@ -1,12 +1,12 @@
 ---
 /**
  * Integrate overview: dropdown to switch between four card views.
- * - By category: 8 category cards (static)
+ * - See all integrations: flat list of all integration cards
+ * - By category: 8 category sections (collapsible)
  * - By industry: integrations grouped by integrationIndustry frontmatter
- * - Tiger Data connectors: connectorType === 'tiger-data'
- * - External integrations and tools: connectorType === 'external'
+ * - By plan: Tiger Cloud, Tiger Cloud on Azure, Tiger Cloud on AWS, Self-Hosted
  *
- * Relies on frontmatter on each integration page: integrationIndustry[], connectorType, sortOrder.
+ * Relies on frontmatter on each integration page: integrationIndustry[], integrationPlatforms[], integrationCategory, sortOrder.
  */
 import { getEntry } from "astro:content";
 /** Grid layout matches related content cards (Figma 3387-363) */
@@ -37,9 +37,17 @@ const allSlugs = Object.keys(pathMap)
 const PLATFORM_LABELS: Record<string, string> = {
   aws: "Tiger Cloud on AWS",
   azure: "Tiger Cloud on Azure",
-  "self-hosted": "Self-Hosted TimescaleDB",
+  "self-hosted": "Self-Hosted",
 };
 const PLATFORM_ORDER = ["aws", "azure", "self-hosted"] as const;
+/** By-plan view: order and labels (Tiger Cloud = any cloud, i.e. aws or azure). */
+const PLAN_ORDER = ["tiger-cloud", "azure", "aws", "self-hosted"] as const;
+const PLAN_LABELS: Record<string, string> = {
+  "tiger-cloud": "Tiger Cloud",
+  azure: "Tiger Cloud on Azure",
+  aws: "Tiger Cloud on AWS",
+  "self-hosted": "Self-Hosted",
+};
 type PlatformSlug = (typeof PLATFORM_ORDER)[number];
 
 type DocData = {
@@ -141,13 +149,28 @@ const allIntegrations = [...entries].sort((a, b) =>
   cardTitle(a.data).localeCompare(cardTitle(b.data), undefined, { sensitivity: "base" })
 );
 
-const tigerData = entries
-  .filter((e) => e.data.connectorType === "tiger-data")
-  .sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99));
+function getPlatforms(data: DocData): PlatformSlug[] {
+  const p = data.integrationPlatforms ?? ["aws"];
+  return PLATFORM_ORDER.filter((key) => p.includes(key));
+}
 
-const external = entries
-  .filter((e) => e.data.connectorType === "external")
-  .sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99));
+// Group by plan (platform): Tiger Cloud = aws or azure; then Azure, AWS, Self-Hosted
+const planGroups: Record<string, { slug: string; data: DocData }[]> = {};
+for (const entry of entries) {
+  const platforms = getPlatforms(entry.data);
+  if (platforms.some((p) => p === "aws" || p === "azure")) {
+    if (!planGroups["tiger-cloud"]) planGroups["tiger-cloud"] = [];
+    planGroups["tiger-cloud"].push(entry);
+  }
+  for (const p of platforms) {
+    if (!planGroups[p]) planGroups[p] = [];
+    if (!planGroups[p].some((e) => e.slug === entry.slug)) planGroups[p].push(entry);
+  }
+}
+const planOrder = PLAN_ORDER.filter((key) => planGroups[key]?.length);
+for (const key of planOrder) {
+  planGroups[key].sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99));
+}
 
 // Group by industry; industry name -> entries
 const industryGroups: Record<string, { slug: string; data: DocData }[]> = {};
@@ -179,11 +202,6 @@ function slugToHref(slug: string): string {
   return "/" + slug + "/";
 }
 
-function getPlatforms(data: DocData): PlatformSlug[] {
-  const p = data.integrationPlatforms ?? ["aws"];
-  return PLATFORM_ORDER.filter((key) => p.includes(key));
-}
-
 /** URL-safe id for a card in the "all" view (for TOC anchor links). */
 function slugToCardId(slug: string): string {
   return slug.replace(/\//g, "-");
@@ -194,26 +212,26 @@ const allIntegrationsToc = allIntegrations.map(({ slug, data }) => ({
   id: slugToCardId(slug),
 }));
 
-const tigerDataToc = tigerData.map(({ slug, data }) => ({
-  title: cardTitle(data),
-  id: slugToCardId(slug),
-}));
-
-const externalToc = external.map(({ slug, data }) => ({
-  title: cardTitle(data),
-  id: slugToCardId(slug),
+/** Per-plan TOC: plan key -> list of { title, id } for the right sidebar. */
+const planTocSections = planOrder.map((key) => ({
+  key,
+  label: PLAN_LABELS[key],
+  id: `integrate-plan-${key.replace(/\s+/g, "-")}`,
+  items: (planGroups[key] ?? []).map(({ slug, data }) => ({
+    title: cardTitle(data),
+    id: slugToCardId(slug),
+  })),
 }));
 ---
 
-<div class="integrate-overview" data-industry-order={JSON.stringify(industryOrder)} data-category-order={JSON.stringify(categoryOrder)} data-all-integrations={JSON.stringify(allIntegrationsToc)} data-tiger-data-integrations={JSON.stringify(tigerDataToc)} data-external-integrations={JSON.stringify(externalToc)} id="integrate-overview-root">
+<div class="integrate-overview" data-industry-order={JSON.stringify(industryOrder)} data-category-order={JSON.stringify(categoryOrder)} data-all-integrations={JSON.stringify(allIntegrationsToc)} data-plan-sections={JSON.stringify(planTocSections)} id="integrate-overview-root">
   <div class="integrate-overview-controls">
     <label for="integrate-view-select" class="integrate-overview-label">View integrations</label>
     <select id="integrate-view-select" class="integrate-overview-select" aria-label="Choose how to view integrations">
-      <option value="all">All integrations</option>
+      <option value="all">See all integrations</option>
       <option value="category">By category</option>
       <option value="industry">By industry</option>
-      <option value="tiger-data">Tiger Data connectors</option>
-      <option value="external">External integrations and tools</option>
+      <option value="plan">By plan</option>
     </select>
   </div>
   <div class="integrate-platform-filter">
@@ -343,68 +361,47 @@ const externalToc = external.map(({ slug, data }) => ({
     }
   </div>
 
-  <div id="integrate-view-tiger-data" class="integrate-view" data-view="tiger-data" hidden>
+  <div id="integrate-view-plan" class="integrate-view" data-view="plan" hidden>
     {
-      tigerData.length > 0 ? (
-        <div class="related-content-cards__grid">
-          {
-            tigerData.map(({ slug, data }) => {
-              const platforms = getPlatforms(data);
-              const cardId = slugToCardId(slug);
-              return (
-                <div class="integrate-card-wrapper" id={`integrate-tiger-${cardId}`} data-platforms={platforms.join(",")}>
-                  <a href={slugToHref(slug)} class="integrate-card-link">
-                    <span class="integrate-card-inner">
-                      <span class="integrate-card-title">{cardTitle(data)}</span>
-                      <div class="integrate-card-chips">
-                        {platforms.map((p) => (
-                          <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
-                        ))}
-                      </div>
-                      {data.description && <p class="integrate-card-description">{data.description}</p>}
-                    </span>
-                    <span class="integrate-card-arrow" aria-hidden="true">→</span>
-                  </a>
+      planOrder.length > 0 ? (
+        planOrder.map((planKey) => (
+          <section class="integrate-category-section" id={`integrate-plan-${planKey.replace(/\s+/g, "-")}`}>
+            <details class="integrate-category-details" open>
+              <summary class="integrate-category-summary">
+                <span class="integrate-category-heading">{PLAN_LABELS[planKey]}</span>
+                <span class="integrate-category-chevron" aria-hidden="true"></span>
+              </summary>
+              <div class="integrate-category-content">
+                <div class="related-content-cards__grid">
+                  {
+                    (planGroups[planKey] ?? []).map(({ slug, data }) => {
+                      const platforms = getPlatforms(data);
+                      const cardId = slugToCardId(slug);
+                      return (
+                        <div class="integrate-card-wrapper" id={`integrate-plan-card-${planKey}-${cardId}`} data-platforms={platforms.join(",")}>
+                          <a href={slugToHref(slug)} class="integrate-card-link">
+                            <span class="integrate-card-inner">
+                              <span class="integrate-card-title">{cardTitle(data)}</span>
+                              <div class="integrate-card-chips">
+                                {platforms.map((p) => (
+                                  <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
+                                ))}
+                              </div>
+                              {data.description && <p class="integrate-card-description">{data.description}</p>}
+                            </span>
+                            <span class="integrate-card-arrow" aria-hidden="true">→</span>
+                          </a>
+                        </div>
+                      );
+                    })
+                  }
                 </div>
-              );
-            })
-          }
-        </div>
+              </div>
+            </details>
+          </section>
+        ))
       ) : (
-        <p class="integrate-empty">No Tiger Data connectors yet. Set <code>connectorType: "tiger-data"</code> in frontmatter.</p>
-      )
-    }
-  </div>
-
-  <div id="integrate-view-external" class="integrate-view" data-view="external" hidden>
-    {
-      external.length > 0 ? (
-        <div class="related-content-cards__grid">
-          {
-            external.map(({ slug, data }) => {
-              const platforms = getPlatforms(data);
-              const cardId = slugToCardId(slug);
-              return (
-                <div class="integrate-card-wrapper" id={`integrate-external-${cardId}`} data-platforms={platforms.join(",")}>
-                  <a href={slugToHref(slug)} class="integrate-card-link">
-                    <span class="integrate-card-inner">
-                      <span class="integrate-card-title">{cardTitle(data)}</span>
-                      <div class="integrate-card-chips">
-                        {platforms.map((p) => (
-                          <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
-                        ))}
-                      </div>
-                      {data.description && <p class="integrate-card-description">{data.description}</p>}
-                    </span>
-                    <span class="integrate-card-arrow" aria-hidden="true">→</span>
-                  </a>
-                </div>
-              );
-            })
-          }
-        </div>
-      ) : (
-        <p class="integrate-empty">No external integrations yet. Set <code>connectorType: "external"</code> in frontmatter.</p>
+        <p class="integrate-empty">No integrations with platform tags yet. Add <code>integrationPlatforms</code> in frontmatter (aws, azure, self-hosted).</p>
       )
     }
   </div>
@@ -417,15 +414,13 @@ const externalToc = external.map(({ slug, data }) => ({
     "all": "all",
     "by-category": "category",
     "by-industry": "industry",
-    "tiger-data": "tiger-data",
-    "external": "external",
+    "by-plan": "plan",
   };
   const VIEW_TO_HASH: Record<string, string> = {
     all: "all",
     category: "by-category",
     industry: "by-industry",
-    "tiger-data": "tiger-data",
-    external: "external",
+    plan: "by-plan",
   };
   function showView(value: string) {
     views.forEach((el) => {

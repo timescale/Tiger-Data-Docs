@@ -1,15 +1,14 @@
 /**
  * Dynamic "On this page" TOC for the integrate index.
- * Shows the current view (by category, by industry, Tiger Data connectors, external)
- * with subcategories when applicable (e.g. industry sections, category links).
+ * Shows the current view (See all integrations, by category, by industry, by plan)
+ * with subcategories when applicable (e.g. industry sections, category links, plan sections).
  */
 
 const HASH_TO_VIEW: Record<string, string> = {
   all: "all",
   "by-category": "category",
   "by-industry": "industry",
-  "tiger-data": "tiger-data",
-  external: "external",
+  "by-plan": "plan",
 };
 
 /** Category slug from href e.g. /integrate/data-engineering-etl -> data-engineering-etl */
@@ -40,17 +39,18 @@ const INDUSTRY_LABELS: Record<string, string> = {
   manufacturing: "Manufacturing",
 };
 
-export type IntegrateView = "all" | "category" | "industry" | "tiger-data" | "external";
+export type IntegrateView = "all" | "category" | "industry" | "plan";
 
 export type AllIntegrationTocItem = { title: string; id: string };
+
+export type PlanTocSection = { key: string; label: string; id: string; items: AllIntegrationTocItem[] };
 
 interface IntegrateTocProps {
   currentView: IntegrateView;
   industryOrder: string[];
   categoryOrder: string[];
   allIntegrations: AllIntegrationTocItem[];
-  tigerDataIntegrations: AllIntegrationTocItem[];
-  externalIntegrations: AllIntegrationTocItem[];
+  planSections: PlanTocSection[];
 }
 
 function getViewFromHash(): IntegrateView {
@@ -59,7 +59,7 @@ function getViewFromHash(): IntegrateView {
   return (view as IntegrateView) || "all";
 }
 
-export function IntegrateToc({ currentView, industryOrder, categoryOrder, allIntegrations, tigerDataIntegrations, externalIntegrations }: IntegrateTocProps) {
+export function IntegrateToc({ currentView, industryOrder, categoryOrder, allIntegrations, planSections }: IntegrateTocProps) {
   return (
     <aside className="glossary-page-toc integrate-toc" aria-label="On this page">
       <h2 className="glossary-page-toc__title">On this page</h2>
@@ -76,7 +76,7 @@ export function IntegrateToc({ currentView, industryOrder, categoryOrder, allInt
               className={`glossary-page-toc__link ${currentView === "all" ? "integrate-toc__link--active" : ""}`}
               onClick={(e) => { e.preventDefault(); window.location.hash = "all"; }}
             >
-              All integrations
+              See all integrations
             </a>
             {currentView === "all" && allIntegrations.length > 0 && (
               <ul className="glossary-page-toc__list integrate-toc__sublist">
@@ -139,38 +139,18 @@ export function IntegrateToc({ currentView, industryOrder, categoryOrder, allInt
           </li>
           <li className="glossary-page-toc__item">
             <a
-              href="#tiger-data"
-              className={`glossary-page-toc__link ${currentView === "tiger-data" ? "integrate-toc__link--active" : ""}`}
-              onClick={(e) => { e.preventDefault(); window.location.hash = "tiger-data"; }}
+              href="#by-plan"
+              className={`glossary-page-toc__link ${currentView === "plan" ? "integrate-toc__link--active" : ""}`}
+              onClick={(e) => { e.preventDefault(); window.location.hash = "by-plan"; }}
             >
-              Tiger Data connectors
+              By plan
             </a>
-            {currentView === "tiger-data" && tigerDataIntegrations.length > 0 && (
+            {currentView === "plan" && planSections.length > 0 && (
               <ul className="glossary-page-toc__list integrate-toc__sublist">
-                {tigerDataIntegrations.map((item) => (
-                  <li key={item.id} className="glossary-page-toc__item">
-                    <a href={`#integrate-tiger-${item.id}`} className="glossary-page-toc__link integrate-toc__sublink">
-                      {item.title.replace(/\s+and Tiger Data$/i, "")}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
-          <li className="glossary-page-toc__item">
-            <a
-              href="#external"
-              className={`glossary-page-toc__link ${currentView === "external" ? "integrate-toc__link--active" : ""}`}
-              onClick={(e) => { e.preventDefault(); window.location.hash = "external"; }}
-            >
-              External integrations and tools
-            </a>
-            {currentView === "external" && externalIntegrations.length > 0 && (
-              <ul className="glossary-page-toc__list integrate-toc__sublist">
-                {externalIntegrations.map((item) => (
-                  <li key={item.id} className="glossary-page-toc__item">
-                    <a href={`#integrate-external-${item.id}`} className="glossary-page-toc__link integrate-toc__sublink">
-                      {item.title.replace(/\s+and Tiger Data$/i, "")}
+                {planSections.map((section) => (
+                  <li key={section.id} className="glossary-page-toc__item">
+                    <a href={`#${section.id}`} className="glossary-page-toc__link integrate-toc__sublink">
+                      {section.label}
                     </a>
                   </li>
                 ))}
