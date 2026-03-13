@@ -94,22 +94,12 @@ Helper modules in `src/lib/`:
 src/content/docs/
 ├── get-started/           # Welcome + quickstart path
 │   ├── index.mdx          # Welcome page
-│   ├── quickstart-5-minutes.mdx
-│   ├── quickstart/        # Multi-step quickstart subpages
-│   ├── create-service.mdx
-│   ├── create-mst-service.mdx
-│   ├── connect-your-app.mdx
-│   ├── next-steps.mdx
 │   ├── feature-comparison.mdx
-│   ├── key-features-timescale.mdx
-│   ├── timescaledb-editions.mdx
-│   ├── install-timescaledb.mdx
-│   ├── supported-platforms.mdx
-│   ├── cli-rest-api.mdx
-│   ├── mcp-cli.mdx
 │   ├── contributing.mdx   # How to contribute to docs
-│   ├── new.mdx            # Changelog
-│   └── release-notes.mdx
+│   ├── quickstart/        # 5-min quickstart, create service, connect app, next steps
+│   ├── choose-your-path/  # MST service, install self-hosted, platforms, editions
+│   ├── tools/             # CLI/REST API, MCP/CLI, Tiger Cloud essentials
+│   └── news/              # Changelog (new.mdx), release-notes.mdx
 │
 ├── learn/                 # Conceptual learning content
 │   ├── fundamentals/      # Core concepts (hypertables, chunks, compression)

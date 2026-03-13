@@ -117,12 +117,48 @@ export default defineConfig({
           sidebar: [
             "get-started", // Welcome/index page
             {
-              label: "Feature comparison",
-              link: "/get-started/feature-comparison",
+              label: "Start here",
+              collapsed: false,
+              items: [
+                { label: "1. 5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
+                { label: "2. Connect your app", link: "/get-started/quickstart/connect-your-app" },
+                { label: "3. Your first hypertable", link: "/learn/fundamentals/your-first-hypertable" },
+              ],
+            },
+            {
+              label: "Setup",
+              collapsed: true,
+              items: [
+                { label: "Choose your setup", link: "/get-started/feature-comparison" },
+                { label: "Tiger Cloud (recommended)", link: "/get-started/quickstart/create-service" },
+                { label: "Install self-hosted TimescaleDB", link: "/get-started/choose-your-path/install-timescaledb" },
+                { label: "Supported platforms", link: "/get-started/choose-your-path/supported-platforms" },
+                { label: "Compare TimescaleDB editions", link: "/get-started/choose-your-path/timescaledb-editions" },
+              ],
             },
             {
               label: "Quickstart",
-              autogenerate: { directory: "get-started" },
+              collapsed: false,
+              items: [
+                { label: "5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
+                { label: "Get started with the command line", link: "/get-started/quickstart/cli-rest-api" },
+                { label: "Integrate Tiger Cloud with your AI assistant", link: "/get-started/quickstart/mcp-cli" },
+                { label: "Create a Tiger Cloud service", link: "/get-started/quickstart/create-service" },
+                { label: "Connect your app", link: "/get-started/quickstart/connect-your-app" },
+              ],
+            },
+            {
+              label: "Core concepts",
+              collapsed: true,
+              items: [
+                { label: "Your first hypertable", link: "/learn/fundamentals/your-first-hypertable" },
+                { label: "Basic compression", link: "/learn/fundamentals/basic-compression" },
+              ],
+            },
+            {
+              label: "News & updates",
+              collapsed: true,
+              autogenerate: { directory: "get-started/news" },
             },
             {
               label: "Contribute to the docs",
@@ -770,5 +806,21 @@ export default defineConfig({
     "/api-reference/timescaledb-toolkit": "/reference/toolkit",
     "/api-reference/timescaledb": "/reference/timescaledb",
     "/api-reference": "/reference",
+    // Get-started reorganization (Solution 2): preserve old URLs
+    "/get-started/quickstart-5-minutes": "/get-started/quickstart/quickstart-5-minutes",
+    "/get-started/create-service": "/get-started/quickstart/create-service",
+    "/get-started/connect-your-app": "/get-started/quickstart/connect-your-app",
+    "/get-started/next-steps": "/get-started/quickstart/next-steps",
+    "/get-started/create-mst-service": "/get-started/choose-your-path/create-mst-service",
+    "/get-started/install-timescaledb": "/get-started/choose-your-path/install-timescaledb",
+    "/get-started/supported-platforms": "/get-started/choose-your-path/supported-platforms",
+    "/get-started/timescaledb-editions": "/get-started/choose-your-path/timescaledb-editions",
+    "/get-started/cli-rest-api": "/get-started/quickstart/cli-rest-api",
+    "/get-started/tools/cli-rest-api": "/get-started/quickstart/cli-rest-api",
+    "/get-started/mcp-cli": "/get-started/quickstart/mcp-cli",
+    "/get-started/tools/mcp-cli": "/get-started/quickstart/mcp-cli",
+    "/get-started/key-features-timescale": "/get-started/tools/key-features-timescale",
+    "/get-started/new": "/get-started/news/new",
+    "/get-started/release-notes": "/get-started/news/release-notes",
   },
 });

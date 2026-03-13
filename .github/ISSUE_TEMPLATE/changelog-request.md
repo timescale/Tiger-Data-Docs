@@ -8,7 +8,7 @@ assignees: ''
 
 ## Changelog entry details
 
-Maintainers will add the entry to `src/content/docs/get-started/new.mdx` using the format in [README-changelog.md](https://github.com/timescale/Tiger-Data-Docs/blob/main/README-changelog.md). You only need to provide the information below.
+Maintainers will add the entry to `src/content/docs/get-started/news/new.mdx` using the format in [README-changelog.md](https://github.com/timescale/Tiger-Data-Docs/blob/main/README-changelog.md). You only need to provide the information below.
 
 ### Entry title
 
