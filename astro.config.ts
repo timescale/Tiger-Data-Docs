@@ -122,7 +122,22 @@ export default defineConfig({
             },
             {
               label: "Quickstart",
-              autogenerate: { directory: "get-started" },
+              autogenerate: { directory: "get-started/quickstart" },
+            },
+            {
+              label: "Choose your path",
+              collapsed: true,
+              autogenerate: { directory: "get-started/choose-your-path" },
+            },
+            {
+              label: "Tools & interfaces",
+              collapsed: true,
+              autogenerate: { directory: "get-started/tools" },
+            },
+            {
+              label: "News & updates",
+              collapsed: true,
+              autogenerate: { directory: "get-started/news" },
             },
             {
               label: "Contribute to the docs",
@@ -770,5 +785,21 @@ export default defineConfig({
     "/api-reference/timescaledb-toolkit": "/reference/toolkit",
     "/api-reference/timescaledb": "/reference/timescaledb",
     "/api-reference": "/reference",
+    // Get-started reorganization (Solution 2): preserve old URLs
+    "/get-started/quickstart-5-minutes": "/get-started/quickstart/quickstart-5-minutes",
+    "/get-started/create-service": "/get-started/quickstart/create-service",
+    "/get-started/connect-your-app": "/get-started/quickstart/connect-your-app",
+    "/get-started/next-steps": "/get-started/quickstart/next-steps",
+    "/get-started/create-mst-service": "/get-started/choose-your-path/create-mst-service",
+    "/get-started/install-timescaledb": "/get-started/choose-your-path/install-timescaledb",
+    "/get-started/supported-platforms": "/get-started/choose-your-path/supported-platforms",
+    "/get-started/timescaledb-editions": "/get-started/choose-your-path/timescaledb-editions",
+    "/get-started/cli-rest-api": "/get-started/quickstart/cli-rest-api",
+    "/get-started/tools/cli-rest-api": "/get-started/quickstart/cli-rest-api",
+    "/get-started/mcp-cli": "/get-started/quickstart/mcp-cli",
+    "/get-started/tools/mcp-cli": "/get-started/quickstart/mcp-cli",
+    "/get-started/key-features-timescale": "/get-started/tools/key-features-timescale",
+    "/get-started/new": "/get-started/news/new",
+    "/get-started/release-notes": "/get-started/news/release-notes",
   },
 });

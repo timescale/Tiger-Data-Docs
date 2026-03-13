@@ -6,7 +6,7 @@ This guide walks through adding a new entry to the Tiger Data changelog: which f
 
 ## Where to add it
 
-**File:** `src/content/docs/get-started/new.mdx`
+**File:** `src/content/docs/get-started/news/new.mdx`
 
 All changelog entries live in this single MDX file. New entries are added at the **top** of the list (after the page intro and filter), so the changelog stays newest-first.
 
@@ -16,7 +16,7 @@ All changelog entries live in this single MDX file. New entries are added at the
 
 The changelog page is built from:
 
-1. **Page frontmatter** (title, description, etc.) at the top of `new.mdx`.
+1. **Page frontmatter** (title, description, etc.) at the top of `get-started/news/new.mdx`.
 2. **ChangelogFilter** – the filter UI (tags, search) above the list.
 3. **A wrapper** `<div class="changelog-page-toc">` that holds both the table-of-contents headings and the cards.
 4. **Repeating blocks** – for each entry you add **two things**:
@@ -157,7 +157,7 @@ See [docs link](https://...) for details.
 
 | What                    | Where it goes |
 |-------------------------|----------------|
-| File to edit            | `src/content/docs/get-started/new.mdx` |
+| File to edit            | `src/content/docs/get-started/news/new.mdx` |
 | Position of new entry   | At the top, after `<div class="changelog-page-toc">` and the first existing `##` / `<ChangelogEntry>` |
 | TOC heading             | `## Entry title` (above the card) |
 | Card title (visible H2) | `<h2 slot="heading" class="changelog-entry__title">Entry title</h2>` (first thing inside `<ChangelogEntry>`) |
