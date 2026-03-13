@@ -34,11 +34,15 @@ function getCategoryLabel(slug: string): string {
   return CATEGORY_LABELS[slug] ?? slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
+/** Industry labels (Energy, Crypto, IoT, Oil and Gas, Healthcare, Manufacturing). */
 const INDUSTRY_LABELS: Record<string, string> = {
+  energy: "Energy",
   crypto: "Crypto",
-  IoT: "IoT",
+  iot: "IoT",
+  "oil-and-gas": "Oil and Gas",
   healthcare: "Healthcare",
   manufacturing: "Manufacturing",
+  IoT: "IoT",
 };
 
 export type IntegrateView = "all" | "category" | "industry" | "plan";

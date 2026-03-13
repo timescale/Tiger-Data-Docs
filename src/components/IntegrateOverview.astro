@@ -176,30 +176,44 @@ for (const key of planOrder) {
   planGroups[key].sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99));
 }
 
-// Group by industry; industry name -> entries
+// Industry order and labels (Energy, Crypto, IoT, Oil and Gas, Healthcare, Manufacturing)
+const INDUSTRY_ORDER = ["energy", "crypto", "iot", "oil-and-gas", "healthcare", "manufacturing"];
+/** Normalize frontmatter industry value to canonical key (e.g. "IoT" -> "iot", "Oil and Gas" -> "oil-and-gas"). */
+function normalizeIndustryKey(raw: string): string {
+  const k = raw.trim().toLowerCase().replace(/\s+/g, "-");
+  if (k === "oil-and-gas" || k === "oilandgas") return "oil-and-gas";
+  if (k === "energy" || k === "crypto" || k === "iot" || k === "healthcare" || k === "manufacturing") return k;
+  return raw.trim();
+}
+// Group by industry (canonical key) -> entries
 const industryGroups: Record<string, { slug: string; data: DocData }[]> = {};
 for (const entry of entries) {
   const industries = entry.data.integrationIndustry ?? [];
   for (const ind of industries) {
-    const key = ind.trim();
+    const key = normalizeIndustryKey(ind);
     if (!key) continue;
     if (!industryGroups[key]) industryGroups[key] = [];
     industryGroups[key].push(entry);
   }
 }
-// Fixed industry order: crypto, IoT, healthcare, manufacturing (only include those that have entries)
-const INDUSTRY_ORDER = ["crypto", "IoT", "healthcare", "manufacturing"];
 const INDUSTRY_LABELS: Record<string, string> = {
+  energy: "Energy",
   crypto: "Crypto",
-  IoT: "IoT",
+  iot: "IoT",
+  "oil-and-gas": "Oil and Gas",
   healthcare: "Healthcare",
   manufacturing: "Manufacturing",
+  IoT: "IoT",
 };
-const industryOrder = INDUSTRY_ORDER.filter((key) => industryGroups[key]?.length);
-for (const key of industryOrder) {
-  industryGroups[key].sort(
-    (a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99)
-  );
+/** Always show these six industries in "By industry" view. */
+const INDUSTRY_DISPLAY_ORDER = [...INDUSTRY_ORDER];
+const industryOrder = INDUSTRY_DISPLAY_ORDER;
+for (const key of INDUSTRY_ORDER) {
+  if (industryGroups[key]?.length) {
+    industryGroups[key].sort(
+      (a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99)
+    );
+  }
 }
 
 function slugToHref(slug: string): string {
@@ -228,7 +242,7 @@ const planTocSections = planOrder.map((key) => ({
 }));
 ---
 
-<div class="integrate-overview" data-industry-order={JSON.stringify(industryOrder)} data-category-order={JSON.stringify(CATEGORY_DISPLAY_ORDER)} data-all-integrations={JSON.stringify(allIntegrationsToc)} data-plan-sections={JSON.stringify(planTocSections)} id="integrate-overview-root">
+<div class="integrate-overview" data-industry-order={JSON.stringify(INDUSTRY_DISPLAY_ORDER)} data-category-order={JSON.stringify(CATEGORY_DISPLAY_ORDER)} data-all-integrations={JSON.stringify(allIntegrationsToc)} data-plan-sections={JSON.stringify(planTocSections)} id="integrate-overview-root">
   <div class="integrate-overview-controls">
     <label for="integrate-view-select" class="integrate-overview-label">View integrations</label>
     <select id="integrate-view-select" class="integrate-overview-select" aria-label="Choose how to view integrations">
@@ -319,45 +333,48 @@ const planTocSections = planOrder.map((key) => ({
 
   <div id="integrate-view-industry" class="integrate-view" data-view="industry" hidden>
     {
-      industryOrder.length > 0 ? (
-        industryOrder.map((industry) => (
-          <section class="integrate-category-section" id={`integrate-industry-${String(industry).toLowerCase()}`}>
+      INDUSTRY_DISPLAY_ORDER.map((industry) => {
+        const items = industryGroups[industry] ?? [];
+        return (
+          <section class="integrate-category-section" id={`integrate-industry-${String(industry).toLowerCase().replace(/\s+/g, "-")}`}>
             <details class="integrate-category-details" open>
               <summary class="integrate-category-summary">
                 <span class="integrate-category-heading">{INDUSTRY_LABELS[industry] ?? industry}</span>
                 <span class="integrate-category-chevron" aria-hidden="true"></span>
               </summary>
               <div class="integrate-category-content">
-                <div class="related-content-cards__grid">
-                  {
-                    industryGroups[industry].map(({ slug, data }) => {
-                      const platforms = getPlatforms(data);
-                      return (
-                        <div class="integrate-card-wrapper" data-platforms={platforms.join(",")}>
-                          <a href={slugToHref(slug)} class="integrate-card-link">
-                            <span class="integrate-card-inner">
-                              <span class="integrate-card-title">{cardTitle(data)}</span>
-                              <div class="integrate-card-chips">
-                                {platforms.map((p) => (
-                                  <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
-                                ))}
-                              </div>
-                              {data.description && <p class="integrate-card-description">{data.description}</p>}
-                            </span>
-                            <span class="integrate-card-arrow" aria-hidden="true">→</span>
-                          </a>
-                        </div>
-                      );
-                    })
-                  }
-                </div>
+                {items.length > 0 ? (
+                  <div class="related-content-cards__grid">
+                    {
+                      items.map(({ slug, data }) => {
+                        const platforms = getPlatforms(data);
+                        return (
+                          <div class="integrate-card-wrapper" data-platforms={platforms.join(",")}>
+                            <a href={slugToHref(slug)} class="integrate-card-link">
+                              <span class="integrate-card-inner">
+                                <span class="integrate-card-title">{cardTitle(data)}</span>
+                                <div class="integrate-card-chips">
+                                  {platforms.map((p) => (
+                                    <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
+                                  ))}
+                                </div>
+                                {data.description && <p class="integrate-card-description">{data.description}</p>}
+                              </span>
+                              <span class="integrate-card-arrow" aria-hidden="true">→</span>
+                            </a>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+                ) : (
+                  <p class="integrate-empty">No integrations tagged for this industry yet. Add <code>integrationIndustry: ["{industry}"]</code> in integration frontmatter to list them here.</p>
+                )}
               </div>
             </details>
           </section>
-        ))
-      ) : (
-        <p class="integrate-empty">No integrations tagged by industry yet. Add <code>integrationIndustry</code> in frontmatter to show them here.</p>
-      )
+        );
+      })
     }
   </div>
 
