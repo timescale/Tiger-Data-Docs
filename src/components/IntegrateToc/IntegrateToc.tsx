@@ -15,11 +15,13 @@ const HASH_TO_VIEW: Record<string, string> = {
 function hrefToCategorySlug(href: string): string {
   return href.replace(/^\/integrate\/?/, "").replace(/\/$/, "") || "";
 }
+/** Category sections for "By category" view (matches IntegrateOverview and sidebar). */
 const CATEGORIES = [
   { title: "Data Engineering & ETL", href: "/integrate/data-engineering-etl" },
   { title: "BI & Visualization", href: "/integrate/bi-vizualization" },
   { title: "Data Ingestion & Streaming", href: "/integrate/data-ingestion-streaming" },
   { title: "Connectors", href: "/integrate/connectors" },
+  { title: "Code & Libraries", href: "/integrate/code" },
   { title: "Query & Administration", href: "/integrate/query-administration" },
   { title: "Secure Connectivity", href: "/integrate/secure-connectivity" },
   { title: "Observability & Alerting", href: "/integrate/observability-alerting" },

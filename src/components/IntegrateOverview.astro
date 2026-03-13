@@ -102,11 +102,13 @@ for (const slug of allSlugs) {
   }
 }
 
+/** Category sections for "By category" view, in display order (matches nav/sidebar). */
 const byCategory = [
   { title: "Data Engineering & ETL", description: "ETL tools and data pipelines", href: "/integrate/data-engineering-etl" },
   { title: "BI & Visualization", description: "Dashboards and reporting tools", href: "/integrate/bi-vizualization" },
   { title: "Data Ingestion & Streaming", description: "Real-time data streaming", href: "/integrate/data-ingestion-streaming" },
   { title: "Connectors", description: "Source and destination connectors", href: "/integrate/connectors" },
+  { title: "Code & Libraries", description: "Code and library integrations", href: "/integrate/code" },
   { title: "Query & Administration", description: "Database management tools", href: "/integrate/query-administration" },
   { title: "Secure Connectivity", description: "VPNs, tunnels, and secure access", href: "/integrate/secure-connectivity" },
   { title: "Observability & Alerting", description: "Monitoring and alerting tools", href: "/integrate/observability-alerting" },
@@ -118,10 +120,12 @@ function hrefToCategorySlug(href: string): string {
   return href.replace(/^\/integrate\/?/, "").replace(/\/$/, "") || "";
 }
 const CATEGORY_ORDER = byCategory.map((c) => hrefToCategorySlug(c.href)).filter(Boolean);
+/** Fixed display order for "By category" view (matches sidebar). */
+const CATEGORY_DISPLAY_ORDER = [...CATEGORY_ORDER];
 const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
   byCategory.map((c) => [hrefToCategorySlug(c.href), c.title])
 );
-// Fallback label for categories that appear in frontmatter but aren't in byCategory (e.g. code, troubleshoot)
+// Fallback label for categories that appear in frontmatter but aren't in byCategory
 function getCategoryLabel(slug: string): string {
   return CATEGORY_LABELS[slug] ?? slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
@@ -224,7 +228,7 @@ const planTocSections = planOrder.map((key) => ({
 }));
 ---
 
-<div class="integrate-overview" data-industry-order={JSON.stringify(industryOrder)} data-category-order={JSON.stringify(categoryOrder)} data-all-integrations={JSON.stringify(allIntegrationsToc)} data-plan-sections={JSON.stringify(planTocSections)} id="integrate-overview-root">
+<div class="integrate-overview" data-industry-order={JSON.stringify(industryOrder)} data-category-order={JSON.stringify(CATEGORY_DISPLAY_ORDER)} data-all-integrations={JSON.stringify(allIntegrationsToc)} data-plan-sections={JSON.stringify(planTocSections)} id="integrate-overview-root">
   <div class="integrate-overview-controls">
     <label for="integrate-view-select" class="integrate-overview-label">View integrations</label>
     <select id="integrate-view-select" class="integrate-overview-select" aria-label="Choose how to view integrations">
@@ -275,18 +279,17 @@ const planTocSections = planOrder.map((key) => ({
 
   <div id="integrate-view-category" class="integrate-view" data-view="category" hidden>
     {
-      categoryOrder.length > 0 ? (
-        categoryOrder.map((category) => (
-          <section class="integrate-category-section" id={`integrate-category-${category.replace(/\s+/g, "-").toLowerCase()}`}>
-            <details class="integrate-category-details" open>
-              <summary class="integrate-category-summary">
-                <span class="integrate-category-heading">{getCategoryLabel(category)}</span>
-                <span class="integrate-category-chevron" aria-hidden="true"></span>
-              </summary>
-              <div class="integrate-category-content">
-                <div class="related-content-cards__grid">
-                  {
-                    (categoryGroups[category] ?? []).map(({ slug, data }) => {
+      CATEGORY_DISPLAY_ORDER.map((categorySlug) => (
+        <section class="integrate-category-section" id={`integrate-category-${categorySlug.replace(/\s+/g, "-").toLowerCase()}`}>
+          <details class="integrate-category-details" open>
+            <summary class="integrate-category-summary">
+              <span class="integrate-category-heading">{getCategoryLabel(categorySlug)}</span>
+              <span class="integrate-category-chevron" aria-hidden="true"></span>
+            </summary>
+            <div class="integrate-category-content">
+              <div class="related-content-cards__grid">
+                {
+                  (categoryGroups[categorySlug] ?? []).map(({ slug, data }) => {
                       const platforms = getPlatforms(data);
                       return (
                         <div class="integrate-card-wrapper" data-platforms={platforms.join(",")}>
@@ -307,13 +310,10 @@ const planTocSections = planOrder.map((key) => ({
                     })
                   }
                 </div>
-              </div>
-            </details>
-          </section>
-        ))
-      ) : (
-        <p class="integrate-empty">No integrations tagged by category yet. Add <code>integrationCategory</code> in frontmatter to show them here.</p>
-      )
+            </div>
+          </details>
+        </section>
+      ))
     }
   </div>
 
