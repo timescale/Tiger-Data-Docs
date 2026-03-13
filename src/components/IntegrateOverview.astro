@@ -171,9 +171,13 @@ for (const entry of entries) {
     if (!planGroups[p].some((e) => e.slug === entry.slug)) planGroups[p].push(entry);
   }
 }
-const planOrder = PLAN_ORDER.filter((key) => planGroups[key]?.length);
-for (const key of planOrder) {
-  planGroups[key].sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99));
+/** Always show all four plans in "By plan" view: Tiger Cloud, Tiger Cloud on Azure, Tiger Cloud on AWS, Self-Hosted. */
+const PLAN_DISPLAY_ORDER = [...PLAN_ORDER];
+const planOrder = PLAN_DISPLAY_ORDER;
+for (const key of PLAN_ORDER) {
+  if (planGroups[key]?.length) {
+    planGroups[key].sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99));
+  }
 }
 
 // Industry order and labels (Energy, Crypto, IoT, Oil and Gas, Healthcare, Manufacturing)
@@ -380,8 +384,9 @@ const planTocSections = planOrder.map((key) => ({
 
   <div id="integrate-view-plan" class="integrate-view" data-view="plan" hidden>
     {
-      planOrder.length > 0 ? (
-        planOrder.map((planKey) => (
+      planOrder.map((planKey) => {
+        const items = planGroups[planKey] ?? [];
+        return (
           <section class="integrate-category-section" id={`integrate-plan-${planKey.replace(/\s+/g, "-")}`}>
             <details class="integrate-category-details" open>
               <summary class="integrate-category-summary">
@@ -389,37 +394,39 @@ const planTocSections = planOrder.map((key) => ({
                 <span class="integrate-category-chevron" aria-hidden="true"></span>
               </summary>
               <div class="integrate-category-content">
-                <div class="related-content-cards__grid">
-                  {
-                    (planGroups[planKey] ?? []).map(({ slug, data }) => {
-                      const platforms = getPlatforms(data);
-                      const cardId = slugToCardId(slug);
-                      return (
-                        <div class="integrate-card-wrapper" id={`integrate-plan-card-${planKey}-${cardId}`} data-platforms={platforms.join(",")}>
-                          <a href={slugToHref(slug)} class="integrate-card-link">
-                            <span class="integrate-card-inner">
-                              <span class="integrate-card-title">{cardTitle(data)}</span>
-                              <div class="integrate-card-chips">
-                                {platforms.map((p) => (
-                                  <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
-                                ))}
-                              </div>
-                              {data.description && <p class="integrate-card-description">{data.description}</p>}
-                            </span>
-                            <span class="integrate-card-arrow" aria-hidden="true">→</span>
-                          </a>
-                        </div>
-                      );
-                    })
-                  }
-                </div>
+                {items.length > 0 ? (
+                  <div class="related-content-cards__grid">
+                    {
+                      items.map(({ slug, data }) => {
+                        const platforms = getPlatforms(data);
+                        const cardId = slugToCardId(slug);
+                        return (
+                          <div class="integrate-card-wrapper" id={`integrate-plan-card-${planKey}-${cardId}`} data-platforms={platforms.join(",")}>
+                            <a href={slugToHref(slug)} class="integrate-card-link">
+                              <span class="integrate-card-inner">
+                                <span class="integrate-card-title">{cardTitle(data)}</span>
+                                <div class="integrate-card-chips">
+                                  {platforms.map((p) => (
+                                    <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
+                                  ))}
+                                </div>
+                                {data.description && <p class="integrate-card-description">{data.description}</p>}
+                              </span>
+                              <span class="integrate-card-arrow" aria-hidden="true">→</span>
+                            </a>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+                ) : (
+                  <p class="integrate-empty">No integrations tagged for this plan yet. Add <code>integrationPlatforms</code> (e.g. aws, azure, self-hosted) in integration frontmatter to list them here.</p>
+                )}
               </div>
             </details>
           </section>
-        ))
-      ) : (
-        <p class="integrate-empty">No integrations with platform tags yet. Add <code>integrationPlatforms</code> in frontmatter (aws, azure, self-hosted).</p>
-      )
+        );
+      })
     }
   </div>
 </div>
