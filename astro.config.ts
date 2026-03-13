@@ -775,6 +775,7 @@ export default defineConfig({
                     { label: "Downgrade to a minor version", link: "/deploy/self-hosted/upgrades/downgrade" },
                   ],
                 },
+                { label: "Troubleshooting", link: "/deploy/self-hosted/troubleshooting" },
                 { label: "Uninstall self-hosted TimescaleDB", link: "/deploy/self-hosted/uninstall" },
               ],
             },
