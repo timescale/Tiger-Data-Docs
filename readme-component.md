@@ -1,5 +1,6 @@
 # Component usage guide
 
+<!-- markdownlint-disable MD033 MD036 MD060 -->
 This doc describes how to use the custom and overridden components in Tiger Data Docs. Use the sections below to expand only what you need. **Callouts** are the main thing doc editors use in MDX; **Main / primary button** explains when to use the primary CTA style (header and callout CTAs).
 
 ---
@@ -319,13 +320,13 @@ import SecondaryButton from "@components/SecondaryButton.astro";
 <SecondaryButton variant="subtle" label="Copy" href="/copy" />
 ```
 
-| Prop | Description |
-|------|-------------|
-| `variant` | `"default"` (white bg, Figma 3245-9636) or `"subtle"` (gray bg, Figma 3245-9637). Default: `"default"`. |
-| `label` | Button text (required). |
-| `href` | If set, renders as `<a>`; otherwise `<button>`. |
-| `type` | For `<button>`: `"button"` \| `"submit"` \| `"reset"`. |
-| `aria-label` | Override accessible name (defaults to `label`). |
+| Prop         | Description                                                                                   |
+|--------------|-----------------------------------------------------------------------------------------------|
+| `variant`    | `"default"` (white bg, Figma 3245-9636) or `"subtle"` (gray bg, Figma 3245-9637). Default: `"default"`. |
+| `label`      | Button text (required).                                                                        |
+| `href`       | If set, renders as `<a>`; otherwise `<button>`.                                               |
+| `type`       | For `<button>`: `"button"` \| `"submit"` \| `"reset"`.                                        |
+| `aria-label` | Override accessible name (defaults to `label`).                                                |
 
 Use the **icon** slot to replace the default Copy icon: put your SVG (or icon component) inside the component with `slot="icon"`.
 
@@ -365,12 +366,12 @@ Use them by importing from `@components/...` or `@stainless-api/docs/components`
 
 ## Quick reference: Callout only
 
-| Variant     | Example usage |
-|------------|----------------|
-| Tip        | `<Callout variant="tip">…</Callout>` |
-| Note       | `<Callout variant="note">…</Callout>` |
-| Important  | `<Callout variant="important">…</Callout>` |
-| Warning    | `<Callout variant="warning">…</Callout>` |
+| Variant    | Example usage                                                       |
+|------------|----------------------------------------------------------------------|
+| Tip        | `<Callout variant="tip">…</Callout>`                                |
+| Note       | `<Callout variant="note">…</Callout>`                               |
+| Important  | `<Callout variant="important">…</Callout>`                           |
+| Warning    | `<Callout variant="warning">…</Callout>`                            |
 | CTA        | `<Callout variant="callout" buttonLabel="…" buttonHref="…">…</Callout>` |
 
 Import once per file: `import { Callout } from "@stainless-api/docs/components";`

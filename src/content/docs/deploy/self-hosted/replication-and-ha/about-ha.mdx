@@ -1,0 +1,66 @@
+---
+title: About high availability
+description: Increase the redundancy and resilience of your TimescaleDB database with backup and replication
+products: [self_hosted]
+keywords: [high availability, backups, replicas, failover]
+---
+
+import * as C from "@constants";
+
+High availability (HA) is achieved by increasing redundancy and
+resilience. To increase redundancy, parts of the system are replicated, so that
+they are on standby in the event of a failure. To increase resilience, recovery
+processes switch between these standby resources as quickly as possible.
+
+## Backups
+
+For some systems, recovering from backup alone can be a suitable availability
+strategy.
+
+For more information about backups in {C.SELF_LONG}, see the
+[backup and restore section](/deploy/self-hosted/backup-and-restore) in the {C.TIMESCALE_DB} documentation.
+
+## Storage redundancy
+
+Storage redundancy refers to having multiple copies of a database's data files.
+If the storage currently attached to a {C.PG} instance corrupts or otherwise
+becomes unavailable, the system can replace its current storage with one of the
+copies.
+
+## Instance redundancy
+
+Instance redundancy refers to having replicas of your database running
+simultaneously. In the case of a database failure, a replica is an up-to-date,
+running database that can take over immediately.
+
+## Zonal redundancy
+
+While the public cloud is highly reliable, entire portions of the cloud can be
+unavailable at times. {C.TIMESCALE_DB} does not protect against Availability Zone
+failures unless the user is using HA replicas. We do not currently offer
+multi-cloud solutions or protection from an AWS Regional failure.
+
+## Replication
+
+{C.TIMESCALE_DB} supports replication using {C.PG}'s built-in
+[streaming replication](https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION). Using
+[logical replication](https://www.postgresql.org/docs/current/logical-replication.html) with {C.TIMESCALE_DB} is not recommended,
+as it requires schema synchronization between the primary and replica nodes and
+replicating partition root tables, which are
+[not currently supported](https://www.postgresql.org/docs/current/logical-replication-restrictions.html).
+
+{C.PG} achieves streaming replication by having replicas continuously stream
+the WAL from the primary database. See the official
+[replication documentation](https://www.postgresql.org/docs/current/warm-standby.html#STREAMING-REPLICATION)
+for details. For more information about how {C.PG} implements Write-Ahead
+Logging, see their
+[WAL Documentation](https://www.postgresql.org/docs/current/wal-intro.html).
+
+## Failover
+
+{C.PG} offers failover functionality where a replica is promoted to primary
+in the event of a failure on the primary. This is done using
+[pg_ctl](https://www.postgresql.org/docs/current/app-pg-ctl.html) or the `trigger_file`, but it does not provide
+out-of-the-box support for automatic failover. Read more in the {C.PG}
+[failover documentation](https://www.postgresql.org/docs/current/warm-standby-failover.html). [Patroni](https://github.com/zalando/patroni) offers a
+configurable high availability solution with automatic failover functionality.

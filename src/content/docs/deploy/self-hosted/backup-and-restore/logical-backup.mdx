@@ -1,0 +1,192 @@
+---
+title: Logical backup with pg_dump and pg_restore
+description: Back up and restore a hypertable or an entire database using native PostgreSQL commands
+products: [self_hosted]
+keywords: [backups, restore, pg_dump, pg_restore]
+---
+
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+You back up and restore each self-hosted {C.PG} database with {C.TIMESCALE_DB} enabled using the native
+{C.PG} [`pg_dump`](https://www.postgresql.org/docs/current/app-pgdump.html) and [`pg_restore`](https://www.postgresql.org/docs/current/app-pgrestore.html) commands. This also works for compressed hypertables,
+you don't have to decompress the chunks before you begin.
+
+If you are using `pg_dump` to backup regularly, make sure you keep
+track of the versions of {C.PG} and {C.TIMESCALE_DB} you are running.
+
+This page shows you how to:
+
+- [Back up and restore an entire database](#back-up-and-restore-an-entire-database)
+- [Back up and restore individual hypertables](#back-up-and-restore-individual-hypertables)
+
+You can also [upgrade between different versions of {C.TIMESCALE_DB}](/deploy/self-hosted/upgrades).
+
+## Prerequisites
+
+- A source database to backup from, and a target database to restore to.
+- Install the `psql` and `pg_dump` {C.PG} client tools on your migration machine.
+
+## Back up and restore an entire database
+
+You backup and restore an entire database using `pg_dump` and `psql`.
+
+<NumberedList>
+<NumberedItem title="Set your connection strings">
+These variables hold the connection information for the source database to backup from and
+the target database to restore to:
+
+```bash
+export SOURCE=postgres://<user>:<password>@<source host>:<source port>/<db_name>
+export TARGET=postgres://<user>:<password>@<source host>:<source port>
+```
+</NumberedItem>
+<NumberedItem title="Back up your database">
+```bash
+pg_dump -d "$SOURCE" \
+  -Fc -f <db_name>.bak
+```
+You may see some errors while `pg_dump` is running. These can usually be safely ignored.
+</NumberedItem>
+<NumberedItem title="Restore your database from the backup">
+<ol type="a">
+<li>
+
+Connect to your target database:
+```bash
+psql -d "$TARGET"
+```
+
+</li>
+<li>
+
+Create a new database and enable {C.TIMESCALE_DB}:
+
+```sql
+CREATE DATABASE <restoration database>;
+\c <restoration database>
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+```
+
+</li>
+<li>
+
+Put your database in the right state for restoring:
+
+```sql
+SELECT timescaledb_pre_restore();
+```
+
+</li>
+<li>
+
+Restore the database:
+
+```sql
+pg_restore -Fc -d <restoration database> <db_name>.bak
+```
+
+</li>
+<li>
+
+Return your database to normal operations:
+
+```sql
+SELECT timescaledb_post_restore();
+```
+Do not use `pg_restore` with the `-j` option. This option does not correctly restore the
+{C.TIMESCALE_DB} catalogs.
+
+</li>
+</ol>
+</NumberedItem>
+</NumberedList>
+
+## Back up and restore individual hypertables
+
+`pg_dump` provides flags that allow you to specify tables or schemas
+to back up. However, using these flags means that the dump lacks necessary
+information that {C.TIMESCALE_DB} requires to understand the relationship between
+them. Even if you explicitly specify both the hypertable and all of its
+constituent chunks, the dump would still not contain all the information it
+needs to recreate the hypertable on restore.
+
+To backup individual hypertables, backup the database schema, then backup only the tables
+you need. You also use this method to backup individual plain tables.
+
+<NumberedList>
+<NumberedItem title="Set your connection strings">
+These variables hold the connection information for the source database to backup from and
+the target database to restore to:
+
+```bash
+export SOURCE=postgres://<user>:<password>@<source host>:<source port>/<db_name>
+export TARGET=postgres://<user>:<password>@<source host>:<source port>/<db_name>
+```
+</NumberedItem>
+<NumberedItem title="Back up the database schema and individual tables">
+<ol type="a">
+<li>
+
+Back up the hypertable schema:
+
+```bash
+pg_dump -s -d $SOURCE --table <table-name>  > schema.sql
+```
+
+</li>
+<li>
+
+Back up hypertable data to a CSV file. For each hypertable to backup:
+
+```bash
+psql -d $SOURCE \
+-c "\COPY (SELECT * FROM <table-name>) TO <table-name>.csv DELIMITER ',' CSV"
+```
+
+</li>
+</ol>
+</NumberedItem>
+<NumberedItem title="Restore the schema to the target database">
+```bash
+psql -d $TARGET < schema.sql
+```
+</NumberedItem>
+<NumberedItem title="Restore hypertables from the backup">
+For each hypertable to backup:
+<ol type="a">
+<li>
+
+Recreate the hypertable:
+
+```bash
+psql -d $TARGET -c "SELECT create_hypertable(<table-name>, <partition>)"
+```
+When you [create the new hypertable](/reference/timescaledb/hypertables/create_hypertable), you do not need to use the
+same parameters as existed in the source database. This
+can provide a good opportunity for you to re-organize your hypertables if
+you need to. For example, you can change the partitioning key, the number of
+partitions, or the chunk interval sizes.
+
+</li>
+<li>
+
+Restore the data:
+
+```bash
+psql -d $TARGET -c "\COPY <table-name> FROM <table-name>.csv CSV"
+```
+
+The standard `COPY` command in {C.PG} is single threaded. If you have a
+lot of data, you can speed up the copy using the [timescaledb-parallel-copy](https://github.com/timescale/timescaledb-parallel-copy).
+
+</li>
+</ol>
+</NumberedItem>
+</NumberedList>
+
+Best practice is to back up and restore a database at a time. However, if you have superuser access to
+{C.PG} instance with {C.TIMESCALE_DB} installed, you can use `pg_dumpall` to back up all {C.PG} databases in a
+cluster, including global objects that are common to all databases, namely database roles, tablespaces,
+and privilege grants. You restore the {C.PG} instance using `psql`. For more information, see the
+[{C.PG} documentation](https://www.postgresql.org/docs/17/backup-dump.html#BACKUP-DUMP-ALL).

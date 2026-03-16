@@ -1,0 +1,166 @@
+---
+title: Integrate Tiger Cloud with your AI Assistant (MCP and CLI)
+description: Install Tiger CLI, set up Tiger MCP, and manage Tiger Cloud resources from Claude, Cursor, and other AI assistants
+products: [cloud]
+sidebar:
+  order: 3
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+import RESTPrereqs from "../../../../partials/_prereqs-cloud-account-only.mdx";
+import MCPCommands from "../../../../partials/_devops-mcp-commands.mdx";
+import MCPCommandsCLI from "../../../../partials/_devops-mcp-commands-cli.mdx";
+import GlobalFlags from "../../../../partials/_devops-cli-global-flags.mdx";
+
+{C.MCP_LONG} gives your AI assistant access to {C.CLOUD_LONG} so you can manage {C.SERVICE_SHORT}s and query your data using natural language.
+
+{C.MCP_LONG} is built into the {C.CLI_LONG} binary. It mirrors {C.CLI_SHORT} functionality and is wired to {C.COMPANY} documentation, so your AI assistant can answer questions with up-to-date guidance. This page walks you through installing {C.CLI_LONG}, configuring authentication for {C.MCP_LONG}, and managing {C.CLOUD_LONG} resources from your AI assistant.
+
+## Prerequisites
+
+<RESTPrereqs />
+
+- Install an AI assistant on your machine with an active API key.
+
+  The following AI assistants are **automatically** configured by {C.MCP_LONG}:
+  - [`claude-code`](https://docs.anthropic.com/en/docs/claude-code)
+  - [`cursor`](https://cursor.com)
+  - [`windsurf`](https://windsurf.com)
+  - [`codex`](https://openai.com/codex)
+  - [`gemini/gemini-cli`](https://github.com/google-gemini/gemini-cli)
+  - [`vscode/code/vs-code`](https://code.visualstudio.com).
+
+  Support for additional clients is added over time; if yours isn't listed, use [manual configuration](#manually-configure-tiger-mcp) below.
+
+## Install and configure {C.MCP_LONG}
+
+{C.MCP_LONG} is bundled with {C.CLI_LONG}.
+
+<NumberedList>
+  <NumberedItem title={`Install the ${C.CLI_LONG}`}>
+
+    In a terminal, install the {C.CLI_SHORT} using the method for your platform (see [Get started with the command line](/get-started/quickstart/cli-rest-api) for the latest install command).
+
+  </NumberedItem>
+  <NumberedItem title="Set up API credentials">
+
+    1. **Log in to {C.CLOUD_LONG}**
+
+       Run:
+       ```bash
+       tiger auth login
+       ```
+       {C.CLI_LONG} opens the browser for {C.CONSOLE_SHORT}. Log in and click `Authorize`.
+
+       <Callout variant="warning" title="Credential limit">
+       You can have a maximum of **10 active client credentials**. If login fails, open [credentials](https://console.cloud.timescale.com) and remove an unused credential.
+       </Callout>
+
+    1. **Select a {C.PROJECT_LONG}**
+
+       If you have multiple {C.PROJECT_SHORT}s, the {C.CLI_SHORT} will prompt you to choose one (for example, Tiger Project, company-wide project, or department project). If you have only one {C.PROJECT_SHORT}, this step is skipped.
+
+       Credentials are stored in the system keychain (or credential manager) when possible. If that fails, they are stored in `~/.config/tiger/credentials` with restricted permissions (600). Configuration is stored by default in `~/.config/tiger/config.yaml`.
+
+    1. **Confirm the connection**
+
+       List {C.SERVICE_SHORT}s to verify authentication:
+
+       ```bash
+       tiger service list
+       ```
+       You'll see either an empty list with a prompt to create a {C.SERVICE_SHORT}, or a table of your {C.SERVICE_SHORT}s ({C.SERVICE_SHORT} ID, name, status, type, region, created).
+
+  </NumberedItem>
+  <NumberedItem title={`Install ${C.MCP_LONG}`}>
+
+    Run:
+
+    ```bash
+    tiger mcp install
+    ```
+
+    Choose the MCP client to integrate with (for example, `claude-code`, `cursor`, `windsurf`, `codex`, `gemini-cli`, `vscode`) and press `Enter`.
+
+<Callout variant="note" title={`${C.CLI_SHORT} and ${C.MCP_SHORT} commands`}>
+  The exact list of clients and subcommands (for example, `tiger mcp install`,
+  `tiger mcp list`) can change with new {C.CLI_SHORT} releases. If a command
+  fails, run `tiger mcp --help`.
+</Callout>
+
+  </NumberedItem>
+
+</NumberedList>
+
+After this, you can use {C.MCP_LONG} from your AI assistant to manage {C.CLOUD_LONG}.
+
+## Manage {C.CLOUD_LONG} from your AI assistant
+
+Once connected, you can manage {C.SERVICE_SHORT}s and learn best practices through your assistant.
+
+<NumberedList>
+  <NumberedItem title="Start your AI assistant">
+
+    (For example, `claude`). It will start the {C.MCP_LONG} server and connect to {C.CLOUD_LONG}.
+
+  </NumberedItem>
+  <NumberedItem title={`Confirm ${C.MCP_SHORT} is active`}>
+
+Ask: _"Is the {C.MCP_LONG} server active?"_ You should see a summary of available tools ({C.SERVICE_SHORT} management, database operations, documentation search, skills for {C.HYPERTABLE}s, and others).
+
+  </NumberedItem>
+  <NumberedItem title={`List ${C.SERVICE_SHORT}s`}>
+
+Ask: _"Can you list my active {C.SERVICE_SHORT}s?"_ to see your {C.CLOUD_LONG} {C.SERVICE_SHORT}s.
+
+  </NumberedItem>
+  <NumberedItem title={`Manage ${C.SERVICE_SHORT}s in plain language`}>
+
+For example: _"Create a new AI {C.SERVICE_SHORT} called bob with a replica."_ The assistant will use {C.MCP_SHORT} tools to create the {C.SERVICE_SHORT}.
+
+  </NumberedItem>
+
+  <NumberedItem title="Get best practices">
+
+For example: _"I need to migrate a database with 25 million rows to {C.CLOUD_LONG}; what {C.SERVICE_SHORT} optimizations should I do before migration?"_ The assistant can use docs and tools to give tailored advice.
+
+  </NumberedItem>
+</NumberedList>
+
+## Manually configure {C.MCP_LONG}
+
+If your MCP client isn't supported by `tiger mcp install`, add {C.MCP_LONG} manually. Many clients use a JSON config that starts the server with `tiger mcp start`:
+
+```json
+{
+  "mcpServers": {
+    "tiger": {
+      "command": "tiger",
+      "args": ["mcp", "start"]
+    }
+  }
+}
+```
+
+<Callout variant="note" title="Config format may vary">
+  Config key names (for example, `mcpServers`) and structure depend on your
+  client. See your AI assistant's MCP documentation for the exact format and
+  where to place the file.
+</Callout>
+
+## {C.MCP_LONG} tools
+
+<MCPCommands />
+
+## {C.CLI_LONG} commands for {C.MCP_SHORT}
+
+<MCPCommandsCLI />
+
+## Global flags
+
+When running {C.CLI_LONG} (including {C.MCP_SHORT} commands), you can use:
+
+<GlobalFlags />

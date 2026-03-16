@@ -1,0 +1,129 @@
+---
+title: Upgrade PostgreSQL
+description: Upgrade PostgreSQL to a new version compatible with your self-hosted TimescaleDB installation
+products: [self_hosted]
+keywords: [upgrades, PostgreSQL, versions, compatibility]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+TimescaleDB is a {C.PG} extension. Ensure that you upgrade to compatible versions of TimescaleDB and {C.PG}.
+
+## Prerequisites
+
+- Install the {C.PG} client tools on your migration machine. This includes `psql`, and `pg_dump`.
+- Read [the release notes](https://github.com/timescale/timescaledb/releases) for the version of {C.TIMESCALE_DB} that you are upgrading to.
+- [Perform a backup](/deploy/self-hosted/backup-and-restore) of your database. While {C.TIMESCALE_DB}
+    upgrades are performed in-place, upgrading is an intrusive operation. Always
+    make sure you have a backup on hand, and that the backup is readable in the
+    case of disaster.
+
+## Plan your upgrade path
+
+Best practice is to always use the latest version of {C.TIMESCALE_DB}. Subscribe to our releases on GitHub or use {C.CLOUD_LONG}
+and always run the latest update without any hassle.
+
+Check the following support matrix against the versions of {C.TIMESCALE_DB} and {C.PG} that you are running currently
+and the versions you want to update to, then choose your upgrade path.
+
+For example, to upgrade from {C.TIMESCALE_DB} 2.13.x on {C.PG} 13 to {C.TIMESCALE_DB} 2.25.x:
+1. Upgrade {C.TIMESCALE_DB} to 2.15.x (last version fully supporting {C.PG} 13)
+1. Upgrade {C.PG} to 15, 16, 17, or 18
+1. Upgrade {C.TIMESCALE_DB} to 2.25.x
+
+Older {C.TIMESCALE_DB} versions may not be available in package repositories. If you need a specific intermediate
+version that is no longer packaged, you can build from source or upgrade directly
+to the latest version that supports your current {C.PG} version before upgrading {C.PG}.
+
+You may need to upgrade to the latest {C.PG} version before you upgrade {C.TIMESCALE_DB}. Also,
+if you use [{C.TOOLKIT_LONG}](/deploy/self-hosted/tooling/install-toolkit), ensure the `timescaledb_toolkit` extension is >=
+v1.6.0 before you upgrade {C.TIMESCALE_DB} extension.
+
+<Callout variant="warning">
+{C.PG} 15 support is deprecated and will be removed from {C.TIMESCALE_DB} in June 2026.
+</Callout>
+
+| {C.TIMESCALE_DB} version | {C.PG} 18 | {C.PG} 17 | {C.PG} 16 | {C.PG} 15 | {C.PG} 14 | {C.PG} 13 | {C.PG} 12 | {C.PG} 11 | {C.PG} 10 |
+|-|-|-|-|-|-|-|-|-|-|
+| 2.25.x |✅|✅|✅|✅|❌|❌|❌|❌|❌|
+| 2.24.x |✅|✅|✅|✅|❌|❌|❌|❌|❌|
+| 2.23.x |✅|✅|✅|✅|❌|❌|❌|❌|❌|
+| 2.22.x |❌|✅|✅|✅|❌|❌|❌|❌|❌|
+| 2.21.x |❌|✅|✅|✅|❌|❌|❌|❌|❌|
+| 2.20.x |❌|✅|✅|✅|❌|❌|❌|❌|❌|
+| 2.17 - 2.19 |❌|✅|✅|✅|✅|❌|❌|❌|❌|
+| 2.16.x |❌|❌|✅|✅|✅|❌|❌|❌|❌|
+| 2.13 - 2.15 |❌|❌|✅|✅|✅|✅|❌|❌|❌|
+| 2.12.x |❌|❌|❌|✅|✅|✅|❌|❌|❌|
+| 2.10.x |❌|❌|❌|✅|✅|✅|✅|❌|❌|
+| 2.5 - 2.9 |❌|❌|❌|❌|✅|✅|✅|❌|❌|
+| 2.4 |❌|❌|❌|❌|❌|✅|✅|❌|❌|
+| 2.1 - 2.3 |❌|❌|❌|❌|❌|✅|✅|✅|❌|
+| 2.0 |❌|❌|❌|❌|❌|❌|✅|✅|❌|
+| 1.7 |❌|❌|❌|❌|❌|❌|✅|✅|✅|
+
+We recommend not using {C.TIMESCALE_DB} with {C.PG} 17.1, 16.5, 15.9, 14.14, 13.17, 12.21.
+These minor versions [introduced a breaking binary interface change](https://www.postgresql.org/about/news/postgresql-172-166-1510-1415-1318-and-1222-released-2965/) that,
+once identified, was reverted in subsequent minor {C.PG} versions 17.2, 16.6, 15.10, 14.15, 13.18, and 12.22.
+When you build from source, best practice is to build with {C.PG} 17.2, 16.6, etc and higher.
+Users of {C.CLOUD_LONG} and platform packages for Linux, Windows, MacOS,
+Docker, and Kubernetes are unaffected.
+
+## Upgrade your {C.PG} instance
+
+You use [`pg_upgrade`](https://www.postgresql.org/docs/current/pgupgrade.html) to upgrade {C.PG} in-place. `pg_upgrade` allows you to retain
+the data files of your current {C.PG} installation while binding the new {C.PG} binary runtime
+to them.
+
+<NumberedList>
+<NumberedItem title={`Find the location of the ${C.PG} binary`}>
+Set the `OLD_BIN_DIR` environment variable to the folder holding the `postgres` binary.
+For example, `which postgres` returns something like `/usr/lib/postgresql/16/bin/postgres`.
+
+```bash
+export OLD_BIN_DIR=/usr/lib/postgresql/16/bin
+```
+</NumberedItem>
+<NumberedItem title="Set your connection string">
+This variable holds the connection information for the database to upgrade:
+
+```bash
+export SOURCE="postgres://<user>:<password>@<source host>:<source port>/<db_name>"
+```
+</NumberedItem>
+<NumberedItem title={`Retrieve the location of the ${C.PG} data folder`}>
+Set the `OLD_DATA_DIR` environment variable to the value returned by the following:
+
+```shell
+psql -d "$SOURCE" -c "SHOW data_directory ;"
+```
+
+{C.PG} returns something like:
+
+```shell
+----------------------------
+/home/postgres/pgdata/data
+(1 row)
+```
+</NumberedItem>
+<NumberedItem title={`Choose the new locations for the ${C.PG} binary and data folders`}>
+For example:
+
+```shell
+export NEW_BIN_DIR=/usr/lib/postgresql/17/bin
+export NEW_DATA_DIR=/home/postgres/pgdata/data-17
+```
+</NumberedItem>
+<NumberedItem title="Perform the upgrade using pg_upgrade">
+
+```sql
+pg_upgrade -b $OLD_BIN_DIR -B $NEW_BIN_DIR -d $OLD_DATA_DIR -D $NEW_DATA_DIR
+```
+</NumberedItem>
+</NumberedList>
+
+If you are moving data to a new physical instance of {C.PG}, you can use `pg_dump` and `pg_restore`
+to dump your data from the old database, and then restore it into the new, upgraded, database. For more
+information, see the [backup and restore section](/deploy/self-hosted/backup-and-restore).

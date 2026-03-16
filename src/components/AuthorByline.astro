@@ -23,15 +23,15 @@ export interface Props {
   /** GitHub username (used for avatar and profile link) */
   githubUsername: string;
   /** Email address (mailto link) */
-  email: string;
+  email?: string;
   /** LinkedIn profile URL (e.g. https://linkedin.com/in/username) */
-  linkedinUrl: string;
+  linkedinUrl?: string;
   /** Optional: override avatar image URL (default: GitHub avatar from githubUsername) */
   avatarUrl?: string;
 }
 
 const { name, role, githubUsername, email, linkedinUrl, avatarUrl } = Astro.props;
-const avatar = avatarUrl ?? `https://avatars.githubusercontent.com/${githubUsername}?s=64`;
+const avatar = avatarUrl ?? `https://avatars.githubusercontent.com/${githubUsername}?s=128`;
 const githubUrl = `https://github.com/${githubUsername}`;
 ---
 
@@ -40,45 +40,59 @@ const githubUrl = `https://github.com/${githubUsername}`;
     class="author-byline__avatar"
     src={avatar}
     alt=""
-    width="40"
-    height="40"
+    width="56"
+    height="56"
   />
   <div class="author-byline__content">
     <p class="author-byline__name">{name}</p>
     <p class="author-byline__role">{role}</p>
     <p class="author-byline__links">
       <a class="author-byline__link" href={githubUrl}>GitHub</a>
-      <span class="author-byline__sep" aria-hidden="true">·</span>
-      <a class="author-byline__link" href={`mailto:${email}`}>Email</a>
-      <span class="author-byline__sep" aria-hidden="true">·</span>
-      <a class="author-byline__link" href={linkedinUrl}>LinkedIn</a>
+      {email && (
+        <><span class="author-byline__sep" aria-hidden="true">·</span>
+        <a class="author-byline__link" href={`mailto:${email}`}>Email</a></>
+      )}
+      {linkedinUrl && (
+        <><span class="author-byline__sep" aria-hidden="true">·</span>
+        <a class="author-byline__link" href={linkedinUrl}>LinkedIn</a></>
+      )}
     </p>
   </div>
 </div>
 
 <style>
+  /* Author card: full-width bar with larger avatar. Uses Tiger design tokens. */
   .author-byline {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    margin: 0 0 1.5rem 0;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    border: 1px solid light-dark(#e2e8f0, #475569);
-    background: light-dark(#f1f5f9, #334155);
+    gap: var(--tiger-space-md);
+    width: 100%;
+    margin: 0 0 var(--tiger-space-lg) 0;
+    padding: var(--tiger-space-md) var(--tiger-space-lg);
+    border-radius: var(--tiger-radius-md);
+    border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
+    background: light-dark(var(--tiger-grey-50), var(--tiger-grey-800));
+    font-family: var(--stl-font-family);
     font-size: 0.875rem;
-    color: light-dark(#1e293b, #e2e8f0);
+    line-height: 1.4;
+    color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
   }
 
   .author-byline__avatar {
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     flex-shrink: 0;
     display: block;
+    object-fit: cover;
   }
 
   .author-byline__content {
     min-width: 0;
-    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--tiger-space-xs);
   }
 
   .author-byline__name {
@@ -90,24 +104,25 @@ const githubUrl = `https://github.com/${githubUsername}`;
   }
 
   .author-byline__role {
-    margin: 0.0625rem 0 0 0;
+    margin: 0;
     font-size: 0.8125rem;
-    color: light-dark(#64748b, #94a3b8);
+    color: light-dark(var(--tiger-grey-600), var(--tiger-grey-400));
     line-height: 1.3;
   }
 
   .author-byline__links {
-    margin: 0.25rem 0 0 0;
+    margin: 0;
+    padding-top: var(--tiger-space-xs);
     font-size: 0.8125rem;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 0.25rem 0.5rem;
+    gap: 0 var(--tiger-space-sm);
     line-height: 1.4;
   }
 
   .author-byline__link {
-    color: light-dark(#2563eb, #93c5fd);
+    color: var(--stl-color-accent);
   }
 
   .author-byline__link:hover {
@@ -115,6 +130,7 @@ const githubUrl = `https://github.com/${githubUsername}`;
   }
 
   .author-byline__sep {
-    color: light-dark(#64748b, #94a3b8);
+    color: light-dark(var(--tiger-grey-400), var(--tiger-grey-500));
+    user-select: none;
   }
 </style>
