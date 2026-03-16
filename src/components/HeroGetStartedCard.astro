@@ -15,9 +15,12 @@ export interface Props {
   ctaText: string;
   /** Link URL for the CTA. */
   href: string;
+  /** Optional: URL for cloud card illustration (if omitted, uses Figma export; use /assets/... for a permanent image). */
+  cloudImageSrc?: string;
 }
 
-const { variant, title, description, ctaText, href } = Astro.props;
+const { variant, title, description, ctaText, href, cloudImageSrc } = Astro.props;
+const cloudImgSrc = cloudImageSrc ?? "https://www.figma.com/api/mcp/asset/95de3deb-a482-4dfb-8c07-584db9280c18";
 const variantClass = variant === "cloud" ? "splash-hero-card--cloud" : "splash-hero-card--local";
 ---
 
@@ -26,6 +29,21 @@ const variantClass = variant === "cloud" ? "splash-hero-card--cloud" : "splash-h
   href={href}
 >
   <div class="splash-hero-card__bg" aria-hidden="true" />
+  {variant === "cloud" && (
+    <div class="splash-hero-card__illustration splash-hero-card__illustration--cloud" aria-hidden="true">
+      {/* Figma 3513:11793 Cloud group – 3513:11795 frame (border), 3513:11794/11796/11797 cloud vectors */}
+      <div class="splash-hero-card__cloud-frame">
+        <img
+          class="splash-hero-card__cloud-img"
+          src={cloudImgSrc}
+          alt=""
+          width="294"
+          height="196"
+          fetchpriority="low"
+        />
+      </div>
+    </div>
+  )}
   {variant === "local" && (
     <div class="splash-hero-card__illustration splash-hero-card__illustration--database" aria-hidden="true">
       {/* Figma 3513:12537 – database icon (stacked cylinders), 3513:12525/12526 as parts */}
