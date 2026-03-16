@@ -1,0 +1,78 @@
+---
+title: Migrate data to TimescaleDB from the same PostgreSQL instance
+description: Migrate data into a TimescaleDB hypertable from a regular PostgreSQL table
+products: [self_hosted]
+keywords: [data migration, PostgreSQL]
+---
+
+import * as C from "@constants";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+You can migrate data into a {C.TIMESCALE_DB} {C.HYPERTABLE} from a regular {C.PG}
+table. This method assumes that you have {C.TIMESCALE_DB} set up in the same database
+instance as your existing table.
+
+## Prerequisites
+
+Before beginning, make sure you have installed and set up {C.TIMESCALE_DB}.
+
+You also need a table with existing data. In this example, the source table is
+named `old_table`. Replace the table name with your actual table name. The
+example also names the destination table `new_table`, but you might want to use
+a more descriptive name.
+
+## Migrate data
+
+Migrate your data into {C.TIMESCALE_DB} from within the same database.
+
+<NumberedList>
+<NumberedItem title="Call CREATE TABLE to make a new table based on your existing table">
+You can create your indexes at the same time, so you don't have to recreate them manually. Or you can
+create the table without indexes, which makes data migration faster.
+
+<Tabs>
+<TabItem label="With indexes">
+```sql
+CREATE TABLE new_table (
+    LIKE old_table INCLUDING DEFAULTS INCLUDING CONSTRAINTS INCLUDING INDEXES
+) WITH (
+    tsdb.hypertable,
+    tsdb.partition_column='<the name of the time column>'
+);
+```
+</TabItem>
+<TabItem label="Without indexes">
+```sql
+CREATE TABLE new_table (
+    LIKE old_table INCLUDING DEFAULTS INCLUDING CONSTRAINTS EXCLUDING INDEXES
+) WITH (
+    tsdb.hypertable,
+    tsdb.partition_column='<the name of the time column>'
+);
+```
+</TabItem>
+</Tabs>
+
+When you create a {C.HYPERTABLE} using `CREATE TABLE ... WITH ...`, the default partitioning
+column is automatically the first column with a timestamp data type. Also, {C.TIMESCALE_DB} creates a
+[{C.COLUMNSTORE} policy](/reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts your data to the {C.COLUMNSTORE}, after an interval equal to the value of the chunk interval, defined through `compress_after` in the policy. This columnar format enables fast scanning and
+aggregation, optimizing performance for analytical workloads while also saving significant storage space. In the
+{C.COLUMNSTORE} conversion, {C.HYPERTABLE} chunks are compressed by up to 98%, and organized for efficient, large-scale queries.
+
+You can customize this policy later using [alter_job](/reference/timescaledb/jobs-automation/alter_job). However, to change `after` or
+`created_before`, the compression settings, or the {C.HYPERTABLE} the policy is acting on, you must
+[remove the columnstore policy](/reference/timescaledb/hypercore/remove_columnstore_policy) and [add a new one](/reference/timescaledb/hypercore/add_columnstore_policy).
+
+You can also manually [convert chunks](/reference/timescaledb/hypercore/convert_to_columnstore) in a {C.HYPERTABLE} to the {C.COLUMNSTORE}.
+</NumberedItem>
+<NumberedItem title="Insert data from the old table to the new table">
+```sql
+INSERT INTO new_table
+  SELECT * FROM old_table;
+```
+</NumberedItem>
+<NumberedItem title="Recreate indexes if needed">
+If you created your new table without indexes, recreate your indexes now.
+</NumberedItem>
+</NumberedList>

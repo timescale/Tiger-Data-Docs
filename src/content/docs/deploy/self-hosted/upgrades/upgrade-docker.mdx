@@ -1,0 +1,214 @@
+---
+title: Upgrade TimescaleDB running in Docker
+description: Upgrade self-hosted TimescaleDB running in a Docker container to a new minor version
+products: [self_hosted]
+keywords: [upgrades, Docker]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+If you originally installed {C.TIMESCALE_DB} using Docker, you can upgrade from within the Docker
+container. This allows you to upgrade to the latest {C.TIMESCALE_DB} version while retaining your data.
+
+The `timescale/timescaledb-ha*` images have the files necessary to run previous versions. Patch releases
+only contain bugfixes so should always be safe. Non-patch releases may rarely require some extra steps.
+These steps are mentioned in the [release notes](https://github.com/timescale/timescaledb/releases) for the version of {C.TIMESCALE_DB}
+that you are upgrading to.
+
+After you upgrade the docker image, you run `ALTER EXTENSION` for all databases using {C.TIMESCALE_DB}.
+
+The examples in this page use a Docker instance called `timescaledb`. If you
+have given your Docker instance a different name, replace it when you issue the
+commands.
+
+## Determine the mount point type
+
+When you start your upgraded Docker container, you need to be able to point the
+new Docker image to the location that contains the data from your previous
+version. To do this, you need to work out where the current mount point is. The
+current mount point varies depending on whether your container is using volume
+mounts, or bind mounts.
+
+<NumberedList>
+<NumberedItem title="Find the mount type used by your Docker container">
+
+```bash
+docker inspect timescaledb --format='{{range .Mounts }}{{.Type}}{{end}}'
+```
+
+This returns either `volume` or `bind`.
+</NumberedItem>
+<NumberedItem title="Note the volume or bind used by your container">
+
+<Tabs>
+<TabItem label="Volume">
+
+```bash
+docker inspect timescaledb --format='{{range .Mounts }}{{.Name}}{{end}}'
+```
+
+Docker returns the `<volume ID>`. You see something like this:
+
+```
+069ba64815f0c26783b81a5f0ca813227fde8491f429cf77ed9a5ae3536c0b2c
+```
+
+</TabItem>
+<TabItem label="Bind">
+
+```bash
+docker inspect timescaledb --format='{{range .Mounts }}{{.Source}}{{end}}'
+```
+
+Docker returns the `<bind path>`. You see something like this:
+
+```
+/path/to/data
+```
+
+</TabItem>
+</Tabs>
+
+You use this value when you perform the upgrade.
+</NumberedItem>
+</NumberedList>
+
+## Upgrade {C.TIMESCALE_DB} within Docker
+
+To upgrade {C.TIMESCALE_DB} within Docker, you need to download the upgraded image,
+stop the old container, and launch the new container pointing to your existing
+data.
+
+<Tabs>
+
+<TabItem label="TimescaleDB-HA">
+
+<NumberedList>
+<NumberedItem title={`Pull the latest ${C.TIMESCALE_DB} image`}>
+This command pulls the latest version of {C.TIMESCALE_DB} running on {C.PG} 18:
+
+```
+docker pull timescale/timescaledb-ha:pg18
+```
+
+If you're using another version of {C.PG}, look for the relevant tag in the [{C.TIMESCALE_DB} HA](https://hub.docker.com/r/timescale/timescaledb-ha/tags) repository on Docker Hub.
+</NumberedItem>
+<NumberedItem title="Stop the old container, and remove it">
+
+```bash
+docker stop timescaledb
+docker rm timescaledb
+```
+</NumberedItem>
+<NumberedItem title="Launch a new container with the upgraded Docker image">
+Launch based on your mount point type:
+
+<Tabs>
+<TabItem label="Volume mount">
+
+```bash
+docker run -v <volume ID>:/pgdata -e PGDATA=/pgdata
+  -d --name timescaledb -p 5432:5432 timescale/timescaledb-ha:pg18
+```
+
+</TabItem>
+<TabItem label="Bind mount">
+
+```bash
+docker run -v <bind path>:/pgdata -e PGDATA=/pgdata -d --name timescaledb \
+  -p 5432:5432 timescale/timescaledb-ha:pg18
+```
+
+</TabItem>
+</Tabs>
+</NumberedItem>
+<NumberedItem title="Connect to the upgraded instance using psql with the -X flag">
+
+```bash
+docker exec -it timescaledb psql -U postgres -X
+```
+</NumberedItem>
+<NumberedItem title="At the psql prompt, use the ALTER command to upgrade the extension">
+
+```
+ALTER EXTENSION timescaledb UPDATE;
+CREATE EXTENSION IF NOT EXISTS timescaledb_toolkit;
+ALTER EXTENSION timescaledb_toolkit UPDATE;
+```
+
+The [{C.TOOLKIT_LONG}](/deploy/self-hosted/tooling/install-toolkit) extension is packaged with {C.TIMESCALE_DB} HA, it includes additional
+hyperfunctions to help you with queries and data analysis.
+
+<Callout variant="note">
+If you have multiple databases, update each database separately.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="TimescaleDB light">
+
+<NumberedList>
+<NumberedItem title={`Pull the latest ${C.TIMESCALE_DB} image`}>
+This command pulls the latest version of {C.TIMESCALE_DB} running on {C.PG} 18.
+
+```
+docker pull timescale/timescaledb:latest-pg18
+```
+
+If you're using another version of {C.PG}, look for the relevant tag in the [TimescaleDB light](https://hub.docker.com/r/timescale/timescaledb) repository on Docker Hub.
+</NumberedItem>
+<NumberedItem title="Stop the old container, and remove it">
+
+```bash
+docker stop timescaledb
+docker rm timescaledb
+```
+</NumberedItem>
+<NumberedItem title="Launch a new container with the upgraded Docker image">
+Launch based on your mount point type:
+
+<Tabs>
+<TabItem label="Volume mount">
+
+```bash
+docker run -v  <volume ID>:/pgdata -e PGDATA=/pgdata \
+  -d --name timescaledb -p 5432:5432 timescale/timescaledb:latest-pg18
+```
+
+</TabItem>
+<TabItem label="Bind mount">
+
+```bash
+docker run -v <bind path>:/pgdata -e PGDATA=/pgdata -d --name timescaledb \
+  -p 5432:5432 timescale/timescaledb:latest-pg18
+```
+
+</TabItem>
+</Tabs>
+</NumberedItem>
+<NumberedItem title="Connect to the upgraded instance using psql with the -X flag">
+
+```bash
+docker exec -it timescaledb psql -U postgres -X
+```
+</NumberedItem>
+<NumberedItem title="At the psql prompt, use the ALTER command to upgrade the extension">
+
+```sql
+ALTER EXTENSION timescaledb UPDATE;
+```
+
+<Callout variant="note">
+If you have multiple databases, you need to update each database separately.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+
+</Tabs>

@@ -1,0 +1,99 @@
+---
+title: Migrate the entire database at once
+description: Migrate a small database to self-hosted TimescaleDB in one go with pg_dump and pg_restore
+products: [self_hosted]
+keywords: [data migration]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+Migrate smaller databases by dumping and restoring the entire database at once.
+This method works best on databases smaller than 100 GB. For larger
+databases, consider [migrating your schema and data
+separately](/deploy/self-hosted/migration/schema-then-data).
+
+<Callout variant="warning">
+Depending on your database size and network speed, migration can take a very
+long time. You can continue reading from your source database during this time,
+though performance could be slower. To avoid this problem, fork your database
+and migrate your data from the fork. If you write to tables in your source
+database during the migration, the new writes might not be transferred to
+{C.TIMESCALE_DB}. To avoid this problem, see [Live migration](/migrate/live-migration).
+</Callout>
+
+## Prerequisites
+
+Before you begin, check that you have:
+
+*   Installed the {C.PG} [`pg_dump`](https://www.postgresql.org/docs/current/app-pgdump.html) and [`pg_restore`](https://www.postgresql.org/docs/current/app-pgrestore.html)
+    utilities.
+*   Installed a client for connecting to {C.PG}. These instructions use
+    `psql`, but any client works.
+*   Created a new empty database in your {C.SELF_LONG} instance.
+    Provision your database with enough space for all your data.
+*   Checked that any other {C.PG} extensions you use are compatible with
+    Timescale.
+*   Checked that you're running the same major version of {C.PG} on both
+    your target and source databases. For information about upgrading
+    {C.PG} on your source database, see the
+    [upgrade instructions](/deploy/self-hosted/upgrades/upgrade-pg).
+*   Checked that you're running the same major version of {C.TIMESCALE_DB} on both
+    your target and source databases. For more information, see
+    [upgrade {C.SELF_LONG}](/deploy/self-hosted/upgrades/major-upgrade).
+
+<Callout variant="note">
+To speed up migration, compress your data into the {C.COLUMNSTORE}. You can compress any chunks where
+data is not currently inserted, updated, or deleted. When you finish the
+migration, you can decompress chunks back to the rowstore as needed for normal operation.
+</Callout>
+
+<NumberedList>
+<NumberedItem title="Dump all the data from your source database">
+Dump into a `dump.bak` file, using your source database connection details. If you are prompted for a password, use
+your source database credentials:
+
+```bash
+pg_dump -U <SOURCE_DB_USERNAME> -W \
+-h <SOURCE_DB_HOST> -p <SOURCE_DB_PORT> -Fc -v \
+-f dump.bak <SOURCE_DB_NAME>
+```
+</NumberedItem>
+<NumberedItem title={`Connect to your ${C.SELF_LONG} instance`}>
+```bash
+psql "postgres://<USERNAME>:<PASSWORD>@<HOST>:<PORT>/<DATABASE>?sslmode=require"
+```
+</NumberedItem>
+<NumberedItem title={`Prepare your ${C.SELF_LONG} instance for data restoration`}>
+Use [`timescaledb_pre_restore`](/reference/timescaledb/administration/timescaledb_pre_restore) to stop background workers:
+
+```sql
+SELECT timescaledb_pre_restore();
+```
+</NumberedItem>
+<NumberedItem title="Restore the dumped data">
+At the command prompt, restore the dumped data from the `dump.bak` file into
+your {C.SELF_LONG} instance, using your connection details. To avoid permissions errors, include the `--no-owner` flag:
+
+```bash
+pg_restore -U tsdbadmin -W \
+-h <CLOUD_HOST> -p <CLOUD_PORT> --no-owner \
+-Fc -v -d tsdb dump.bak
+```
+</NumberedItem>
+<NumberedItem title={`Return your ${C.SELF_LONG} instance to normal operations`}>
+Use [`timescaledb_post_restore`](/reference/timescaledb/administration/timescaledb_post_restore):
+
+```sql
+SELECT timescaledb_post_restore();
+```
+</NumberedItem>
+<NumberedItem title="Update your table statistics">
+Run `ANALYZE` on your entire dataset:
+
+```sql
+ANALYZE;
+```
+</NumberedItem>
+</NumberedList>
