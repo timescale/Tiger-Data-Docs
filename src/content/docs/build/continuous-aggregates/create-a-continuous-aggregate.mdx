@@ -1,0 +1,302 @@
+---
+title: Create a continuous aggregate
+description: Create a continuous aggregate and make sure you always have the latest aggregated data for your analytical queries
+products: [cloud, mst, self_hosted]
+keywords: [continuous aggregates, create]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import SinceRelease from "@components/SinceRelease.astro";
+
+Creating a {C.CAGG} is a two-step process. You need to create the
+view first, then enable a policy to keep the view refreshed. You can create the
+view on a {C.HYPERTABLE}, or on top of another {C.CAGG}. You can have
+more than one {C.CAGG} on each source table or view.
+
+{C.CAGG_CAP}s require a `time_bucket` on the time partitioning column of
+the {C.HYPERTABLE}.
+
+By default, views are automatically refreshed. You can adjust this by setting
+the [WITH NO DATA](#using-the-with-no-data-option) option. Additionally, the
+view can not be a [security barrier view](https://www.postgresql.org/docs/current/rules-privileges.html).
+
+{C.CAGG_CAP}s use {C.HYPERTABLE}s in the background, which means that they
+also use {C.CHUNK} time intervals. By default, the {C.CAGG}'s {C.CHUNK} time
+interval is 10 times what the original {C.HYPERTABLE}'s {C.CHUNK} time interval is. For
+example, if the original {C.HYPERTABLE}'s {C.CHUNK} time interval is 7 days, the
+{C.CAGG}s that are on top of it have a 70 day {C.CHUNK} time
+interval.
+
+## Create a {C.CAGG}
+
+In this example, we are using a {C.HYPERTABLE} called `conditions`, and creating a
+{C.CAGG} view for daily weather data. The `GROUP BY` clause must
+include a `time_bucket` expression which uses time dimension column of the
+{C.HYPERTABLE}. Additionally, all functions and their arguments included in
+`SELECT`, `GROUP BY`, and `HAVING` clauses must be
+[immutable](https://www.postgresql.org/docs/current/xfunc-volatility.html).
+
+<NumberedList>
+<NumberedItem title="Create the materialized view">
+
+```sql
+CREATE MATERIALIZED VIEW conditions_summary_daily
+WITH (timescaledb.continuous) AS
+SELECT device,
+   time_bucket(INTERVAL '1 day', time) AS bucket,
+   AVG(temperature),
+   MAX(temperature),
+   MIN(temperature)
+FROM conditions
+GROUP BY device, bucket;
+```
+
+To create a {C.CAGG} within a transaction block, use the [WITH NO DATA option](#using-the-with-no-data-option).
+
+To improve {C.CAGG} performance, [set `timescaledb.invalidate_using = 'wal'`](/reference/timescaledb/continuous-aggregates/create_materialized_view) <SinceRelease version="2.22.0" product="tsdb" />.
+</NumberedItem>
+
+<NumberedItem title="Create a refresh policy">
+
+```sql
+SELECT add_continuous_aggregate_policy('conditions_summary_daily',
+  start_offset => INTERVAL '1 month',
+  end_offset => INTERVAL '1 day',
+  schedule_interval => INTERVAL '1 hour');
+```
+</NumberedItem>
+</NumberedList>
+
+You can use most {C.PG} aggregate functions in continuous aggregations. To
+see what {C.PG} features are supported, check the
+[function support table](/build/continuous-aggregates/about-continuous-aggregates#function-support).
+
+## Choosing an appropriate bucket interval
+
+{C.CAGG_CAP}s require a `time_bucket` on the time partitioning column of
+the {C.HYPERTABLE}. The {C.TIME_BUCKET} allows you to define a time interval, instead of
+having to use specific timestamps. For example, you can define a {C.TIME_BUCKET} as
+five minutes, or one day.
+
+You can't use [`time_bucket_gapfill`](/reference/timescaledb/hyperfunctions/time_bucket_gapfill/time_bucket_gapfill) directly in a
+{C.CAGG}. This is because you need access to previous data to
+determine the gapfill content, which isn't yet available when you create the
+{C.CAGG}. You can work around this by creating the {C.CAGG}
+using [`time_bucket`](/reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket), then querying the {C.CAGG}
+using `time_bucket_gapfill`.
+
+## Using the WITH NO DATA option
+
+By default, when you create a view for the first time, it is populated with
+data. This is so that the aggregates can be computed across the entire
+{C.HYPERTABLE}. If you don't want this to happen, for example if the table is very
+large, or if new data is being continuously added, you can control the order in
+which the data is refreshed. You can do this by adding a manual refresh with
+your {C.CAGG} policy using the `WITH NO DATA` option.
+
+The `WITH NO DATA` option allows the {C.CAGG} to be created
+instantly, so you don't have to wait for the data to be aggregated. Data begins
+to populate only when the policy begins to run. This means that only data newer
+than the `start_offset` time begins to populate the {C.CAGG}. If you
+have historical data that is older than the `start_offset` interval, you need to
+manually refresh the history up to the current `start_offset` to allow {C.RTAGG}
+queries to run efficiently.
+
+<NumberedList>
+<NumberedItem title="Create the view">
+
+```sql
+CREATE MATERIALIZED VIEW cagg_rides_view
+WITH (timescaledb.continuous) AS
+SELECT vendor_id,
+time_bucket('1h', pickup_datetime) AS hour,
+  count(*) total_rides,
+  avg(fare_amount) avg_fare,
+  max(trip_distance) as max_trip_distance,
+  min(trip_distance) as min_trip_distance
+FROM rides
+GROUP BY vendor_id, time_bucket('1h', pickup_datetime)
+WITH NO DATA;
+```
+</NumberedItem>
+
+<NumberedItem title="Manually refresh the view">
+```sql
+CALL refresh_continuous_aggregate('cagg_rides_view', NULL, localtimestamp - INTERVAL '1 week');
+```
+</NumberedItem>
+
+<NumberedItem title="Add the policy">
+```sql
+SELECT add_continuous_aggregate_policy('cagg_rides_view',
+  start_offset => INTERVAL '1 week',
+  end_offset   => INTERVAL '1 hour',
+  schedule_interval => INTERVAL '30 minutes');
+```
+</NumberedItem>
+</NumberedList>
+
+## Create a {C.CAGG} with a JOIN
+
+In {C.TIMESCALE_DB} v2.10 and later, with {C.PG} v12 or later, you can
+create a {C.CAGG} with a query that also includes a `JOIN`. For
+example:
+
+```sql
+CREATE MATERIALIZED VIEW conditions_summary_daily_3
+WITH (timescaledb.continuous) AS
+SELECT time_bucket(INTERVAL '1 day', day) AS bucket,
+   AVG(temperature),
+   MAX(temperature),
+   MIN(temperature),
+   name
+FROM devices JOIN conditions USING (device_id)
+GROUP BY name, bucket;
+```
+
+<Callout variant="note">
+For more information about creating a {C.CAGG} with a `JOIN`,
+including some additional restrictions, see the
+[about {C.CAGG}s section](/build/continuous-aggregates/about-continuous-aggregates#continuous-aggregates-with-a-join-clause).
+</Callout>
+
+## Query {C.CAGG}s
+
+When you have created a {C.CAGG} and set a refresh policy, you can
+query the view with a `SELECT` query. You can only specify a single {C.HYPERTABLE}
+in the `FROM` clause. Including more {C.HYPERTABLE}s, tables, views, or subqueries
+in your `SELECT` query is not supported. Additionally, make sure that the
+{C.HYPERTABLE} you are querying does not have
+[row-level-security policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
+enabled.
+
+<NumberedList>
+<NumberedItem title={`Query the ${C.CAGG} for a specific device`}>
+
+```sql
+SELECT *
+  FROM conditions_summary_hourly
+  WHERE device = 5
+  AND bucket >= '2020-01-01'
+  AND bucket < '2020-04-01';
+```
+</NumberedItem>
+
+<NumberedItem title="Query for largest metric spreads">
+
+```sql
+SELECT *
+  FROM conditions_summary_hourly
+  WHERE max - min > 1800
+  AND bucket >= '2020-01-01' AND bucket < '2020-04-01'
+  ORDER BY bucket DESC, device DESC LIMIT 20;
+```
+</NumberedItem>
+</NumberedList>
+
+## Use {C.CAGG}s with mutable functions: experimental
+
+<SinceRelease version="2.20.0" product="tsdb" />
+
+Mutable functions have experimental support in the {C.CAGG} query definition. Mutable functions are enabled
+by default. However, if you use them in a materialized query a warning is returned.
+
+When using non-immutable functions you have to ensure these functions produce consistent results across
+{C.CAGG} refresh runs. For example, if a function depends on the current time zone you have
+to ensure all your {C.CAGG} refreshes run with a consistent setting for this.
+
+## Use {C.CAGG}s with window functions: experimental
+
+<SinceRelease version="2.20.0" product="tsdb" />
+
+Window functions have experimental support in the {C.CAGG} query definition. Window functions are disabled
+by default. To enable them, set `timescaledb.enable_cagg_window_functions` to `true`.
+
+<Callout variant="info">
+Support is experimental, there is a risk of data inconsistency. For example, in backfill scenarios, buckets could be missed.
+</Callout>
+
+### Create a window function
+
+To use a window function in a {C.CAGG}:
+
+<NumberedList>
+<NumberedItem title="Create a simple table">
+```sql
+CREATE TABLE example (
+  time       TIMESTAMPTZ       NOT NULL,
+  value      TEXT              NOT NULL
+);
+```
+</NumberedItem>
+
+<NumberedItem title="Enable window functions">
+As window functions are experimental, you have to set `enable_cagg_window_functions`.
+
+```sql
+SET timescaledb.enable_cagg_window_functions TO TRUE;
+```
+</NumberedItem>
+
+<NumberedItem title={`Create the ${C.CAGG} with a window function`}>
+
+Window functions must stay within the {C.TIME_BUCKET}. Any query that tries to look beyond the current
+{C.TIME_BUCKET} will produce incorrect results around the refresh boundaries.
+
+```sql
+CREATE MATERIALIZED VIEW example_aggregate
+  WITH (timescaledb.continuous) AS
+    SELECT
+      time_bucket('1d', time),
+      customer_id,
+      sum(amount) AS amount,
+      sum(amount) - LAG(sum(amount),1,NULL) OVER (PARTITION BY time_bucket('1d', time) ORDER BY sum(amount) DESC) AS amount_diff,
+      ROW_NUMBER() OVER (PARTITION BY time_bucket('1d', time) ORDER BY sum(amount) DESC)
+    FROM sales GROUP BY 1,2;
+```
+
+Window functions that partition by time_bucket should be safe even with LAG()/LEAD()
+</NumberedItem>
+</NumberedList>
+
+### Window function workaround for older versions of {C.TIMESCALE_DB}
+
+For {C.TIMESCALE_DB} v2.19.3 and below, {C.CAGG}s do not support window functions. To work around this:
+
+<NumberedList>
+<NumberedItem title="Create a simple table">
+Create a simple table to store a value at a specific time:
+
+```sql
+CREATE TABLE example (
+  time       TIMESTAMPTZ       NOT NULL,
+  value      TEXT              NOT NULL
+);
+```
+</NumberedItem>
+
+<NumberedItem title={`Create a ${C.CAGG} without a window function`}>
+```sql
+CREATE MATERIALIZED VIEW example_aggregate
+  WITH (timescaledb.continuous) AS
+    SELECT
+      time_bucket('10 minutes', time) AS bucket,
+      first(value, time) AS value
+    FROM example GROUP BY bucket;
+```
+</NumberedItem>
+
+<NumberedItem title="Use the lag window function at query time">
+This speeds up your query by calculating the aggregation ahead of time. The
+delta is calculated at query time.
+
+```sql
+SELECT
+  bucket,
+  value - lag(value, 1) OVER (ORDER BY bucket) AS delta
+FROM example_aggregate;
+```
+</NumberedItem>
+</NumberedList>
