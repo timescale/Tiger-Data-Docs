@@ -1,14 +1,69 @@
 ---
-title: "Convert continuous aggregates to columnstore"
-description: "Convert a continuous aggregate to columnstore to save storage space while keeping data available for analytical workloads"
+title: Convert continuous aggregates to the columnstore
+description: Compress a continuous aggregate to the columnstore to save storage space while making sure the data is still available for your analytical workloads
+products: [cloud, mst, self_hosted]
+keywords: [continuous aggregates, compression]
 ---
-To save on storage costs, you use hypercore to downsample historical data stored in continuous aggregates. After you [enable columnstore](/reference/timescaledb/continuous-aggregates/alter_materialized_view) on a `MATERIALIZED VIEW`, you set a [columnstore policy](/api-reference/hypercore/add_columnstore_policy). This policy defines the intervals when chunks in a continuous aggregate are compressed as they are converted from the rowstore to the columnstore. Columnstore works in the same way on [hypertables and continuous aggregates](/build/columnar-storage/). When you enable Columnstore with no other options, your data is [segmented by](/reference/timescaledb/continuous-aggregates/alter_materialized_view#arguments) the `groupby` columns in the continuous aggregate, and [ordered by](/reference/timescaledb/continuous-aggregates/alter_materialized_view#arguments) the time column. [Real-time aggregation](/build/continuous-aggregates/real-time-aggregates) is disabled by default. Since 2.20.0. For the old API (pre-2.20.0), see [legacy compression documentation](https://www.tigerdata.com/docs/use-timescale/latest/compression/compression-on-continuous-aggregates/).
 
-Configure columnstore on continuous aggregates
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import SinceRelease from "@components/SinceRelease.astro";
 
-For an [existing continuous aggregate](/build/continuous-aggregates/setup-continuous-aggregates):
+<SinceRelease version="2.20.0" product="tsdb" />
 
-1.  **Enable columnstore on a continuous aggregate** To enable the columnstore compression on a continuous aggregate, set `timescaledb.enable_columnstore = true` when you alter the view: To disable the columnstore compression, set `timescaledb.enable_columnstore = false`.
-2.  **Set columnstore policies on the continuous aggregate** Before you set up a columnstore policy on a continuous aggregate, you first set the [refresh policy](/build/continuous-aggregates/refresh-policies). To prevent refresh policies from failing, you set the columnstore policy interval so that actively refreshed regions are not compressed. For example:
-    1.  **Set the refresh policy**
-    2.  **Set the columnstore policy** For this refresh policy, the `after` parameter must be greater than the value of `start_offset` in the refresh policy:
+To save on storage costs, you use {C.HYPERCORE} to downsample historical data stored in {C.CAGG}s. After you
+[enable {C.COLUMNSTORE}](/reference/timescaledb/continuous-aggregates/alter_materialized_view) on a `MATERIALIZED VIEW`, you set a
+[{C.COLUMNSTORE} policy](/reference/timescaledb/hypercore/add_columnstore_policy). This policy defines the intervals when {C.CHUNK}s in a {C.CAGG}
+are compressed as they are converted from the {C.ROWSTORE} to the {C.COLUMNSTORE}.
+
+{C.COLUMNSTORE_CAP} works in the same way on [{C.HYPERTABLE}s and {C.CAGG}s](/build/columnar-storage). When you enable
+{C.COLUMNSTORE} with no other options, your data is [segmented by](/reference/timescaledb/continuous-aggregates/alter_materialized_view#arguments) the `groupby` columns
+in the {C.CAGG}, and [ordered by](/reference/timescaledb/continuous-aggregates/alter_materialized_view#arguments) the time column. [{C.RTAGG_CAP}](/build/continuous-aggregates/real-time-aggregates)
+is disabled by default.
+
+## Configure {C.COLUMNSTORE} on {C.CAGG}s
+
+For an [existing {C.CAGG}](/build/continuous-aggregates/create-a-continuous-aggregate):
+
+<NumberedList>
+<NumberedItem title={`Enable ${C.COLUMNSTORE} on a ${C.CAGG}`}>
+Set `timescaledb.enable_columnstore = true` when you alter the view:
+
+```sql
+ALTER MATERIALIZED VIEW <cagg_name> set (timescaledb.enable_columnstore = true);
+```
+
+To disable the {C.COLUMNSTORE}, set `timescaledb.enable_columnstore = false`.
+</NumberedItem>
+
+<NumberedItem title={`Set ${C.COLUMNSTORE} policies on the ${C.CAGG}`}>
+Before you set up a {C.COLUMNSTORE} policy on a {C.CAGG}, you first set the [refresh policy](/build/continuous-aggregates/refresh-policies). To
+prevent refresh policies from failing, set the {C.COLUMNSTORE} policy interval so that actively
+refreshed regions are not compressed. For example:
+
+<ol type="a">
+<li>
+
+Set the refresh policy:
+
+```sql
+SELECT add_continuous_aggregate_policy('<cagg_name>',
+  start_offset => INTERVAL '30 days',
+  end_offset => INTERVAL '1 day',
+  schedule_interval => INTERVAL '1 hour');
+```
+
+</li>
+<li>
+
+Set the {C.COLUMNSTORE} policy. The `after` parameter must be greater than the value of
+`start_offset` in the refresh policy:
+
+```sql
+CALL add_columnstore_policy('<cagg_name>', after => INTERVAL '45 days');
+```
+
+</li>
+</ol>
+</NumberedItem>
+</NumberedList>
