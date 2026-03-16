@@ -17,10 +17,17 @@ const routeData = Astro.locals.starlightRoute as StarlightRouteData & {
 };
 const activeTabIndex = routeData?._stlDocs?.activeTabIndex ?? -1;
 
-const navItems = TABS.map((item, index) => ({
+// Build nav items and enforce order: Reference must appear after Deploy in the header.
+const tabList = TABS.map((item, index) => ({
   ...item,
   active: index === activeTabIndex,
 })).filter((item) => !item.hidden);
+
+const navItems = [...tabList].sort((a, b) => {
+  if (a.label === "Reference" && b.label === "Deploy") return 1;
+  if (a.label === "Deploy" && b.label === "Reference") return -1;
+  return 0;
+});
 
 /** Slug for docs entry from tab link (e.g. /learn -> learn). */
 function linkToSlug(link: string): string {
