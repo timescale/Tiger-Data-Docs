@@ -1,0 +1,152 @@
+---
+title: Time and continuous aggregates
+description: Learn to work with timezones and continuous aggregates
+products: [cloud, mst, self_hosted]
+keywords: [continuous aggregates, time, timezones]
+---
+
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import OldCreateHypertable from "../../../../partials/_old-api-create-hypertable.mdx";
+
+Functions that depend on a local timezone setting inside a {C.CAGG}
+are not supported. You cannot adjust to a local time because the timezone setting
+changes from user to user.
+
+To manage this, you can use explicit timezones in the view definition.
+Alternatively, you can create your own custom aggregation scheme for tables that
+use an integer time column.
+
+## Declare an explicit timezone
+
+The most common method of working with timezones is to declare an explicit
+timezone in the view query.
+
+<NumberedList>
+<NumberedItem title="Create the view with an explicit timezone">
+```sql
+CREATE MATERIALIZED VIEW device_summary
+WITH (timescaledb.continuous)
+AS
+SELECT
+  time_bucket('1 hour', observation_time) AS bucket,
+  min(observation_time AT TIME ZONE 'EST') AS min_time,
+  device_id,
+  avg(metric) AS metric_avg,
+  max(metric) - min(metric) AS metric_spread
+FROM
+  device_readings
+GROUP BY bucket, device_id;
+```
+</NumberedItem>
+
+<NumberedItem title="Cast to a timestamp after the view">
+Alternatively, you can cast to a timestamp using `SELECT`:
+
+```sql
+SELECT min_time::timestamp FROM device_summary;
+```
+</NumberedItem>
+</NumberedList>
+
+## Integer-based time
+
+Date and time is usually expressed as year-month-day and hours:minutes:seconds.
+Most {C.TIMESCALE_DB} databases use a [{C.PG} date/time-type](https://www.postgresql.org/docs/current/datatype-datetime.html) column to
+express the date and time. However, in some cases, you might need to convert
+these common time and date formats to a format that uses an integer. The most
+common integer time is Unix epoch time, which is the number of seconds since the
+Unix epoch of 1970-01-01, but other types of integer-based time formats are
+possible.
+
+These examples use a {C.HYPERTABLE} called `devices` that contains CPU and disk
+usage information. The devices measure time using the Unix epoch.
+
+To create a {C.HYPERTABLE} that uses an integer-based column as time, you need to
+provide the {C.CHUNK} time interval. In this case, each {C.CHUNK} is 10 minutes.
+
+Define the integer-based time column and {C.CHUNK} time interval:
+
+```sql
+CREATE TABLE devices(
+  time BIGINT,        -- Time in minutes since epoch
+  cpu_usage INTEGER,  -- Total CPU usage
+  disk_usage INTEGER, -- Total disk usage
+  PRIMARY KEY (time)
+) WITH (
+  tsdb.hypertable,
+  tsdb.partition_column='time',
+  tsdb.chunk_interval='10'
+);
+```
+
+<OldCreateHypertable />
+
+To define a {C.CAGG} on a {C.HYPERTABLE} that uses integer-based time,
+you need to have a function to get the current time in the correct format, and
+set it for the {C.HYPERTABLE}. You can do this with the
+[`set_integer_now_func`](/reference/timescaledb/hypertables/set_integer_now_func)
+function. It can be defined as a regular {C.PG} function, but needs to be
+[`STABLE`](https://www.postgresql.org/docs/current/sql-createfunction.html),
+take no arguments, and return an integer value of the same type as the time
+column in the table. When you have set up the time-handling, you can create the
+{C.CAGG}.
+
+<NumberedList>
+<NumberedItem title="Set up the time conversion function">
+```sql
+CREATE FUNCTION current_epoch() RETURNS BIGINT
+LANGUAGE SQL STABLE AS $$
+SELECT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::bigint;$$;
+
+ SELECT set_integer_now_func('devices', 'current_epoch');
+ ```
+</NumberedItem>
+
+<NumberedItem title={`Create the ${C.CAGG} for the devices table`}>
+```sql
+CREATE MATERIALIZED VIEW devices_summary
+WITH (timescaledb.continuous) AS
+SELECT time_bucket('500', time) AS bucket,
+   avg(cpu_usage) AS avg_cpu,
+   avg(disk_usage) AS avg_disk
+FROM devices
+GROUP BY bucket;
+```
+</NumberedItem>
+
+<NumberedItem title="Insert some rows">
+```sql
+CREATE EXTENSION tablefunc;
+
+INSERT INTO devices(time, cpu_usage, disk_usage)
+SELECT time,
+   normal_rand(1,70,10) AS cpu_usage,
+  normal_rand(1,2,1) * (row_number() over()) AS disk_usage
+FROM generate_series(1,10000) AS time;
+```
+
+This command uses the `tablefunc` extension to generate a normal
+distribution, and uses the `row_number` function to turn it into a
+cumulative sequence.
+</NumberedItem>
+
+<NumberedItem title="Check the view data">
+```sql
+postgres=# SELECT * FROM devices_summary ORDER BY bucket LIMIT 10;
+bucket |       avg_cpu       |       avg_disk
+--------+---------------------+----------------------
+     0 | 63.0000000000000000 |   6.0000000000000000
+     5 | 69.8000000000000000 |   9.6000000000000000
+    10 | 70.8000000000000000 |  24.0000000000000000
+    15 | 75.8000000000000000 |  37.6000000000000000
+    20 | 71.6000000000000000 |  26.8000000000000000
+    25 | 67.6000000000000000 |  56.0000000000000000
+    30 | 68.8000000000000000 |  90.2000000000000000
+    35 | 71.6000000000000000 |  88.8000000000000000
+    40 | 66.4000000000000000 |  81.2000000000000000
+    45 | 68.2000000000000000 | 106.0000000000000000
+(10 rows)
+```
+</NumberedItem>
+</NumberedList>
