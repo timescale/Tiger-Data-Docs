@@ -15,12 +15,15 @@ export interface Props {
   ctaText: string;
   /** Link URL for the CTA. */
   href: string;
-  /** Optional: URL for cloud card illustration (if omitted, uses Figma export; use /assets/... for a permanent image). */
+  /** Optional: override cloud illustration (if omitted, uses public/assets/hero-cloud/cloud.svg). */
   cloudImageSrc?: string;
+  /** Optional: override local/database illustration (if omitted, uses public/assets/hero-local/database-image.svg). */
+  databaseImageSrc?: string;
 }
 
-const { variant, title, description, ctaText, href, cloudImageSrc } = Astro.props;
-const cloudImgSrc = cloudImageSrc ?? "https://www.figma.com/api/mcp/asset/95de3deb-a482-4dfb-8c07-584db9280c18";
+const { variant, title, description, ctaText, href, cloudImageSrc, databaseImageSrc } = Astro.props;
+const cloudAssetsBase = "/assets/hero-cloud";
+const databaseImageUrl = databaseImageSrc ?? "/assets/hero-local/database-image.svg";
 const variantClass = variant === "cloud" ? "splash-hero-card--cloud" : "splash-hero-card--local";
 ---
 
@@ -31,26 +34,29 @@ const variantClass = variant === "cloud" ? "splash-hero-card--cloud" : "splash-h
   <div class="splash-hero-card__bg" aria-hidden="true" />
   {variant === "cloud" && (
     <div class="splash-hero-card__illustration splash-hero-card__illustration--cloud" aria-hidden="true">
-      {/* Figma 3513:11793–11797: cloud with rounded bumps, flat bottom, black outline, blue-lavender fill; bottom-right anchored so it peeks from corner */}
       <div class="splash-hero-card__cloud-frame">
-        <svg class="splash-hero-card__cloud-svg" viewBox="0 0 294 196" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false" aria-hidden="true">
-          {/* Shadow layer (darker, behind) – Figma secondary layer */}
-          <path class="splash-hero-card__cloud-shadow" d="M220 120c0-22-18-40-40-40-12 0-23 5-30 14-8-8-20-14-33-14-25 0-45 20-45 45v77h158V120z" fill="#8b8dc9" opacity="0.6" />
-          {/* Main cloud: rounded bumps on top, flat bottom, black outline */}
-          <path class="splash-hero-card__cloud-main" d="M45 96c0-18 14-32 32-32 8 0 15 3 21 8 5-12 17-20 30-20 20 0 36 16 36 36 0 4-1 8-2 11 12 5 20 17 20 31v44H25V96c0-6 2-12 5-16 4-10 11-18 20-24 2 0 0-4 0-4z" fill="#b0b3f1" stroke="#15151e" stroke-width="2" stroke-linejoin="round" />
-        </svg>
+        <img
+          class="splash-hero-card__cloud-img"
+          src={cloudImageSrc ?? `${cloudAssetsBase}/cloud.svg`}
+          alt=""
+          width="500"
+          height="300"
+          fetchpriority="low"
+        />
       </div>
     </div>
   )}
   {variant === "local" && (
     <div class="splash-hero-card__illustration splash-hero-card__illustration--database" aria-hidden="true">
-      {/* Figma 3513:12537 – database icon (stacked cylinders), 3513:12525/12526 as parts */}
-      <svg class="splash-hero-card__illustration-svg" viewBox="0 0 226 258" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
-        <ellipse cx="113" cy="33" rx="111" ry="33" stroke="#15151e" stroke-width="1.5" fill="#feffef" />
-        <ellipse cx="113" cy="99" rx="111" ry="33" stroke="#15151e" stroke-width="1.5" fill="#feffef" />
-        <ellipse cx="113" cy="165" rx="111" ry="33" stroke="#15151e" stroke-width="1.5" fill="#feffef" />
-        <path d="M2 33v66M224 33v66M2 99v66M224 99v66M2 165v66M224 165v66" stroke="#15151e" stroke-width="1.5" fill="none" />
-      </svg>
+      {/* Figma 3513:11064 / 3513:11798 – Install locally card database illustration */}
+      <img
+        class="splash-hero-card__database-img"
+        src={databaseImageUrl}
+        alt=""
+        width="253"
+        height="157"
+        fetchpriority="low"
+      />
     </div>
   )}
   <div class="splash-hero-card__inner">
