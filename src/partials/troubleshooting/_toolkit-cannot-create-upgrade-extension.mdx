@@ -1,0 +1,53 @@
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+## Install or upgrade of {C.TOOLKIT_LONG} fails
+
+In some cases, when you create the {C.TOOLKIT_LONG} extension, or upgrade it
+with the `ALTER EXTENSION timescaledb_toolkit UPDATE` command, it might fail
+with this error:
+
+```sql
+ERROR: extension "timescaledb_toolkit" has no update path from version "1.2" to version "1.3"
+```
+
+This occurs if the list of available extensions does not include the version you
+are trying to upgrade to, and it can occur if the package was not installed
+correctly in the first place. To correct the problem, install the upgrade
+package, restart {C.PG}, verify the version, and then attempt the update
+again.
+
+<NumberedList>
+<NumberedItem title="Check your package repository">
+If you're installing {C.TOOLKIT_SHORT} from a package, check your package manager's
+local repository list. Make sure the {C.TIMESCALE_DB} repository is available and
+contains Toolkit. Update your local repository list with `apt update` or `yum update`.
+</NumberedItem>
+
+<NumberedItem title={`Restart ${C.PG}`}>
+Restart your {C.PG} service.
+</NumberedItem>
+
+<NumberedItem title="Verify the available version">
+Check that the right version of {C.TOOLKIT_SHORT} is among your available extensions:
+
+```sql
+SELECT * FROM pg_available_extensions
+  WHERE name = 'timescaledb_toolkit';
+```
+
+The result should look like this:
+
+```bash
+-[ RECORD 1 ]-----+--------------------------------------------------------------------------------------
+name              | timescaledb_toolkit
+default_version   | 1.6.0
+installed_version | 1.6.0
+comment           | Library of analytical hyperfunctions, time-series pipelining, and other SQL utilities
+```
+</NumberedItem>
+
+<NumberedItem title="Retry the command">
+Retry `CREATE EXTENSION` or `ALTER EXTENSION`.
+</NumberedItem>
+</NumberedList>
