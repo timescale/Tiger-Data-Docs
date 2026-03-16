@@ -1,0 +1,26 @@
+import * as C from "@constants";
+
+## EXPLAINing query performance
+
+{C.PG}'s EXPLAIN feature allows users to understand the underlying query
+plan that {C.PG} uses to execute a query. There are multiple ways that
+{C.PG} can execute a query: for example, a query might be fulfilled using a
+slow sequence scan or a much more efficient index scan. The choice of plan
+depends on what indexes are created on the table, the statistics that {C.PG}
+has about your data, and various planner settings. The EXPLAIN output lets you
+know which plan {C.PG} is choosing for a particular query. {C.PG} has an
+[in-depth explanation](https://www.postgresql.org/docs/current/using-explain.html) of this feature.
+
+To understand the query performance on a {C.HYPERTABLE}, first
+make sure that the planner statistics and table maintenance is up-to-date on the {C.HYPERTABLE}
+by running `VACUUM ANALYZE <your-hypertable>;`. Then, run the
+following version of EXPLAIN:
+
+```sql
+EXPLAIN (ANALYZE on, BUFFERS on) <original query>;
+```
+
+If you suspect that your performance issues are due to slow IOs from disk, you
+can get even more information by enabling the
+[track_io_timing](https://www.postgresql.org/docs/current/runtime-config-statistics.html#GUC-TRACK-IO-TIMING) variable with `SET track_io_timing = 'on';`
+before running the above EXPLAIN.
