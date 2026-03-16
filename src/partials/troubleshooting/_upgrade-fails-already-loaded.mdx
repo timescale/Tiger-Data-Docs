@@ -1,0 +1,19 @@
+## Upgrade fails with "old version has already been loaded"
+
+When you use the `ALTER EXTENSION timescaledb UPDATE` command to upgrade, you
+might see this error:
+
+```sql
+ERROR: extension "timescaledb" cannot be updated after the old version has already been loaded
+```
+
+This occurs if you don't run `ALTER EXTENSION timescaledb UPDATE` as the
+first command after starting a new session using psql, or if you use tab
+completion when running the command. Tab completion triggers metadata queries in
+the background which prevents the alter extension from being the first command.
+
+To correct the problem, execute the ALTER EXTENSION command like this:
+
+```sql
+psql -X -c 'ALTER EXTENSION timescaledb UPDATE;'
+```

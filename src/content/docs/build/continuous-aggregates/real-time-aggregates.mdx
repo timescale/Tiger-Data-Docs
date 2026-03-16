@@ -1,16 +1,48 @@
 ---
-title: "Set up real-time aggregates"
-description: "Combine pre-aggregated data with the most recent raw data for up-to-date results"
+title: Real-time aggregates
+description: Real-time aggregates combine pre-aggregated data with the most recent raw data for up-to-date results
+products: [cloud, mst, self_hosted]
+keywords: [continuous aggregates, real-time aggregates]
 ---
-Rapidly growing data means you need more control over what to aggregate and how to aggregate it. With this in mind, Timescale equips you with tools for more fine-tuned data analysis. By default, continuous aggregates do not include the most recent data chunk from the underlying hypertable. Real-time aggregates, however, use the aggregated data **and** add the most recent raw data to it. This provides accurate and up-to-date results, without needing to aggregate data as it is being written. In TimescaleDB v2.13 and later, real-time aggregates are **DISABLED** by default. In earlier versions, real-time aggregates are **ENABLED** by default; when you create a continuous aggregate, queries to that view include the results from the most recent raw data. For more detail on the comparison between continuous and real-time aggregates, see our [real-time aggregate blog post](https://tigerdata.com/blog/achieving-the-best-of-both-worlds-ensuring-up-to-date-results-with-real-time-aggregation/).
 
-Use real-time aggregates
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import CaggsRealTimeHistoricalDataRefreshes from "../../../../partials/_caggs-real-time-historical-data-refreshes.mdx";
+import RealTimeAgg from "../../../../partials/_real-time-aggregates.mdx";
 
-You can enable and disable real-time aggregation by setting the `materialized_only` parameter when you create or alter the view.
+Rapidly growing data means you need more control over what to aggregate and how to aggregate it. With this in mind, {C.COMPANY} equips you with tools for more fine-tuned data analysis.
 
-1.  **Enable real-time aggregation for an existing continuous aggregate**
-2.  **Disable real-time aggregation** Disable real-time aggregation:
+By default, {C.CAGG}s do not include the most recent data {C.CHUNK} from the
+underlying {C.HYPERTABLE}. {C.RTAGG_CAP}s, however, use the aggregated data **and** add the
+most recent raw data to it. This provides accurate and up-to-date results, without
+needing to aggregate data as it is being written.
 
-Real-time aggregates and refreshing historical data
+<RealTimeAgg />
 
-Real-time aggregates combine materialized data with real-time calculations on recent data. However, if you update, insert, or delete data in a previously materialized time bucket, those changes are not visible in your continuous aggregate until you refresh that time bucket again. For more information and a detailed example, see the troubleshooting guide: [Updates to previously materialized regions aren’t shown in real-time aggregates](/build/tips-and-tricks/troubleshooting#updates-to-previously-materialized-regions-aren't-shown-in-real-time-aggregates).
+For more detail on the comparison between {C.CAGG}s and {C.RTAGG}s,
+see the [{C.RTAGG} blog post](https://tigerdata.com/blog/achieving-the-best-of-both-worlds-ensuring-up-to-date-results-with-real-time-aggregation/).
+
+## Use {C.RTAGG}s
+
+You can enable and disable real-time aggregation by setting the
+`materialized_only` parameter when you create or alter the view.
+
+<NumberedList>
+<NumberedItem title="Enable real-time aggregation">
+```sql
+ALTER MATERIALIZED VIEW table_name set (timescaledb.materialized_only = false);
+```
+</NumberedItem>
+
+<NumberedItem title="Disable real-time aggregation">
+```sql
+ALTER MATERIALIZED VIEW table_name set (timescaledb.materialized_only = true);
+```
+</NumberedItem>
+</NumberedList>
+
+## {C.RTAGG_CAP}s and refreshing historical data
+
+<CaggsRealTimeHistoricalDataRefreshes />
+
+For more information, see the [troubleshooting section](/build/tips-and-tricks/troubleshoot-continuous-aggregates).

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { IntegrateToc, getViewFromHash, type IntegrateView, type AllIntegrationTocItem } from "./IntegrateToc";
+import { IntegrateToc, getViewFromHash, type IntegrateView, type AllIntegrationTocItem, type PlanTocSection } from "./IntegrateToc";
 
 const RIGHT_SIDEBAR_SELECTORS = [
   ".right-sidebar-container .right-sidebar",
@@ -50,22 +50,11 @@ function getAllIntegrations(): { title: string; id: string }[] {
   return [];
 }
 
-function getTigerDataIntegrations(): { title: string; id: string }[] {
+function getPlanSections(): PlanTocSection[] {
   try {
-    const el = document.querySelector("[data-tiger-data-integrations]");
-    const raw = el?.getAttribute("data-tiger-data-integrations");
-    if (raw) return JSON.parse(raw) as { title: string; id: string }[];
-  } catch {
-    // ignore
-  }
-  return [];
-}
-
-function getExternalIntegrations(): { title: string; id: string }[] {
-  try {
-    const el = document.querySelector("[data-external-integrations]");
-    const raw = el?.getAttribute("data-external-integrations");
-    if (raw) return JSON.parse(raw) as { title: string; id: string }[];
+    const el = document.querySelector("[data-plan-sections]");
+    const raw = el?.getAttribute("data-plan-sections");
+    if (raw) return JSON.parse(raw) as PlanTocSection[];
   } catch {
     // ignore
   }
@@ -83,9 +72,8 @@ export function IntegrateTocPortal() {
   const [currentView, setCurrentView] = useState<IntegrateView>(() => getViewFromHash());
   const [industryOrder, setIndustryOrder] = useState<string[]>([]);
   const [categoryOrder, setCategoryOrder] = useState<string[]>([]);
-  const [allIntegrations, setAllIntegrations] = useState<{ title: string; id: string }[]>([]);
-  const [tigerDataIntegrations, setTigerDataIntegrations] = useState<{ title: string; id: string }[]>([]);
-  const [externalIntegrations, setExternalIntegrations] = useState<{ title: string; id: string }[]>([]);
+  const [allIntegrations, setAllIntegrations] = useState<AllIntegrationTocItem[]>([]);
+  const [planSections, setPlanSections] = useState<PlanTocSection[]>([]);
 
   useEffect(() => {
     const el = findRightSidebar();
@@ -95,8 +83,7 @@ export function IntegrateTocPortal() {
       setIndustryOrder(getIndustryOrder());
       setCategoryOrder(getCategoryOrder());
       setAllIntegrations(getAllIntegrations());
-      setTigerDataIntegrations(getTigerDataIntegrations());
-      setExternalIntegrations(getExternalIntegrations());
+      setPlanSections(getPlanSections());
       return () => setTarget(null);
     }
     const observer = new MutationObserver(() => {
@@ -107,8 +94,7 @@ export function IntegrateTocPortal() {
         setIndustryOrder(getIndustryOrder());
         setCategoryOrder(getCategoryOrder());
         setAllIntegrations(getAllIntegrations());
-        setTigerDataIntegrations(getTigerDataIntegrations());
-        setExternalIntegrations(getExternalIntegrations());
+        setPlanSections(getPlanSections());
         observer.disconnect();
       }
     });
@@ -122,15 +108,13 @@ export function IntegrateTocPortal() {
         setIndustryOrder(getIndustryOrder());
         setCategoryOrder(getCategoryOrder());
         setAllIntegrations(getAllIntegrations());
-        setTigerDataIntegrations(getTigerDataIntegrations());
-        setExternalIntegrations(getExternalIntegrations());
+        setPlanSections(getPlanSections());
       } else {
         setUseFallback(true);
         setIndustryOrder(getIndustryOrder());
         setCategoryOrder(getCategoryOrder());
         setAllIntegrations(getAllIntegrations());
-        setTigerDataIntegrations(getTigerDataIntegrations());
-        setExternalIntegrations(getExternalIntegrations());
+        setPlanSections(getPlanSections());
       }
     }, 800);
     return () => {
@@ -147,7 +131,7 @@ export function IntegrateTocPortal() {
 
   const tocContent = (
     <div className="glossary-page-toc-wrapper integrate-toc-wrapper">
-      <IntegrateToc currentView={currentView} industryOrder={industryOrder} categoryOrder={categoryOrder} allIntegrations={allIntegrations} tigerDataIntegrations={tigerDataIntegrations} externalIntegrations={externalIntegrations} />
+      <IntegrateToc currentView={currentView} industryOrder={industryOrder} categoryOrder={categoryOrder} allIntegrations={allIntegrations} planSections={planSections} />
     </div>
   );
 
