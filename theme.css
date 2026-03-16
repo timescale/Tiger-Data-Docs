@@ -325,7 +325,7 @@ h4 {
    (Designs: 3292:777 hero, 3292:781 tagline, 3292:809 section, 3300:1532 card, 3292:819 CTA link)
    ============================================ */
 /* Hero title (e.g. "Tiger Data Documentation") – 50px, SemiBold, 1.2, -0.5px */
-[data-template="splash"] h1,
+[data-template="splash"] h1:not(.splash-hero__title),
 [data-template="splash"] .stl-heading-1,
 .stl-hero-title {
   font-size: var(--tiger-font-size-hero);
@@ -333,6 +333,37 @@ h4 {
   line-height: var(--tiger-line-height-heading);
   letter-spacing: var(--tiger-letter-spacing-hero);
   color: var(--tiger-bg-default);
+}
+
+/* Splash index hero – Figma 3513:11065; tighter gap 16px so spacing doesn’t feel excessive */
+.splash-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 0;
+}
+
+/* Figma 3513:11066 – Geist Regular, 40px, leading 38.4px, #15151e */
+.splash-hero__title {
+  margin: 0;
+  font-family: var(--stl-font-family);
+  font-size: 40px;
+  font-weight: 400;
+  line-height: 38.4px;
+  letter-spacing: 0;
+  color: var(--tiger-bg-default, #15151e);
+}
+
+/* Figma 3513:11067 – Geist Medium 450, 18px, line-height 1.2, #555570 */
+.splash-hero__tagline {
+  margin: 0;
+  font-family: var(--stl-font-family);
+  font-size: 18px;
+  font-weight: 450;
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: var(--tiger-fg-emphasized, #555570);
+  max-width: 762px;
 }
 
 /* Tagline / subheading (e.g. "Postgres for time series...") – 18px, Medium, #555570 */
@@ -1582,6 +1613,13 @@ tr:hover td {
   padding-right: var(--tiger-space-2xl);
 }
 
+/* No extra margin from markdown wrapper on hero – we control gap to cards via .splash-hero-cards margin-top */
+[data-template="splash"] .l-markdown-content .splash-hero,
+[data-template="splash"] .sl-markdown-content .splash-hero {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 @media (max-width: 768px) {
   [data-template="splash"] main,
   [data-page-route="/"] main {
@@ -1604,6 +1642,458 @@ tr:hover td {
 .stl-ui-mintlify-compat-card-group > .stl-ui-mintlify-compat-card {
   flex: 0 1 calc(50% - var(--tiger-space-lg) / 2);
   min-width: 280px;
+}
+
+/* ============================================
+   Splash homepage: section layout (intro left + cards right), dividers, CTAs
+   Figma: Docs Navigation restructure Q2 – section with heading/description + card grid
+   ============================================ */
+
+/* Two hero boxes: side-by-side on large screens, stacked on small. 16px gap from hero to cards. */
+.splash-hero-cards {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .splash-hero-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Hero get-started cards – two equal boxes (Cloud + Install locally).
+   Less top padding so card title sits closer to top border; 50px sides/bottom. */
+.splash-hero-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 50px 50px 50px;
+  border: 1px solid var(--tiger-black, #000);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--tiger-black, #000);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  min-height: 300px;
+}
+
+/* Inner: space-between pushes CTA to bottom; 24px gap between content and CTA (Figma 3513:11069) */
+.splash-hero-card__inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  flex: 1;
+  min-height: 0;
+}
+
+.splash-hero-card__bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  pointer-events: none;
+}
+
+/* Figma 3513:11069 – base #f2f0ff + texture overlay opacity 18%, bg-size 1024px */
+.splash-hero-card--cloud .splash-hero-card__bg {
+  background-color: #f2f0ff;
+}
+
+.splash-hero-card--cloud .splash-hero-card__bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 1024px 1024px;
+  background-position: top left;
+}
+
+.splash-hero-card--local .splash-hero-card__bg {
+  background-color: #feffef;
+}
+
+/* Same texture overlay as cloud card (Figma 3513:11798 – cream base + subtle texture) */
+.splash-hero-card--local .splash-hero-card__bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 1024px 1024px;
+  background-position: top left;
+}
+
+/* Title + description: 24px vertical gap (Figma 3513:11069) */
+.splash-hero-card__content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+/* Figma 3513:11787 – Heading/24/Regular, Geist Medium 450, tracking -0.12px, w 404px */
+.splash-hero-card__title {
+  margin: 0;
+  font-family: var(--stl-font-family);
+  font-size: 24px;
+  font-weight: 450;
+  line-height: 1.2;
+  letter-spacing: -0.12px;
+  color: var(--tiger-bg-default, #15151e);
+  max-width: 404px;
+}
+
+/* Figma 3513:11788 – Body/16/Regular, Geist Medium, #555570 */
+.splash-hero-card__description {
+  margin: 0;
+  font-family: var(--stl-font-family);
+  font-size: 16px;
+  font-weight: 450;
+  line-height: 1.5;
+  color: var(--tiger-fg-emphasized, #555570);
+}
+
+/* CTA: 8px gap between icon and label (Figma 3513:12519 / 3513:12521) */
+.splash-hero-card__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Arrow icon container – Figma 3513:12520 MdOutlineArrowForward (white arrow, black bg, subtle border) */
+.splash-hero-card__cta-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--tiger-black, #000);
+  color: #fff;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.splash-hero-card__cta-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* CTA label – Figma 3513:12521 Body/16/Strong (Geist SemiBold, 16px, 1.5, black) */
+.splash-hero-card__cta-label {
+  font-family: var(--stl-font-family);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: var(--tiger-black, #000);
+}
+
+/* Illustrations sit behind content; only the card clips at its border (overflow: hidden on .splash-hero-card). */
+.splash-hero-card__illustration {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  overflow: visible;
+}
+
+/* Cloud: bottom-right area; illustration fits in box, only card border clips. */
+.splash-hero-card__illustration--cloud {
+  right: 0;
+  bottom: 0;
+  left: 22.36%;
+  top: 0;
+  width: 77.64%;
+  height: 100%;
+}
+
+.splash-hero-card__cloud-frame {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Cloud image: fit fully in frame, anchor bottom-right so no weird cut-off. Card overflow clips at edge. */
+.splash-hero-card__cloud-img {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: 100% 100%;
+}
+
+/* Database: flush to card bottom-right (no gap); fixed box, img anchored bottom-right inside. */
+.splash-hero-card__illustration--database {
+  right: 0;
+  bottom: 0;
+  width: 200px;
+  height: 130px;
+  max-width: 38%;
+  top: auto;
+  overflow: visible;
+}
+
+.splash-hero-card__database-frame {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.splash-hero-card__database-img {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: 100% 100%;
+}
+
+.splash-hero-card__illustration-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.splash-section {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--tiger-space-2xl);
+  margin-top: 60px;
+}
+
+.splash-section__intro {
+  flex: 0 1 388px;
+  min-width: 0;
+}
+
+/* Figma 3513:12558 – section heading: Heading/24/Regular, 24px, 450, 1.2, -0.12px, #15151e */
+.splash-section__intro h2 {
+  margin-top: 0;
+  margin-bottom: var(--tiger-space-md);
+  font-family: var(--stl-font-family);
+  font-size: 24px;
+  font-weight: 450;
+  line-height: 1.2;
+  letter-spacing: -0.12px;
+  color: var(--tiger-bg-default, #15151e);
+}
+
+/* Figma 3513:12559 – intro paragraph: Body/16/Regular, 16px, 450, 1.5, #555570 */
+.splash-section__intro p {
+  margin-top: 0;
+  margin-bottom: var(--tiger-space-lg);
+  font-family: var(--stl-font-family);
+  font-size: 16px;
+  font-weight: 450;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: var(--tiger-fg-emphasized, #555570);
+}
+
+/* Figma 3513:12560 – CTA: black 24px icon + label (14px SemiBold); icon and text aligned on center */
+.splash-section__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--tiger-black, #000);
+  text-decoration: none;
+}
+
+/* MDX can wrap CTA text in a <p> – reset so icon and text stay in one row and align */
+.splash-section__cta p {
+  margin: 0;
+  padding: 0;
+  display: inline;
+}
+
+.splash-section__cta:hover {
+  color: var(--tiger-black, #000);
+  text-decoration: underline;
+}
+
+/* Figma 3513:12562, 3513:12620, 3513:12691 – MdOutlineArrowForward: white arrow on black, 24px, match hero card CTA */
+.splash-section__cta-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  background: var(--tiger-black, #000);
+  color: #fff;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.splash-section__cta-icon svg {
+  width: 24px;
+  height: 24px;
+  display: block;
+  vertical-align: middle;
+}
+
+.splash-section__cards {
+  flex: 1 1 500px;
+  min-width: 0;
+}
+
+/* Figma 3513:12564 – 2 columns, 40px row gap; cards white, 16px radius, 16px internal gap */
+.splash-section__cards .stl-ui-mintlify-compat-card-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px 24px;
+}
+
+/* Figma 3513:12566, 12570 – card: icon + text column; 16px between icon and text; 6px between title and description.
+   Package uses display:flex + gap, which can override our grid when its CSS loads after theme.css. Use !important so grid wins. */
+.splash-section__cards .stl-ui-mintlify-compat-card {
+  display: grid !important;
+  grid-template-columns: auto 1fr !important;
+  grid-template-rows: auto auto !important;
+  column-gap: 16px !important;
+  row-gap: 6px !important;
+  align-items: start;
+  padding: 0;
+  background: var(--tiger-white, #fff);
+  border-radius: 16px;
+  border: none;
+  box-shadow: none;
+  min-width: 0;
+}
+
+/* Icon in first column, spans both rows so it aligns with the text block */
+.splash-section__cards .stl-ui-mintlify-compat-card-icon {
+  grid-column: 1 !important;
+  grid-row: 1 / -1 !important;
+  width: 50px;
+  height: 50px;
+  padding: 8px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ebebeb;
+  border-radius: 12px;
+  background: var(--tiger-white, #fff);
+}
+
+.splash-section__cards .stl-ui-mintlify-compat-card-title {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+}
+
+.splash-section__cards .stl-ui-mintlify-compat-card-content {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+}
+
+.splash-section__cards .stl-ui-mintlify-compat-card-icon svg {
+  width: 24px;
+  height: 24px;
+  color: var(--tiger-bg-default, #15151e);
+}
+
+/* Figma 3513:12572 – card title: Heading/18/Regular; no margin so row-gap is the only space to description */
+.splash-section__cards .stl-ui-mintlify-compat-card-title,
+.splash-section__cards .stl-ui-mintlify-compat-card h2 {
+  font-family: var(--stl-font-family);
+  font-size: 18px;
+  font-weight: 450;
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: var(--tiger-bg-default, #15151e);
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Figma 3513:12574 – card description: Body/14/Regular; spacing from title comes only from grid row-gap */
+.splash-section__cards .stl-ui-mintlify-compat-card-content,
+.splash-section__cards .stl-ui-mintlify-compat-card-content p {
+  font-family: var(--stl-font-family);
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: #87879f;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Force consistent title–description gap: override prose/package margins (with and without data-template) */
+[data-template="splash"] .l-markdown-content .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-title,
+[data-template="splash"] .l-markdown-content .stl-ui-mintlify-compat-card h2,
+[data-template="splash"] .sl-markdown-content .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-title,
+[data-template="splash"] .sl-markdown-content .stl-ui-mintlify-compat-card h2,
+main .splash-section__cards a.stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-title,
+main .splash-section__cards a.stl-ui-mintlify-compat-card h2 {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+[data-template="splash"] .l-markdown-content .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content,
+[data-template="splash"] .l-markdown-content .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content p,
+[data-template="splash"] .sl-markdown-content .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content,
+[data-template="splash"] .sl-markdown-content .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content p,
+main .splash-section__cards a.stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content,
+main .splash-section__cards a.stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content p {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+[data-template="splash"] .l-markdown-content .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content > *,
+[data-template="splash"] .sl-markdown-content .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content > *,
+main .splash-section__cards a.stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content > * {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.splash-section--compact .splash-section__intro {
+  flex: 1 1 auto;
+}
+
+/* Figma 3513:12613 – Grayscale/200 #EBEBEB */
+.splash-divider {
+  margin: 60px 0 0;
+  border: none;
+  border-top: 1px solid #ebebeb;
+}
+
+@media (max-width: 900px) {
+  .splash-section {
+    flex-direction: column;
+    margin-top: var(--tiger-space-2xl);
+  }
+
+  .splash-section__intro {
+    flex: 1 1 100%;
+  }
+
+  .splash-section__cards {
+    flex: 1 1 100%;
+  }
+
+  .splash-divider {
+    margin: var(--tiger-space-2xl) 0 0;
+  }
 }
 
 /* Changelog page: hide duplicate H2s from markdown (used only for TOC); card title is the visible H2 */
@@ -2420,4 +2910,46 @@ tr:hover td {
   justify-content: space-between;
   font-size: 0.75rem;
   color: var(--scrollbar-thumb);
+}
+
+/* ============================================
+   Splash section cards: force consistent title–description gap (keep last so it wins cascade)
+   ============================================ */
+main .splash-section__cards .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-title,
+main .splash-section__cards .stl-ui-mintlify-compat-card h2,
+main .splash-section__cards .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content,
+main .splash-section__cards .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content p,
+main .splash-section__cards .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content > *,
+main .splash-section__cards .stl-ui-mintlify-compat-card p {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+/* Force grid layout to win over package’s display:flex + gap (package CSS can load after theme.css) */
+main .splash-section__cards .stl-ui-mintlify-compat-card {
+  display: grid !important;
+  grid-template-columns: auto 1fr !important;
+  grid-template-rows: auto auto !important;
+  column-gap: 16px !important;
+  row-gap: 6px !important;
+}
+/* Same title–description spacing on every card: no top margin or padding on content */
+main .content-panel .l-markdown-content .splash-section__cards .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content,
+main .content-panel .l-markdown-content .splash-section__cards .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content p,
+main .l-markdown-content .splash-section__cards .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content,
+main .l-markdown-content .splash-section__cards .stl-ui-mintlify-compat-card .stl-ui-mintlify-compat-card-content p {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+/* Reference (4th card) and Retention (6th card): same title–description spacing as others */
+.splash-section__cards .stl-ui-mintlify-compat-card-group .stl-ui-mintlify-compat-card:nth-child(4) .stl-ui-mintlify-compat-card-content,
+.splash-section__cards .stl-ui-mintlify-compat-card-group .stl-ui-mintlify-compat-card:nth-child(4) .stl-ui-mintlify-compat-card-content p,
+.splash-section__cards .stl-ui-mintlify-compat-card-group .stl-ui-mintlify-compat-card:nth-child(6) .stl-ui-mintlify-compat-card-content,
+.splash-section__cards .stl-ui-mintlify-compat-card-group .stl-ui-mintlify-compat-card:nth-child(6) .stl-ui-mintlify-compat-card-content p,
+/* Fallback: match DOM path without .splash-section__cards in case that class is renamed in build */
+main .content-panel .l-markdown-content .stl-ui-mintlify-compat-card-group .stl-ui-mintlify-compat-card:nth-child(4) .stl-ui-mintlify-compat-card-content,
+main .content-panel .l-markdown-content .stl-ui-mintlify-compat-card-group .stl-ui-mintlify-compat-card:nth-child(4) .stl-ui-mintlify-compat-card-content p,
+main .content-panel .l-markdown-content .stl-ui-mintlify-compat-card-group .stl-ui-mintlify-compat-card:nth-child(6) .stl-ui-mintlify-compat-card-content,
+main .content-panel .l-markdown-content .stl-ui-mintlify-compat-card-group .stl-ui-mintlify-compat-card:nth-child(6) .stl-ui-mintlify-compat-card-content p {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
 }
