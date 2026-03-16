@@ -1,4 +1,3 @@
-import type { Plugin } from "vite";
 import { createRequire } from "node:module";
 import { defineConfig } from "astro/config";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
@@ -20,12 +19,12 @@ const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/component
  * `handler`, which crashes EnvironmentPluginContainer because getHookHandler()
  * returns undefined. This plugin patches those hooks at config-resolution time.
  */
-function vite7CompatPlugin(): Plugin {
+function vite7CompatPlugin(): { name: string; enforce: "pre"; configResolved: (config: { plugins: unknown[] }) => void } {
   const HOOK_NAMES = ["transform", "load", "resolveId"] as const;
   return {
     name: "vite7-compat-patch-hooks",
     enforce: "pre",
-    configResolved(config) {
+    configResolved(config: { plugins: unknown[] }) {
       for (const plugin of config.plugins) {
         for (const hookName of HOOK_NAMES) {
           const hook = (plugin as any)[hookName];
@@ -105,7 +104,7 @@ export default defineConfig({
             PageTitle: "./src/components/PageTitle.astro",
             Pagination: "./src/components/PageNavigation.astro",
             Callout: "./src/components/Callout.astro",
-          },
+          } as Record<string, string>,
           plugins: starlightLinksValidator ? [starlightLinksValidator()] : [],
         },
       },
@@ -173,55 +172,58 @@ export default defineConfig({
           sidebar: [
             {
               label: "Overview",
-              link: "/learn",
+              collapsed: false,
+              items: [
+                { label: "What is Tiger Data", link: "/learn" },
+                { label: "Tiger Data architecture for real-time analytics", link: "/learn/deep-dive/whitepaper" },
+                { label: "Understand capabilities", link: "/learn/fundamentals/understand-capabilities" },
+                { label: "Compare Tiger Data product features", link: "/learn/fundamentals/tiger-cloud-feature-comparison" },
+              ],
             },
             {
-              label: "Template tutorial (preview)",
-              link: "/learn/examples/00-template-tutorial-render",
+              label: "Core concepts",
+              collapsed: false,
+              items: [
+                { label: "Your first hypertable", link: "/learn/fundamentals/your-first-hypertable" },
+                { label: "Understanding chunks", link: "/learn/fundamentals/understanding-chunks" },
+                { label: "Basic compression", link: "/learn/fundamentals/basic-compression" },
+                { label: "Optimize time-series data in hypertables", link: "/learn/fundamentals/optimize-data-in-hypertables" },
+                { label: "Querying time-series data", link: "/learn/fundamentals/querying-time-series-data" },
+                { label: "Design your data model", link: "/learn/fundamentals/design-your-data-model" },
+              ],
             },
             {
-              label: "Aggregate organizational data with AI agents",
-              link: "/learn/examples/aggregate-organizational-data-with-ai/",
-            },
-            {
-              label: "Create Tiger Cloud services with Terraform",
-              link: "/learn/examples/create-services-with-terraform",
-            },
-            {
-              label: "Fundamentals",
-              autogenerate: { directory: "learn/fundamentals" },
-            },
-            {
-              label: "Deep Dive",
-              collapsed: true,
-              autogenerate: { directory: "learn/deep-dive" },
+              label: "Tutorials",
+              collapsed: false,
+              items: [
+                { label: "Aggregate organizational data with AI agents", link: "/learn/examples/aggregate-organizational-data-with-ai/" },
+                { label: "Create Tiger Cloud services with Terraform", link: "/learn/examples/create-services-with-terraform" },
+                { label: "Template tutorial (preview)", link: "/learn/examples/00-template-tutorial-render" },
+              ],
             },
             {
               label: "Examples",
-              collapsed: true,
-              autogenerate: { directory: "learn/examples" },
+              collapsed: false,
+              items: [
+                { label: "Analyze Bitcoin blockchain", link: "/learn/examples/analyze-blockchain" },
+                { label: "Analyze energy consumption", link: "/learn/examples/analyze-energy-consumption" },
+                { label: "Analyze financial tick data", link: "/learn/examples/analyze-financial-tick-data" },
+                { label: "Analyze transport and geospatial data", link: "/learn/examples/analyze-transport-data" },
+                { label: "Ingest real-time financial data", link: "/learn/examples/ingest-real-time-financial-data" },
+                { label: "Simulate an IoT sensor dataset", link: "/learn/examples/simulate-iot-sensor-data" },
+                { label: "Tiger Data cookbook", link: "/learn/examples/cookbook" },
+              ],
             },
             {
-              label: "Production Patterns",
-              collapsed: true,
-              autogenerate: { directory: "learn/production-patterns" },
+              label: "Production patterns",
+              collapsed: false,
+              items: [
+                { label: "Production patterns overview", link: "/learn/production-patterns" },
+              ],
             },
             {
               label: "Glossary",
-              collapsed: false,
-              items: [
-                { label: "All", link: "/learn/glossary" },
-                { label: "TimescaleDB", link: "/learn/glossary?category=TimescaleDB" },
-                { label: "Storage", link: "/learn/glossary?category=Storage" },
-                { label: "Time-series", link: "/learn/glossary?category=Time-series" },
-                { label: "Cloud", link: "/learn/glossary?category=Cloud" },
-                { label: "Security", link: "/learn/glossary?category=Security" },
-                { label: "Operations", link: "/learn/glossary?category=Operations" },
-                { label: "Observability", link: "/learn/glossary?category=Observability" },
-                { label: "AI & vectors", link: "/learn/glossary?category=AI%20%26%20vectors" },
-                { label: "PostgreSQL", link: "/learn/glossary?category=PostgreSQL" },
-                { label: "Data & migration", link: "/learn/glossary?category=Data%20%26%20migration" },
-              ],
+              link: "/learn/glossary",
             },
           ],
         },
@@ -369,7 +371,75 @@ export default defineConfig({
             {
               label: "Self-Hosted",
               collapsed: true,
-              autogenerate: { directory: "deploy/self-hosted" },
+              items: [
+                { label: "Overview", link: "/deploy/self-hosted" },
+                {
+                  label: "Configuration",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/deploy/self-hosted/configuration" },
+                    { label: "About configuration", link: "/deploy/self-hosted/configuration/about-configuration" },
+                    { label: "Using timescaledb-tune", link: "/deploy/self-hosted/configuration/timescaledb-tune" },
+                    { label: "Manual PostgreSQL configuration", link: "/deploy/self-hosted/configuration/postgres-config" },
+                    { label: "TimescaleDB configuration", link: "/deploy/self-hosted/configuration/timescaledb-config" },
+                    { label: "Docker configuration", link: "/deploy/self-hosted/configuration/docker-config" },
+                    { label: "Telemetry", link: "/deploy/self-hosted/configuration/telemetry" },
+                  ],
+                },
+                {
+                  label: "Backup and restore",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/deploy/self-hosted/backup-and-restore" },
+                    { label: "Logical backup", link: "/deploy/self-hosted/backup-and-restore/logical-backup" },
+                    { label: "Physical backups", link: "/deploy/self-hosted/backup-and-restore/physical" },
+                  ],
+                },
+                {
+                  label: "Migrate to self-hosted TimescaleDB",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/deploy/self-hosted/migration" },
+                    { label: "Migrate entire database", link: "/deploy/self-hosted/migration/entire-database" },
+                    { label: "Migrate schema then data", link: "/deploy/self-hosted/migration/schema-then-data" },
+                    { label: "Migrate tables from the same database", link: "/deploy/self-hosted/migration/same-db" },
+                    { label: "Migrate data from InfluxDB", link: "/deploy/self-hosted/migration/migrate-influxdb" },
+                  ],
+                },
+                { label: "Manage storage using tablespaces", link: "/deploy/self-hosted/manage-storage" },
+                {
+                  label: "Replication and High Availability",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/deploy/self-hosted/replication-and-ha" },
+                    { label: "About high availability", link: "/deploy/self-hosted/replication-and-ha/about-ha" },
+                    { label: "Configure replication", link: "/deploy/self-hosted/replication-and-ha/configure-replication" },
+                  ],
+                },
+                {
+                  label: "Additional tooling",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/deploy/self-hosted/tooling" },
+                    { label: "TimescaleDB Tune", link: "/deploy/self-hosted/tooling/about-timescaledb-tune" },
+                    { label: "Install and update TimescaleDB Toolkit", link: "/deploy/self-hosted/tooling/install-toolkit" },
+                  ],
+                },
+                {
+                  label: "Upgrade self-hosted TimescaleDB",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/deploy/self-hosted/upgrades" },
+                    { label: "Upgrade to a minor version", link: "/deploy/self-hosted/upgrades/minor-upgrade" },
+                    { label: "Upgrade to a major version", link: "/deploy/self-hosted/upgrades/major-upgrade" },
+                    { label: "Upgrade TimescaleDB in Docker", link: "/deploy/self-hosted/upgrades/upgrade-docker" },
+                    { label: "Upgrade PostgreSQL", link: "/deploy/self-hosted/upgrades/upgrade-pg" },
+                    { label: "Downgrade to a minor version", link: "/deploy/self-hosted/upgrades/downgrade" },
+                  ],
+                },
+                { label: "Uninstall self-hosted TimescaleDB", link: "/deploy/self-hosted/uninstall" },
+                { label: "Troubleshooting", link: "/deploy/self-hosted/troubleshooting" },
+              ],
             },
             {
               label: "Managed Service (MST)",

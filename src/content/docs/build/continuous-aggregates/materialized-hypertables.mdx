@@ -1,12 +1,42 @@
 ---
-title: "Materialized hypertables"
-description: "Continuous aggregates store aggregated data in materialized hypertables that you can manage"
+title: Materialized hypertables
+description: Continuous aggregates store aggregated data in materialized hypertables. Learn how to manage them
+products: [cloud, mst, self_hosted]
+keywords: [continuous aggregates, materialized views]
 ---
-Continuous aggregates take raw data from the original hypertable, aggregate it, and store the aggregated data in a materialization hypertable. You can modify this materialized hypertable in the same way as any other hypertable.
 
-Discover the name of a materialized hypertable
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
-To change a materialized hypertable, you need to use its fully qualified name. To find the correct name, use the [timescaledb\_information.continuous\_aggregates view](/reference/timescaledb/informational-views/continuous_aggregates). You can then use the name to modify it in the same way as any other hypertable.
+{C.CAGG_CAP}s take raw data from the original {C.HYPERTABLE}, aggregate it,
+and store the aggregated data in a materialization {C.HYPERTABLE}. You can modify
+this {C.MAT_HYPERTABLE} in the same way as any other {C.HYPERTABLE}.
 
-1.  **Query the continuous aggregates view** Query `timescaledb_information.continuous_aggregates`:
-2.  **Locate the materialized hypertable name** Locate the name of the hypertable you want to adjust in the results of the query. The results look like this:
+## Discover the name of a {C.MAT_HYPERTABLE}
+
+To change a {C.MAT_HYPERTABLE}, you need to use its fully qualified
+name. To find the correct name, use the
+[`timescaledb_information.continuous_aggregates` view](/reference/timescaledb/informational-views/continuous_aggregates).
+You can then use the name to modify it in the same way as any other {C.HYPERTABLE}.
+
+<NumberedList>
+<NumberedItem title="Query the continuous_aggregates view">
+```sql
+SELECT view_name, format('%I.%I', materialization_hypertable_schema,
+        materialization_hypertable_name) AS materialization_hypertable
+    FROM timescaledb_information.continuous_aggregates;
+```
+</NumberedItem>
+
+<NumberedItem title="Locate the hypertable name">
+The results look like this:
+
+```sql
+         view_name         |            materialization_hypertable
+---------------------------+---------------------------------------------------
+conditions_summary_hourly | _timescaledb_internal._materialized_hypertable_30
+conditions_summary_daily  | _timescaledb_internal._materialized_hypertable_31
+(2 rows)
+```
+</NumberedItem>
+</NumberedList>
