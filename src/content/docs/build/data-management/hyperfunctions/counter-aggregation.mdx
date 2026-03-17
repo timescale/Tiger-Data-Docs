@@ -1,0 +1,185 @@
+---
+title: Counter aggregation
+description: Collect data from counters in spite of interruptions or resets
+products: [cloud, mst, self_hosted]
+keywords: [hyperfunctions, Toolkit, gauges, counters]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import CreateHypertablePolicyNote from "../../../../../partials/_create-hypertable-columnstore-policy-note.mdx";
+
+When you are monitoring application performance, there are two main types of
+metrics that you can collect: gauges, and counters. Gauges fluctuate up and
+down, like temperature or speed, while counters always increase, like the total
+number of miles travelled in a vehicle.
+
+When you process counter data, it is usually assumed that if the value of the
+counter goes down, the counter has been reset. For example, if you wanted to
+count the total number of miles travelled in a vehicle, you would expect the
+values to continuously increase: 1, 2, 3, 4, and so on. If the counter reset to
+0, you would expect that this was a new trip, or an entirely new vehicle. This
+can become a problem if you want to continue counting from where you left off,
+rather than resetting to 0. A reset could occur if you have had a short server
+outage, or any number of other reasons. To get around this, you can analyze
+counter data by looking at the change over time, which accounts for resets.
+
+Accounting for resets can be difficult to do in SQL, so {C.TIMESCALE_DB} has developed
+aggregate and accessor functions that handle calculations for counters in a more
+practical way.
+
+<Callout variant="note">
+Counter aggregates can be used in {C.CAGG}s, even though they are
+not parallelizable in {C.PG}. For more information, see the section on
+[parallelism and ordering](#parallelism-and-ordering).
+</Callout>
+
+For more information about counter aggregation API calls, see the
+[hyperfunction API documentation](/reference/toolkit/counters-and-gauges/counter_agg/counter_agg).
+
+## Run a counter aggregate query using a delta function
+
+In this procedure, we are using an example table called `example` that contains
+counter data.
+
+<NumberedList>
+<NumberedItem title="Create the table">
+```sql
+CREATE TABLE example (
+    measure_id      BIGINT,
+    ts              TIMESTAMPTZ ,
+    val             DOUBLE PRECISION,
+    PRIMARY KEY (measure_id, ts)
+);
+```
+</NumberedItem>
+
+<NumberedItem title="Create the counter aggregate with a delta accessor">
+This gives you the change in the counter's value over the time period, accounting for any
+resets. This allows you to search for fifteen minute periods where the
+counter increased by a larger or smaller amount:
+
+```sql
+SELECT measure_id,
+    delta(
+        counter_agg(ts, val)
+    )
+FROM example
+GROUP BY measure_id;
+```
+</NumberedItem>
+
+<NumberedItem title="Use `time_bucket` for series of deltas">
+You can also use the `time_bucket` function to produce a series of deltas
+over fifteen minute increments:
+
+```sql
+SELECT measure_id,
+    time_bucket('15 min'::interval, ts) as bucket,
+    delta(
+        counter_agg(ts, val)
+    )
+FROM example
+GROUP BY measure_id, time_bucket('15 min'::interval, ts);
+```
+</NumberedItem>
+</NumberedList>
+
+## Run a counter aggregate query using an extrapolated delta function
+
+If your series is less regular, the deltas are affected by the number of samples
+in each fifteen minute period. You can improve this by using the
+`extrapolated_delta` function. To do this, you need to provide bounds that
+define where to extrapolate to. In this example, we use the `time_bucket_range`
+function, which works in the same way as `time_bucket` but produces an open
+ended range of all the times in the bucket. This example also uses a CTE to do
+the counter aggregation, which makes it a little easier to understand what's
+going on in each part.
+
+<NumberedList>
+<NumberedItem title={`Create the ${C.HYPERTABLE}`}>
+```sql
+CREATE TABLE example (
+    measure_id      BIGINT,
+    ts              TIMESTAMPTZ ,
+    val             DOUBLE PRECISION,
+    PRIMARY KEY (measure_id, ts)
+) WITH (
+  tsdb.hypertable,
+  tsdb.chunk_interval='15 days'
+);
+```
+
+<CreateHypertablePolicyNote />
+</NumberedItem>
+
+<NumberedItem title="Create the counter aggregate with extrapolated delta">
+```sql
+SELECT
+    measure_id,
+    time_bucket('15 min'::interval, ts) as bucket,
+    extrapolated_delta(
+        counter_agg(ts, val, toolkit_experimental.time_bucket_range('15 min'::interval, ts)),
+        method => 'prometheus'
+    ) as delta
+FROM example
+GROUP BY
+    measure_id,
+    time_bucket('15 min'::interval, ts);
+```
+
+<Callout variant="note">
+In this procedure, `Prometheus` is used to do the extrapolation. {C.TIMESCALE_DB}'s
+current `extrapolation` function is built to mimic the Prometheus project's
+`increase` function, which measures the change of a counter extrapolated to the
+edges of the queried region.
+</Callout>
+</NumberedItem>
+</NumberedList>
+
+## Run a counter aggregate query with a {C.CAGG}
+
+Your counter aggregate might be more useful if you make a {C.CAGG}
+out of it.
+
+<NumberedList>
+<NumberedItem title={`Create the ${C.CAGG}`}>
+```sql
+CREATE MATERIALIZED VIEW example_15
+WITH (timescaledb.continuous)
+AS SELECT measure_id,
+    time_bucket('15 min'::interval, ts) as bucket,
+    counter_agg(ts, val, time_bucket_range('15 min'::interval, ts))
+FROM example
+GROUP BY measure_id, time_bucket('15 min'::interval, ts);
+```
+</NumberedItem>
+
+<NumberedItem title="Re-aggregate into a larger bucket size">
+```sql
+SELECT
+    measure_id,
+    time_bucket('1 day'::interval, bucket),
+    delta(
+        rollup(counter_agg)
+    )
+FROM example_15
+GROUP BY measure_id, time_bucket('1 day'::interval, bucket);
+```
+</NumberedItem>
+</NumberedList>
+
+## Parallelism and ordering
+
+The counter reset calculations require a strict ordering of inputs, which means
+they are not parallelizable in {C.PG}. This is because {C.PG} handles
+parallelism by issuing rows randomly to workers. However, if your parallelism
+can guarantee sets of rows that are disjointed in time, the algorithm can be
+parallelized, as long as it is within a time range, and all rows go to the same
+worker. This is the case for both {C.CAGG}s and for distributed
+{C.HYPERTABLE}s, as long as the partitioning keys are in the `group by`, even though
+the aggregate itself doesn't really make sense otherwise.
+
+For more information about parallelism and ordering, see the
+[developer documentation](https://github.com/timescale/timescaledb-toolkit/blob/main/docs/counter_agg.md#counter-agg-ordering).

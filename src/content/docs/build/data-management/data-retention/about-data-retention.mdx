@@ -1,0 +1,36 @@
+---
+title: About data retention
+description: Discard old data as it reaches a certain age, manually or by setting up automated policies
+products: [cloud, mst, self_hosted]
+keywords: [data retention]
+---
+
+import * as C from "@constants";
+
+In modern applications, data grows exponentially. As data gets older, it often becomes less useful in day-to-day operations.
+However, you still need it for analysis. {C.TIMESCALE_DB} elegantly solves this problem with
+[automated data retention policies](/build/data-management/data-retention/create-a-retention-policy).
+
+Data retention policies delete raw old data for you on a schedule that you define.
+By [combining retention policies with {C.CAGG}s](/build/data-management/data-retention/data-retention-with-continuous-aggregates), you can downsample your data and keep useful summaries of it instead. This lets you analyze historical data - while also saving on storage.
+
+## Drop data by {C.CHUNK}
+
+{C.TIMESCALE_DB} data retention works on {C.CHUNK}s, not on rows. Deleting data
+row-by-row, for example, with the {C.PG} `DELETE` command, can be slow. But
+dropping data by the {C.CHUNK} is faster, because it deletes an entire file from
+disk. It doesn't need garbage collection and defragmentation.
+
+Whether you use a policy or manually drop {C.CHUNK}s, {C.TIMESCALE_DB} drops data by the
+{C.CHUNK}. It only drops {C.CHUNK}s where all the data is within the specified time
+range.
+
+For example, consider the setup where you have 3 {C.CHUNK}s containing data:
+
+1. More than 36 hours old
+1. Between 12 and 36 hours old
+1. From the last 12 hours
+
+You manually drop {C.CHUNK}s older than 24 hours. Only the oldest {C.CHUNK} is deleted.
+The middle {C.CHUNK} is retained, because it contains some data newer than 24 hours.
+No individual rows are deleted from that {C.CHUNK}.
