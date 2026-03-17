@@ -16,30 +16,87 @@ const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/component
 /**
  * Vite 7 compat: some plugins (e.g. from @stainless-api/docs built for Vite 6)
  * declare a `transform` (or other hook) as an object with a `filter` but no
- * `handler`, which crashes EnvironmentPluginContainer because getHookHandler()
- * returns undefined. This plugin patches those hooks at config-resolution time.
+ * `handler`, which crashes EnvironmentPluginContainer when it calls handler.call().
+ *
+ * We (1) mutate plugins in the sync `config` hook and (2) in `configResolved` replace
+ * config.plugins with a new array of proxy-wrapped plugins. Any code that reads
+ * plugin.transform/load/resolveId from that array gets a hook object with a
+ * callable handler, even if the underlying config was cloned or used in a worker.
  */
-function vite7CompatPlugin(): { name: string; enforce: "pre"; configResolved: (config: { plugins: unknown[] }) => void } {
-  const HOOK_NAMES = ["transform", "load", "resolveId"] as const;
-  return {
-    name: "vite7-compat-patch-hooks",
-    enforce: "pre",
-    configResolved(config: { plugins: unknown[] }) {
-      for (const plugin of config.plugins) {
-        for (const hookName of HOOK_NAMES) {
-          const hook = (plugin as any)[hookName];
-          if (
-            hook &&
-            typeof hook === "object" &&
-            typeof hook.handler !== "function" &&
-            typeof hook !== "function"
-          ) {
-            // The hook is an object without a callable handler — remove it so
-            // Vite doesn't try to call undefined.
-            (plugin as any)[hookName] = undefined;
-          }
+const HOOK_NAMES = ["transform", "load", "resolveId"] as const;
+const noopHandlers: Record<(typeof HOOK_NAMES)[number], () => null> = {
+  transform: () => null,
+  load: () => null,
+  resolveId: () => null,
+};
+
+function patchHook(hook: unknown, hookName: (typeof HOOK_NAMES)[number]): unknown {
+  if (
+    hook &&
+    typeof hook === "object" &&
+    typeof (hook as { handler?: unknown }).handler !== "function" &&
+    typeof hook !== "function"
+  ) {
+    return { ...(hook as object), handler: noopHandlers[hookName] };
+  }
+  return hook;
+}
+
+function createPluginProxy(plugin: Record<string, unknown>): Record<string, unknown> {
+  return new Proxy(plugin, {
+    get(target, prop: string) {
+      const value = target[prop];
+      if (HOOK_NAMES.includes(prop as (typeof HOOK_NAMES)[number])) {
+        return patchHook(value, prop as (typeof HOOK_NAMES)[number]);
+      }
+      return value;
+    },
+  });
+}
+
+function patchAllPlugins(plugins: unknown[]): void {
+  if (!Array.isArray(plugins)) return;
+  for (const plugin of plugins as Record<string, unknown>[]) {
+    if (plugin && typeof plugin === "object") {
+      for (const hookName of HOOK_NAMES) {
+        const hook = plugin[hookName];
+        if (
+          hook &&
+          typeof hook === "object" &&
+          typeof (hook as { handler?: unknown }).handler !== "function" &&
+          typeof hook !== "function"
+        ) {
+          (plugin as Record<string, unknown>)[hookName] = {
+            ...(hook as object),
+            handler: noopHandlers[hookName],
+          };
         }
       }
+    }
+  }
+}
+
+function vite7CompatPlugin(): {
+  name: string;
+  enforce: "post";
+  config: (config: { plugins?: unknown[] }) => { plugins?: unknown[] };
+  configResolved: (config: { plugins: unknown[] }) => void;
+} {
+  return {
+    name: "vite7-compat-patch-hooks",
+    enforce: "post",
+    config(config: { plugins?: unknown[] }) {
+      patchAllPlugins(config.plugins ?? []);
+      return {};
+    },
+    configResolved(config: { plugins: unknown[] }) {
+      patchAllPlugins(config.plugins ?? []);
+      // Replace with proxy-wrapped plugins so any code that gets this array
+      // and reads plugin.transform sees a callable handler (handles clones/workers).
+      const plugins = config.plugins as Record<string, unknown>[];
+      config.plugins = plugins.map((p) =>
+        p && typeof p === "object" ? createPluginProxy(p) : p
+      ) as unknown[];
     },
   };
 }
@@ -140,10 +197,10 @@ export default defineConfig({
               collapsed: false,
               items: [
                 { label: "5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
-                { label: "Get started with the command line", link: "/get-started/quickstart/cli-rest-api" },
-                { label: "Integrate Tiger Cloud with your AI assistant", link: "/get-started/quickstart/mcp-cli" },
                 { label: "Create a Tiger Cloud service", link: "/get-started/quickstart/create-service" },
                 { label: "Connect your app", link: "/get-started/quickstart/connect-your-app" },
+                { label: "Get started with the command line", link: "/get-started/quickstart/cli-rest-api" },
+                { label: "Integrate Tiger Cloud with your AI assistant", link: "/get-started/quickstart/mcp-cli" },
               ],
             },
             {
@@ -205,13 +262,13 @@ export default defineConfig({
               label: "Examples",
               collapsed: false,
               items: [
+                { label: "Tiger Data cookbook", link: "/learn/examples/cookbook" },
+                { label: "Simulate an IoT sensor dataset", link: "/learn/examples/simulate-iot-sensor-data" },
+                { label: "Analyze financial tick data", link: "/learn/examples/analyze-financial-tick-data" },
+                { label: "Ingest real-time financial data", link: "/learn/examples/ingest-real-time-financial-data" },
+                { label: "Analyze transport and geospatial data", link: "/learn/examples/analyze-transport-data" },
                 { label: "Analyze Bitcoin blockchain", link: "/learn/examples/analyze-blockchain" },
                 { label: "Analyze energy consumption", link: "/learn/examples/analyze-energy-consumption" },
-                { label: "Analyze financial tick data", link: "/learn/examples/analyze-financial-tick-data" },
-                { label: "Analyze transport and geospatial data", link: "/learn/examples/analyze-transport-data" },
-                { label: "Ingest real-time financial data", link: "/learn/examples/ingest-real-time-financial-data" },
-                { label: "Simulate an IoT sensor dataset", link: "/learn/examples/simulate-iot-sensor-data" },
-                { label: "Tiger Data cookbook", link: "/learn/examples/cookbook" },
               ],
             },
             {
@@ -227,7 +284,7 @@ export default defineConfig({
             },
           ],
         },
-        // Build tab
+        // Build tab — sidebar ordered for learning flow (concepts first) then task flow (setup → use → manage)
         {
           label: "Build",
           link: "/build",
@@ -239,36 +296,102 @@ export default defineConfig({
             {
               label: "Data Management",
               collapsed: true,
-              autogenerate: { directory: "build/data-management" },
+              items: [
+                { label: "Data Management", link: "/build/data-management" },
+                { label: "Understand hypertables", link: "/build/data-management/understand-hypertables" },
+                { label: "Time-Series / Hypertables", link: "/build/data-management/time-series-hypertables" },
+                { label: "Understand hyperfunctions", link: "/build/data-management/understand-hyperfunctions" },
+                { label: "Aggregate data by time interval", link: "/build/data-management/time-buckets" },
+                { label: "Create and manage jobs", link: "/build/data-management/create-and-manage-jobs" },
+                { label: "Operations", link: "/build/data-management/operations" },
+                { label: "Run your queries from Tiger Console", link: "/build/data-management/run-queries-from-tiger-console" },
+                { label: "Tiered Storage", link: "/build/data-management/tiered-storage" },
+                { label: "Improve hypertable and query performance", link: "/build/data-management/improve-query-performance" },
+                { label: "Gapfilling and interpolation", link: "/build/data-management/gapfilling-and-interpolation" },
+                { label: "Monitor application performance", link: "/build/data-management/counter-aggregation" },
+                { label: "Calculate common statistical measures", link: "/build/data-management/statistical-aggregation" },
+                { label: "Handle unevenly sampled time series data", link: "/build/data-management/time-weighted-averages" },
+                { label: "Analyze intermittent time-series data", link: "/build/data-management/heartbeat-aggregation" },
+                { label: "Count distinct values efficiently", link: "/build/data-management/approximate-count-distinct" },
+                { label: "Analyse data distribution", link: "/build/data-management/analyse-data-distribution" },
+              ],
             },
             {
               label: "Continuous Aggregates",
               collapsed: true,
-              autogenerate: { directory: "build/continuous-aggregates" },
+              items: [
+                { label: "Overview", link: "/build/continuous-aggregates" },
+                { label: "About continuous aggregates", link: "/build/continuous-aggregates/about-continuous-aggregates" },
+                { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
+                { label: "Real-time aggregates", link: "/build/continuous-aggregates/real-time-aggregates" },
+                { label: "Hierarchical continuous aggregates", link: "/build/continuous-aggregates/hierarchical-continuous-aggregates" },
+                { label: "Refresh continuous aggregates", link: "/build/continuous-aggregates/refresh-policies" },
+                { label: "Time and continuous aggregates", link: "/build/continuous-aggregates/time-and-continuous-aggregates" },
+                { label: "Create an index on a continuous aggregate", link: "/build/continuous-aggregates/create-index" },
+                { label: "Convert continuous aggregates to the columnstore", link: "/build/continuous-aggregates/compression-on-continuous-aggregates" },
+                { label: "Materialized hypertables", link: "/build/continuous-aggregates/materialized-hypertables" },
+                { label: "Drop data from continuous aggregates", link: "/build/continuous-aggregates/drop-data" },
+                { label: "Migrate a continuous aggregate to the new form", link: "/build/continuous-aggregates/migrate-to-new-form" },
+              ],
             },
             {
               label: "Columnar Storage",
               collapsed: true,
-              autogenerate: { directory: "build/columnar-storage" },
+              items: [
+                { label: "Columnar Storage", link: "/build/columnar-storage" },
+                { label: "Understand hypercore", link: "/build/columnar-storage/understand-hypercore" },
+                { label: "About compression", link: "/build/columnar-storage/about-compression" },
+                { label: "Setup hypercore", link: "/build/columnar-storage/setup-hypercore" },
+                { label: "Compression methods in hypercore", link: "/build/columnar-storage/compression-methods" },
+                { label: "Designing your database for compression", link: "/build/columnar-storage/compression-design" },
+                { label: "Create a compression policy", link: "/build/columnar-storage/compression-policy" },
+                { label: "Improve query and upsert performance", link: "/build/columnar-storage/secondary-indexes" },
+                { label: "Manual compression", link: "/build/columnar-storage/manual-compression" },
+                { label: "Decompression", link: "/build/columnar-storage/decompress-chunks" },
+                { label: "Inserting or modifying data in the columnstore", link: "/build/columnar-storage/modify-compressed-data" },
+                { label: "Schema modifications", link: "/build/columnar-storage/modify-a-schema" },
+                { label: "Data retention", link: "/build/columnar-storage/data-retention" },
+                { label: "Compress a continuous aggregate", link: "/build/columnar-storage/compression-on-continuous-aggregates" },
+              ],
             },
             {
               label: "Performance Optimization",
               collapsed: true,
-              autogenerate: { directory: "build/performance-optimization" },
+              items: [
+                { label: "Performance Optimization", link: "/build/performance-optimization" },
+                { label: "Understand database schemas", link: "/build/performance-optimization/understand-database-schemas" },
+                { label: "Accelerate queries using indexes", link: "/build/performance-optimization/indexing" },
+                { label: "Alter and update table schemas", link: "/build/performance-optimization/alter-update-table-schema" },
+                { label: "Improve storage performance using tablespaces", link: "/build/performance-optimization/manage-tablespaces" },
+                { label: "Ensure data integrity with constraints", link: "/build/performance-optimization/ensure-data-integrity-with-constraints" },
+                { label: "Handle semi-structured data with JSON", link: "/build/performance-optimization/handle-semi-structured-data-with-json" },
+                { label: "Automate tasks with triggers", link: "/build/performance-optimization/automate-tasks-with-triggers" },
+                { label: "Improve hypertable and query performance", link: "/build/performance-optimization/improve-hypertable-performance" },
+                { label: "Enforce constraints with unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
+                { label: "Query external data sources with FDW", link: "/build/performance-optimization/query-external-data-sources-with-fdw" },
+              ],
             },
             {
               label: "Cost Optimization",
               collapsed: true,
-              autogenerate: { directory: "build/cost-optimization" },
+              items: [
+                { label: "Cost Optimization", link: "/build/cost-optimization" },
+              ],
             },
             {
               label: "Tips and Tricks",
               collapsed: true,
-              autogenerate: { directory: "build/tips-and-tricks" },
+              items: [
+                { label: "Tips and Tricks", link: "/build/tips-and-tricks" },
+                { label: "Troubleshoot TimescaleDB", link: "/build/tips-and-tricks/troubleshooting" },
+                { label: "Troubleshoot continuous aggregates", link: "/build/tips-and-tricks/troubleshoot-continuous-aggregates" },
+                { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
+                { label: "Troubleshoot import and ingest", link: "/build/tips-and-tricks/troubleshoot-import-ingest" },
+              ],
             },
           ],
         },
-        // Migrate tab
+        // Migrate tab — logical order: overview → how to import/migrate → source-specific guides
         {
           label: "Migrate",
           link: "/migrate",
@@ -278,17 +401,30 @@ export default defineConfig({
               link: "/migrate",
             },
             {
-              label: "Import Methods",
-              autogenerate: { directory: "migrate" },
+              label: "Import & migration methods",
+              collapsed: false,
+              items: [
+                { label: "Sync from Postgres", link: "/migrate/livesync-for-postgresql" },
+                { label: "Sync from S3", link: "/migrate/livesync-for-s3" },
+                { label: "Upload a file (Console)", link: "/migrate/import-console" },
+                { label: "Upload a file (terminal)", link: "/migrate/import-terminal" },
+                { label: "Live migration", link: "/migrate/live-migration" },
+                { label: "Migrate with downtime", link: "/migrate/migrate-with-downtime" },
+              ],
             },
             {
-              label: "Migrate From",
+              label: "Migrate from a specific database",
               collapsed: true,
-              autogenerate: { directory: "migrate/migrate-from" },
+              items: [
+                { label: "Overview", link: "/migrate/migrate-from" },
+                { label: "From Postgres", link: "/migrate/migrate-from/postgres" },
+                { label: "From MongoDB", link: "/migrate/migrate-from/mongodb" },
+                { label: "From ClickHouse", link: "/migrate/migrate-from/clickhouse" },
+              ],
             },
           ],
         },
-        // Integrate tab
+        // Integrate tab — logical order: overview → connect → data pipelines → tools → security → ops
         {
           label: "Integrate",
           link: "/integrate",
@@ -296,6 +432,20 @@ export default defineConfig({
             {
               label: "Overview",
               link: "/integrate",
+            },
+            {
+              label: "Find connection details",
+              link: "/integrate/find-connection-details",
+            },
+            {
+              label: "Connectors",
+              collapsed: true,
+              autogenerate: { directory: "integrate/connectors" },
+            },
+            {
+              label: "Data Ingestion & Streaming",
+              collapsed: true,
+              autogenerate: { directory: "integrate/data-ingestion-streaming" },
             },
             {
               label: "Data Engineering & ETL",
@@ -306,21 +456,6 @@ export default defineConfig({
               label: "BI & Visualization",
               collapsed: true,
               autogenerate: { directory: "integrate/bi-vizualization" },
-            },
-            {
-              label: "Data Ingestion & Streaming",
-              collapsed: true,
-              autogenerate: { directory: "integrate/data-ingestion-streaming" },
-            },
-            {
-              label: "Connectors",
-              collapsed: true,
-              autogenerate: { directory: "integrate/connectors" },
-            },
-            {
-              label: "Code & Libraries",
-              collapsed: true,
-              autogenerate: { directory: "integrate/code" },
             },
             {
               label: "Query & Administration",
@@ -341,6 +476,15 @@ export default defineConfig({
               label: "Configuration & Deployment",
               collapsed: true,
               autogenerate: { directory: "integrate/configuration-deployment" },
+            },
+            {
+              label: "Code & Libraries",
+              collapsed: true,
+              autogenerate: { directory: "integrate/code" },
+            },
+            {
+              label: "Troubleshooting",
+              link: "/integrate/troubleshooting",
             },
           ],
         },
