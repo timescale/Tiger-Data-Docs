@@ -147,7 +147,7 @@ export default defineConfig({
               ],
             },
             {
-              label: "Core concepts",
+              label: "Hands-on",
               collapsed: true,
               items: [
                 { label: "Your first hypertable", link: "/learn/fundamentals/your-first-hypertable" },
@@ -181,15 +181,21 @@ export default defineConfig({
               ],
             },
             {
-              label: "Core concepts",
+              label: "Concepts",
               collapsed: false,
               items: [
-                { label: "Your first hypertable", link: "/learn/fundamentals/your-first-hypertable" },
                 { label: "Understanding chunks", link: "/learn/fundamentals/understanding-chunks" },
-                { label: "Basic compression", link: "/learn/fundamentals/basic-compression" },
                 { label: "Optimize time-series data in hypertables", link: "/learn/fundamentals/optimize-data-in-hypertables" },
                 { label: "Querying time-series data", link: "/learn/fundamentals/querying-time-series-data" },
                 { label: "Design your data model", link: "/learn/fundamentals/design-your-data-model" },
+              ],
+            },
+            {
+              label: "Hands-on",
+              collapsed: false,
+              items: [
+                { label: "Your first hypertable", link: "/learn/fundamentals/your-first-hypertable" },
+                { label: "Basic compression", link: "/learn/fundamentals/basic-compression" },
               ],
             },
             {
