@@ -304,7 +304,6 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Overview", link: "/build/data-management" },
-                { label: "Time-Series / Hypertables", link: "/build/data-management/time-series-hypertables" },
                 { label: "Run your queries from Tiger Console", link: "/build/data-management/run-queries-from-tiger-console" },
                 {
                   label: "Data Retention",
