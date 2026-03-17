@@ -5,42 +5,94 @@ sidebar:
   order: 1
 ---
 
+import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
+import { Prerequisites } from "@components/Prerequisites";
 
-<Callout variant="note">
-  TODO: This page is a placeholder. Content to be added for the hello world
-  quickstart experience.
+In this tutorial we will create a {C.CLOUD_LONG} service, connect to it, create your first hypertable, and run a query. By the end you'll have a working time-series table and see results in under 5 minutes. For a deeper lesson on what hypertables are and why they matter, go next to [Your first hypertable](/learn/fundamentals/your-first-hypertable) in Learn.
+
+<Prerequisites>
+- A {C.CLOUD_LONG} account (or [self-hosted](/get-started/choose-your-path/install-timescaledb) if you prefer)
+- A SQL client: [psql](https://www.postgresql.org/docs/current/app-psql.html), or the SQL editor / Data view in {C.CONSOLE}
+</Prerequisites>
+
+---
+
+## Step 1: Create a service
+
+1. In [Tiger Console](https://console.cloud.timescale.com/), click **+ New service** and follow the wizard (choose a region and plan; the default options work for this quickstart).
+2. Click **Create service**. The service is ready in a few seconds.
+3. **Download the config** and store it somewhere safe—you'll need the connection string to connect from psql or your app.
+
+For more detail (including Azure and different plans), see [Create a Tiger Cloud service](/get-started/quickstart/create-service).
+
+---
+
+## Step 2: Connect to your database
+
+Pick one way to run SQL:
+
+- **Console (easiest):** In {C.CONSOLE}, open your service, then use **Data view** or **SQL Editor** at the bottom. You're connected as soon as you see the query panel.
+- **psql:** From your terminal, run `psql "<your-service-url>"` using the connection string from the config file you downloaded.
+
+Run this to confirm you're connected:
+
+```sql
+SELECT CURRENT_DATE;
+```
+
+You should see today's date. If you do, you're ready for the next step. For connection options (including other clients), see [Connect your app](/get-started/quickstart/connect-your-app).
+
+---
+
+## Step 3: Create your first hypertable and run a query
+
+We'll create a small **hypertable** (a table optimized for time-series data), insert a few rows, and query them. You'll use standard SQL; the database handles partitioning automatically.
+
+**Create the hypertable.** Run this in your SQL client or Console:
+
+```sql
+CREATE TABLE conditions (
+   time        TIMESTAMPTZ       NOT NULL,
+   location    TEXT              NOT NULL,
+   device      TEXT              NOT NULL,
+   temperature DOUBLE PRECISION  NULL,
+   humidity    DOUBLE PRECISION  NULL
+) WITH (
+   tsdb.hypertable,
+   tsdb.segmentby = 'device',
+   tsdb.orderby = 'time DESC'
+);
+```
+
+You should see a confirmation that the table was created. The `tsdb.hypertable` option makes this a hypertable partitioned by time.
+
+**Insert some sample data:**
+
+```sql
+INSERT INTO conditions (time, location, device, temperature, humidity)
+VALUES
+   (NOW() - INTERVAL '2 hours', 'office', 'sensor-1', 22.1, 45.0),
+   (NOW() - INTERVAL '1 hour',  'office', 'sensor-1', 22.3, 44.8),
+   (NOW(),                      'office', 'sensor-1', 22.2, 45.1);
+```
+
+**Query the data:**
+
+```sql
+SELECT * FROM conditions ORDER BY time DESC;
+```
+
+You should see your three rows with the most recent first. You've just created a hypertable, inserted time-series data, and queried it—all with standard SQL.
+
+<Callout variant="tip">
+**What just happened?** The table is partitioned by time into **chunks** behind the scenes. You didn't have to manage chunks; you just used the table. For the full picture (what hypertables are, when to use them), do [Your first hypertable](/learn/fundamentals/your-first-hypertable) in Learn.
 </Callout>
 
-Get started with Tiger Data in just 5 minutes. This guide walks you through:
-
-1. Creating your first Tiger Cloud service
-2. Connecting to your database
-3. Creating your first hypertable
-4. Inserting and querying time-series data
-
-## Prerequisites
-
-- A Tiger Cloud account (or Docker for self-hosted)
-- A SQL client (psql, pgAdmin, or similar)
-
-## Step 1: create a service
-
-{/* TODO: Add detailed steps */}
-
-## Step 2: connect to your database
-
-{/* TODO: Add connection instructions */}
-
-## Step 3: create your first hypertable
-
-{/* TODO: Add hypertable creation example */}
-
-## Step 4: insert and query data
-
-{/* TODO: Add data operations example */}
+---
 
 ## Next steps
 
-- [Learn the fundamentals](/learn/fundamentals)
-- [Explore more features](/build)
+- **[Your first hypertable](/learn/fundamentals/your-first-hypertable)** (in Learn) — Understand what hypertables and chunks are, and go deeper with the same table.
+- **[Concepts](/learn/fundamentals/understanding-chunks)** — How chunks, querying, and design work.
+- **[Build](/build)** — Task-oriented guides: compression, continuous aggregates, performance, and more.
