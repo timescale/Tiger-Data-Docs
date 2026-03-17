@@ -1,0 +1,170 @@
+---
+title: About Tiger Cloud storage tiers
+description: Learn how Tiger Cloud helps you save on storage costs with a high-performance storage tier and a low-cost object storage tier
+products: [cloud]
+keywords: [tiered storage]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TieredStorageBilling from "../../../../../partials/_tiered-storage-billing.mdx";
+
+The tiered storage architecture in {C.CLOUD_LONG} includes a high-performance storage tier and a low-cost object storage tier. You use the high-performance tier for data that requires quick access, and the object tier for rarely used historical data. Tiering policies move older data asynchronously and periodically from high-performance to low-cost storage, sparing you the need to do it manually. {C.CHUNK_CAP}s from a single {C.HYPERTABLE}, including compressed {C.CHUNK}s, can stretch across these two storage tiers.
+
+![{C.CLOUD_LONG} tiered storage](https://assets.timescale.com/docs/images/timescale-tiered-storage-architecture.png)
+
+## High-performance storage
+
+High-performance storage is where your data is stored by default, until you [enable tiered storage](/build/data-management/storage/manage-storage#low-cost-object-storage-tier) and [move older data to the low-cost tier](/build/data-management/storage/manage-storage#automate-tiering-with-policies). In the high-performance storage, your data is stored on a block device that is optimized for frequent querying. The [{C.HYPERCORE} row-columnar storage engine](/build/columnar-storage) enables you to compress the data in the high-performance storage by up to 98%, while improving performance. Coupled with other optimizations, {C.CLOUD_LONG} high-performance storage makes sure your data is durable and available, and your queries run as quickly as they can.
+
+{C.CLOUD_LONG} high-performance storage comes in the following types:
+
+- **Standard** (default): designed for general workloads. Provides up to 16 TB of storage and 16,000 IOPS.
+- **Enhanced**: designed for high-scale, high-throughput workloads. Provides up to 64 TB of storage and 32,000 IOPS.
+
+You [enable enhanced storage](/build/data-management/storage/manage-storage#high-performance-storage-tier) as needed in {C.CONSOLE}.
+
+## Low-cost storage
+
+<Callout variant="note">
+Low-cost tiered storage is available on {C.SCALE} and {C.ENTERPRISE} {C.PRICING_PLAN}s.
+</Callout>
+
+Once you [enable tiered storage](/build/data-management/storage/manage-storage#low-cost-object-storage-tier), you can start moving rarely used data to the object tier. The object tier is based on AWS S3 and Azure Blob storage and stores your data in the [Apache Parquet](https://parquet.apache.org/) format. Within a Parquet file, a set of rows is grouped together to form a row group. Within a row group, values for a single column across multiple rows are stored together. The original size of the data in your {C.SERVICE_SHORT}, compressed or uncompressed, does not correspond directly to its size in the object store.
+
+<TieredStorageBilling />
+
+Apache Parquet allows for more efficient scans across longer time periods, and {C.CLOUD_LONG} uses other metadata and query optimizations to reduce the amount of data that needs to be fetched to satisfy a query, such as:
+
+- **{C.CHUNK_CAP} skipping**: exclude the {C.CHUNK}s that fall outside the query time window.
+- **Row group skipping**: identify the row groups within the Parquet object that satisfy the query.
+- **Column skipping**: fetch only columns that are requested by the query.
+
+The following query is against a tiered dataset and illustrates the optimizations:
+
+```sql
+EXPLAIN ANALYZE
+SELECT count(*) FROM
+( SELECT device_uuid,  sensor_id FROM public.device_readings
+  WHERE observed_at > '2023-08-28 00:00+00' and observed_at < '2023-08-29 00:00+00'
+  GROUP BY device_uuid,  sensor_id ) q;
+            QUERY PLAN
+-------------------------------------------------------------------------------------------------
+ Aggregate  (cost=7277226.78..7277226.79 rows=1 width=8) (actual time=234993.749..234993.750 rows=1 loops=1)
+   ->  HashAggregate  (cost=4929031.23..7177226.78 rows=8000000 width=68) (actual time=184256.546..234913.067 rows=1651523 loops=1)
+         Group Key: osm_chunk_1.device_uuid, osm_chunk_1.sensor_id
+         Planned Partitions: 128  Batches: 129  Memory Usage: 20497kB  Disk Usage: 4429832kB
+         ->  Foreign Scan on osm_chunk_1  (cost=0.00..0.00 rows=92509677 width=68) (actual time=345.890..128688.459 rows=92505457 loops=1)
+               Filter: ((observed_at > '2023-08-28 00:00:00+00'::timestamp with time zone) AND (observed_at < '2023-08-29 00:00:00+00'::timestamp with time zone))
+               Rows Removed by Filter: 4220
+               Match tiered objects: 3
+               Row Groups:
+                 _timescaledb_internal._hyper_1_42_chunk: 0-74
+                 _timescaledb_internal._hyper_1_43_chunk: 0-29
+                 _timescaledb_internal._hyper_1_44_chunk: 0-71
+               S3 requests: 177
+               S3 data: 224423195 bytes
+ Planning Time: 6.216 ms
+ Execution Time: 235372.223 ms
+(16 rows)
+```
+
+`EXPLAIN` illustrates which {C.CHUNK}s are being pulled in from the object storage tier:
+
+1. Fetch data from {C.CHUNK}s 42, 43, and 44 from the object storage tier.
+1. Skip row groups and limit the fetch to a subset of the offsets in the
+   Parquet object that potentially match the query filter. Only fetch the data
+   for `device_uuid`, `sensor_id`, and `observed_at` as the query needs only these 3 columns.
+
+The object storage tier is more than an archiving solution. It is also:
+
+- **Cost-effective:** store high volumes of data at a lower cost. You pay only for what you store, with no extra cost for queries.
+- **Scalable:** scale past the restrictions of even the enhanced high-performance storage tier.
+- **Online:** your data is always there and can be [queried when needed](/build/data-management/storage/query-tiered-data).
+
+By default, tiered data is not included when you query from a {C.SERVICE_LONG}. To access tiered data, you [enable tiered reads](/build/data-management/storage/query-tiered-data) for a query, a session, or even for all sessions. After you enable tiered reads, when you run regular SQL queries, a behind-the-scenes process transparently pulls data from wherever it's located: the standard high-performance storage tier, the object storage tier, or both. You can `JOIN` against tiered data, build views, and even define {C.CAGG}s on it. In fact, because the implementation of {C.CAGG}s also uses {C.HYPERTABLE}s, they can be tiered to low-cost storage as well.
+
+The low-cost storage tier comes with the following limitations:
+
+- **Limited schema modifications**: some schema modifications are not allowed
+  on {C.HYPERTABLE}s with tiered {C.CHUNK}s.
+
+  _Allowed_ modifications include: renaming the {C.HYPERTABLE}, adding columns
+  without defaults, adding indexes, changing or renaming the {C.HYPERTABLE}
+  schema, and adding `CHECK` constraints. For `CHECK` constraints, only
+  untiered data is verified.
+  Columns can also be deleted, but you cannot subsequently add a new column
+  to a tiered {C.HYPERTABLE} with the same name as the now-deleted column.
+
+  _Disallowed_ modifications include: adding a column with any default value
+  (including `NULL`), renaming a column, changing the data type of a
+  column, and adding a `NOT NULL` constraint to the column.
+
+- **Limited data changes**: you cannot insert data into, update, or delete a
+  tiered {C.CHUNK}. These limitations take effect as soon as the {C.CHUNK} is
+  scheduled for tiering.
+
+- **Inefficient query planner filtering for non-native data types**: the query
+  planner speeds up reads from our object storage tier by using metadata
+  to filter out columns and row groups that don't satisfy the query. This works for all
+  native data types, but not for non-native types, such as `JSON`, `JSONB`,
+  and `GIS`.
+
+- **Latency**: The object store has higher access latency than local storage. This can affect the
+  execution time of queries in latency-sensitive environments, especially
+  lighter queries.
+
+- **Number of dimensions**: you cannot use tiered storage with {C.HYPERTABLE}s
+  partitioned on more than one dimension. Make sure your {C.HYPERTABLE}s are
+  partitioned on time only, before you enable tiered storage.
+
+## The tiered storage workflow
+
+The typical workflow to use tiered storage in {C.CLOUD_LONG} is:
+
+<NumberedList>
+<NumberedItem title="Enable tiered storage">
+You [enable tiered storage](/build/data-management/storage/manage-storage#low-cost-object-storage-tier) for each {C.SERVICE_SHORT} individually.
+</NumberedItem>
+
+<NumberedItem title="Tier your data">
+Choose how to [move data to the low-cost tier](/build/data-management/storage/manage-storage#automate-tiering-with-policies):
+
+- **Automated tiering**: create an interval-based policy using
+  `add_tiering_policy()` to automatically tier {C.CHUNK}s older than a
+  specified age. By default, policies run hourly and continuously manage
+  data placement.
+- **Manual tiering**: identify specific {C.CHUNK}s to tier by querying the
+  `timescaledb_information.chunks` view, then use the `tier_chunk()`
+  function to move individual {C.CHUNK}s. The tiering process is asynchronous,
+  {C.CHUNK}s are scheduled for migration and handled by background services.
+</NumberedItem>
+
+<NumberedItem title="Query your data">
+
+<ol type="a">
+<li>
+
+To access data stored in the object tier, set `timescaledb.enable_tiered_reads = true` for your session, query, or
+all future sessions. Without this setting, queries only access data in the high-performance tier.
+For more information, see [querying tiered data](/build/data-management/storage/query-tiered-data).
+
+</li>
+<li>
+
+Run standard SQL queries against your {C.HYPERTABLE}s.
+The query planner automatically determines which {C.CHUNK}s to access across both storage
+tiers based on your query filters. {C.CHUNK_CAP} pruning, row group pruning,
+and column pruning optimize query performance.
+
+</li>
+</ol>
+</NumberedItem>
+
+<NumberedItem title="Monitor and manage">
+Track tiered {C.CHUNK}s using the `timescaledb_osm.chunks_queued_for_tiering`
+view. Modify or remove tiering policies as needed using [`alter_job`](/reference/timescaledb/jobs-automation/alter_job) and
+`remove_tiering_policy`.
+</NumberedItem>
+</NumberedList>
