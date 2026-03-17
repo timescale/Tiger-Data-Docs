@@ -68,7 +68,13 @@
   --tiger-font-size-caption: 12px;
   --tiger-font-size-code: 14px;
 
-  /* Figma Docs Navigation (nodes 3292:777, 3292:781, 3292:809, 3300:1532, 3292:819) – typography tokens */
+  /* Figma Docs Navigation (nodes 3292:777, 3292:781, 3300:1532, 3513:11068, 3513:12556) – layout & typography */
+  --tiger-content-width: 1312px;           /* Figma 3513:11068 – frame width */
+  --tiger-hero-col-width: 644px;            /* Figma 3513:11068 – each hero column */
+  --tiger-hero-gap: 24px;                   /* Figma 3513:11068 – gap between hero columns */
+  --tiger-section-intro-width: 388px;       /* Figma 3513:12556 – section intro column */
+  --tiger-section-cards-width: 789px;       /* Figma 3513:12556 – section cards column */
+  --tiger-section-gap: 24px;                /* Figma 3513:12556 – gap between intro and cards */
   --tiger-font-size-hero: 50px;        /* Hero title "Tiger Data Documentation" */
   --tiger-font-size-tagline: 18px;     /* Tagline / Heading 18 */
   --tiger-font-size-section: 24px;    /* Section heading e.g. "Get started" */
@@ -1699,14 +1705,27 @@ tr:hover td {
   display: none !important;
 }
 
-/* Splash/landing page content spacing */
+/*
+ * Splash/landing page layout – Figma 3513:11068, 3513:12556.
+ * Minimal overrides: no sidebar offset, main content max-width and centered.
+ */
+
+/* So the content area isn’t reserved for the sidebar on the homepage */
+.page:has(main .splash-hero),
+.page:has([data-template="splash"] main) {
+  --sl-content-inline-start: 0;
+}
+
+/* Figma 3513:11068 – content max 1312px, centered; horizontal padding from design system */
 [data-template="splash"] main,
 [data-page-route="/"] main {
-  max-width: 900px;
+  width: 100%;
+  max-width: var(--tiger-content-width);
   margin-left: auto;
   margin-right: auto;
   padding-left: var(--tiger-space-2xl);
   padding-right: var(--tiger-space-2xl);
+  box-sizing: border-box;
 }
 
 /* No extra margin from markdown wrapper on hero – we control gap to cards via .splash-hero-cards margin-top */
@@ -1745,12 +1764,18 @@ tr:hover td {
    Figma: Docs Navigation restructure Q2 – section with heading/description + card grid
    ============================================ */
 
-/* Two hero boxes: side-by-side on large screens, stacked on small. 16px gap from hero to cards. */
+/* Two hero boxes: Figma 3513:11068 – 644px + 24px + 644px = 1312px. Stack on narrow viewports. */
 .splash-hero-cards {
   margin-top: 16px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: var(--tiger-hero-col-width) var(--tiger-hero-col-width);
+  gap: var(--tiger-hero-gap);
+}
+
+@media (max-width: 1350px) {
+  .splash-hero-cards {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1966,23 +1991,28 @@ tr:hover td {
   display: block;
 }
 
+/* Figma 3513:12556 – flex justify-between: left 388px, right 789px; intro has 24px gap between blocks */
 .splash-section {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: var(--tiger-space-2xl);
+  align-items: flex-start;
   margin-top: 60px;
+  gap: var(--tiger-section-gap);
 }
 
 .splash-section__intro {
-  flex: 0 1 388px;
+  flex: 0 0 var(--tiger-section-intro-width);
   min-width: 0;
+  max-width: var(--tiger-section-intro-width);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-/* Figma 3513:12558 – section heading: Heading/24/Regular, 24px, 450, 1.2, -0.12px, #15151e */
+/* Figma 3513:12558 – section heading: Heading/24/Regular; spacing from intro gap, no margin */
 .splash-section__intro h2 {
-  margin-top: 0;
-  margin-bottom: var(--tiger-space-md);
+  margin: 0;
   font-family: var(--stl-font-family);
   font-size: 24px;
   font-weight: 450;
@@ -1991,10 +2021,9 @@ tr:hover td {
   color: var(--tiger-bg-default, #15151e);
 }
 
-/* Figma 3513:12559 – intro paragraph: Body/16/Regular, 16px, 450, 1.5, #555570 */
+/* Figma 3513:12559 – intro paragraph: Body/16/Regular; spacing from intro gap */
 .splash-section__intro p {
-  margin-top: 0;
-  margin-bottom: var(--tiger-space-lg);
+  margin: 0;
   font-family: var(--stl-font-family);
   font-size: 16px;
   font-weight: 450;
@@ -2050,25 +2079,27 @@ tr:hover td {
 }
 
 .splash-section__cards {
-  flex: 1 1 500px;
+  flex: 0 0 var(--tiger-section-cards-width);
   min-width: 0;
+  max-width: var(--tiger-section-cards-width);
 }
 
-/* Figma 3513:12564 – 2 columns, 40px row gap; cards white, 16px radius, 16px internal gap */
+/* Figma 3513:12564 – 2×2 grid: 370px columns, 49px column gap, 40px row gap */
 .splash-section__cards .stl-ui-mintlify-compat-card-group {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px 24px;
+  grid-template-columns: 370px 370px;
+  grid-template-rows: auto auto;
+  gap: 40px 49px;
+  align-content: start;
 }
 
-/* Figma 3513:12566, 12570 – card: icon + text column; 16px between icon and text; 6px between title and description.
-   Package uses display:flex + gap, which can override our grid when its CSS loads after theme.css. Use !important so grid wins. */
+/* Figma 3513:12566, 12570 – card: icon + text, 16px between icon and text, 8px between title and description. No overflow so description isn’t truncated. */
 .splash-section__cards .stl-ui-mintlify-compat-card {
   display: grid !important;
   grid-template-columns: auto 1fr !important;
   grid-template-rows: auto auto !important;
   column-gap: 16px !important;
-  row-gap: 6px !important;
+  row-gap: 8px !important;
   align-items: start;
   padding: 0;
   background: var(--tiger-white, #fff);
@@ -2076,6 +2107,12 @@ tr:hover td {
   border: none;
   box-shadow: none;
   min-width: 0;
+  overflow: visible;
+}
+
+.splash-section__cards .stl-ui-mintlify-compat-card-content {
+  overflow: visible;
+  min-height: 0;
 }
 
 /* Icon in first column, spans both rows so it aligns with the text block */
@@ -2163,7 +2200,7 @@ main .splash-section__cards a.stl-ui-mintlify-compat-card .stl-ui-mintlify-compa
 }
 
 .splash-section--compact .splash-section__intro {
-  flex: 1 1 auto;
+  max-width: none;
 }
 
 /* Figma 3513:12613 – Grayscale/200 #EBEBEB */
@@ -2173,18 +2210,31 @@ main .splash-section__cards a.stl-ui-mintlify-compat-card .stl-ui-mintlify-compa
   border-top: 1px solid #ebebeb;
 }
 
-@media (max-width: 900px) {
+/* Stack section when viewport too narrow for 388px + 789px + gap */
+@media (max-width: 1250px) {
   .splash-section {
     flex-direction: column;
-    margin-top: var(--tiger-space-2xl);
   }
 
   .splash-section__intro {
     flex: 1 1 100%;
+    max-width: none;
   }
 
   .splash-section__cards {
     flex: 1 1 100%;
+    max-width: none;
+  }
+
+  .splash-section__cards .stl-ui-mintlify-compat-card-group {
+    grid-template-columns: 1fr;
+    gap: var(--tiger-space-lg);
+  }
+}
+
+@media (max-width: 900px) {
+  .splash-section {
+    margin-top: var(--tiger-space-2xl);
   }
 
   .splash-divider {

@@ -31,13 +31,19 @@ const noopHandlers: Record<(typeof HOOK_NAMES)[number], () => null> = {
 };
 
 function patchHook(hook: unknown, hookName: (typeof HOOK_NAMES)[number]): unknown {
+  // Vite's getHookHandler(hook) returns hook.handler when hook is an object, else hook.
+  // If a plugin has transform: { filter } with no handler, getHookHandler returns undefined and handler.call() throws.
+  if (hook === undefined || hook === null) {
+    return { handler: noopHandlers[hookName] };
+  }
   if (
-    hook &&
     typeof hook === "object" &&
-    typeof (hook as { handler?: unknown }).handler !== "function" &&
-    typeof hook !== "function"
+    typeof (hook as { handler?: unknown }).handler !== "function"
   ) {
     return { ...(hook as object), handler: noopHandlers[hookName] };
+  }
+  if (typeof hook !== "function") {
+    return { handler: noopHandlers[hookName] };
   }
   return hook;
 }
@@ -90,13 +96,10 @@ function vite7CompatPlugin(): {
       return {};
     },
     configResolved(config: { plugins: unknown[] }) {
+      // In-place patch only. Replacing config.plugins with proxy-wrapped plugins can break
+      // Astro virtual modules (e.g. astro:server-app). patchAllPlugins mutates hook objects
+      // so transform/load/resolveId have a callable handler when they were missing one.
       patchAllPlugins(config.plugins ?? []);
-      // Replace with proxy-wrapped plugins so any code that gets this array
-      // and reads plugin.transform sees a callable handler (handles clones/workers).
-      const plugins = config.plugins as Record<string, unknown>[];
-      config.plugins = plugins.map((p) =>
-        p && typeof p === "object" ? createPluginProxy(p) : p
-      ) as unknown[];
     },
   };
 }
