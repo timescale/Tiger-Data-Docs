@@ -208,7 +208,7 @@ export default defineConfig({
               ],
             },
             {
-              label: "Examples",
+              label: "Guided projects",
               collapsed: false,
               items: [
                 { label: "Analyze Bitcoin blockchain", link: "/learn/examples/analyze-blockchain" },
