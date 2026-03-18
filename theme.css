@@ -1742,58 +1742,89 @@ header .header {
   --sl-content-inline-start: 0;
 }
 
-/* Splash: no extra horizontal padding on main-frame so main can use full width for centering */
+/* Splash: use Figma content width so framework components (e.g. .sl-container) don’t cap at 768px */
+.page:has(main .splash-hero),
+.page:has([data-template="splash"] main) {
+  --sl-content-width: var(--tiger-content-width);
+}
+
+/* Splash: no extra horizontal padding on main-frame so main can use full width of .page */
 .page:has(main .splash-hero) .main-frame,
 .page:has([data-template="splash"] main) .main-frame {
   padding-inline-start: 0 !important;
   padding-inline-end: 0 !important;
 }
 
-/* Figma 3513:11068 – same viewport-based centering as header so hero/cards align with nav bar */
+/* Splash main: no horizontal padding; content is centered via the content-panel wrapper below (one 1312px band, no double inset). */
 [data-template="splash"] main,
-[data-page-route="/"] main {
+[data-page-route="/"] main,
+.page:has(main .splash-hero) main {
   width: 100%;
   box-sizing: border-box;
-  padding-inline: max(var(--tiger-content-inset), calc((100vw - var(--tiger-content-width)) / 2)) !important;
+  padding-inline: 0 !important;
 }
 
-/* Splash: let content panel and inner container use full main width so hero/sections align with header (Figma 3513:12556) */
+/* Splash: force content panel and markdown wrapper to full width so hero/sections use 1312px (Figma 3513:12556).
+   Use :has(.splash-hero) so we match even when data-template/data-page-route aren’t on the DOM. */
+.page:has(main .splash-hero) main .content-panel,
+.page:has(main .splash-hero) main [class*="content-panel"],
+.page:has(main .splash-hero) main .sl-container,
+.page:has(main .splash-hero) main .content-panel .sl-container,
+.page:has(main .splash-hero) main [class*="content-panel"] .sl-container,
+.page:has(main .splash-hero) main > div,
 [data-template="splash"] main .content-panel,
 [data-page-route="/"] main .content-panel,
 [data-template="splash"] main [class*="content-panel"],
 [data-page-route="/"] main [class*="content-panel"],
 [data-template="splash"] main .sl-container,
-[data-page-route="/"] main .sl-container,
-[data-template="splash"] main .content-panel .sl-container,
-[data-page-route="/"] main .content-panel .sl-container {
-  max-width: none !important;
-  width: 100%;
-  padding-inline: 0;
+[data-page-route="/"] main .sl-container {
+  max-width: var(--tiger-content-width) !important;
+  width: 100% !important;
+  margin-inline: auto !important;
+  padding-inline: 0 !important;
+  box-sizing: border-box;
 }
+.page:has(main .splash-hero) main .l-markdown-content,
+.page:has(main .splash-hero) main .sl-markdown-content,
+.page:has(main .splash-hero) main [class*="markdown-content"],
 [data-template="splash"] main .l-markdown-content,
 [data-page-route="/"] main .l-markdown-content,
 [data-template="splash"] main .sl-markdown-content,
 [data-page-route="/"] main .sl-markdown-content {
   max-width: none !important;
+  width: 100% !important;
+}
+
+/* Splash: hero, hero-cards, and sections use full content width (Figma 3513:11068, 3513:12556) */
+.page:has(main .splash-hero) .splash-hero,
+.page:has(main .splash-hero) .splash-hero-cards,
+.page:has(main .splash-hero) .splash-section,
+[data-template="splash"] .splash-hero,
+[data-template="splash"] .splash-hero-cards,
+[data-template="splash"] .splash-section {
+  max-width: var(--tiger-content-width);
   width: 100%;
+  box-sizing: border-box;
 }
 
 /* No extra margin from markdown wrapper on hero – we control gap to cards via .splash-hero-cards margin-top */
 [data-template="splash"] .l-markdown-content .splash-hero,
-[data-template="splash"] .sl-markdown-content .splash-hero {
+[data-template="splash"] .sl-markdown-content .splash-hero,
+.page:has(main .splash-hero) .l-markdown-content .splash-hero,
+.page:has(main .splash-hero) .sl-markdown-content .splash-hero {
   margin-top: 0;
   margin-bottom: 0;
 }
 
-@media (max-width: 89.999rem) {
-  [data-template="splash"] main,
-  [data-page-route="/"] main {
-    padding-inline: max(var(--tiger-space-2xl), calc((100vw - var(--tiger-content-width)) / 2)) !important;
-  }
-}
+/* Small viewports: add horizontal padding to the content band so text doesn’t touch the edges */
 @media (max-width: 768px) {
-  [data-template="splash"] main,
-  [data-page-route="/"] main {
+  .page:has(main .splash-hero) main .content-panel,
+  .page:has(main .splash-hero) main [class*="content-panel"],
+  .page:has(main .splash-hero) main > div,
+  [data-template="splash"] main .content-panel,
+  [data-template="splash"] main [class*="content-panel"],
+  [data-page-route="/"] main .content-panel,
+  [data-page-route="/"] main [class*="content-panel"] {
     padding-inline: var(--tiger-space-lg) !important;
   }
 }
