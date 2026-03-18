@@ -1,0 +1,105 @@
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import UsageBasedStorage from "./_usage-based-storage-intro.mdx";
+
+<UsageBasedStorage />
+
+You use [{C.CONSOLE_LONG}](https://console.cloud.timescale.com/) to resize the compute (CPU/RAM) resources available to your
+{C.SERVICE_LONG}s at any time, with a short downtime.
+
+## Update compute resources for a {C.SERVICE_SHORT}
+
+You can change the CPU and memory allocation for your standard {C.SERVICE_SHORT} at any time with
+minimal downtime, usually less than a minute. The new resources become available as soon as
+the {C.SERVICE_SHORT} restarts. You can change the CPU and memory allocation up or down, as frequently as required.
+
+![Change resources](https://assets.timescale.com/docs/images/tiger-on-azure/tiger-console-update-cpu-manually.png)
+
+To change the resources of a free {C.SERVICE_SHORT}, first [convert it to a standard one](../service-management#convert-a-free-service-to-a-standard-one).
+
+Note that:
+
+- For the 48 CPU / 192 GiB option, 6 CPU / 14 GiB is reserved for platform operations.
+- For the 64 CPU / 256 GiB option, 6 CPU / 16 GiB is reserved for platform operations.
+
+There is momentary downtime while the new compute settings are applied. In most cases, this is
+less than a minute. However, before making changes to your {C.SERVICE_SHORT}, best practice
+is to enable [HA replication](../../high-availability) on the {C.SERVICE_SHORT}. When you resize a {C.SERVICE_SHORT} with HA enabled,
+{C.CLOUD_LONG}:
+
+1. Resizes the replica.
+1. Waits for the replica to catch up.
+1. Performs a switchover to the resized replica.
+1. Restarts the primary.
+
+HA reduce downtime in the case of resizes or maintenance window restarts, from a minute or so to a couple of seconds.
+
+When you change resource settings, the current and new charges are displayed
+immediately so that you can verify how the changes impact your costs.
+
+<Callout variant="warning">
+
+Because compute changes require an interruption to your {C.SERVICE_SHORT}s, plan accordingly so that the
+settings are applied during an appropriate service window.
+
+</Callout>
+
+<NumberedList>
+
+<NumberedItem title={`In ${C.CONSOLE_SHORT}, choose the ${C.SERVICE_SHORT} to modify`}>
+
+</NumberedItem>
+
+<NumberedItem title="Click `Operations` > `Compute and storage`">
+
+</NumberedItem>
+
+<NumberedItem title="Select the new `CPU / Memory` allocation">
+
+You see the allocation and costs in the comparison chart.
+
+</NumberedItem>
+
+<NumberedItem title="Click `Apply`">
+
+Your {C.SERVICE_SHORT} goes down briefly while the changes are applied.
+
+</NumberedItem>
+
+</NumberedList>
+
+## Out of memory errors
+
+If you run intensive queries on your standard {C.SERVICE_SHORT}s, you might
+encounter out of memory (OOM) errors. This occurs if your query consumes more
+memory than is available.
+
+When this happens, an `OOM killer` process shuts down {C.PG} processes using
+`SIGKILL` commands until the memory usage falls below the upper limit. Because
+this kills the entire server process, it usually requires a restart.
+
+To prevent {C.SERVICE_SHORT} disruption caused by OOM errors, {C.CLOUD_LONG} attempts to
+shut down only the query that caused the problem. This means that the
+problematic query does not run, but that your {C.SERVICE_SHORT} continues to
+operate normally.
+
+* If the normal OOM killer is triggered, the error log looks like this:
+
+   ```yml
+   2021-09-09 18:15:08 UTC [560567]:TimescaleDB: LOG: server process (PID 2351983) was terminated by signal 9: Killed
+   ```
+
+  Wait for the {C.SERVICE_SHORT} to come back online before reconnecting.
+
+* {C.CLOUD_LONG} shuts the client connection only
+
+  If {C.CLOUD_LONG} successfully guards the {C.SERVICE_SHORT} against the OOM killer, it shuts
+  down only the client connection that was using too much memory. This prevents
+  the entire {C.SERVICE_SHORT} from shutting down, so you can reconnect immediately. The error log looks like this:
+
+   ```yml
+   2022-02-03 17:12:04 UTC [2253150]:TimescaleDB: tsdbadmin@tsdb,app=psql [53200] ERROR: out of memory
+   ```
+
+If you encounter OOM errors on a free {C.SERVICE_SHORT}, [convert it to a standard {C.SERVICE_SHORT}](../service-management#convert-a-free-service-to-a-standard-one), then increase its CPU and memory allocation as needed to resolve the memory pressure.

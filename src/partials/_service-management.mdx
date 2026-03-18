@@ -1,0 +1,132 @@
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import CLIForks from "./_devops-cli-service-forks.mdx";
+
+In the `Service management` section of the `Operations` dashboard, you can fork
+your {C.SERVICE_SHORT}, reset the password, pause, or delete the {C.SERVICE_SHORT}.
+
+## Fork a {C.SERVICE_SHORT}
+
+When you a fork a {C.SERVICE_SHORT}, you create its exact copy including
+the underlying database. This allows you to create a copy that you can use for
+testing purposes, or to prepare for a major version upgrade. The only difference
+between the original and the forked {C.SERVICE_SHORT} is that the `tsdbadmin` user has a
+different password.
+
+The fork is created by restoring from backup and applying the write-ahead log.
+The data is fetched from Amazon S3, so forking doesn't tax the running instance.
+
+<Callout variant="info">
+
+You can fork {C.SERVICE_SHORT}s that have a status of `Running` or `Paused`. You cannot
+fork {C.SERVICE_SHORT}s while they have a status of `In progress`. Wait for the {C.SERVICE_SHORT} to
+complete the transition before you start forking.
+
+</Callout>
+
+<Callout variant="warning">
+
+Forks only have data up to the point when the original {C.SERVICE_SHORT} was forked. Any
+data written to the original {C.SERVICE_SHORT} after the time of forking does not appear
+in the fork. If you want the fork to assume operations from the original
+{C.SERVICE_SHORT}, pause your main {C.SERVICE_SHORT} before forking to avoid any
+data discrepancy between {C.SERVICE_SHORT}s.
+
+</Callout>
+
+<NumberedList>
+
+<NumberedItem title="Fork a service">
+
+<ol type="a">
+  <li>In {C.CONSOLE_LONG}, from the <code>Services</code> list, ensure the {C.SERVICE_SHORT} you want to fork has a status of <code>Running</code> or <code>Paused</code>, then click the name of the {C.SERVICE_SHORT} you want to fork.</li>
+  <li>Navigate to the <code>Operations</code> tab.</li>
+  <li>In the <code>Service management</code> section, click <code>Fork service</code>. In the dialog, confirm by clicking <code>Fork service</code>. The forked {C.SERVICE_SHORT} takes a few minutes to start.</li>
+  <li>To change the configuration of your fork, click <code>Advanced options</code>. You can set different compute and storage options, separate from your original {C.SERVICE_SHORT}.</li>
+  <li>Confirm by clicking <code>Fork service</code>. The forked {C.SERVICE_SHORT} takes a few minutes to start.</li>
+  <li>The forked {C.SERVICE_SHORT} shows in the <code>Services</code> dashboard with a label stating which {C.SERVICE_SHORT} it has been forked from.</li>
+</ol>
+
+<img
+class="main-content__illustration"
+width={1375} height={944}
+src="https://assets.timescale.com/docs/images/tsc-forked-service.webp"
+alt="Fork a Tiger Cloud service"
+/>
+
+</NumberedItem>
+
+</NumberedList>
+
+## Create a service fork using the {C.CLI_SHORT}
+
+<CLIForks />
+
+## Reset your {C.SERVICE_SHORT} password
+
+You can reset your {C.SERVICE_SHORT} password from the `Operations` dashboard. This is the
+password you use to connect to your {C.SERVICE_SHORT}, not the password for {C.CONSOLE}. To reset your {C.CONSOLE_SHORT} password, navigate to the `Account` page.
+
+When you reset your {C.SERVICE_SHORT} password, you are prompted for your {C.CONSOLE_SHORT} password. When you have authenticated, you can create a new {C.SERVICE_SHORT} password,
+ask {C.CONSOLE_SHORT} to auto-generate a password, or switch your authentication
+type between SCRAM and MD5.
+
+SCRAM (salted challenge response authentication mechanism) and MD5 (message
+digest algorithm 5) are cryptographic authentication mechanisms. {C.CONSOLE_LONG}
+uses SCRAM by default. It is more secure and strongly recommended. The MD5
+option is provided for compatibility with older clients.
+
+## Change the {C.SERVICE_SHORT} environment
+
+In {C.CLOUD_LONG}, you create {C.SERVICE_SHORT}s for the following environments:
+
+- Development {C.SERVICE_SHORT}s: for less demanding tasks, such as ad hoc analytics, testing, or application building. Development {C.SERVICE_SHORT}s have no delete protection.
+- Production {C.SERVICE_SHORT}s: for mission-critical applications like client-facing dashboards or APIs. Production {C.SERVICE_SHORT}s have delete protection.
+
+{C.CLOUD_LONG} applies upgrades differently to development and production {C.SERVICE_SHORT}s.
+
+To change the environment of an existing {C.SERVICE_SHORT}:
+
+<NumberedList>
+
+<NumberedItem title="Change the service environment">
+
+<ol type="a">
+  <li>In <a href="https://console.cloud.timescale.com/dashboard/services">{C.CONSOLE}</a>, select the {C.SERVICE_SHORT} to update.</li>
+  <li>Click <code>Operations</code> &gt; <code>Environment</code>, then change the tag under <code>Change service environment</code>.</li>
+</ol>
+
+</NumberedItem>
+
+</NumberedList>
+
+## Convert a free {C.SERVICE_SHORT} to a standard one
+
+You can convert a free {C.SERVICE_SHORT} to a standard one, to increase its resources. Note that it is only available if you haven't reached the quota on the number of standard services according to your pricing plan.
+
+<NumberedList>
+
+<NumberedItem title="Convert to standard">
+
+<ol type="a">
+  <li>In <a href="https://console.cloud.timescale.com/dashboard/services">{C.CONSOLE}</a>, select the {C.SERVICE_SHORT} to update.</li>
+  <li>Click <code>Operations</code> &gt; <code>Environment</code> &gt; <code>Convert service to standard</code> &gt; <code>Yes, convert to standard</code>.</li>
+</ol>
+
+</NumberedItem>
+
+</NumberedList>
+
+## Pause a {C.SERVICE_SHORT}
+
+You can pause a {C.SERVICE_SHORT} if you want to stop it running temporarily. When you
+pause a {C.SERVICE_SHORT}, you are no longer billed for compute resources. However, you do
+need to continue paying for any storage you are using. Pausing a {C.SERVICE_SHORT} ensures
+that it is still available, and is ready to be restarted at any time.
+
+## Delete a {C.SERVICE_SHORT}
+
+You can delete a {C.SERVICE_SHORT} to remove it completely. This removes the {C.SERVICE_SHORT}
+and its underlying data from the server. You cannot recover a deleted
+{C.SERVICE_SHORT}.
