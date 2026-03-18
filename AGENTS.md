@@ -74,7 +74,7 @@ All navigation, tabs, and sidebar structure is defined in `astro.config.ts` via 
 ### Custom Components
 
 Custom Astro/React components live in `src/components/`:
-- `Header.astro`, `PageTitle.astro`, `PageNavigation.astro` — Starlight overrides
+- `Header.astro`, `PageTitle.astro` (breadcrumbs + `@stainless-api/docs/components/AIDropdown`), `PageNavigation.astro` — Starlight overrides
 - `Callout.astro` — custom callout with Figma-styled lightbulb icon
 - `AuthorByline.astro` — author attribution for tutorials
 - `ChangelogEntry.astro`, `ChangelogFilter.astro`, `ChangelogTag.astro` — changelog/release notes
@@ -202,7 +202,7 @@ Note: The `Callout` import is aliased via Vite to the custom `src/components/Cal
 ### Environment
 
 Requires `STAINLESS_API_KEY` for API reference generation (see `.env.example`).
-Optional Algolia env vars for search: `PUBLIC_ALGOLIA_APP_ID`, `PUBLIC_ALGOLIA_INDEX`, `PUBLIC_ALGOLIA_SEARCH_KEY`, `PRIVATE_ALGOLIA_WRITE_KEY`.
+Optional Algolia env vars for search: `PUBLIC_ALGOLIA_APP_ID`, `PUBLIC_ALGOLIA_INDEX`, `PUBLIC_ALGOLIA_SEARCH_KEY`, `PRIVATE_ALGOLIA_WRITE_KEY`. See repo root `ALGOLIA-SEARCH.md` for setup.
 
 ### Hosting, search, and cache (self-hosted)
 
