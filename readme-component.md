@@ -196,7 +196,7 @@ These are **layout and chrome** components. You don’t use them directly in MDX
 |------------------|----------------------------------------------------------------------|-------------------------------------------------|
 | **PageNavigation** | Bottom-of-page “Previous” / “Next” links with labels and page titles | `starlightCompat.components.Pagination` → `src/components/PageNavigation.astro` |
 | **Breadcrumbs**  | Breadcrumb trail above the page title                                | Rendered inside `PageTitle`                     |
-| **PageTitle**    | Page heading + optional description + breadcrumbs                   | `starlightCompat.components.PageTitle` → `src/components/PageTitle.astro` |
+| **PageTitle**    | Breadcrumbs, Stainless **AIDropdown** (copy MD / AI apps), H1, labels, description | `starlightCompat.components.PageTitle` → `src/components/PageTitle.astro` |
 | **Header**       | Site header (logo, nav)                                              | `starlightCompat.components.Header` → `src/components/Header.astro` |
 
 - **Breadcrumbs:** Built from the sidebar; group labels (e.g. “pgai”) link to the first page in that group. The current page is the last segment and is not a link.
@@ -330,25 +330,17 @@ import SecondaryButton from "@components/SecondaryButton.astro";
 
 Use the **icon** slot to replace the default Copy icon: put your SVG (or icon component) inside the component with `slot="icon"`.
 
-### DocMarkdownActions (Copy Markdown + Open in Claude / ChatGPT / Cursor)
+### AIDropdown (Copy Markdown + Open in Claude / ChatGPT / Gemini / Cursor)
 
-**DocMarkdownActions** is the split-button control in the page title row (next to breadcrumbs): primary **Copy Markdown**, chevron opens a menu with **Open in Claude**, **Open in ChatGPT**, **Open in Cursor**, **Copy Markdown**, and **View as Markdown**. It is wired in **`PageTitle.astro`** for pages that appear in the sidebar and have a markdown route (`hasMarkdownRoute`).
+**AIDropdown** is Stainless’s official split-button in the page title row (next to breadcrumbs). This site renders it from **`PageTitle.astro`** via:
 
-- **Copy Markdown** fetches the page’s raw markdown (`…/path/index.md` per [Stainless Docs Platform](https://www.stainless.com/docs/docs-platform)) and copies it to the clipboard.
-- **Open in …** fetches the same markdown, copies it, opens the assistant in a new tab (Claude / ChatGPT / Cursor), and shows a toast so users can paste if needed.
-- **View as Markdown** opens the `.md` URL in a new tab.
-
-Styling lives in **`theme.css`** (`.doc-md-actions`). To reuse the React component elsewhere:
-
-```mdx
-import DocMarkdownActions from "@components/DocMarkdownActions";
-
-<DocMarkdownActions
-  client:load
-  markdownUrl="https://yoursite.com/path/to/page/index.md"
-  pageUrl="https://yoursite.com/path/to/page/"
-/>
+```ts
+import { AIDropdown } from "@stainless-api/docs/components/AIDropdown";
 ```
+
+It appears only when the page is in the sidebar, has a markdown route (`hasMarkdownRoute`), and Stainless’s **`enableProseMarkdownRendering`** and **`contextMenu`** features are on (defaults keep the dropdown visible). Behavior and styling come from **`@stainless-api/docs`** + **`@stainless-api/ui-primitives`** (including **Gemini** in the menu where configured).
+
+To drop the control into another layout (uncommon), use the same import; options are driven by the docs plugin’s global scripts, not props.
 
 ### CopyToClipboard (copy to clipboard) – Stainless-style
 

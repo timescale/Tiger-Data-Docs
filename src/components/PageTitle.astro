@@ -1,15 +1,18 @@
 ---
 /**
- * Custom PageTitle that uses Figma-styled breadcrumbs (Breadcrumbs.astro) with
- * clickable links and "/" separators. Keeps Starlight title and description.
- * DocMarkdownActions: Copy Markdown + Open in Claude / ChatGPT / Cursor (when page has .md route).
+ * Custom PageTitle: Figma-styled breadcrumbs + Stainless AIDropdown (Copy Markdown,
+ * Open in Claude / ChatGPT / Gemini / Cursor). Matches upstream visibility rules.
  */
-import { RENDER_PAGE_DESCRIPTIONS } from "virtual:stl-docs-virtual-module";
+import {
+  ENABLE_CONTEXT_MENU,
+  ENABLE_PROSE_MARKDOWN_RENDERING,
+  RENDER_PAGE_DESCRIPTIONS,
+} from "virtual:stl-docs-virtual-module";
 import type { StarlightRouteData } from "@astrojs/starlight/route-data";
 import Default from "@astrojs/starlight/components/PageTitle.astro";
+import { AIDropdown } from "@stainless-api/docs/components/AIDropdown";
 import Breadcrumbs from "./Breadcrumbs.astro";
 import PageLabels from "./PageLabels.astro";
-import DocMarkdownActions from "./DocMarkdownActions.tsx";
 
 function sidebarHasEntry(
   sidebarEntry: StarlightRouteData["sidebar"],
@@ -38,26 +41,17 @@ const hasMarkdownRoute =
   Astro.locals._stlStarlightPage?.hasMarkdownRoute ?? true;
 const currentPath = Astro.url.pathname;
 
-/** Split “Copy Markdown” + Open in Claude / ChatGPT / Cursor (same UX as Stainless docs). */
-function shouldShowDocMarkdownActions() {
+/** Same rules as @stainless-api/docs PageTitle (prose markdown + context menu flags). */
+function shouldShowAIDropdown() {
   if (!sidebarHasEntry(Astro.locals.starlightRoute.sidebar, currentPath))
     return false;
   if (!hasMarkdownRoute) return false;
+  if (!ENABLE_PROSE_MARKDOWN_RENDERING) return false;
+  if (!ENABLE_CONTEXT_MENU) return false;
   return true;
 }
 
-const showDocMarkdownActions = shouldShowDocMarkdownActions();
-
-/** Stainless maps each page to …/index.md (see build log: path/index.html → path/index.md). */
-const pathnameNorm = currentPath.replace(/\/$/, "") || "/";
-const slug =
-  pathnameNorm === "/" ? "" : pathnameNorm.replace(/^\//, "");
-const markdownRelative = slug === "" ? "index.md" : `${slug}/index.md`;
-const markdownUrl = new URL(
-  markdownRelative,
-  Astro.url.origin.endsWith("/") ? Astro.url.origin : `${Astro.url.origin}/`
-).href;
-const pageUrlForActions = Astro.url.href.split("#")[0];
+const showAIDropdown = shouldShowAIDropdown();
 const description = Astro.locals.starlightRoute.entry.data.description;
 const shouldRenderDescription = RENDER_PAGE_DESCRIPTIONS;
 ---
@@ -73,13 +67,7 @@ const shouldRenderDescription = RENDER_PAGE_DESCRIPTIONS;
           currentPath={currentPath}
           sidebarEntry={Astro.locals.starlightRoute.sidebar}
         />
-        {showDocMarkdownActions && (
-          <DocMarkdownActions
-            client:load
-            markdownUrl={markdownUrl}
-            pageUrl={pageUrlForActions}
-          />
-        )}
+        {showAIDropdown && <AIDropdown />}
       </div>
       <Default />
       <PageLabels />
@@ -122,7 +110,6 @@ const shouldRenderDescription = RENDER_PAGE_DESCRIPTIONS;
     .stl-page-nav-container ~ h1#_top {
       margin-top: 1.125rem !important;
     }
-    /* Prose column: title H1 after breadcrumb */
     main [class*="content-panel"] .stl-page-nav-container ~ .l-markdown-content > h1#_top:first-child,
     main [class*="content-panel"] .stl-page-nav-container ~ .sl-markdown-content > h1#_top:first-child {
       margin-top: 1.125rem !important;
