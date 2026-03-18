@@ -92,7 +92,7 @@ Requires `STAINLESS_API_KEY` for API reference generation. See `.env.example`.
 
 ### Optional: Algolia instead of Pagefind
 
-By default, search uses [Pagefind](https://pagefind.app/) (no extra services). To use [Algolia](https://www.algolia.com/) for site search, set the four variables documented in `.env.example` and read **[ALGOLIA-SEARCH.md](./ALGOLIA-SEARCH.md)** for keys, security, and when to run `pnpm build`.
+By default, search uses [Pagefind](https://pagefind.app/) (no extra services). To use [Algolia](https://www.algolia.com/) for site search, set the four variables in `.env.example` and follow [Stainless: site search](https://www.stainless.com/docs/docs-platform/hosting-and-deploys/#site-search) (keys, security, and running `pnpm build` to upload the index).
 
 ### Troubleshooting: `Connection error` (Stainless API)
 

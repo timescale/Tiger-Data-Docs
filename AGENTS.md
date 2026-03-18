@@ -202,7 +202,7 @@ Note: The `Callout` import is aliased via Vite to the custom `src/components/Cal
 ### Environment
 
 Requires `STAINLESS_API_KEY` for API reference generation (see `.env.example`).
-Optional Algolia env vars for search: `PUBLIC_ALGOLIA_APP_ID`, `PUBLIC_ALGOLIA_INDEX`, `PUBLIC_ALGOLIA_SEARCH_KEY`, `PRIVATE_ALGOLIA_WRITE_KEY`. See repo root `ALGOLIA-SEARCH.md` for setup.
+Optional Algolia env vars for search: `PUBLIC_ALGOLIA_APP_ID`, `PUBLIC_ALGOLIA_INDEX`, `PUBLIC_ALGOLIA_SEARCH_KEY`, `PRIVATE_ALGOLIA_WRITE_KEY`. Setup: `.env.example` + [Stainless site search](https://www.stainless.com/docs/docs-platform/hosting-and-deploys/#site-search).
 
 ### Hosting, search, and cache (self-hosted)
 
