@@ -232,7 +232,7 @@ export default defineConfig({
           sidebar: [
             {
               label: "Overview",
-              collapsed: false,
+              collapsed: true,
               items: [
                 { label: "What is Tiger Data", link: "/learn" },
                 { label: "Tiger Data architecture for real-time analytics", link: "/learn/deep-dive/whitepaper" },
@@ -242,7 +242,7 @@ export default defineConfig({
             },
             {
               label: "Concepts",
-              collapsed: false,
+              collapsed: true,
               items: [
                 { label: "Understanding chunks", link: "/learn/fundamentals/understanding-chunks" },
                 { label: "Optimize time-series data in hypertables", link: "/learn/fundamentals/optimize-data-in-hypertables" },
@@ -252,7 +252,7 @@ export default defineConfig({
             },
             {
               label: "Hands-on",
-              collapsed: false,
+              collapsed: true,
               items: [
                 { label: "Your first hypertable", link: "/learn/fundamentals/your-first-hypertable" },
                 { label: "Basic compression", link: "/learn/fundamentals/basic-compression" },
@@ -260,7 +260,7 @@ export default defineConfig({
             },
             {
               label: "Tutorials",
-              collapsed: false,
+              collapsed: true,
               items: [
                 { label: "Aggregate organizational data with AI agents", link: "/learn/examples/aggregate-organizational-data-with-ai/" },
                 { label: "Create Tiger Cloud services with Terraform", link: "/learn/examples/create-services-with-terraform" },
@@ -269,7 +269,7 @@ export default defineConfig({
             },
             {
               label: "Guided projects",
-              collapsed: false,
+              collapsed: true,
               items: [
                 { label: "Tiger Data cookbook", link: "/learn/examples/cookbook" },
                 { label: "Simulate an IoT sensor dataset", link: "/learn/examples/simulate-iot-sensor-data" },
@@ -282,7 +282,7 @@ export default defineConfig({
             },
             {
               label: "Production patterns",
-              collapsed: false,
+              collapsed: true,
               items: [
                 { label: "Production patterns overview", link: "/learn/production-patterns" },
               ],
@@ -293,7 +293,7 @@ export default defineConfig({
             },
           ],
         },
-        // Build tab — sidebar ordered for learning flow (concepts first) then task flow (setup → use → manage)
+        // Build tab — sidebar group labels match Build overview cards (“I want to…”)
         {
           label: "Build",
           link: "/build",
@@ -303,10 +303,16 @@ export default defineConfig({
               link: "/build",
             },
             {
-              label: "Data Management",
+              label: "Manage my time-series data",
               collapsed: true,
               items: [
                 { label: "Overview", link: "/build/data-management" },
+                { label: "Understand hypertables", link: "/build/data-management/understand-hypertables" },
+                { label: "Time-Series / Hypertables", link: "/build/data-management/time-series-hypertables" },
+                { label: "Understand hyperfunctions", link: "/build/data-management/understand-hyperfunctions" },
+                { label: "Aggregate data by time interval", link: "/build/data-management/time-buckets" },
+                { label: "Create and manage jobs", link: "/build/data-management/create-and-manage-jobs" },
+                { label: "Operations", link: "/build/data-management/operations" },
                 { label: "Run your queries from Tiger Console", link: "/build/data-management/run-queries-from-tiger-console" },
                 {
                   label: "Data Retention",
@@ -376,7 +382,7 @@ export default defineConfig({
               ],
             },
             {
-              label: "Continuous Aggregates",
+              label: "Keep pre-computed aggregations up to date",
               collapsed: true,
               items: [
                 { label: "Overview", link: "/build/continuous-aggregates" },
@@ -394,10 +400,10 @@ export default defineConfig({
               ],
             },
             {
-              label: "Columnar Storage",
+              label: "Optimize storage and query speed",
               collapsed: true,
               items: [
-                { label: "Columnar Storage", link: "/build/columnar-storage" },
+                { label: "Overview", link: "/build/columnar-storage" },
                 { label: "Understand hypercore", link: "/build/columnar-storage/understand-hypercore" },
                 { label: "About compression", link: "/build/columnar-storage/about-compression" },
                 { label: "Setup hypercore", link: "/build/columnar-storage/setup-hypercore" },
@@ -414,10 +420,10 @@ export default defineConfig({
               ],
             },
             {
-              label: "Performance Optimization",
+              label: "Make queries and schemas faster",
               collapsed: true,
               items: [
-                { label: "Performance Optimization", link: "/build/performance-optimization" },
+                { label: "Overview", link: "/build/performance-optimization" },
                 { label: "Understand database schemas", link: "/build/performance-optimization/understand-database-schemas" },
                 { label: "Accelerate queries using indexes", link: "/build/performance-optimization/indexing" },
                 { label: "Alter and update table schemas", link: "/build/performance-optimization/alter-update-table-schema" },
@@ -431,17 +437,17 @@ export default defineConfig({
               ],
             },
             {
-              label: "Cost Optimization",
+              label: "Lower storage and compute costs",
               collapsed: true,
               items: [
-                { label: "Cost Optimization", link: "/build/cost-optimization" },
+                { label: "Overview", link: "/build/cost-optimization" },
               ],
             },
             {
-              label: "Tips and Tricks",
+              label: "Fix issues or follow recipes",
               collapsed: true,
               items: [
-                { label: "Tips and Tricks", link: "/build/tips-and-tricks" },
+                { label: "Overview", link: "/build/tips-and-tricks" },
                 { label: "Troubleshoot TimescaleDB", link: "/build/tips-and-tricks/troubleshooting" },
                 { label: "Troubleshoot continuous aggregates", link: "/build/tips-and-tricks/troubleshoot-continuous-aggregates" },
                 { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
@@ -483,7 +489,7 @@ export default defineConfig({
             },
           ],
         },
-        // Integrate tab — logical order: overview → connect → data pipelines → tools → security → ops
+        // Integrate tab — Sort by Category, Industry, Integration Type; Troubleshooting
         {
           label: "Integrate",
           link: "/integrate",
@@ -497,49 +503,78 @@ export default defineConfig({
               link: "/integrate/find-connection-details",
             },
             {
-              label: "Connectors",
+              label: "Sort by Category",
               collapsed: true,
-              autogenerate: { directory: "integrate/connectors" },
+              items: [
+                { label: "Sort by Category", link: "/integrate/#integrate-categories-heading" },
+                {
+                  label: "Data Engineering & ETL",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/data-engineering-etl" },
+                },
+                {
+                  label: "Data Ingestion & Streaming",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/data-ingestion-streaming" },
+                },
+                {
+                  label: "BI & Visualization",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/bi-vizualization" },
+                },
+                {
+                  label: "Connectors",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/connectors" },
+                },
+                {
+                  label: "Code & Libraries",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/code" },
+                },
+                {
+                  label: "Query & Administration",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/query-administration" },
+                },
+                {
+                  label: "Secure Connectivity",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/secure-connectivity" },
+                },
+                {
+                  label: "Observability & Alerting",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/observability-alerting" },
+                },
+                {
+                  label: "Configuration & Deployment",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/configuration-deployment" },
+                },
+              ],
             },
             {
-              label: "Data Ingestion & Streaming",
+              label: "Sort by Industry",
               collapsed: true,
-              autogenerate: { directory: "integrate/data-ingestion-streaming" },
+              items: [
+                { label: "Sort by Industry", link: "/integrate/#by-industry" },
+                { label: "Oil and Gas", link: "/integrate/#integrate-industry-oil-and-gas" },
+                { label: "IoT", link: "/integrate/#integrate-industry-iot" },
+                { label: "Energy", link: "/integrate/#integrate-industry-energy" },
+                { label: "Crypto", link: "/integrate/#integrate-industry-crypto" },
+                { label: "Healthcare", link: "/integrate/#integrate-industry-healthcare" },
+                { label: "Manufacturing", link: "/integrate/#integrate-industry-manufacturing" },
+              ],
             },
             {
-              label: "Data Engineering & ETL",
+              label: "Sort by Integration Type",
               collapsed: true,
-              autogenerate: { directory: "integrate/data-engineering-etl" },
-            },
-            {
-              label: "BI & Visualization",
-              collapsed: true,
-              autogenerate: { directory: "integrate/bi-vizualization" },
-            },
-            {
-              label: "Query & Administration",
-              collapsed: true,
-              autogenerate: { directory: "integrate/query-administration" },
-            },
-            {
-              label: "Secure Connectivity",
-              collapsed: true,
-              autogenerate: { directory: "integrate/secure-connectivity" },
-            },
-            {
-              label: "Observability & Alerting",
-              collapsed: true,
-              autogenerate: { directory: "integrate/observability-alerting" },
-            },
-            {
-              label: "Configuration & Deployment",
-              collapsed: true,
-              autogenerate: { directory: "integrate/configuration-deployment" },
-            },
-            {
-              label: "Code & Libraries",
-              collapsed: true,
-              autogenerate: { directory: "integrate/code" },
+              items: [
+                { label: "Tiger Connectors", link: "/integrate/connectors" },
+                { label: "Partner Integrations", link: "/integrate/#integrate-type-partner" },
+                { label: "Third Party Integrations", link: "/integrate/#integrate-type-third-party" },
+              ],
             },
             {
               label: "Troubleshooting",
@@ -560,127 +595,21 @@ export default defineConfig({
               label: "Tiger Cloud",
               collapsed: true,
               items: [
-                { label: "Overview", link: "/deploy/tiger-cloud" },
+                {
+                  label: "Tiger Cloud",
+                  collapsed: true,
+                  autogenerate: { directory: "deploy/tiger-cloud" },
+                },
                 {
                   label: "Tiger Cloud on AWS",
                   collapsed: true,
-                  items: [
-                    {
-                      label: "Service management",
-                      collapsed: true,
-                      items: [
-                        { label: "About Tiger Cloud services", link: "/deploy/tiger-cloud/tiger-cloud-aws/service-management" },
-                        { label: "Tiger Console overview", link: "/deploy/tiger-cloud/tiger-cloud-aws/service-management/service-overview" },
-                        { label: "Service explorer", link: "/deploy/tiger-cloud/tiger-cloud-aws/service-management/service-explorer" },
-                        { label: "Service management", link: "/deploy/tiger-cloud/tiger-cloud-aws/service-management/service-management" },
-                        { label: "Manually change resources", link: "/deploy/tiger-cloud/tiger-cloud-aws/service-management/change-resources" },
-                        { label: "Connection pooling", link: "/deploy/tiger-cloud/tiger-cloud-aws/service-management/connection-pooling" },
-                        { label: "Fork services", link: "/deploy/tiger-cloud/tiger-cloud-aws/service-management/fork-services" },
-                      ],
-                    },
-                    {
-                      label: "Configuration",
-                      collapsed: true,
-                      items: [
-                        { label: "About configuration", link: "/deploy/tiger-cloud/tiger-cloud-aws/configuration/about-configuration" },
-                        { label: "Customize configuration", link: "/deploy/tiger-cloud/tiger-cloud-aws/configuration/customize-configuration" },
-                        { label: "Advanced parameters", link: "/deploy/tiger-cloud/tiger-cloud-aws/configuration/advanced-parameters" },
-                      ],
-                    },
-                    {
-                      label: "PostgreSQL extensions",
-                      collapsed: true,
-                      items: [
-                        { label: "Overview", link: "/deploy/tiger-cloud/tiger-cloud-aws/tiger-cloud-extensions" },
-                        { label: "Full text search with BM25", link: "/deploy/tiger-cloud/tiger-cloud-aws/tiger-cloud-extensions/pg-textsearch" },
-                        { label: "Chatbot using pgvector", link: "/deploy/tiger-cloud/tiger-cloud-aws/tiger-cloud-extensions/pgvector" },
-                        { label: "Encrypt data using pgcrypto", link: "/deploy/tiger-cloud/tiger-cloud-aws/tiger-cloud-extensions/pgcrypto" },
-                        { label: "Geospatial data with PostGIS", link: "/deploy/tiger-cloud/tiger-cloud-aws/tiger-cloud-extensions/postgis" },
-                      ],
-                    },
-                    {
-                      label: "High availability",
-                      collapsed: true,
-                      autogenerate: { directory: "deploy/tiger-cloud/tiger-cloud-AWS/high-availability" },
-                    },
-                    {
-                      label: "Security",
-                      collapsed: true,
-                      items: [
-                        { label: "Overview", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/overview" },
-                        { label: "Control user access", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/members" },
-                        { label: "Manage data security", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/read-only-role" },
-                        { label: "SAML authentication", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/saml" },
-                        { label: "Multi-factor authentication", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/multi-factor-authentication" },
-                        { label: "Client credentials", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/client-credentials" },
-                        { label: "Stricter SSL mode", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/strict-ssl" },
-                        { label: "VPC peering and AWS PrivateLink", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/vpc" },
-                        { label: "AWS Transit Gateway", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/transit-gateway" },
-                        { label: "IP allow list", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/ip-allow-list" },
-                      ],
-                    },
-                  ],
+                  autogenerate: { directory: "deploy/tiger-cloud-AWS" },
                 },
                 {
                   label: "Tiger Cloud on Azure",
                   collapsed: true,
-                  items: [
-                    {
-                      label: "Service management",
-                      collapsed: true,
-                      items: [
-                        { label: "About Tiger Cloud services", link: "/deploy/tiger-cloud/tiger-cloud-azure/service-management" },
-                        { label: "Tiger Console overview", link: "/deploy/tiger-cloud/tiger-cloud-azure/service-management/service-overview" },
-                        { label: "Service explorer", link: "/deploy/tiger-cloud/tiger-cloud-azure/service-management/service-explorer" },
-                        { label: "Service management", link: "/deploy/tiger-cloud/tiger-cloud-azure/service-management/service-management" },
-                        { label: "Manually change resources", link: "/deploy/tiger-cloud/tiger-cloud-azure/service-management/change-resources" },
-                        { label: "Connection pooling", link: "/deploy/tiger-cloud/tiger-cloud-azure/service-management/connection-pooling" },
-                        { label: "Fork services", link: "/deploy/tiger-cloud/tiger-cloud-azure/service-management/fork-services" },
-                      ],
-                    },
-                    {
-                      label: "Configuration",
-                      collapsed: true,
-                      items: [
-                        { label: "About configuration", link: "/deploy/tiger-cloud/tiger-cloud-azure/configuration/about-configuration" },
-                        { label: "Customize configuration", link: "/deploy/tiger-cloud/tiger-cloud-azure/configuration/customize-configuration" },
-                        { label: "Advanced parameters", link: "/deploy/tiger-cloud/tiger-cloud-azure/configuration/advanced-parameters" },
-                      ],
-                    },
-                    {
-                      label: "PostgreSQL extensions",
-                      collapsed: true,
-                      items: [
-                        { label: "Overview", link: "/deploy/tiger-cloud/tiger-cloud-azure/tiger-cloud-extensions" },
-                        { label: "Full text search with BM25", link: "/deploy/tiger-cloud/tiger-cloud-azure/tiger-cloud-extensions/pg-textsearch" },
-                        { label: "Chatbot using pgvector", link: "/deploy/tiger-cloud/tiger-cloud-azure/tiger-cloud-extensions/pgvector" },
-                        { label: "Encrypt data using pgcrypto", link: "/deploy/tiger-cloud/tiger-cloud-azure/tiger-cloud-extensions/pgcrypto" },
-                        { label: "Geospatial data with PostGIS", link: "/deploy/tiger-cloud/tiger-cloud-azure/tiger-cloud-extensions/postgis" },
-                      ],
-                    },
-                    {
-                      label: "High availability",
-                      collapsed: true,
-                      autogenerate: { directory: "deploy/tiger-cloud/tiger-cloud-azure/high-availability" },
-                    },
-                    {
-                      label: "Security",
-                      collapsed: true,
-                      items: [
-                        { label: "Overview", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/overview" },
-                        { label: "Control user access", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/members" },
-                        { label: "Manage data security", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/read-only-role" },
-                        { label: "SAML authentication", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/saml" },
-                        { label: "Multi-factor authentication", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/multi-factor-authentication" },
-                        { label: "Client credentials", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/client-credentials" },
-                        { label: "Stricter SSL mode", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/strict-ssl" },
-                        { label: "Azure Private Link", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/azure-privatelink" },
-                        { label: "IP allow list", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/ip-allow-list" },
-                      ],
-                    },
-                  ],
+                  autogenerate: { directory: "deploy/tiger-cloud-azure" },
                 },
-                { label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" },
               ],
             },
             {

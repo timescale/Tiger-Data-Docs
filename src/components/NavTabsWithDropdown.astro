@@ -1,84 +1,224 @@
 ---
 /**
- * Navigation tabs with hover dropdowns, similar to the ClickHouse/shadcn-style
- * "Manage data" menu. Each tab that has a sidebar shows a dropdown of section
- * links on hover; tabs without sidebar remain simple links.
- *
- * Dropdown overview description comes from each section's index.mdx frontmatter
- * (overviewDescription). Falls back to "Overview and key topics" when not set.
+ * Tab hover dropdowns with flyout submenus (chevron → panel to the right).
+ * Tree mirrors sidebar nesting; leaf rows show title + one-line description.
  */
 import { getEntry } from "astro:content";
 import { Button } from "@stainless-api/ui-primitives";
 import { TABS } from "virtual:stl-docs-virtual-module";
 import type { StarlightRouteData } from "@astrojs/starlight/route-data";
+import type { NavTreeNode, GroupNode } from "./nav-dropdown-tree-types";
+import NavDropdownTree from "./NavDropdownTree.astro";
 
 const routeData = Astro.locals.starlightRoute as StarlightRouteData & {
   _stlDocs?: { activeTabIndex?: number };
 };
 const activeTabIndex = routeData?._stlDocs?.activeTabIndex ?? -1;
 
-// Build nav items and enforce order: Reference must appear after Deploy in the header.
-const tabList = TABS.map((item, index) => ({
+const tabList = TABS.map((item: { hidden?: boolean }, index: number) => ({
   ...item,
   active: index === activeTabIndex,
-})).filter((item) => !item.hidden);
+})).filter((item: { hidden?: boolean }) => !item.hidden);
 
-const navItems = [...tabList].sort((a, b) => {
+const navItems = [...tabList].sort((a: { label: string }, b: { label: string }) => {
   if (a.label === "Reference" && b.label === "Deploy") return 1;
   if (a.label === "Deploy" && b.label === "Reference") return -1;
   return 0;
 });
 
-/** Slug for docs entry from tab link (e.g. /learn -> learn). */
 function linkToSlug(link: string): string {
   return link.replace(/^\//, "").replace(/\/$/, "") || "index";
 }
 
-/** Load overviewDescription from each section's index.mdx (by tab link). */
 const overviewByLink: Record<string, string | undefined> = {};
 for (const item of navItems) {
-  const slug = linkToSlug(item.link);
+  const slug = linkToSlug((item as { link: string }).link);
   try {
     const entry = await getEntry("docs", slug);
-    overviewByLink[item.link] =
+    overviewByLink[(item as { link: string }).link] =
       entry && "data" in entry && entry.data && typeof (entry.data as { overviewDescription?: string }).overviewDescription === "string"
         ? (entry.data as { overviewDescription: string }).overviewDescription
         : undefined;
   } catch {
-    overviewByLink[item.link] = undefined;
+    overviewByLink[(item as { link: string }).link] = undefined;
   }
 }
 
 const DEFAULT_OVERVIEW_DESC = "Overview and key topics";
+const MAX_DROPDOWN_DEPTH = 3;
 
 interface SidebarEntryLike {
   label: string;
   link?: string;
   autogenerate?: { directory: string };
   items?: unknown[];
+  dropdownDescription?: string;
 }
-/** Resolve a sidebar entry to { label, href } for dropdown links. */
-function getDropdownLinks(sidebar: SidebarEntryLike[] | undefined): { label: string; href: string }[] {
-  if (!sidebar?.length) return [];
-  return sidebar
-    .filter((entry) => typeof entry.link === "string" || entry.autogenerate?.directory || entry.items?.length)
-    .map((entry) => {
-      if (typeof entry.link === "string") return { label: entry.label, href: entry.link };
-      if (entry.autogenerate?.directory) return { label: entry.label, href: `/${entry.autogenerate.directory}` };
-      // Group with items — use the first child's link as href
-      const firstChild = entry.items?.find((c): c is SidebarEntryLike => typeof (c as SidebarEntryLike).link === "string");
-      return { label: entry.label, href: firstChild?.link ?? "#" };
-    });
+
+function findFirstHref(entry: SidebarEntryLike): string {
+  if (typeof entry.link === "string") return entry.link;
+  if (entry.autogenerate?.directory) {
+    const dir = entry.autogenerate.directory.replace(/\/$/, "");
+    return `/${dir}/`;
+  }
+  const items = Array.isArray(entry.items) ? entry.items : [];
+  for (const c of items) {
+    const child = c as SidebarEntryLike;
+    if (child && typeof child === "object" && typeof child.label === "string") {
+      const h = findFirstHref(child);
+      if (h !== "#") return h;
+    }
+  }
+  return "#";
+}
+
+function buildNavTree(entries: unknown[] | undefined, depth: number): NavTreeNode[] {
+  const out: NavTreeNode[] = [];
+  if (!Array.isArray(entries)) return out;
+
+  for (const raw of entries) {
+    if (typeof raw === "string") continue;
+    const e = raw as SidebarEntryLike;
+    if (!e || typeof e !== "object" || typeof e.label !== "string") continue;
+
+    const items = Array.isArray(e.items) ? e.items : [];
+    const hasItems = items.length > 0;
+
+    if (hasItems && depth < MAX_DROPDOWN_DEPTH) {
+      const children = buildNavTree(items, depth + 1);
+      if (children.length > 0) {
+        const group: GroupNode = {
+          kind: "group",
+          label: e.label,
+          description: "",
+          href: typeof e.link === "string" ? e.link : undefined,
+          children,
+        };
+        out.push(group);
+        continue;
+      }
+    }
+
+    if (hasItems && depth >= MAX_DROPDOWN_DEPTH) {
+      out.push({
+        kind: "link",
+        label: e.label,
+        href: findFirstHref(e),
+        description: e.dropdownDescription ?? "",
+      });
+      continue;
+    }
+
+    if (typeof e.link === "string") {
+      out.push({
+        kind: "link",
+        label: e.label,
+        href: e.link,
+        description: e.dropdownDescription ?? "",
+      });
+    }
+    if (e.autogenerate?.directory && !hasItems) {
+      const dir = e.autogenerate.directory.replace(/\/$/, "");
+      out.push({
+        kind: "link",
+        label: e.label,
+        href: `/${dir}/`,
+        description: e.dropdownDescription ?? "",
+      });
+    }
+  }
+  return out;
+}
+
+function normalizePath(h: string): string {
+  return h.split("#")[0].replace(/\/$/, "") || "/";
+}
+
+function filterOverviewDuplicate(nodes: NavTreeNode[], tabLink: string): NavTreeNode[] {
+  const tabPath = normalizePath(tabLink);
+  return nodes.filter((n) => {
+    if (n.kind !== "link") return true;
+    return !(normalizePath(n.href) === tabPath && /^overview$/i.test(n.label.trim()));
+  });
+}
+
+function hrefToDocSlug(href: string): string | null {
+  const path = href.split("#")[0].replace(/^\//, "").replace(/\/$/, "");
+  if (!path || path.includes("..")) return null;
+  return path;
+}
+
+function firstSentence(text: string): string {
+  const t = text.trim();
+  if (!t) return "";
+  const m = t.match(/^(.+?[.!?])(\s|$)/);
+  if (m) return m[1].trim();
+  return t.length > 140 ? `${t.slice(0, 137)}…` : t;
+}
+
+const descriptionCache = new Map<string, string>();
+
+async function describeForHref(href: string): Promise<string> {
+  const slug = hrefToDocSlug(href);
+  if (!slug) return "";
+  if (descriptionCache.has(slug)) return descriptionCache.get(slug)!;
+  try {
+    const entry = await getEntry("docs", slug);
+    const d = entry?.data as { description?: string; overviewDescription?: string; title?: string } | undefined;
+    const raw = (d?.description || d?.overviewDescription || "").trim();
+    let out = raw ? firstSentence(raw) : "";
+    if (!out && d?.title) out = `About ${d.title}.`;
+    descriptionCache.set(slug, out);
+    return out;
+  } catch {
+    descriptionCache.set(slug, "");
+    return "";
+  }
+}
+
+async function enrichTree(nodes: NavTreeNode[]): Promise<void> {
+  for (const n of nodes) {
+    if (n.kind === "link") {
+      let desc = n.description?.trim() || "";
+      if (!desc && n.href && n.href !== "#") desc = await describeForHref(n.href);
+      n.description = desc || `Open ${n.label}.`;
+    } else {
+      if (n.href) {
+        const d = (await describeForHref(n.href)) || "";
+        n.description = d || n.label;
+      } else {
+        n.description = "";
+      }
+      await enrichTree(n.children);
+    }
+  }
+}
+
+async function getNavTreeForSidebar(sidebar: unknown, tabLink: string): Promise<NavTreeNode[]> {
+  const tree = buildNavTree(sidebar as unknown[], 0);
+  const filtered = filterOverviewDuplicate(tree, tabLink);
+  await enrichTree(filtered);
+  return filtered;
+}
+
+const dropdownTreeByTab = new Map<string, NavTreeNode[]>();
+for (const item of navItems) {
+  const sidebar = "sidebar" in item ? (item as { sidebar?: unknown }).sidebar : undefined;
+  if (sidebar && Array.isArray(sidebar)) {
+    dropdownTreeByTab.set(
+      (item as { label: string }).label,
+      await getNavTreeForSidebar(sidebar, (item as { link: string }).link)
+    );
+  }
 }
 ---
 
 <div class="stl-secondary-nav-tabs stl-nav-tabs-with-dropdown">
   <ul>
     {
-      navItems.map((item) => {
-        const sidebar = "sidebar" in item ? item.sidebar : undefined;
-        const dropdownLinks = getDropdownLinks(sidebar);
-        const hasDropdown = dropdownLinks.length > 0;
+      navItems.map((item: { label: string; link: string; active?: boolean }) => {
+        const tree = dropdownTreeByTab.get(item.label) ?? [];
+        const hasDropdown = tree.length > 0;
 
         return (
           <li class:list={[item.active && "active"]}>
@@ -98,26 +238,18 @@ function getDropdownLinks(sidebar: SidebarEntryLike[] | undefined): { label: str
                     </span>
                   </Button.Label>
                 </Button>
-                <div class="nav-dropdown" role="menu">
+                <div class="nav-dropdown nav-dropdown--tree" role="menu">
                   <a href={item.link} class="nav-dropdown-item nav-dropdown-item--overview" role="menuitem">
                     <span class="nav-dropdown-item-title">{item.label}</span>
                     <span class="nav-dropdown-item-desc">{overviewByLink[item.link] ?? DEFAULT_OVERVIEW_DESC}</span>
                   </a>
-                  {
-                    dropdownLinks.map((link) => (
-                      <a href={link.href} class="nav-dropdown-item" role="menuitem">
-                        <span class="nav-dropdown-item-title">{link.label}</span>
-                      </a>
-                    ))
-                  }
+                  <div class="nav-dropdown-tree-root">
+                    <NavDropdownTree nodes={tree} />
+                  </div>
                 </div>
               </div>
             ) : (
-              <Button
-                href={item.link}
-                variant="ghost"
-                className={item.active ? "stl-active-secondary-link" : undefined}
-              >
+              <Button href={item.link} variant="ghost" className={item.active ? "stl-active-secondary-link" : undefined}>
                 <Button.Label>{item.label}</Button.Label>
               </Button>
             )}
@@ -129,7 +261,7 @@ function getDropdownLinks(sidebar: SidebarEntryLike[] | undefined): { label: str
 </div>
 
 <style>
-  .stl-nav-tabs-with-dropdown.stl-secondary-nav-tabs {
+  .stl-secondary-nav-tabs.stl-nav-tabs-with-dropdown {
     display: none;
     width: 100%;
   }
@@ -165,14 +297,12 @@ function getDropdownLinks(sidebar: SidebarEntryLike[] | undefined): { label: str
     margin-inline-end: 12px;
   }
 
-  /* Dropdown trigger with chevron */
   .nav-chevron {
     display: inline-flex;
     margin-left: 4px;
     opacity: 0.8;
   }
 
-  /* Wrapper so dropdown is positioned relative to it */
   .nav-dropdown-wrapper {
     position: relative;
   }
@@ -182,13 +312,14 @@ function getDropdownLinks(sidebar: SidebarEntryLike[] | undefined): { label: str
     align-items: center;
   }
 
-  /* Dropdown panel – hidden by default, shown on hover */
   .nav-dropdown {
     position: absolute;
     top: 100%;
     left: 0;
     margin-top: 2px;
-    min-width: 280px;
+    min-width: min(320px, calc(100vw - 2rem));
+    max-width: min(420px, calc(100vw - 2rem));
+    overflow: visible;
     padding: 8px 0;
     background: light-dark(var(--tiger-white), var(--tiger-grey-900));
     border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
@@ -204,6 +335,11 @@ function getDropdownLinks(sidebar: SidebarEntryLike[] | undefined): { label: str
     z-index: 50;
   }
 
+  .nav-dropdown-tree-root {
+    overflow: visible;
+    padding-bottom: 4px;
+  }
+
   .nav-dropdown-wrapper:hover .nav-dropdown,
   .nav-dropdown-wrapper .nav-dropdown:focus-within {
     opacity: 1;
@@ -211,40 +347,42 @@ function getDropdownLinks(sidebar: SidebarEntryLike[] | undefined): { label: str
     transform: translateY(0);
   }
 
-  /* Optional: keep dropdown open when hovering the panel */
   .nav-dropdown-wrapper:hover .nav-trigger {
     background: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
     border-radius: var(--tiger-radius-sm, 6px);
   }
 
-  .nav-dropdown-item {
+  .nav-dropdown-item--overview {
     display: block;
     padding: 10px 16px;
     color: inherit;
     text-decoration: none;
+    border-bottom: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
+    margin-bottom: 4px;
     transition: background 0.1s ease;
   }
 
-  .nav-dropdown-item:hover {
+  .nav-dropdown-item--overview:hover {
     background: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
-  }
-
-  .nav-dropdown-item--overview {
-    border-bottom: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
-    margin-bottom: 4px;
   }
 
   .nav-dropdown-item-title {
     display: block;
     font-weight: 600;
     font-size: 0.9375rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .nav-dropdown-item-desc {
     display: block;
     font-size: 0.8125rem;
+    line-height: 1.45;
     color: light-dark(var(--tiger-grey-500), var(--tiger-grey-400));
-    margin-top: 2px;
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   @media (min-width: 50rem) {
