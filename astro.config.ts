@@ -232,7 +232,7 @@ export default defineConfig({
           sidebar: [
             {
               label: "Overview",
-              collapsed: false,
+              collapsed: true,
               items: [
                 { label: "What is Tiger Data", link: "/learn" },
                 { label: "Tiger Data architecture for real-time analytics", link: "/learn/deep-dive/whitepaper" },
@@ -242,7 +242,7 @@ export default defineConfig({
             },
             {
               label: "Concepts",
-              collapsed: false,
+              collapsed: true,
               items: [
                 { label: "Understanding chunks", link: "/learn/fundamentals/understanding-chunks" },
                 { label: "Optimize time-series data in hypertables", link: "/learn/fundamentals/optimize-data-in-hypertables" },
@@ -252,7 +252,7 @@ export default defineConfig({
             },
             {
               label: "Hands-on",
-              collapsed: false,
+              collapsed: true,
               items: [
                 { label: "Your first hypertable", link: "/learn/fundamentals/your-first-hypertable" },
                 { label: "Basic compression", link: "/learn/fundamentals/basic-compression" },
@@ -260,7 +260,7 @@ export default defineConfig({
             },
             {
               label: "Tutorials",
-              collapsed: false,
+              collapsed: true,
               items: [
                 { label: "Aggregate organizational data with AI agents", link: "/learn/examples/aggregate-organizational-data-with-ai/" },
                 { label: "Create Tiger Cloud services with Terraform", link: "/learn/examples/create-services-with-terraform" },
@@ -269,7 +269,7 @@ export default defineConfig({
             },
             {
               label: "Guided projects",
-              collapsed: false,
+              collapsed: true,
               items: [
                 { label: "Tiger Data cookbook", link: "/learn/examples/cookbook" },
                 { label: "Simulate an IoT sensor dataset", link: "/learn/examples/simulate-iot-sensor-data" },
@@ -282,7 +282,7 @@ export default defineConfig({
             },
             {
               label: "Production patterns",
-              collapsed: false,
+              collapsed: true,
               items: [
                 { label: "Production patterns overview", link: "/learn/production-patterns" },
               ],
@@ -293,7 +293,7 @@ export default defineConfig({
             },
           ],
         },
-        // Build tab — sidebar ordered for learning flow (concepts first) then task flow (setup → use → manage)
+        // Build tab — sidebar group labels match Build overview cards (“I want to…”)
         {
           label: "Build",
           link: "/build",
@@ -303,10 +303,10 @@ export default defineConfig({
               link: "/build",
             },
             {
-              label: "Data Management",
+              label: "Manage my time-series data",
               collapsed: true,
               items: [
-                { label: "Data Management", link: "/build/data-management" },
+                { label: "Overview", link: "/build/data-management" },
                 { label: "Understand hypertables", link: "/build/data-management/understand-hypertables" },
                 { label: "Time-Series / Hypertables", link: "/build/data-management/time-series-hypertables" },
                 { label: "Understand hyperfunctions", link: "/build/data-management/understand-hyperfunctions" },
@@ -326,7 +326,7 @@ export default defineConfig({
               ],
             },
             {
-              label: "Continuous Aggregates",
+              label: "Keep pre-computed aggregations up to date",
               collapsed: true,
               items: [
                 { label: "Overview", link: "/build/continuous-aggregates" },
@@ -344,10 +344,10 @@ export default defineConfig({
               ],
             },
             {
-              label: "Columnar Storage",
+              label: "Optimize storage and query speed",
               collapsed: true,
               items: [
-                { label: "Columnar Storage", link: "/build/columnar-storage" },
+                { label: "Overview", link: "/build/columnar-storage" },
                 { label: "Understand hypercore", link: "/build/columnar-storage/understand-hypercore" },
                 { label: "About compression", link: "/build/columnar-storage/about-compression" },
                 { label: "Setup hypercore", link: "/build/columnar-storage/setup-hypercore" },
@@ -364,10 +364,10 @@ export default defineConfig({
               ],
             },
             {
-              label: "Performance Optimization",
+              label: "Make queries and schemas faster",
               collapsed: true,
               items: [
-                { label: "Performance Optimization", link: "/build/performance-optimization" },
+                { label: "Overview", link: "/build/performance-optimization" },
                 { label: "Understand database schemas", link: "/build/performance-optimization/understand-database-schemas" },
                 { label: "Accelerate queries using indexes", link: "/build/performance-optimization/indexing" },
                 { label: "Alter and update table schemas", link: "/build/performance-optimization/alter-update-table-schema" },
@@ -381,17 +381,17 @@ export default defineConfig({
               ],
             },
             {
-              label: "Cost Optimization",
+              label: "Lower storage and compute costs",
               collapsed: true,
               items: [
-                { label: "Cost Optimization", link: "/build/cost-optimization" },
+                { label: "Overview", link: "/build/cost-optimization" },
               ],
             },
             {
-              label: "Tips and Tricks",
+              label: "Fix issues or follow recipes",
               collapsed: true,
               items: [
-                { label: "Tips and Tricks", link: "/build/tips-and-tricks" },
+                { label: "Overview", link: "/build/tips-and-tricks" },
                 { label: "Troubleshoot TimescaleDB", link: "/build/tips-and-tricks/troubleshooting" },
                 { label: "Troubleshoot continuous aggregates", link: "/build/tips-and-tricks/troubleshoot-continuous-aggregates" },
                 { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
