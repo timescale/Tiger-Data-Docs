@@ -330,6 +330,54 @@ import SecondaryButton from "@components/SecondaryButton.astro";
 
 Use the **icon** slot to replace the default Copy icon: put your SVG (or icon component) inside the component with `slot="icon"`.
 
+### DocMarkdownActions (Copy Markdown + Open in Claude / ChatGPT / Cursor)
+
+**DocMarkdownActions** is the split-button control in the page title row (next to breadcrumbs): primary **Copy Markdown**, chevron opens a menu with **Open in Claude**, **Open in ChatGPT**, **Open in Cursor**, **Copy Markdown**, and **View as Markdown**. It is wired in **`PageTitle.astro`** for pages that appear in the sidebar and have a markdown route (`hasMarkdownRoute`).
+
+- **Copy Markdown** fetches the page’s raw markdown (`…/path/index.md` per [Stainless Docs Platform](https://www.stainless.com/docs/docs-platform)) and copies it to the clipboard.
+- **Open in …** fetches the same markdown, copies it, opens the assistant in a new tab (Claude / ChatGPT / Cursor), and shows a toast so users can paste if needed.
+- **View as Markdown** opens the `.md` URL in a new tab.
+
+Styling lives in **`theme.css`** (`.doc-md-actions`). To reuse the React component elsewhere:
+
+```mdx
+import DocMarkdownActions from "@components/DocMarkdownActions";
+
+<DocMarkdownActions
+  client:load
+  markdownUrl="https://yoursite.com/path/to/page/index.md"
+  pageUrl="https://yoursite.com/path/to/page/"
+/>
+```
+
+### CopyToClipboard (copy to clipboard) – Stainless-style
+
+The **CopyToClipboard** component is a button that copies a given string to the clipboard on click and shows “Copied!” feedback. It matches the same visual style as SecondaryButton (Figma 3245-9636, 3245-9637) so it fits the Stainless Docs Platform / Tiger Data design system. Use it for connection strings, one-line code snippets, or any text you want users to copy with one click. For full code blocks, rely on Starlight’s Expressive Code copy button.
+
+**Import (MDX; React component, use `client:load`):**
+
+```mdx
+import CopyToClipboard from "@components/CopyToClipboard";
+```
+
+**Usage:**
+
+```mdx
+<CopyToClipboard client:load text="postgres://user:pass@host:5432/mydb" />
+<CopyToClipboard client:load text="SELECT 1;" label="Copy query" copiedLabel="Copied!" variant="subtle" />
+```
+
+| Prop           | Description                                                                                    |
+|----------------|------------------------------------------------------------------------------------------------|
+| `text`         | String to copy to the clipboard (required).                                                    |
+| `label`        | Button label before copy. Default: `"Copy"`.                                                  |
+| `copiedLabel`  | Label shown after a successful copy. Default: `"Copied!"`.                                    |
+| `variant`      | `"default"` (white bg) or `"subtle"` (gray bg). Same as SecondaryButton. Default: `"default"`.  |
+| `aria-label`   | Override accessible name (defaults to `label` or “Copy to clipboard”).                          |
+| `className`    | Optional CSS class(es) for the button.                                                          |
+
+**When to use which:** Use **CopyToClipboard** when the action is “copy this specific text” (e.g. connection string, env var, one-liner). Use **SecondaryButton** for other secondary actions (e.g. “Download”, “View repo”) that navigate or submit.
+
 ### Button (outline + hover, optional icon)
 
 The **Button** component matches Figma 3245-9618 (enabled) and 3245-9617 (hover). Use it for standalone actions: outline style by default, fills to primary on hover; optional down-arrow icon.
