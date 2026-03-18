@@ -433,7 +433,7 @@ export default defineConfig({
             },
           ],
         },
-        // Integrate tab — logical order: overview → connect → data pipelines → tools → security → ops
+        // Integrate tab — Sort by Category, Industry, Integration Type; Troubleshooting
         {
           label: "Integrate",
           link: "/integrate",
@@ -447,49 +447,78 @@ export default defineConfig({
               link: "/integrate/find-connection-details",
             },
             {
-              label: "Connectors",
+              label: "Sort by Category",
               collapsed: true,
-              autogenerate: { directory: "integrate/connectors" },
+              items: [
+                { label: "Sort by Category", link: "/integrate/#integrate-categories-heading" },
+                {
+                  label: "Data Engineering & ETL",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/data-engineering-etl" },
+                },
+                {
+                  label: "Data Ingestion & Streaming",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/data-ingestion-streaming" },
+                },
+                {
+                  label: "BI & Visualization",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/bi-vizualization" },
+                },
+                {
+                  label: "Connectors",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/connectors" },
+                },
+                {
+                  label: "Code & Libraries",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/code" },
+                },
+                {
+                  label: "Query & Administration",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/query-administration" },
+                },
+                {
+                  label: "Secure Connectivity",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/secure-connectivity" },
+                },
+                {
+                  label: "Observability & Alerting",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/observability-alerting" },
+                },
+                {
+                  label: "Configuration & Deployment",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/configuration-deployment" },
+                },
+              ],
             },
             {
-              label: "Data Ingestion & Streaming",
+              label: "Sort by Industry",
               collapsed: true,
-              autogenerate: { directory: "integrate/data-ingestion-streaming" },
+              items: [
+                { label: "Sort by Industry", link: "/integrate/#by-industry" },
+                { label: "Oil and Gas", link: "/integrate/#integrate-industry-oil-and-gas" },
+                { label: "IoT", link: "/integrate/#integrate-industry-iot" },
+                { label: "Energy", link: "/integrate/#integrate-industry-energy" },
+                { label: "Crypto", link: "/integrate/#integrate-industry-crypto" },
+                { label: "Healthcare", link: "/integrate/#integrate-industry-healthcare" },
+                { label: "Manufacturing", link: "/integrate/#integrate-industry-manufacturing" },
+              ],
             },
             {
-              label: "Data Engineering & ETL",
+              label: "Sort by Integration Type",
               collapsed: true,
-              autogenerate: { directory: "integrate/data-engineering-etl" },
-            },
-            {
-              label: "BI & Visualization",
-              collapsed: true,
-              autogenerate: { directory: "integrate/bi-vizualization" },
-            },
-            {
-              label: "Query & Administration",
-              collapsed: true,
-              autogenerate: { directory: "integrate/query-administration" },
-            },
-            {
-              label: "Secure Connectivity",
-              collapsed: true,
-              autogenerate: { directory: "integrate/secure-connectivity" },
-            },
-            {
-              label: "Observability & Alerting",
-              collapsed: true,
-              autogenerate: { directory: "integrate/observability-alerting" },
-            },
-            {
-              label: "Configuration & Deployment",
-              collapsed: true,
-              autogenerate: { directory: "integrate/configuration-deployment" },
-            },
-            {
-              label: "Code & Libraries",
-              collapsed: true,
-              autogenerate: { directory: "integrate/code" },
+              items: [
+                { label: "Tiger Connectors", link: "/integrate/connectors" },
+                { label: "Partner Integrations", link: "/integrate/#integrate-type-partner" },
+                { label: "Third Party Integrations", link: "/integrate/#integrate-type-third-party" },
+              ],
             },
             {
               label: "Troubleshooting",

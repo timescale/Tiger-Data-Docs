@@ -12,14 +12,20 @@ type SidebarGroup = Extract<SidebarEntry, { type: "group" }>;
 
 function flattenSidebar(sidebar: SidebarEntry[]): SidebarLink[] {
   if (!sidebar || !Array.isArray(sidebar)) return [];
-  return sidebar.flatMap((e) => {
-    if (!e || typeof e !== "object") return [];
-    if (e.type === "group") {
-      const entries = (e as SidebarGroup).entries;
-      return Array.isArray(entries) ? flattenSidebar(entries) : [];
-    }
-    return e as SidebarLink;
-  });
+  try {
+    const list = Array.from(sidebar);
+    return list.flatMap((e) => {
+      if (!e || typeof e !== "object") return [];
+      if ((e as { type?: string }).type === "group") {
+        const group = e as SidebarGroup;
+        const entries = group.entries ?? (group as unknown as { items?: SidebarEntry[] }).items;
+        return Array.isArray(entries) ? flattenSidebar(entries) : [];
+      }
+      return [e as SidebarLink];
+    });
+  } catch {
+    return [];
+  }
 }
 
 function findParentOfSidebarEntry(
@@ -27,14 +33,19 @@ function findParentOfSidebarEntry(
   targetEntry: SidebarEntry
 ): SidebarGroup | null {
   if (!sidebar || !Array.isArray(sidebar)) return null;
-  for (const entry of sidebar) {
-    if (!entry || typeof entry !== "object") continue;
-    if (entry.type === "group") {
-      const entries = (entry as SidebarGroup).entries;
-      if (Array.isArray(entries) && entries.includes(targetEntry)) return entry as SidebarGroup;
-      const found = findParentOfSidebarEntry(entries ?? [], targetEntry);
-      if (found) return found;
+  try {
+    for (const entry of Array.from(sidebar)) {
+      if (!entry || typeof entry !== "object") continue;
+      if ((entry as { type?: string }).type === "group") {
+        const group = entry as SidebarGroup;
+        const entries = group.entries ?? (group as unknown as { items?: SidebarEntry[] }).items ?? [];
+        if (Array.isArray(entries) && entries.includes(targetEntry)) return group;
+        const found = findParentOfSidebarEntry(entries, targetEntry);
+        if (found) return found;
+      }
     }
+  } catch {
+    // ignore
   }
   return null;
 }
@@ -50,16 +61,18 @@ export async function getPrevNextPage(
     if (!page?.sidebar || !Array.isArray(page.sidebar)) return null;
 
     const docsContent = await getCollection("docs");
+    const docsList = Array.isArray(docsContent) ? docsContent : [];
     const findSidebarLinkInContent = (link: SidebarLink) =>
-      docsContent.find((doc) => {
+      docsList.find((doc) => {
         if (doc.id === "index" && link.href === "/") return true;
         return doc.id === link.href.replace(/^\//, "").replace(/\/$/, "");
       });
 
     const currentSidebar = page.sidebar;
 
-    const flattened = flattenSidebar(currentSidebar);
-    const paginationSequence: (SidebarLink & { description?: string })[] = flattened
+    const flattened = flattenSidebar(Array.isArray(currentSidebar) ? currentSidebar : []);
+    const paginationSequence: (SidebarLink & { description?: string })[] = Array.isArray(flattened)
+      ? flattened
       .filter((e): e is SidebarLink => e != null && e.type === "link" && typeof (e as SidebarLink).href === "string")
       .filter(
         (link) =>
@@ -71,7 +84,8 @@ export async function getPrevNextPage(
       .filter((link) => !link.attrs?.["data-stldocs-method"])
       .map((link) => {
         if (link.attrs?.["data-stldocs-overview"] && link.label === "Overview") {
-          const parent = findParentOfSidebarEntry(currentSidebar, link);
+          const sidebarArr = Array.isArray(currentSidebar) ? currentSidebar : [];
+          const parent = findParentOfSidebarEntry(sidebarArr, link);
           if (parent) return { ...link, label: parent.label };
         }
         return link;
@@ -80,7 +94,8 @@ export async function getPrevNextPage(
         const contentEntry = findSidebarLinkInContent(link);
         if (contentEntry?.data) return { ...link, description: contentEntry.data.description };
         return link;
-      });
+      })
+      : [];
 
     const currentIndex = paginationSequence.findIndex((e) => e.isCurrent);
     if (currentIndex === -1) return null;

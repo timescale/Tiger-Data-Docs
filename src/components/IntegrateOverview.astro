@@ -1,12 +1,8 @@
 ---
 /**
- * Integrate overview: dropdown to switch between four card views.
- * - See all integrations: flat list of all integration cards
- * - By category: 8 category sections (collapsible)
- * - By industry: integrations grouped by integrationIndustry frontmatter
- * - By plan: Tiger Cloud, Tiger Cloud on Azure, Tiger Cloud on AWS, Self-Hosted
- *
- * Relies on frontmatter on each integration page: integrationIndustry[], integrationPlatforms[], integrationCategory, sortOrder.
+ * Integrate overview: integrations grouped by category (matches left sidebar).
+ * Platform filter (All / Tiger Cloud on AWS / etc.) filters cards within the page.
+ * Relies on frontmatter: integrationPlatforms[], integrationCategory, sortOrder.
  */
 import { getEntry } from "astro:content";
 /** Grid layout matches related content cards (Figma 3387-363) */
@@ -40,14 +36,6 @@ const PLATFORM_LABELS: Record<string, string> = {
   "self-hosted": "Self-Hosted",
 };
 const PLATFORM_ORDER = ["aws", "azure", "self-hosted"] as const;
-/** By-plan view: order and labels (Tiger Cloud = any cloud, i.e. aws or azure). */
-const PLAN_ORDER = ["tiger-cloud", "azure", "aws", "self-hosted"] as const;
-const PLAN_LABELS: Record<string, string> = {
-  "tiger-cloud": "Tiger Cloud",
-  azure: "Tiger Cloud on Azure",
-  aws: "Tiger Cloud on AWS",
-  "self-hosted": "Self-Hosted",
-};
 type PlatformSlug = (typeof PLATFORM_ORDER)[number];
 
 type DocData = {
@@ -149,47 +137,18 @@ for (const key of categoryOrder) {
   }
 }
 
-const allIntegrations = [...entries].sort((a, b) =>
-  cardTitle(a.data).localeCompare(cardTitle(b.data), undefined, { sensitivity: "base" })
-);
-
 function getPlatforms(data: DocData): PlatformSlug[] {
   const p = data.integrationPlatforms ?? ["aws"];
   return PLATFORM_ORDER.filter((key) => p.includes(key));
 }
 
-// Group by plan (platform): Tiger Cloud = aws or azure; then Azure, AWS, Self-Hosted
-const planGroups: Record<string, { slug: string; data: DocData }[]> = {};
-for (const entry of entries) {
-  const platforms = getPlatforms(entry.data);
-  if (platforms.some((p) => p === "aws" || p === "azure")) {
-    if (!planGroups["tiger-cloud"]) planGroups["tiger-cloud"] = [];
-    planGroups["tiger-cloud"].push(entry);
-  }
-  for (const p of platforms) {
-    if (!planGroups[p]) planGroups[p] = [];
-    if (!planGroups[p].some((e) => e.slug === entry.slug)) planGroups[p].push(entry);
-  }
-}
-/** Always show all four plans in "By plan" view: Tiger Cloud, Tiger Cloud on Azure, Tiger Cloud on AWS, Self-Hosted. */
-const PLAN_DISPLAY_ORDER = [...PLAN_ORDER];
-const planOrder = PLAN_DISPLAY_ORDER;
-for (const key of PLAN_ORDER) {
-  if (planGroups[key]?.length) {
-    planGroups[key].sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99));
-  }
-}
-
-// Industry order and labels (Energy, Crypto, IoT, Oil and Gas, Healthcare, Manufacturing)
-const INDUSTRY_ORDER = ["energy", "crypto", "iot", "oil-and-gas", "healthcare", "manufacturing"];
-/** Normalize frontmatter industry value to canonical key (e.g. "IoT" -> "iot", "Oil and Gas" -> "oil-and-gas"). */
+// Industry order (matches sidebar "Sort by Industry")
+const INDUSTRY_ORDER = ["oil-and-gas", "iot", "energy", "crypto", "healthcare", "manufacturing"];
 function normalizeIndustryKey(raw: string): string {
   const k = raw.trim().toLowerCase().replace(/\s+/g, "-");
   if (k === "oil-and-gas" || k === "oilandgas") return "oil-and-gas";
-  if (k === "energy" || k === "crypto" || k === "iot" || k === "healthcare" || k === "manufacturing") return k;
-  return raw.trim();
+  return k;
 }
-// Group by industry (canonical key) -> entries
 const industryGroups: Record<string, { slug: string; data: DocData }[]> = {};
 for (const entry of entries) {
   const industries = entry.data.integrationIndustry ?? [];
@@ -200,62 +159,36 @@ for (const entry of entries) {
     industryGroups[key].push(entry);
   }
 }
-const INDUSTRY_LABELS: Record<string, string> = {
-  energy: "Energy",
-  crypto: "Crypto",
-  iot: "IoT",
-  "oil-and-gas": "Oil and Gas",
-  healthcare: "Healthcare",
-  manufacturing: "Manufacturing",
-  IoT: "IoT",
-};
-/** Always show these six industries in "By industry" view. */
-const INDUSTRY_DISPLAY_ORDER = [...INDUSTRY_ORDER];
-const industryOrder = INDUSTRY_DISPLAY_ORDER;
 for (const key of INDUSTRY_ORDER) {
-  if (industryGroups[key]?.length) {
-    industryGroups[key].sort(
-      (a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99)
-    );
+  if (industryGroups[key]) {
+    industryGroups[key].sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99));
   }
 }
+const INDUSTRY_LABELS: Record<string, string> = {
+  "oil-and-gas": "Oil and Gas",
+  iot: "IoT",
+  energy: "Energy",
+  crypto: "Crypto",
+  healthcare: "Healthcare",
+  manufacturing: "Manufacturing",
+};
+
+// Integration type: Tiger Connectors (category connectors), Partner, Third Party (connectorType external or unset)
+const tigerConnectorsEntries = entries.filter((e) => e.data.integrationCategory === "connectors");
+const thirdPartyEntries = entries.filter((e) => e.data.connectorType === "external");
+const partnerEntries = entries.filter(
+  (e) => e.data.integrationCategory !== "connectors" && e.data.connectorType !== "external"
+);
+[tigerConnectorsEntries, partnerEntries, thirdPartyEntries].forEach((arr) =>
+  arr.sort((a, b) => (a.data.sortOrder ?? 99) - (b.data.sortOrder ?? 99))
+);
 
 function slugToHref(slug: string): string {
   return "/" + slug + "/";
 }
-
-/** URL-safe id for a card in the "all" view (for TOC anchor links). */
-function slugToCardId(slug: string): string {
-  return slug.replace(/\//g, "-");
-}
-
-const allIntegrationsToc = allIntegrations.map(({ slug, data }) => ({
-  title: cardTitle(data),
-  id: slugToCardId(slug),
-}));
-
-/** Per-plan TOC: plan key -> list of { title, id } for the right sidebar. */
-const planTocSections = planOrder.map((key) => ({
-  key,
-  label: PLAN_LABELS[key],
-  id: `integrate-plan-${key.replace(/\s+/g, "-")}`,
-  items: (planGroups[key] ?? []).map(({ slug, data }) => ({
-    title: cardTitle(data),
-    id: slugToCardId(slug),
-  })),
-}));
 ---
 
-<div class="integrate-overview" data-industry-order={JSON.stringify(INDUSTRY_DISPLAY_ORDER)} data-category-order={JSON.stringify(CATEGORY_DISPLAY_ORDER)} data-all-integrations={JSON.stringify(allIntegrationsToc)} data-plan-sections={JSON.stringify(planTocSections)} id="integrate-overview-root">
-  <div class="integrate-overview-controls">
-    <label for="integrate-view-select" class="integrate-overview-label">View integrations</label>
-    <select id="integrate-view-select" class="integrate-overview-select" aria-label="Choose how to view integrations">
-      <option value="all">See all integrations</option>
-      <option value="category">By category</option>
-      <option value="industry">By industry</option>
-      <option value="plan">By plan</option>
-    </select>
-  </div>
+<div class="integrate-overview" data-category-order={JSON.stringify(CATEGORY_DISPLAY_ORDER)} id="integrate-overview-root" data-view="">
   <div class="integrate-platform-filter">
     <span class="integrate-platform-filter-label">Platform</span>
     <div class="integrate-platform-chips" role="group" aria-label="Filter by platform">
@@ -268,34 +201,8 @@ const planTocSections = planOrder.map((key) => ({
     </div>
   </div>
 
-  <div id="integrate-view-all" class="integrate-view" data-view="all">
-    <div class="related-content-cards__grid">
-      {
-        allIntegrations.map(({ slug, data }) => {
-          const platforms = getPlatforms(data);
-          const cardId = slugToCardId(slug);
-          return (
-            <div class="integrate-card-wrapper" id={`integrate-card-${cardId}`} data-platforms={platforms.join(",")}>
-              <a href={slugToHref(slug)} class="integrate-card-link">
-                <span class="integrate-card-inner">
-                  <span class="integrate-card-title">{cardTitle(data)}</span>
-                  <div class="integrate-card-chips">
-                    {platforms.map((p) => (
-                      <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
-                    ))}
-                  </div>
-                  {data.description && <p class="integrate-card-description">{data.description}</p>}
-                </span>
-                <span class="integrate-card-arrow" aria-hidden="true">→</span>
-              </a>
-            </div>
-          );
-        })
-      }
-    </div>
-  </div>
-
-  <div id="integrate-view-category" class="integrate-view" data-view="category" hidden>
+  <div id="integrate-view-category" class="integrate-view" data-integrate-section="category">
+    <h2 class="integrate-section-heading" id="integrate-categories-heading">Sort by Category</h2>
     {
       CATEGORY_DISPLAY_ORDER.map((categorySlug) => (
         <section class="integrate-category-section" id={`integrate-category-${categorySlug.replace(/\s+/g, "-").toLowerCase()}`}>
@@ -335,12 +242,13 @@ const planTocSections = planOrder.map((key) => ({
     }
   </div>
 
-  <div id="integrate-view-industry" class="integrate-view" data-view="industry" hidden>
+  <div id="integrate-industries" class="integrate-view" data-integrate-section="industry">
+    <h2 class="integrate-section-heading" id="integrate-industries-heading">Sort by Industry</h2>
     {
-      INDUSTRY_DISPLAY_ORDER.map((industry) => {
+      INDUSTRY_ORDER.map((industry) => {
         const items = industryGroups[industry] ?? [];
         return (
-          <section class="integrate-category-section" id={`integrate-industry-${String(industry).toLowerCase().replace(/\s+/g, "-")}`}>
+          <section class="integrate-category-section" id={`integrate-industry-${industry}`}>
             <details class="integrate-category-details" open>
               <summary class="integrate-category-summary">
                 <span class="integrate-category-heading">{INDUSTRY_LABELS[industry] ?? industry}</span>
@@ -372,7 +280,7 @@ const planTocSections = planOrder.map((key) => ({
                     }
                   </div>
                 ) : (
-                  <p class="integrate-empty">No integrations tagged for this industry yet. Add <code>integrationIndustry: ["{industry}"]</code> in integration frontmatter to list them here.</p>
+                  <p class="integrate-empty">No integrations tagged for this industry yet.</p>
                 )}
               </div>
             </details>
@@ -382,155 +290,177 @@ const planTocSections = planOrder.map((key) => ({
     }
   </div>
 
-  <div id="integrate-view-plan" class="integrate-view" data-view="plan" hidden>
-    {
-      planOrder.map((planKey) => {
-        const items = planGroups[planKey] ?? [];
-        return (
-          <section class="integrate-category-section" id={`integrate-plan-${planKey.replace(/\s+/g, "-")}`}>
-            <details class="integrate-category-details" open>
-              <summary class="integrate-category-summary">
-                <span class="integrate-category-heading">{PLAN_LABELS[planKey]}</span>
-                <span class="integrate-category-chevron" aria-hidden="true"></span>
-              </summary>
-              <div class="integrate-category-content">
-                {items.length > 0 ? (
-                  <div class="related-content-cards__grid">
-                    {
-                      items.map(({ slug, data }) => {
-                        const platforms = getPlatforms(data);
-                        const cardId = slugToCardId(slug);
-                        return (
-                          <div class="integrate-card-wrapper" id={`integrate-plan-card-${planKey}-${cardId}`} data-platforms={platforms.join(",")}>
-                            <a href={slugToHref(slug)} class="integrate-card-link">
-                              <span class="integrate-card-inner">
-                                <span class="integrate-card-title">{cardTitle(data)}</span>
-                                <div class="integrate-card-chips">
-                                  {platforms.map((p) => (
-                                    <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
-                                  ))}
-                                </div>
-                                {data.description && <p class="integrate-card-description">{data.description}</p>}
-                              </span>
-                              <span class="integrate-card-arrow" aria-hidden="true">→</span>
-                            </a>
-                          </div>
-                        );
-                      })
-                    }
+  <div id="integrate-types" class="integrate-view" data-integrate-section="type">
+    <h2 class="integrate-section-heading" id="integrate-types-heading">Sort by Integration Type</h2>
+    <section class="integrate-category-section" id="integrate-type-tiger-connectors">
+      <details class="integrate-category-details" open>
+        <summary class="integrate-category-summary">
+          <span class="integrate-category-heading">Tiger Connectors</span>
+          <span class="integrate-category-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="integrate-category-content">
+          <p class="integrate-type-intro">Source and destination connectors built and maintained by Tiger Data. See also <a href="/integrate/connectors/">Connectors</a> in the sidebar.</p>
+          <div class="related-content-cards__grid">
+            {
+              tigerConnectorsEntries.map(({ slug, data }) => {
+                const platforms = getPlatforms(data);
+                return (
+                  <div class="integrate-card-wrapper" data-platforms={platforms.join(",")}>
+                    <a href={slugToHref(slug)} class="integrate-card-link">
+                      <span class="integrate-card-inner">
+                        <span class="integrate-card-title">{cardTitle(data)}</span>
+                        <div class="integrate-card-chips">
+                          {platforms.map((p) => (
+                            <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
+                          ))}
+                        </div>
+                        {data.description && <p class="integrate-card-description">{data.description}</p>}
+                      </span>
+                      <span class="integrate-card-arrow" aria-hidden="true">→</span>
+                    </a>
                   </div>
-                ) : (
-                  <p class="integrate-empty">No integrations tagged for this plan yet. Add <code>integrationPlatforms</code> (e.g. aws, azure, self-hosted) in integration frontmatter to list them here.</p>
-                )}
-              </div>
-            </details>
-          </section>
-        );
-      })
-    }
+                );
+              })
+            }
+          </div>
+        </div>
+      </details>
+    </section>
+    <section class="integrate-category-section" id="integrate-type-partner">
+      <details class="integrate-category-details" open>
+        <summary class="integrate-category-summary">
+          <span class="integrate-category-heading">Partner Integrations</span>
+          <span class="integrate-category-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="integrate-category-content">
+          {partnerEntries.length > 0 ? (
+            <div class="related-content-cards__grid">
+              {
+                partnerEntries.map(({ slug, data }) => {
+                  const platforms = getPlatforms(data);
+                  return (
+                    <div class="integrate-card-wrapper" data-platforms={platforms.join(",")}>
+                      <a href={slugToHref(slug)} class="integrate-card-link">
+                        <span class="integrate-card-inner">
+                          <span class="integrate-card-title">{cardTitle(data)}</span>
+                          <div class="integrate-card-chips">
+                            {platforms.map((p) => (
+                              <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
+                            ))}
+                          </div>
+                          {data.description && <p class="integrate-card-description">{data.description}</p>}
+                        </span>
+                        <span class="integrate-card-arrow" aria-hidden="true">→</span>
+                      </a>
+                    </div>
+                  );
+                })
+              }
+            </div>
+          ) : (
+            <p class="integrate-empty">Partner integrations will be listed here. Add <code>integrationType: "partner"</code> or use the Partner category in frontmatter to include integrations.</p>
+          )}
+        </div>
+      </details>
+    </section>
+    <section class="integrate-category-section" id="integrate-type-third-party">
+      <details class="integrate-category-details" open>
+        <summary class="integrate-category-summary">
+          <span class="integrate-category-heading">Third Party Integrations</span>
+          <span class="integrate-category-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="integrate-category-content">
+          {thirdPartyEntries.length > 0 ? (
+            <div class="related-content-cards__grid">
+              {
+                thirdPartyEntries.map(({ slug, data }) => {
+                  const platforms = getPlatforms(data);
+                  return (
+                    <div class="integrate-card-wrapper" data-platforms={platforms.join(",")}>
+                      <a href={slugToHref(slug)} class="integrate-card-link">
+                        <span class="integrate-card-inner">
+                          <span class="integrate-card-title">{cardTitle(data)}</span>
+                          <div class="integrate-card-chips">
+                            {platforms.map((p) => (
+                              <span class="integrate-chip">{PLATFORM_LABELS[p]}</span>
+                            ))}
+                          </div>
+                          {data.description && <p class="integrate-card-description">{data.description}</p>}
+                        </span>
+                        <span class="integrate-card-arrow" aria-hidden="true">→</span>
+                      </a>
+                    </div>
+                  );
+                })
+              }
+            </div>
+          ) : (
+            <p class="integrate-empty">Third party integrations (e.g. <code>connectorType: "external"</code> in frontmatter) will be listed here.</p>
+          )}
+        </div>
+      </details>
+    </section>
   </div>
 </div>
 
 <script>
-  const select = document.getElementById("integrate-view-select") as HTMLSelectElement;
-  const views = document.querySelectorAll<HTMLElement>("[data-view]");
-  const HASH_TO_VIEW: Record<string, string> = {
-    "all": "all",
-    "by-category": "category",
-    "by-industry": "industry",
-    "by-plan": "plan",
-  };
-  const VIEW_TO_HASH: Record<string, string> = {
-    all: "all",
-    category: "by-category",
-    industry: "by-industry",
-    plan: "by-plan",
-  };
-  function showView(value: string) {
-    views.forEach((el) => {
-      el.hidden = el.getAttribute("data-view") !== value;
-    });
-    if (select) select.value = value;
-  }
-  function syncHashToView() {
-    const hash = window.location.hash.slice(1);
-    const view = HASH_TO_VIEW[hash] || "all";
-    showView(view);
-  }
-  if (select && views.length) {
-    syncHashToView();
-    if (!window.location.hash) {
-      history.replaceState(null, "", window.location.pathname + "#all");
-    }
-    select.addEventListener("change", () => {
-      const view = select.value;
-      const hash = VIEW_TO_HASH[view];
-      if (hash) {
-        window.location.hash = hash;
-      }
-      showView(view);
-    });
-    window.addEventListener("hashchange", syncHashToView);
+  const root = document.getElementById("integrate-overview-root");
+  const sectionCategory = document.querySelector<HTMLElement>("[data-integrate-section=\"category\"]");
+  const sectionIndustry = document.querySelector<HTMLElement>("[data-integrate-section=\"industry\"]");
+  const sectionType = document.querySelector<HTMLElement>("[data-integrate-section=\"type\"]");
 
-    const platformChips = document.querySelectorAll<HTMLButtonElement>("[data-platform-filter]");
-    const cardWrappers = document.querySelectorAll<HTMLElement>(".integrate-card-wrapper");
-    function applyPlatformFilter(platform: string) {
-      platformChips.forEach((btn) => {
-        const value = btn.getAttribute("data-platform-filter");
-        btn.setAttribute("aria-pressed", value === platform ? "true" : "false");
-        btn.classList.toggle("integrate-platform-chip--active", value === platform);
-      });
-      cardWrappers.forEach((el) => {
-        const platforms = (el.getAttribute("data-platforms") ?? "").split(",").map((p) => p.trim());
-        const show = platform === "all" || platforms.includes(platform);
-        el.hidden = !show;
-      });
+  function applyIntegrateView() {
+    const hash = window.location.hash.slice(1).toLowerCase();
+    const industryOnly = hash === "by-industry";
+    if (root) root.setAttribute("data-view", industryOnly ? "industry-only" : "");
+    if (sectionCategory) sectionCategory.hidden = industryOnly;
+    if (sectionIndustry) sectionIndustry.hidden = false;
+    if (sectionType) sectionType.hidden = industryOnly;
+    if (industryOnly && sectionIndustry) {
+      sectionIndustry.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+  }
+  applyIntegrateView();
+  window.addEventListener("hashchange", applyIntegrateView);
+
+  const platformChips = document.querySelectorAll<HTMLButtonElement>("[data-platform-filter]");
+  const cardWrappers = document.querySelectorAll<HTMLElement>(".integrate-card-wrapper");
+  function applyPlatformFilter(platform: string) {
     platformChips.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const platform = btn.getAttribute("data-platform-filter") ?? "all";
-        applyPlatformFilter(platform);
-      });
+      const value = btn.getAttribute("data-platform-filter");
+      btn.setAttribute("aria-pressed", value === platform ? "true" : "false");
+      btn.classList.toggle("integrate-platform-chip--active", value === platform);
+    });
+    cardWrappers.forEach((el) => {
+      const platforms = (el.getAttribute("data-platforms") ?? "").split(",").map((p) => p.trim());
+      const show = platform === "all" || platforms.includes(platform);
+      el.hidden = !show;
     });
   }
+  platformChips.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const platform = btn.getAttribute("data-platform-filter") ?? "all";
+      applyPlatformFilter(platform);
+    });
+  });
 </script>
 
 <style>
   .integrate-overview {
     margin: 1.5rem 0;
   }
-  .integrate-overview-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
-    flex-wrap: wrap;
-  }
-  .integrate-overview-label {
-    display: inline-flex;
-    align-items: center;
-    height: 2.25rem;
-    font-weight: 500;
-    font-size: inherit;
-    line-height: 1;
+  .integrate-section-heading {
+    font-size: var(--sl-text-h3);
+    font-weight: 600;
     color: var(--sl-color-text);
-    margin: 0;
-    padding: 0;
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
   }
-  .integrate-overview-select {
-    font: inherit;
-    height: 2.25rem;
-    min-height: 2.25rem;
-    line-height: 1;
-    padding: 0 0.75rem;
-    margin: 0;
-    border-radius: 6px;
-    border: 1px solid var(--sl-color-hairline);
-    background: var(--sl-color-background);
+  .integrate-type-intro {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.9375rem;
     color: var(--sl-color-text);
-    cursor: pointer;
-    box-sizing: border-box;
-    align-self: center;
   }
   .integrate-industry-section {
     margin-bottom: 1.5rem;
