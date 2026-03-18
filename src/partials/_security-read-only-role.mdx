@@ -1,0 +1,73 @@
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+When you create a {C.SERVICE_SHORT}, {C.CLOUD_LONG} assigns you the tsdmadmin role. This role has full permissions to modify data in your {C.SERVICE_SHORT}. However, {C.CLOUD_LONG} does not provide superuser access. tsdmadmin is not a superuser.
+
+As tsdmadmin, you can use standard {C.PG} means to create other roles or assign individual permissions. This page shows you how to create a read-only role for your database. Adding a read-only role does not provide resource isolation. To restrict the access of a read-only user, as well as isolate resources, create a [read replica](/TODO/use-timescale/ha-replicas/read-scaling) instead.
+
+<Callout variant="info">
+
+The database-level roles for the individual {C.SERVICE_SHORT}s in your {C.PROJECT_SHORT} do not overlap with the {C.PROJECT_LONG} user roles. This page describes the database-level roles. For user roles available in {C.CONSOLE_SHORT}, see [Control user access to {C.PROJECT_LONG}s](../members).
+
+</Callout>
+
+## Create a read-only user
+
+You can create a read-only user to provide limited access to your database.
+
+<NumberedList>
+
+<NumberedItem title={`Connect to your ${C.SERVICE_SHORT} as the tsdbadmin user`}>
+
+</NumberedItem>
+
+<NumberedItem title="Create the new role">
+
+```sql
+CREATE ROLE readaccess;
+```
+
+</NumberedItem>
+
+<NumberedItem title="Grant usage on the schema to allow access to objects within it">
+
+```sql
+GRANT USAGE ON SCHEMA <SCHEMA_NAME> TO readaccess;
+```
+
+</NumberedItem>
+
+<NumberedItem title="Grant the appropriate permissions for the role, as required">
+
+For example, to grant `SELECT` permissions to a specific table, use:
+
+```sql
+GRANT SELECT ON <TABLE_NAME> TO readaccess;
+```
+
+To grant `SELECT` permissions to all tables in a specific schema, use:
+
+```sql
+GRANT SELECT ON ALL TABLES IN SCHEMA <SCHEMA_NAME> TO readaccess;
+```
+
+</NumberedItem>
+
+<NumberedItem title="Create a new user">
+
+```sql
+CREATE USER read_user WITH PASSWORD 'read_password';
+```
+
+</NumberedItem>
+
+<NumberedItem title="Assign the role to the new user">
+
+```sql
+GRANT readaccess TO read_user;
+```
+
+</NumberedItem>
+
+</NumberedList>
