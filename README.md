@@ -49,7 +49,7 @@ src/content/docs/
 
 **Example:** The `build/` section:
 
-```
+``` md
 build/
 ├── index.mdx                      # Build section landing page
 ├── columnar-storage/
@@ -89,6 +89,10 @@ This project uses the `@stainless-api/docs` integration which provides:
 ## Environment
 
 Requires `STAINLESS_API_KEY` for API reference generation. See `.env.example`.
+
+### Optional: Algolia instead of Pagefind
+
+By default, search uses [Pagefind](https://pagefind.app/) (no extra services). To use [Algolia](https://www.algolia.com/) for site search, set the four variables documented in `.env.example` and read **[ALGOLIA-SEARCH.md](./ALGOLIA-SEARCH.md)** for keys, security, and when to run `pnpm build`.
 
 ### Troubleshooting: `Connection error` (Stainless API)
 
