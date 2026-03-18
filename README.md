@@ -90,6 +90,26 @@ This project uses the `@stainless-api/docs` integration which provides:
 
 Requires `STAINLESS_API_KEY` for API reference generation. See `.env.example`.
 
+### Troubleshooting: `Connection error` (Stainless API)
+
+If `pnpm dev` or `pnpm build` fails with **`Error: Connection error`** from `@stainless-api/sdk` / `loadSpecs` / `inputResolver`, the docs plugin cannot reach **Stainless’s API** to download the **Tiger Cloud** OpenAPI spec and config. Try, in order:
+
+1. **API key in `.env`**  
+   Copy `.env.example` to `.env` in the **project root**. Add a real key from [Stainless → org settings → API keys](https://app.stainless.com/org/default/settings) (format `stl_sk_…`). Restart the dev server so Astro picks up the env var.
+
+2. **CLI auth (alternative to `.env`)**  
+   Run `stl auth login` ([Stainless CLI quickstart](https://www.stainless.com/docs/getting-started/quickstart-cli)). The plugin can use CLI login if no key is in `.env`.
+
+3. **Network**  
+   Confirm you can reach the API (browser or terminal):  
+   `curl -sI https://api.stainless.com`  
+   VPNs, corporate firewalls, or offline mode often cause this error.
+
+4. **Project access**  
+   Your key or CLI user must be able to access the **`tiger-cloud`** Stainless project configured in `astro.config.ts`. If you only have a personal org key, you may need access from the Tiger Data / Timescale team.
+
+After fixing auth or network, run `pnpm dev` again.
+
 ## Doc constants (brand and product variables)
 
 The repo uses shared constants so product and database names can be changed in one place. They live in `src/constants.ts` and are imported in MDX, Astro, and TS as `@constants`.
