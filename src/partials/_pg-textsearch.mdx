@@ -1,10 +1,10 @@
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
-import EA1125 from "./_early_access_11_25.mdx";
-import SINCE010 from "./_since_0_1_0.mdx";
-import SINCE040 from "./_since_0_4_0.mdx";
-import SINCE050 from "./_since_0_5_0.mdx";
+import { Callout } from "@stainless-api/docs/components";
+import SinceRelease from "@components/SinceRelease.astro";
 import IntegrationPrereqs from "./_integration-prereqs.mdx";
+
+<SinceRelease mode="early_access" /> This preview release is designed for development and staging environments.
 
 {C.PG} full-text search at scale consistently hits a wall where performance degrades catastrophically.
 {C.COMPANY}'s [pg_textsearch](https://github.com/timescale/pg_textsearch) brings modern [BM25](https://en.wikipedia.org/wiki/Okapi_BM25)-based full-text search directly into {C.PG},
@@ -31,8 +31,6 @@ the following best practices:
 * **Query optimization**: use score thresholds to filter low-relevance results
 * **Index monitoring**: regularly check index usage and memory consumption
 
-<EA1125 /> this preview release is designed for development and staging environments.
-
 ## Prerequisites
 
 <IntegrationPrereqs />
@@ -43,29 +41,31 @@ To install this {C.PG} extension:
 
 <NumberedList>
 
-<NumberedItem title="Install pg_textsearch">
+<NumberedItem title={`Connect to your ${C.SERVICE_LONG}`}>
 
-1. **Connect to your {C.SERVICE_LONG}**
+In [{C.CONSOLE}](https://console.cloud.timescale.com/dashboard/services) open an [SQL editor](/get-started/run-queries-from-console). You can also connect to your {C.SERVICE_SHORT} using [psql](/integrate/psql#connect-to-your-service).
 
-   In [{C.CONSOLE}](https://console.cloud.timescale.com/dashboard/services) open an [SQL editor](/get-started/run-queries-from-console). You can also connect to your {C.SERVICE_SHORT} using [psql](/integrate/psql#connect-to-your-service).
+</NumberedItem>
 
-1. **Enable the extension on your {C.SERVICE_LONG}**
+<NumberedItem title={`Enable the extension on your ${C.SERVICE_LONG}`}>
 
-   - For new services, simply enable the extension:
-      ```sql
-      CREATE EXTENSION pg_textsearch;
-      ```
-
-   - For existing services, update your instance, then enable the extension:
-
-      The extension may not be available until after your next scheduled maintenance window. To pick up the update
-      immediately, manually pause and restart your service.
-
-1. **Verify the installation**
-
+- For new services, simply enable the extension:
    ```sql
-   SELECT * FROM pg_extension WHERE extname = 'pg_textsearch';
+   CREATE EXTENSION pg_textsearch;
    ```
+
+- For existing services, update your instance, then enable the extension:
+
+   The extension may not be available until after your next scheduled maintenance window. To pick up the update
+   immediately, manually pause and restart your service.
+
+</NumberedItem>
+
+<NumberedItem title="Verify the installation">
+
+```sql
+SELECT * FROM pg_extension WHERE extname = 'pg_textsearch';
+```
 
 </NumberedItem>
 
@@ -82,38 +82,40 @@ To create a BM25 index with `pg_textsearch`:
 
 <NumberedList>
 
+<NumberedItem title="Create a table with text content">
+
+```sql
+CREATE TABLE products (
+    id serial PRIMARY KEY,
+    name text,
+    description text,
+    category text,
+    price numeric
+);
+```
+
+</NumberedItem>
+
+<NumberedItem title="Insert sample data">
+
+```sql
+INSERT INTO products (name, description, category, price) VALUES
+('Mechanical Keyboard', 'Durable mechanical switches with RGB backlighting for gaming and productivity', 'Electronics', 149.99),
+('Ergonomic Mouse', 'Wireless mouse with ergonomic design to reduce wrist strain during long work sessions', 'Electronics', 79.99),
+('Standing Desk', 'Adjustable height desk for better posture and productivity throughout the workday', 'Furniture', 599.99);
+```
+
+</NumberedItem>
+
 <NumberedItem title="Create a BM25 index">
 
-1. **Create a table with text content**
+```sql
+CREATE INDEX products_search_idx ON products
+USING bm25(description)
+WITH (text_config='english');
+```
 
-   ```sql
-   CREATE TABLE products (
-       id serial PRIMARY KEY,
-       name text,
-       description text,
-       category text,
-       price numeric
-   );
-   ```
-
-1. **Insert sample data**
-
-   ```sql
-   INSERT INTO products (name, description, category, price) VALUES
-   ('Mechanical Keyboard', 'Durable mechanical switches with RGB backlighting for gaming and productivity', 'Electronics', 149.99),
-   ('Ergonomic Mouse', 'Wireless mouse with ergonomic design to reduce wrist strain during long work sessions', 'Electronics', 79.99),
-   ('Standing Desk', 'Adjustable height desk for better posture and productivity throughout the workday', 'Furniture', 599.99);
-   ```
-
-1. **Create a BM25 index**
-
-   ```sql
-   CREATE INDEX products_search_idx ON products
-   USING bm25(description)
-   WITH (text_config='english');
-   ```
-
-   BM25 supports single-column indexes only. For optimal performance, load your data first, then create the index.
+BM25 supports single-column indexes only. For optimal performance, load your data first, then create the index.
 
 </NumberedItem>
 
@@ -123,52 +125,56 @@ You have created a BM25 index for full-text search.
 
 ## Enable parallel indexing for faster index creation
 
+<SinceRelease version="v0.5.0" product="pg_textsearch" />
+
 `pg_textsearch` supports parallel index builds that can significantly reduce indexing times for large tables.
 {C.PG} automatically uses parallel workers based on table size and available resources.
 
 <NumberedList>
 
-<NumberedItem title="Enable parallel indexing">
+<NumberedItem title="Configure parallel workers (optional)">
 
-1. **Configure parallel workers (optional)**
+{C.PG} uses server defaults, but you can adjust settings for your workload:
 
-   {C.PG} uses server defaults, but you can adjust settings for your workload:
+```sql
+-- Set number of parallel workers (uses CPU count by default)
+SET max_parallel_maintenance_workers = 4;
 
-   ```sql
-   -- Set number of parallel workers (uses CPU count by default)
-   SET max_parallel_maintenance_workers = 4;
+-- Set memory for index builds (must be at least 64MB for parallel builds)
+SET maintenance_work_mem = '256MB';
+```
 
-   -- Set memory for index builds (must be at least 64MB for parallel builds)
-   SET maintenance_work_mem = '256MB';
-   ```
+<Callout variant="note">
+The planner requires `maintenance_work_mem >= 64MB` to enable parallel index builds. With insufficient
+memory, builds fall back to serial mode silently.
+</Callout>
 
-   **Note**: The planner requires `maintenance_work_mem >= 64MB` to enable parallel index builds. With insufficient
-   memory, builds fall back to serial mode silently.
+</NumberedItem>
 
-1. **Create index (parallel workers used automatically for large tables)**
+<NumberedItem title="Create index (parallel workers used automatically for large tables)">
 
-   ```sql
-   CREATE INDEX products_search_idx ON products
-   USING bm25(description)
-   WITH (text_config='english');
-   ```
+```sql
+CREATE INDEX products_search_idx ON products
+USING bm25(description)
+WITH (text_config='english');
+```
 
-   When parallel build is used, you see a notice:
+When parallel build is used, you see a notice:
 
-   ```
-   NOTICE:  parallel index build: launched 4 of 4 requested workers
-   ```
+```
+NOTICE:  parallel index build: launched 4 of 4 requested workers
+```
 
-1. **Verify parallel execution in partitioned tables**
+</NumberedItem>
 
-   For partitioned tables, each partition builds its index independently with parallel workers if the partition is
-   large enough. This allows efficient indexing of very large partitioned datasets.
+<NumberedItem title="Verify parallel execution in partitioned tables">
+
+For partitioned tables, each partition builds its index independently with parallel workers if the partition is
+large enough. This allows efficient indexing of very large partitioned datasets.
 
 </NumberedItem>
 
 </NumberedList>
-
-<SINCE050 />
 
 You have configured parallel index builds for faster indexing.
 
@@ -181,82 +187,86 @@ an explicit index name.
 
 <NumberedList>
 
-<NumberedItem title="Optimize search queries">
+<NumberedItem title="Perform ranked searches using the distance operator">
 
-1. **Perform ranked searches using the distance operator**
+```sql
+SELECT name, description, description <@> to_bm25query('ergonomic work', 'products_search_idx') as score
+FROM products
+ORDER BY score
+LIMIT 3;
+```
 
-   ```sql
-   SELECT name, description, description <@> to_bm25query('ergonomic work', 'products_search_idx') as score
-   FROM products
-   ORDER BY score
-   LIMIT 3;
-   ```
+You see something like:
 
-   You see something like:
+```sql
+             name           |                                    description                                    |        score
+----------------------------+-----------------------------------------------------------------------------------+---------------------
+ Ergonomic Mouse            | Wireless mouse with ergonomic design to reduce wrist strain during long work sessions | -1.8132977485656738
+ Mechanical Keyboard        | Durable mechanical switches with RGB backlighting for gaming and productivity      |                   0
+ Standing Desk              | Adjustable height desk for better posture and productivity throughout the workday  |                   0
+```
 
-   ```sql
-                name           |                                    description                                    |        score
-   ----------------------------+-----------------------------------------------------------------------------------+---------------------
-    Ergonomic Mouse            | Wireless mouse with ergonomic design to reduce wrist strain during long work sessions | -1.8132977485656738
-    Mechanical Keyboard        | Durable mechanical switches with RGB backlighting for gaming and productivity      |                   0
-    Standing Desk              | Adjustable height desk for better posture and productivity throughout the workday  |                   0
-   ```
+</NumberedItem>
 
-1. **Filter results by score threshold**
+<NumberedItem title="Filter results by score threshold">
 
-   For filtering with WHERE clauses, use explicit index specification with `to_bm25query()`:
+For filtering with WHERE clauses, use explicit index specification with `to_bm25query()`:
 
-   ```sql
-   SELECT name, description <@> to_bm25query('wireless', 'products_search_idx') as score
-   FROM products
-   WHERE description <@> to_bm25query('wireless', 'products_search_idx') < -0.5;
-   ```
+```sql
+SELECT name, description <@> to_bm25query('wireless', 'products_search_idx') as score
+FROM products
+WHERE description <@> to_bm25query('wireless', 'products_search_idx') < -0.5;
+```
 
-   You see something like:
+You see something like:
 
-   ```sql
-        name       |        score
-   ----------------+---------------------
-    Ergonomic Mouse | -0.9066488742828369
-   ```
+```sql
+     name       |        score
+----------------+---------------------
+ Ergonomic Mouse | -0.9066488742828369
+```
 
-1. **Combine with standard SQL operations**
+</NumberedItem>
 
-   ```sql
-   SELECT category, name, description <@> to_bm25query('ergonomic', 'products_search_idx') as score
-   FROM products
-   WHERE price < 500
-     AND description <@> to_bm25query('ergonomic', 'products_search_idx') < -0.5
-   ORDER BY score
-   LIMIT 5;
-   ```
+<NumberedItem title="Combine with standard SQL operations">
 
-   You see something like:
+```sql
+SELECT category, name, description <@> to_bm25query('ergonomic', 'products_search_idx') as score
+FROM products
+WHERE price < 500
+  AND description <@> to_bm25query('ergonomic', 'products_search_idx') < -0.5
+ORDER BY score
+LIMIT 5;
+```
 
-   ```sql
-     category   |      name       |        score
-   -------------+-----------------+---------------------
-    Electronics | Ergonomic Mouse | -0.9066488742828369
-   ```
+You see something like:
 
-1. **Verify index usage with EXPLAIN**
+```sql
+  category   |      name       |        score
+-------------+-----------------+---------------------
+ Electronics | Ergonomic Mouse | -0.9066488742828369
+```
 
-   ```sql
-   EXPLAIN SELECT * FROM products
-   ORDER BY description <@> to_bm25query('ergonomic', 'products_search_idx')
-   LIMIT 5;
-   ```
+</NumberedItem>
 
-   You see something like:
+<NumberedItem title="Verify index usage with EXPLAIN">
 
-   ```sql
-                                              QUERY PLAN
-   --------------------------------------------------------------------------------------------
-    Limit  (cost=8.55..8.56 rows=3 width=140)
-      ->  Sort  (cost=8.55..8.56 rows=3 width=140)
-            Sort Key: ((description <@> 'products_search_idx:ergonomic'::bm25query))
-            ->  Seq Scan on products  (cost=0.00..8.53 rows=3 width=140)
-   ```
+```sql
+EXPLAIN SELECT * FROM products
+ORDER BY description <@> to_bm25query('ergonomic', 'products_search_idx')
+LIMIT 5;
+```
+
+You see something like:
+
+```sql
+                                           QUERY PLAN
+--------------------------------------------------------------------------------------------
+ Limit  (cost=8.55..8.56 rows=3 width=140)
+   ->  Sort  (cost=8.55..8.56 rows=3 width=140)
+         Sort Key: ((description <@> 'products_search_idx:ergonomic'::bm25query))
+         ->  Seq Scan on products  (cost=0.00..8.53 rows=3 width=140)
+```
 
 </NumberedItem>
 
@@ -270,129 +280,139 @@ Combine `pg_textsearch` with `pgvector` or `pgvectorscale` to build powerful hyb
 
 <NumberedList>
 
-<NumberedItem title="Build hybrid search">
+<NumberedItem title={`Enable the vectorscale extension on your ${C.SERVICE_LONG}`}>
 
-1. **Enable the [vectorscale](/ai/sql-interface-for-pgvector-and-timescale-vector#installing-the-pgvector-and-pgvectorscale-extensions) extension on your {C.SERVICE_LONG}**
-   ```sql
-    CREATE EXTENSION IF NOT EXISTS vectorscale CASCADE;
-    ```
-1. **Create a table with both text content and vector embeddings**
+```sql
+CREATE EXTENSION IF NOT EXISTS vectorscale CASCADE;
+```
 
-   ```sql
-   CREATE TABLE articles (
-       id serial PRIMARY KEY,
-       title text,
-       content text,
-       embedding vector(3)  -- Using 3 dimensions for this example; use 1536 for OpenAI ada-002
-   );
-   ```
+</NumberedItem>
 
-1. **Insert sample data**
+<NumberedItem title="Create a table with both text content and vector embeddings">
 
-   ```sql
-   INSERT INTO articles (title, content, embedding) VALUES
-   ('Database Query Optimization', 'Learn how to optimize database query performance using indexes and query planning', '[0.1, 0.15, 0.2]'),
-   ('Performance Tuning Guide', 'A comprehensive guide to performance tuning in distributed systems and databases', '[0.12, 0.18, 0.25]'),
-   ('Introduction to Indexing', 'Understanding how database indexes improve query performance and data retrieval', '[0.09, 0.14, 0.19]'),
-   ('Advanced SQL Techniques', 'Master advanced SQL techniques for complex data analysis and reporting', '[0.5, 0.6, 0.7]'),
-   ('Data Warehousing Basics', 'Getting started with data warehousing and analytical query processing', '[0.8, 0.9, 0.85]');
-   ```
+```sql
+CREATE TABLE articles (
+    id serial PRIMARY KEY,
+    title text,
+    content text,
+    embedding vector(3)  -- Using 3 dimensions for this example; use 1536 for OpenAI ada-002
+);
+```
 
-1. **Create indexes for both search types**
+</NumberedItem>
 
-   ```sql
-   -- Vector index for semantic search
-   CREATE INDEX articles_embedding_idx ON articles
-   USING hnsw (embedding vector_cosine_ops);
+<NumberedItem title="Insert sample data">
 
-   -- Keyword index for BM25 search
-   CREATE INDEX articles_content_idx ON articles
-   USING bm25(content)
-   WITH (text_config='english');
-   ```
+```sql
+INSERT INTO articles (title, content, embedding) VALUES
+('Database Query Optimization', 'Learn how to optimize database query performance using indexes and query planning', '[0.1, 0.15, 0.2]'),
+('Performance Tuning Guide', 'A comprehensive guide to performance tuning in distributed systems and databases', '[0.12, 0.18, 0.25]'),
+('Introduction to Indexing', 'Understanding how database indexes improve query performance and data retrieval', '[0.09, 0.14, 0.19]'),
+('Advanced SQL Techniques', 'Master advanced SQL techniques for complex data analysis and reporting', '[0.5, 0.6, 0.7]'),
+('Data Warehousing Basics', 'Getting started with data warehousing and analytical query processing', '[0.8, 0.9, 0.85]');
+```
 
-1. **Perform hybrid search using [reciprocal rank fusion](https://en.wikipedia.org/wiki/Mean_reciprocal_rank)**
+</NumberedItem>
 
-   ```sql
-   WITH vector_search AS (
-     SELECT id,
-            ROW_NUMBER() OVER (ORDER BY embedding <=> '[0.1, 0.2, 0.3]'::vector) AS rank
-     FROM articles
-     ORDER BY embedding <=> '[0.1, 0.2, 0.3]'::vector
-     LIMIT 20
-   ),
-   keyword_search AS (
-     SELECT id,
-            ROW_NUMBER() OVER (ORDER BY content <@> to_bm25query('query performance', 'articles_content_idx')) AS rank
-     FROM articles
-     ORDER BY content <@> to_bm25query('query performance', 'articles_content_idx')
-     LIMIT 20
-   )
-   SELECT a.id,
-          a.title,
-          COALESCE(1.0 / (60 + v.rank), 0.0) + COALESCE(1.0 / (60 + k.rank), 0.0) AS combined_score
-   FROM articles a
-   LEFT JOIN vector_search v ON a.id = v.id
-   LEFT JOIN keyword_search k ON a.id = k.id
-   WHERE v.id IS NOT NULL OR k.id IS NOT NULL
-   ORDER BY combined_score DESC
-   LIMIT 10;
-   ```
+<NumberedItem title="Create indexes for both search types">
 
-   You see something like:
+```sql
+-- Vector index for semantic search
+CREATE INDEX articles_embedding_idx ON articles
+USING hnsw (embedding vector_cosine_ops);
 
-   ```sql
-    id |           title            |   combined_score
-   ----+----------------------------+--------------------
-     3 | Introduction to Indexing   | 0.0325224748810153
-     1 | Database Query Optimization| 0.0322664584959667
-     2 | Performance Tuning Guide   | 0.0320020481310804
-     5 | Data Warehousing Basics    | 0.0310096153846154
-     4 | Advanced SQL Techniques    | 0.0310096153846154
-   ```
+-- Keyword index for BM25 search
+CREATE INDEX articles_content_idx ON articles
+USING bm25(content)
+WITH (text_config='english');
+```
 
-1. **Adjust relative weights for different search types**
+</NumberedItem>
 
-   ```sql
-     WITH vector_search AS (
-     SELECT id,
-            ROW_NUMBER() OVER (ORDER BY embedding <=> '[0.1, 0.2, 0.3]'::vector) AS rank
-     FROM articles
-     ORDER BY embedding <=> '[0.1, 0.2, 0.3]'::vector
-     LIMIT 20
-   ),
-   keyword_search AS (
-     SELECT id,
-            ROW_NUMBER() OVER (ORDER BY content <@> to_bm25query('query performance', 'articles_content_idx')) AS rank
-     FROM articles
-     ORDER BY content <@> to_bm25query('query performance', 'articles_content_idx')
-     LIMIT 20
-   )
-   SELECT
-       a.id,
+<NumberedItem title="Perform hybrid search using reciprocal rank fusion">
+
+```sql
+WITH vector_search AS (
+  SELECT id,
+         ROW_NUMBER() OVER (ORDER BY embedding <=> '[0.1, 0.2, 0.3]'::vector) AS rank
+  FROM articles
+  ORDER BY embedding <=> '[0.1, 0.2, 0.3]'::vector
+  LIMIT 20
+),
+keyword_search AS (
+  SELECT id,
+         ROW_NUMBER() OVER (ORDER BY content <@> to_bm25query('query performance', 'articles_content_idx')) AS rank
+  FROM articles
+  ORDER BY content <@> to_bm25query('query performance', 'articles_content_idx')
+  LIMIT 20
+)
+SELECT a.id,
        a.title,
-       0.7 * COALESCE(1.0 / (60 + v.rank), 0.0) +  -- 70% weight to vectors
-       0.3 * COALESCE(1.0 / (60 + k.rank), 0.0)    -- 30% weight to keywords
-   AS combined_score
-   FROM articles a
-   LEFT JOIN vector_search v ON a.id = v.id
-   LEFT JOIN keyword_search k ON a.id = k.id
-   WHERE v.id IS NOT NULL OR k.id IS NOT NULL
-   ORDER BY combined_score DESC
-   LIMIT 10;
-   ```
+       COALESCE(1.0 / (60 + v.rank), 0.0) + COALESCE(1.0 / (60 + k.rank), 0.0) AS combined_score
+FROM articles a
+LEFT JOIN vector_search v ON a.id = v.id
+LEFT JOIN keyword_search k ON a.id = k.id
+WHERE v.id IS NOT NULL OR k.id IS NOT NULL
+ORDER BY combined_score DESC
+LIMIT 10;
+```
 
-   You see something like:
+You see something like:
 
-   ```sql
-    id |           title            |   combined_score
-   ----+----------------------------+--------------------
-     3 | Introduction to Indexing   | 0.0163141195134849
-     2 | Performance Tuning Guide   | 0.0160522273425499
-     1 | Database Query Optimization| 0.0160291438979964
-     4 | Advanced SQL Techniques    | 0.0155528846153846
-     5 | Data Warehousing Basics    | 0.0154567307692308
-   ```
+```sql
+ id |           title            |   combined_score
+----+----------------------------+--------------------
+  3 | Introduction to Indexing   | 0.0325224748810153
+  1 | Database Query Optimization| 0.0322664584959667
+  2 | Performance Tuning Guide   | 0.0320020481310804
+  5 | Data Warehousing Basics    | 0.0310096153846154
+  4 | Advanced SQL Techniques    | 0.0310096153846154
+```
+
+</NumberedItem>
+
+<NumberedItem title="Adjust relative weights for different search types">
+
+```sql
+WITH vector_search AS (
+  SELECT id,
+         ROW_NUMBER() OVER (ORDER BY embedding <=> '[0.1, 0.2, 0.3]'::vector) AS rank
+  FROM articles
+  ORDER BY embedding <=> '[0.1, 0.2, 0.3]'::vector
+  LIMIT 20
+),
+keyword_search AS (
+  SELECT id,
+         ROW_NUMBER() OVER (ORDER BY content <@> to_bm25query('query performance', 'articles_content_idx')) AS rank
+  FROM articles
+  ORDER BY content <@> to_bm25query('query performance', 'articles_content_idx')
+  LIMIT 20
+)
+SELECT
+    a.id,
+    a.title,
+    0.7 * COALESCE(1.0 / (60 + v.rank), 0.0) +  -- 70% weight to vectors
+    0.3 * COALESCE(1.0 / (60 + k.rank), 0.0)    -- 30% weight to keywords
+AS combined_score
+FROM articles a
+LEFT JOIN vector_search v ON a.id = v.id
+LEFT JOIN keyword_search k ON a.id = k.id
+WHERE v.id IS NOT NULL OR k.id IS NOT NULL
+ORDER BY combined_score DESC
+LIMIT 10;
+```
+
+You see something like:
+
+```sql
+ id |           title            |   combined_score
+----+----------------------------+--------------------
+  3 | Introduction to Indexing   | 0.0163141195134849
+  2 | Performance Tuning Guide   | 0.0160522273425499
+  1 | Database Query Optimization| 0.0160291438979964
+  4 | Advanced SQL Techniques    | 0.0155528846153846
+  5 | Data Warehousing Basics    | 0.0154567307692308
+```
 
 </NumberedItem>
 
@@ -406,91 +426,95 @@ Customize `pg_textsearch` behavior for your specific use case and data character
 
 <NumberedList>
 
-<NumberedItem title="Configure pg_textsearch">
+<NumberedItem title="Configure memory and performance settings">
 
-1. **Configure memory and performance settings**
+To manage memory usage, you control when the in-memory index spills to disk segments. When the memtable reaches the
+threshold, it automatically flushes to a segment at transaction commit.
 
-   To manage memory usage, you control when the in-memory index spills to disk segments. When the memtable reaches the
-   threshold, it automatically flushes to a segment at transaction commit.
+```sql
+-- Set memtable spill threshold (default 32000000 posting entries, ~1M docs/segment)
+SET pg_textsearch.memtable_spill_threshold = 32000000;
 
-   ```sql
-   -- Set memtable spill threshold (default 32000000 posting entries, ~1M docs/segment)
-   SET pg_textsearch.memtable_spill_threshold = 32000000;
+-- Set bulk load spill threshold (default 100000 terms per transaction)
+SET pg_textsearch.bulk_load_threshold = 150000;
 
-   -- Set bulk load spill threshold (default 100000 terms per transaction)
-   SET pg_textsearch.bulk_load_threshold = 150000;
+-- Set default query limit when no LIMIT clause is present (default 1000)
+SET pg_textsearch.default_limit = 5000;
 
-   -- Set default query limit when no LIMIT clause is present (default 1000)
-   SET pg_textsearch.default_limit = 5000;
+-- Enable Block-Max WAND optimization for faster top-k queries (enabled by default)
+SET pg_textsearch.enable_bmw = true;
 
-   -- Enable Block-Max WAND optimization for faster top-k queries (enabled by default)
-   SET pg_textsearch.enable_bmw = true;
+-- Log block skip statistics for debugging query performance (disabled by default)
+SET pg_textsearch.log_bmw_stats = false;
+```
+<SinceRelease version="v0.1.0" product="pg_textsearch" />
 
-   -- Log block skip statistics for debugging query performance (disabled by default)
-   SET pg_textsearch.log_bmw_stats = false;
-   ```
-   <SINCE010 />
+```sql
+-- Enable segment compression using delta encoding and bitpacking (enabled by default)
+-- Reduces index size by ~41% with 10-20% query performance improvement for shorter queries
+SET pg_textsearch.compress_segments = on;
+```
+<SinceRelease version="v0.4.0" product="pg_textsearch" />
 
-   ```sql
-   -- Enable segment compression using delta encoding and bitpacking (enabled by default)
-   -- Reduces index size by ~41% with 10-20% query performance improvement for shorter queries
-   SET pg_textsearch.compress_segments = on;
-   ```
-   <SINCE040 />
+</NumberedItem>
 
-1. **Configure language-specific text processing**
+<NumberedItem title="Configure language-specific text processing">
 
-   You can create multiple BM25 indexes on the same column with different language configurations:
+You can create multiple BM25 indexes on the same column with different language configurations:
 
-   ```sql
-   -- Create an additional index with simple tokenization (no stemming)
-   CREATE INDEX products_simple_idx ON products
-   USING bm25(description)
-   WITH (text_config='simple');
+```sql
+-- Create an additional index with simple tokenization (no stemming)
+CREATE INDEX products_simple_idx ON products
+USING bm25(description)
+WITH (text_config='simple');
 
-   -- Example: French language configuration for a French products table
-   -- CREATE INDEX products_fr_idx ON products_fr
-   -- USING bm25(description)
-   -- WITH (text_config='french');
-   ```
+-- Example: French language configuration for a French products table
+-- CREATE INDEX products_fr_idx ON products_fr
+-- USING bm25(description)
+-- WITH (text_config='french');
+```
 
-1. **Tune BM25 parameters**
+</NumberedItem>
 
-   ```sql
-   -- Adjust term frequency saturation (k1) and length normalization (b)
-   CREATE INDEX products_custom_idx ON products
-   USING bm25(description)
-   WITH (text_config='english', k1=1.5, b=0.8);
-   ```
+<NumberedItem title="Tune BM25 parameters">
 
-   1. **Monitor index usage and memory consumption**
+```sql
+-- Adjust term frequency saturation (k1) and length normalization (b)
+CREATE INDEX products_custom_idx ON products
+USING bm25(description)
+WITH (text_config='english', k1=1.5, b=0.8);
+```
 
-      - Check index usage statistics
-          ```sql
-          SELECT schemaname, relname, indexrelname, idx_scan, idx_tup_read
-          FROM pg_stat_user_indexes
-          WHERE indexrelid::regclass::text ~ 'bm25';
-          ```
+</NumberedItem>
 
-      - View index summary with corpus statistics and memory usage
-          ```sql
-          SELECT bm25_summarize_index('products_search_idx');
-          ```
+<NumberedItem title="Monitor index usage and memory consumption">
 
-      - View detailed index structure (output is truncated for display)
-          ```sql
-          SELECT bm25_dump_index('products_search_idx');
-          ```
+- Check index usage statistics
+    ```sql
+    SELECT schemaname, relname, indexrelname, idx_scan, idx_tup_read
+    FROM pg_stat_user_indexes
+    WHERE indexrelid::regclass::text ~ 'bm25';
+    ```
 
-      - Export full index dump to a file for detailed analysis
-          ```sql
-          SELECT bm25_dump_index('products_search_idx', '/tmp/index_dump.txt');
-          ```
+- View index summary with corpus statistics and memory usage
+    ```sql
+    SELECT bm25_summarize_index('products_search_idx');
+    ```
 
-      - Force memtable spill to disk (useful for testing or memory management)
-          ```sql
-          SELECT bm25_spill_index('products_search_idx');
-          ```
+- View detailed index structure (output is truncated for display)
+    ```sql
+    SELECT bm25_dump_index('products_search_idx');
+    ```
+
+- Export full index dump to a file for detailed analysis
+    ```sql
+    SELECT bm25_dump_index('products_search_idx', '/tmp/index_dump.txt');
+    ```
+
+- Force memtable spill to disk (useful for testing or memory management)
+    ```sql
+    SELECT bm25_spill_index('products_search_idx');
+    ```
 
 </NumberedItem>
 

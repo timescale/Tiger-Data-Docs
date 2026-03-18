@@ -1,0 +1,250 @@
+---
+title: VPC Peering and AWS PrivateLink
+description: Secure your services with Virtual Private Cloud peering and AWS PrivateLink
+products: [cloud]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+You use Virtual Private Cloud ({C.VPC}) peering to ensure that your {C.SERVICE_LONG}s are
+only accessible through your secured AWS infrastructure. This reduces the potential
+attack vector surface and improves security.
+
+The data isolation architecture that ensures a highly secure connection between your apps and
+{C.CLOUD_LONG} is:
+
+![{C.CLOUD_LONG} isolation architecture](https://assets.timescale.com/docs/images/tsc-vpc-architecture.png)
+
+Your customer apps run inside your AWS Customer {C.VPC}, your {C.SERVICE_LONG}s always run
+inside the secure {C.CLOUD_LONG} {C.VPC}. You control secure communication between apps in
+your {C.VPC} and your {C.SERVICE_SHORT}s using a dedicated Peering {C.VPC}. The AWS PrivateLink connecting
+{C.CLOUD_LONG} {C.VPC} to the dedicated Peering {C.VPC} gives the same level of protection as using a direct
+AWS PrivateLink connection. It only enables communication to be initiated from your Customer {C.VPC}
+to {C.SERVICE_SHORT}s running in the {C.CLOUD_LONG} {C.VPC}. {C.CLOUD_LONG} cannot initiate communication with your Customer {C.VPC}.
+
+To configure this secure connection, you first create a Peering {C.VPC} with
+AWS PrivateLink in {C.CONSOLE}. After you have accepted and configured the
+peering connection to your Customer {C.VPC}, you use AWS Security Groups to
+restrict the apps in your Customer {C.VPC} that are visible to the Peering {C.VPC}.
+The last step is to attach individual {C.SERVICE_SHORT}s to the Peering {C.VPC} in {C.CONSOLE}.
+
+* You create each Peering {C.VPC} on a [{C.PROJECT_LONG} level](/TODO/security/members/).
+
+* You **can attach**:
+  * Up to 50 Customer {C.VPC}s to a Peering {C.VPC}.
+  * A {C.SERVICE_LONG} to a single Peering {C.VPC} at a time.
+    The {C.SERVICE_SHORT} and the Peering {C.VPC} must be in the same AWS region. However, you can peer a Customer {C.VPC} and a Peering {C.VPC} that are in different regions.
+  * Multiple {C.SERVICE_LONG}s to the same Peering {C.VPC}.
+* You **cannot attach** a {C.SERVICE_LONG} to multiple Peering {C.VPC}s at the same time.
+
+  The number of Peering {C.VPC}s you can create in your project depends on your [{C.PRICING_PLAN}](/TODO/pricing-and-account-management/).
+  If you need another Peering {C.VPC}, either contact [support@tigerdata.com](mailto:support@tigerdata.com) or change your {C.PRICING_PLAN} in [{C.CONSOLE}](https://console.cloud.timescale.com/).
+
+## Prerequisites
+
+To set up {C.VPC} peering, you need the following permissions in your AWS account:
+
+*   Accept {C.VPC} peering requests
+*   Configure route table rules
+*   Configure security group and firewall rules
+
+## Set up a secured connection between {C.CLOUD_LONG} and AWS
+
+To connect to a {C.SERVICE_LONG} using {C.VPC} peering, your apps and infrastructure must be already
+running in an Amazon Web Services (AWS) {C.VPC}. You can peer your {C.VPC} from any AWS region.
+However, your Peering {C.VPC} must be within one of the [Cloud-supported regions](/TODO/supported-platforms/#available-regions).
+
+The stages to create a secured connection between {C.SERVICE_LONG}s and your AWS infrastructure are:
+
+1. [Create a Peering {C.VPC} in {C.CONSOLE}](#create-a-peering-vpc-in-tiger-console)
+1. [Complete the {C.VPC} connection in your AWS](#complete-the-vpc-connection-in-aws)
+1. [Set up security groups in your AWS](#set-up-security-groups-in-aws)
+1. [Attach a {C.SERVICE_LONG} to the Peering {C.VPC}](#attach-a-service-to-the-peering-vpc)
+
+### Create a Peering {C.VPC} in {C.CONSOLE}
+
+Create the {C.VPC} and the peering connection that enables you to securely route traffic
+between {C.CLOUD_LONG} and your Customer {C.VPC} in a logically isolated virtual network.
+
+<NumberedList>
+
+<NumberedItem title={`In ${C.CONSOLE} > Security > VPC, click \`Create a VPC\``}>
+
+![{C.CLOUD_LONG} new {C.VPC}](https://assets.timescale.com/docs/images/tiger-cloud-console/add-peering-vpc-tiger-console.png)
+
+</NumberedItem>
+
+<NumberedItem title={`Choose your region and IP range, name your ${C.VPC}, then click \`Create VPC\``}>
+
+![Create a new VPC in {C.CLOUD_LONG}](https://assets.timescale.com/docs/images/tiger-cloud-console/configure-peering-vpc-tiger-console.png)
+
+The IP ranges of the Peering {C.VPC} and Customer VPC should not overlap.
+
+</NumberedItem>
+
+<NumberedItem title="For as many peering connections as you need">
+
+<ol type="a">
+<li>In the <code>VPC Peering</code> column, click <code>Add</code>.</li>
+<li>Enter information about your existing Customer VPC, then click <code>Add Connection</code>. <img src="https://assets.timescale.com/docs/images/tiger-cloud-console/add-peering-tiger-console.png" alt="Add peering" /></li>
+</ol>
+
+* You **can attach**:
+  * Up to 50 Customer {C.VPC}s to a Peering {C.VPC}.
+  * A {C.SERVICE_LONG} to a single Peering {C.VPC} at a time.
+    The {C.SERVICE_SHORT} and the Peering {C.VPC} must be in the same AWS region. However, you can peer a Customer {C.VPC} and a Peering {C.VPC} that are in different regions.
+  * Multiple {C.SERVICE_LONG}s to the same Peering {C.VPC}.
+* You **cannot attach** a {C.SERVICE_LONG} to multiple Peering {C.VPC}s at the same time.
+
+  The number of Peering {C.VPC}s you can create in your project depends on your [{C.PRICING_PLAN}](/TODO/pricing-and-account-management/).
+  If you need another Peering {C.VPC}, either contact [support@tigerdata.com](mailto:support@tigerdata.com) or change your {C.PRICING_PLAN} in [{C.CONSOLE}](https://console.cloud.timescale.com/).
+
+{C.CLOUD_LONG} sends a peering request to your AWS account so you can [complete the VPC connection in AWS](#complete-the-vpc-connection-in-aws).
+
+</NumberedItem>
+
+</NumberedList>
+
+### Complete the {C.VPC} connection in AWS
+
+When you receive the {C.CLOUD_LONG} peering request in AWS, edit your routing table to match
+the `IP Range` and `CIDR block` between your Customer and Peering VPCs.
+
+When you peer a {C.VPC} with multiple CIDRs, all CIDRs are added to the {C.CLOUD_LONG} rules automatically.
+After you have finished peering, further changes in your {C.VPC}'s CIDRs are not detected automatically.
+If you need to refresh the CIDRs, recreate the peering connection.
+
+The request acceptance process is an important safety mechanism. Do not accept a
+peering request from an unknown account.
+
+<NumberedList>
+
+<NumberedItem title={`In AWS > VPC Dashboard > Peering connections, select the peering connection request from ${C.CLOUD_LONG}`}>
+
+Copy the peering connection ID to the clipboard. The connection request starts with `pcx-`.
+
+</NumberedItem>
+
+<NumberedItem title="In the peering connection, click `Route Tables`, then select the `Route Table ID` that corresponds to your VPC">
+</NumberedItem>
+
+<NumberedItem title="In `Routes`, click `Edit routes`">
+
+You see the list of existing destinations.
+
+![Create a new VPC route](https://assets.timescale.com/docs/images/tsc-vpc-add-route.png)
+
+If you do not already have a destination that corresponds to the `IP range / CIDR block` of
+your Peering {C.VPC}:
+
+<ol type="a">
+<li>Click <code>Add route</code>, and set: <code>Destination</code>: the CIDR block of your Peering {C.VPC}. For example: <code>10.0.0.7/17</code>. <code>Target</code>: the peering connection ID you copied to your clipboard.</li>
+<li>Click <code>Save changes</code>.</li>
+</ol>
+
+Network traffic is secured between your AWS account and {C.CLOUD_LONG} for this {C.PROJECT_SHORT}.
+
+</NumberedItem>
+
+</NumberedList>
+
+### Set up security groups in AWS
+
+Security groups allow specific inbound and outbound traffic at the resource level.
+You can associate a {C.VPC} with one or more security groups, and each instance in your
+{C.VPC} may belong to a different set of security groups. The security group choices
+for your {C.VPC} are:
+
+* Create a security group to use for your {C.CLOUD_LONG} {C.VPC} only.
+* Associate your {C.VPC} with an existing security group.
+* Do nothing, your {C.VPC} is automatically associated with the default one.
+
+To create a security group specific to your {C.CLOUD_LONG} Peering VPC:
+
+<NumberedList>
+
+<NumberedItem title="In AWS > VPC Dashboard > Security Groups, click `Create security group`">
+</NumberedItem>
+
+<NumberedItem title="Enter the rules for this security group">
+
+<img class="main-content__illustration"
+src="https://assets.timescale.com/docs/images/aws-vpc-securitygroup.webp"
+alt="The AWS Security Groups dashboard"/>
+
+*  `VPC`: select the {C.VPC} that is peered with {C.CLOUD_LONG}.
+*  `Inbound rules`: leave empty.
+*  `Outbound rules`:
+   * `Type`: `Custom TCP`
+   * `Protocol`: `TCP`
+   * `Port range`: `5432`
+   * `Destination`: `Custom`
+   * `Info`: the CIDR block of your {C.CLOUD_LONG} Peering {C.VPC}.
+
+</NumberedItem>
+
+<NumberedItem title="Click `Add rule`, then click `Create security group`">
+</NumberedItem>
+
+</NumberedList>
+
+### Attach a {C.SERVICE_LONG} to the Peering {C.VPC}
+
+Now that {C.CLOUD_LONG} is communicating securely with your AWS infrastructure, you can attach
+one or more {C.SERVICE_SHORT}s to the Peering {C.VPC}.
+
+After you attach a {C.SERVICE_SHORT} to a Peering {C.VPC}, you can only access it through the peered
+AWS {C.VPC}. It is no longer accessible using the public internet.
+
+<NumberedList>
+
+<NumberedItem title={`In ${C.CONSOLE} > Services select the ${C.SERVICE_SHORT} you want to connect to the Peering ${C.VPC}`}>
+</NumberedItem>
+
+<NumberedItem title="Click `Operations` > `Security` > `VPC`">
+</NumberedItem>
+
+<NumberedItem title={`Select the ${C.VPC}, then click \`Attach VPC\``}>
+</NumberedItem>
+
+</NumberedList>
+
+Your {C.SERVICE_SHORT} is now securely communicating with your AWS
+account inside a {C.VPC}.
+
+## Migrate a {C.CLOUD_LONG} {C.SERVICE_SHORT} between VPCs
+
+To ensure that your applications continue to run without interruption, you keep
+{C.SERVICE_SHORT} attached to the Peering {C.VPC}. However, you can change the Peering {C.VPC} your
+{C.SERVICE_SHORT} is attached to, or disconnect from the Peering {C.VPC} and enable access to the
+{C.SERVICE_SHORT} from the public internet.
+
+<Callout variant="info">
+
+{C.CLOUD_LONG} uses a different DNS for {C.SERVICE_SHORT}s that are attached to a Peering {C.VPC}.
+When you migrate a {C.SERVICE_SHORT} between public access and a Peering {C.VPC}, you need
+to update your connection string.
+
+</Callout>
+
+<NumberedList>
+
+<NumberedItem title={`In ${C.CONSOLE} > Services select the ${C.SERVICE_SHORT} to migrate`}>
+
+If you don't have a {C.SERVICE_SHORT}, [create a new one](/deploy/tiger-cloud/get-started/create-services).
+
+</NumberedItem>
+
+<NumberedItem title="Click `Operations` > `Security` > `VPC`">
+</NumberedItem>
+
+<NumberedItem title={`Select the ${C.VPC}, then click \`Attach VPC\``}>
+</NumberedItem>
+
+</NumberedList>
+
+Migration takes a few minutes to complete and requires a change to DNS settings for the
+{C.SERVICE_SHORT}. The {C.SERVICE_SHORT} is not accessible during this time. If you receive a DNS error, allow
+some time for DNS propagation.
