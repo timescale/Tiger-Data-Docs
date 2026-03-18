@@ -11,6 +11,10 @@ The site uses **hover dropdowns** on the main navigation tabs (Learn, Build, Mig
 
 **Overview description (config-driven):** The line of text under each tab’s “Overview” link in the dropdown comes from that section’s **index.mdx** frontmatter. Add `overviewDescription` to any section index (e.g. `src/content/docs/learn/index.mdx`) to control the text; if missing, it falls back to “Overview and key topics”.
 
+**Nested sidebar items:** The hover menu mirrors the sidebar as a **tree**: top-level groups show a **row with a right chevron (›)**; hovering (or focusing) opens a **flyout panel to the right** with child links—similar in spirit to Radix/shadcn `DropdownMenuSub`, but implemented with CSS (`:hover` / `:focus-within`) and no Radix. Deeper nesting gets another flyout. Example: **Deploy → Tiger Cloud** expands to Tiger Cloud, AWS, and Azure rows.
+
+**Per-item one-line description:** Each dropdown row shows a short description. Order of resolution: optional **`dropdownDescription`** on that sidebar entry in `astro.config.ts`; else the linked doc’s **`description`** or **`overviewDescription`** frontmatter (first sentence); else a short fallback (“Open {label}.”).
+
 Implementation details:
 
 - **Custom Header** – The Stainless Docs default header is overridden via `experimental.starlightCompat.components.Header` so we can use our own tab bar.
