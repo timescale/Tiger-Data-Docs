@@ -1082,6 +1082,10 @@ export default defineConfig(async () => {
     "/get-started/key-features-timescale": "/get-started/tools/key-features-timescale",
     "/get-started/new": "/get-started/news/new",
     "/get-started/release-notes": "/get-started/news/release-notes",
+    // Self-hosted install lived under deploy/ in older IA; content is under Get started now.
+    "/deploy/self-hosted/install-and-update": "/get-started/choose-your-path/install-timescaledb",
+    "/deploy/self-hosted/install-and-update/install-self-hosted":
+      "/get-started/choose-your-path/install-timescaledb",
   },
   };
 });
