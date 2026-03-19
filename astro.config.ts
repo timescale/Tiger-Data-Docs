@@ -5,11 +5,6 @@ import aiChat from "@stainless-api/docs-ai-chat/plugin";
 
 const require = createRequire(import.meta.url);
 
-// Only load when running link checks (e.g. pnpm run lint:links); avoids requiring the package for dev/build.
-const starlightLinksValidator = process.env.CHECK_LINKS
-  ? require("starlight-links-validator").default
-  : null;
-
 // Resolve package subpaths so aliasing the main "components" entry doesn't break ThemeSelect/SDKSelect.
 const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/components/scripts");
 
@@ -105,7 +100,14 @@ function vite7CompatPlugin(): {
 }
 
 // https://astro.build/config
-export default defineConfig({
+export default defineConfig(async () => {
+  // ESM dynamic import: starlight-links-validator ships TypeScript; `require()` fails on Node 22+
+  // ("Stripping types is currently unsupported for files under node_modules").
+  const starlightLinksValidator = process.env.CHECK_LINKS
+    ? (await import("starlight-links-validator")).default
+    : null;
+
+  return {
   vite: {
     plugins: [vite7CompatPlugin()],
     resolve: {
@@ -1081,4 +1083,5 @@ export default defineConfig({
     "/get-started/new": "/get-started/news/new",
     "/get-started/release-notes": "/get-started/news/release-notes",
   },
+  };
 });
