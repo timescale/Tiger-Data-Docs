@@ -316,6 +316,16 @@ export default defineConfig({
                 { label: "Operations", link: "/build/data-management/operations" },
                 { label: "Run your queries from Tiger Console", link: "/build/data-management/run-queries-from-tiger-console" },
                 {
+                  label: "Query data",
+                  collapsed: true,
+                  items: [
+                    { label: "About querying data", link: "/build/data-management/query-data/about-query-data" },
+                    { label: "SELECT data", link: "/build/data-management/query-data/select" },
+                    { label: "SkipScan for DISTINCT queries", link: "/build/data-management/query-data/skipscan" },
+                    { label: "Advanced analytic queries", link: "/build/data-management/query-data/advanced-analytic-queries" },
+                  ],
+                },
+                {
                   label: "Data Retention",
                   collapsed: true,
                   items: [
@@ -456,6 +466,7 @@ export default defineConfig({
                 { label: "Troubleshoot import and ingest", link: "/build/tips-and-tricks/troubleshoot-import-ingest" },
                 { label: "Troubleshoot hypercore", link: "/build/tips-and-tricks/troubleshoot-hypercore" },
                 { label: "Troubleshoot schema management", link: "/build/tips-and-tricks/troubleshoot-schema-management" },
+                { label: "Troubleshoot query data", link: "/build/tips-and-tricks/troubleshoot-query-data" },
               ],
             },
           ],
