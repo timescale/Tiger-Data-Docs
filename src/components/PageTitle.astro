@@ -1,16 +1,16 @@
 ---
 /**
- * Custom PageTitle that uses Figma-styled breadcrumbs (Breadcrumbs.astro) with
- * clickable links and "/" separators. Keeps Starlight title and description.
- * AIDropdown is omitted here; re-add if the package exports it.
+ * Custom PageTitle: Figma-styled breadcrumbs + Stainless AIDropdown (Copy Markdown,
+ * Open in Claude / ChatGPT / Gemini / Cursor). Matches upstream visibility rules.
  */
 import {
-  ENABLE_PROSE_MARKDOWN_RENDERING,
   ENABLE_CONTEXT_MENU,
+  ENABLE_PROSE_MARKDOWN_RENDERING,
   RENDER_PAGE_DESCRIPTIONS,
 } from "virtual:stl-docs-virtual-module";
 import type { StarlightRouteData } from "@astrojs/starlight/route-data";
 import Default from "@astrojs/starlight/components/PageTitle.astro";
+import { AIDropdown } from "@stainless-api/docs/components/AIDropdown";
 import Breadcrumbs from "./Breadcrumbs.astro";
 import PageLabels from "./PageLabels.astro";
 
@@ -41,6 +41,7 @@ const hasMarkdownRoute =
   Astro.locals._stlStarlightPage?.hasMarkdownRoute ?? true;
 const currentPath = Astro.url.pathname;
 
+/** Same rules as @stainless-api/docs PageTitle (prose markdown + context menu flags). */
 function shouldShowAIDropdown() {
   if (!sidebarHasEntry(Astro.locals.starlightRoute.sidebar, currentPath))
     return false;
@@ -59,13 +60,14 @@ const shouldRenderDescription = RENDER_PAGE_DESCRIPTIONS;
   skipRenderingStarlightTitle ? null : (
     <>
       <div
-        class="stl-ui-not-prose stl-page-nav-container stl-prose-page-nav-container"
+        class="stl-ui-not-prose stl-page-nav-container stl-prose-page-nav-container stl-page-nav-container--with-actions"
         data-pagefind-ignore
       >
         <Breadcrumbs
           currentPath={currentPath}
           sidebarEntry={Astro.locals.starlightRoute.sidebar}
         />
+        {showAIDropdown && <AIDropdown />}
       </div>
       <Default />
       <PageLabels />
@@ -93,11 +95,21 @@ const shouldRenderDescription = RENDER_PAGE_DESCRIPTIONS;
       margin-block-end: 0.375rem;
       padding-block-end: 0;
     }
+    .stl-page-nav-container--with-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem 1rem;
+    }
+    .stl-page-nav-container--with-actions .breadcrumbs {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
     .stl-page-nav-container + h1#_top,
     .stl-page-nav-container ~ h1#_top {
       margin-top: 1.125rem !important;
     }
-    /* Prose column: title H1 after breadcrumb */
     main [class*="content-panel"] .stl-page-nav-container ~ .l-markdown-content > h1#_top:first-child,
     main [class*="content-panel"] .stl-page-nav-container ~ .sl-markdown-content > h1#_top:first-child {
       margin-top: 1.125rem !important;
