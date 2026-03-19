@@ -129,6 +129,7 @@ export default defineConfig({
     stainlessDocs({
       apiReference: {
         stainlessProject: "tiger-cloud",
+        basePath: "/reference/tiger-cloud-rest",
         propertySettings: {
           collapseDescription: false,
           expandDepth: 2,
@@ -1117,6 +1118,8 @@ export default defineConfig({
   ],
 
   redirects: {
+    "/api": "/reference/tiger-cloud-rest",
+    "/api/api-reference": "/reference/tiger-cloud-rest",
     "/api-reference/timescaledb-toolkit": "/reference/toolkit",
     "/api-reference/timescaledb": "/reference/timescaledb",
     "/api-reference": "/reference",
