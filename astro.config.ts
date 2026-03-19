@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { defineConfig } from "astro/config";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
 import aiChat from "@stainless-api/docs-ai-chat/plugin";
+import rehypeBasePath from "./src/plugins/rehype-base-path";
 
 const require = createRequire(import.meta.url);
 
@@ -104,10 +105,26 @@ function vite7CompatPlugin(): {
   };
 }
 
+// Base path from env var (e.g. BASE_PATH="/docs"). Falls back to "/" (no subpath).
+const BASE = process.env.BASE_PATH || "/";
+
+/** Astro doesn't auto-prepend `base` to redirect destinations. This helper does. */
+function withBase(redirects: Record<string, string>): Record<string, string> {
+  if (BASE === "/") return redirects;
+  return Object.fromEntries(
+    Object.entries(redirects).map(([from, to]) => [from, BASE + to])
+  );
+}
+
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://www.tigerdata.com',
+  base: BASE,
+  markdown: {
+    rehypePlugins: [[rehypeBasePath, { base: BASE }]],
+  },
   vite: {
-    plugins: [vite7CompatPlugin()],
+    plugins: [vite7CompatPlugin()] as any,
     resolve: {
       alias: [
         { find: "@components", replacement: new URL("./src/components", import.meta.url).pathname },
@@ -1117,7 +1134,7 @@ export default defineConfig({
     }),
   ],
 
-  redirects: {
+  redirects: withBase({
     "/api": "/reference/tiger-cloud-rest",
     "/api/api-reference": "/reference/tiger-cloud-rest",
     "/api-reference/timescaledb-toolkit": "/reference/toolkit",
@@ -1139,5 +1156,5 @@ export default defineConfig({
     "/get-started/key-features-timescale": "/get-started/tools/key-features-timescale",
     "/get-started/new": "/get-started/news/new",
     "/get-started/release-notes": "/get-started/news/release-notes",
-  },
+  }),
 });

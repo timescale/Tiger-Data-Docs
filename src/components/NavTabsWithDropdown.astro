@@ -194,10 +194,23 @@ async function enrichTree(nodes: NavTreeNode[]): Promise<void> {
   }
 }
 
+const BASE_PREFIX = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+/** Recursively prefix every href in the nav tree with the Astro base path. */
+function prefixNavTreeHrefs(nodes: NavTreeNode[]): void {
+  for (const n of nodes) {
+    if (n.href && n.href !== "#" && n.href.startsWith("/") && !n.href.startsWith(BASE_PREFIX + "/") && n.href !== BASE_PREFIX) {
+      n.href = BASE_PREFIX + n.href;
+    }
+    if (n.kind === "group") prefixNavTreeHrefs(n.children);
+  }
+}
+
 async function getNavTreeForSidebar(sidebar: unknown, tabLink: string): Promise<NavTreeNode[]> {
   const tree = buildNavTree(sidebar as unknown[], 0);
   const filtered = filterOverviewDuplicate(tree, tabLink);
   await enrichTree(filtered);
+  prefixNavTreeHrefs(filtered);
   return filtered;
 }
 
