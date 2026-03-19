@@ -1,0 +1,159 @@
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import HASetup from "./_high-availability-setup.mdx";
+
+For {C.SERVICE_LONG}s where every second of uptime matters, {C.CLOUD_LONG} delivers High Availability (HA) replicas.
+These replicas safeguard your data and keep your {C.SERVICE_SHORT} running smoothly, even in the face of unexpected failures.
+By minimizing downtime and protecting against data loss, HA replicas ensure business continuity and give you the confidence
+to operate without interruption, including during routine maintenance.
+
+![HA replicas in {C.CLOUD_LONG}](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-cloud-ha-architecture-diagram.svg)
+
+This page shows you how to choose the best high availability option for your {C.SERVICE_SHORT}.
+
+## What is HA replication?
+
+HA replicas are exact, up-to-date copies of your database hosted in multiple AWS availability zones (AZ) within the same region as your primary node. They automatically take over operations if the original primary data node becomes unavailable. The primary node streams its write-ahead log (WAL) to the replicas to minimize the chances of data loss during failover.
+
+HA replicas can be synchronous and asynchronous.
+
+- Synchronous: the primary commits its next write once the replica confirms that the previous write is complete. There is no lag between the primary and the replica. They are in the same state at all times. This is preferable if you need the highest level of data integrity. However, this affects the primary ingestion time.
+
+- Asynchronous: the primary commits its next write without the confirmation of the previous write completion. The asynchronous HA replicas often have a lag, in both time and data, compared to the primary. This is preferable if you need the shortest primary ingest time.
+
+![Sync and async replication](https://assets.timescale.com/docs/images/sync_async_replication_draft.png)
+
+HA replicas have separate unique addresses that you can use to serve read-only requests in parallel to your
+primary data node. When your primary data node fails, {C.CLOUD_LONG} automatically fails over to
+an HA replica within 30 seconds. During failover, the read-only address is unavailable while {C.CLOUD_LONG} automatically creates a new HA replica. The time to make this replica depends on several factors, including the size of your data.
+
+Operations such as upgrading your {C.SERVICE_SHORT} to a new major or minor version may necessitate
+a {C.SERVICE_SHORT} restart. Restarts are run during the [maintenance window](../../upgrades). To avoid any downtime, each data
+node is updated in turn. That is, while the primary data node is updated, a replica is promoted to primary.
+After the primary is updated and online, the same maintenance is performed on the HA replicas.
+
+To ensure that all {C.SERVICE_SHORT}s have minimum downtime and data loss in the most common
+failure scenarios and during maintenance, [rapid recovery](../overview#rapid-recovery) is enabled by default for all {C.SERVICE_SHORT}s.
+
+## Choose an HA strategy
+
+The following HA configurations are available in {C.CLOUD_LONG}:
+
+- **Non-production**: no replica, best for developer environments.
+
+- **High availability**: a single async replica in a different AWS availability zone from your primary. Provides high availability with cost efficiency. Best for production apps.
+
+- **Highest availability**: two replicas in different AWS availability zones from your primary. Available replication modes are:
+
+  - **High performance** - two async replicas. Provides the highest level of availability with two AZs and the ability to query the HA system. Best for apps where service availability is most critical.
+  - **High data integrity** - one sync replica and one async replica. The sync replica is identical to the primary at all times. Best for apps that can tolerate no data loss.
+
+The following table summarizes the differences between these HA configurations:
+
+|| High availability <br/> (1 async) | High performance <br/> (2 async) | High data integrity <br/> (1 sync + 1 async) |
+|-------|----------|------------|-----|
+|Write flow |The primary streams its WAL to the async replica, which may have a slight lag compared to the primary, providing 99.9% uptime SLA. |The primary streams its writes to both async replicas, providing 99.9+% uptime SLA.|The primary streams its writes to the sync and async replicas. The async replica is never ahead of the sync one.|
+|Additional read replica|Recommended. Reads from the HA replica may cause availability and lag issues. |Not needed. You can still read from the HA replica even if one of them is down. Configure an additional read replica only if your read use case is significantly different from your write use case.|Highly recommended. If you run heavy queries on a sync replica, it may fall behind the primary. Specifically, if it takes too long for the replica to confirm a transaction, the next transaction is canceled.|
+|Choosing the replica to read from manually| Not applicable. |Not available. Queries are load-balanced against all available HA replicas. |Not available. Queries are load-balanced against all available HA replicas.|
+| Sync replication | Only async replicas are supported in this configuration. |Only async replicas are supported in this configuration. | Supported.|
+| Failover flow | <ul><li>If the primary fails, the replica becomes the primary while a new node is created, with only seconds of downtime.</li><li>If the replica fails, a new async replica is created without impacting the primary. If you read from the async HA replica, those reads fail until the new replica is available.</li></ul> |<ul><li>If the primary fails, one of the replicas becomes the primary while a new node is created, with the other one still available for reads.</li><li>If the replica fails, a new async replica is created in another AZ, without impacting the primary. The newly created replica is behind the primary and the original replica while it catches up.</li></ul>|<ul><li>If the primary fails, the sync replica becomes the primary while a new node is created, with the async one still available for reads.</li><li>If the async replica fails, a new async replica is created. Heavy reads on the sync replica may delay the ingest time of the primary while a new async replica is created. Data integrity remains high but primary ingest performance may degrade.</li><li>If the sync replica fails, the async replica becomes the sync one, and a new async replica is created. The primary may experience some ingest performance degradation during this time.</li></ul>|
+| Cost composition | Primary + async (2x) |Primary + 2 async (3x)|Primary + 1 async + 1 sync (3x)|
+| Tier | {C.PERFORMANCE}, {C.SCALE}, and {C.ENTERPRISE}  |{C.SCALE} and {C.ENTERPRISE}|{C.SCALE} and {C.ENTERPRISE}|
+
+The `High` and `Highest` HA strategies are available with the [{C.SCALE} and the {C.ENTERPRISE}](../../pricing-and-account-management) {C.PRICING_PLAN}s.
+
+To enable HA for a {C.SERVICE_SHORT}:
+
+<HASetup />
+
+To change your HA replica strategy, click `Change configuration`, choose a strategy and click `Change configuration`.
+To download the connection information for the HA replica, either click the link next to the replica
+`Active configuration`, or find the information in the `Overview` tab for this {C.SERVICE_SHORT}.
+
+## Test failover for your HA replicas
+
+To test the failover mechanism, you can trigger a switchover. A switchover is a
+safe operation that attempts a failover, and throws an error if the replica or
+primary is not in a state to safely switch.
+
+<NumberedList>
+
+<NumberedItem title={`Connect to your primary node as \`tsdbadmin\` or another user that is part of the \`tsdbowner\` group`}>
+
+<Callout variant="note">
+
+You can also connect to the HA replica and check its node using this procedure.
+
+</Callout>
+
+</NumberedItem>
+
+<NumberedItem title="At the `psql` prompt, connect to the `postgres` database">
+
+```sql
+\c postgres
+```
+
+You should see `postgres=>` prompt.
+
+</NumberedItem>
+
+<NumberedItem title="Check if your node is currently in recovery">
+
+```sql
+select pg_is_in_recovery();
+```
+
+</NumberedItem>
+
+<NumberedItem title="Check which node is currently your primary">
+
+```sql
+select * from pg_stat_replication;
+```
+
+Note the `application_name`. This is your {C.SERVICE_SHORT} ID followed by the
+node. The important part is the `-an-0` or `-an-1`.
+
+</NumberedItem>
+
+<NumberedItem title="Schedule a switchover">
+
+```sql
+CALL tscloud.cluster_switchover();
+```
+
+By default, the switchover occurs in 30&nbsp;secs. You can change the time by passing
+an interval, like this:
+
+```sql
+CALL tscloud.cluster_switchover('15 seconds'::INTERVAL);
+```
+
+</NumberedItem>
+
+<NumberedItem title="Wait for the switchover to occur, then check which node is your primary">
+
+```sql
+SELECT * FROM pg_stat_replication;
+```
+
+You should see a notice that your connection has been reset, like this:
+
+```sql
+FATAL:  terminating connection due to administrator command
+SSL connection has been closed unexpectedly
+The connection to the server was lost. Attempting reset: Succeeded.
+```
+
+</NumberedItem>
+
+<NumberedItem title="Check the `application_name`">
+
+If your primary was `-an-1` before, it should
+now be `-an-0`. If it was `-an-0`, it should now be `-an-1`.
+
+</NumberedItem>
+
+</NumberedList>
