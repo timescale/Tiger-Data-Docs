@@ -54,7 +54,9 @@ pnpm lint:links
 - Transforms Mintlify components to Stainless equivalents (Note → Callout, Tab → TabItem, etc.)
 - Converts `.md` to `.mdx`, `README.md` becomes `index.mdx`
 - Auto-generates frontmatter (title/description) if missing
-- Copies images to `public/assets/{source}/`
+- Copies images to `public/assets/{source}/` (reference content from sibling repos only)
+
+**First-party / hand-authored images** should live under **`src/assets/images/`** (for example `learn/`, `migrate/`, `hero-cloud/`, `hero-local/`) and be referenced via **`import`** in MDX or `.astro` so Astro can optimize them (`astro:assets`, Sharp). See `src/assets/images/README.md`. Do not use `public/` for those unless you need a raw static URL with no processing.
 
 Other scripts in `scripts/`:
 - `lint-heading-case.ts` — enforces sentence case on headings
@@ -74,7 +76,7 @@ All navigation, tabs, and sidebar structure is defined in `astro.config.ts` via 
 ### Custom Components
 
 Custom Astro/React components live in `src/components/`:
-- `Header.astro`, `PageTitle.astro`, `PageNavigation.astro` — Starlight overrides
+- `Header.astro`, `PageTitle.astro` (breadcrumbs + `@stainless-api/docs/components/AIDropdown`), `PageNavigation.astro` — Starlight overrides
 - `Callout.astro` — custom callout with Figma-styled lightbulb icon
 - `AuthorByline.astro` — author attribution for tutorials
 - `ChangelogEntry.astro`, `ChangelogFilter.astro`, `ChangelogTag.astro` — changelog/release notes
@@ -202,7 +204,7 @@ Note: The `Callout` import is aliased via Vite to the custom `src/components/Cal
 ### Environment
 
 Requires `STAINLESS_API_KEY` for API reference generation (see `.env.example`).
-Optional Algolia env vars for search: `PUBLIC_ALGOLIA_APP_ID`, `PUBLIC_ALGOLIA_INDEX`, `PUBLIC_ALGOLIA_SEARCH_KEY`, `PRIVATE_ALGOLIA_WRITE_KEY`.
+Optional Algolia env vars for search: `PUBLIC_ALGOLIA_APP_ID`, `PUBLIC_ALGOLIA_INDEX`, `PUBLIC_ALGOLIA_SEARCH_KEY`, `PRIVATE_ALGOLIA_WRITE_KEY`. Setup: `.env.example` + [Stainless site search](https://www.stainless.com/docs/docs-platform/hosting-and-deploys/#site-search).
 
 ### Hosting, search, and cache (self-hosted)
 

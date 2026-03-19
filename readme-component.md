@@ -196,7 +196,7 @@ These are **layout and chrome** components. You don’t use them directly in MDX
 |------------------|----------------------------------------------------------------------|-------------------------------------------------|
 | **PageNavigation** | Bottom-of-page “Previous” / “Next” links with labels and page titles | `starlightCompat.components.Pagination` → `src/components/PageNavigation.astro` |
 | **Breadcrumbs**  | Breadcrumb trail above the page title                                | Rendered inside `PageTitle`                     |
-| **PageTitle**    | Page heading + optional description + breadcrumbs                   | `starlightCompat.components.PageTitle` → `src/components/PageTitle.astro` |
+| **PageTitle**    | Breadcrumbs, Stainless **AIDropdown** (copy MD / AI apps), H1, labels, description | `starlightCompat.components.PageTitle` → `src/components/PageTitle.astro` |
 | **Header**       | Site header (logo, nav)                                              | `starlightCompat.components.Header` → `src/components/Header.astro` |
 
 - **Breadcrumbs:** Built from the sidebar; group labels (e.g. “pgai”) link to the first page in that group. The current page is the last segment and is not a link.
@@ -329,6 +329,46 @@ import SecondaryButton from "@components/SecondaryButton.astro";
 | `aria-label` | Override accessible name (defaults to `label`).                                                |
 
 Use the **icon** slot to replace the default Copy icon: put your SVG (or icon component) inside the component with `slot="icon"`.
+
+### AIDropdown (Copy Markdown + Open in Claude / ChatGPT / Gemini / Cursor)
+
+**AIDropdown** is Stainless’s official split-button in the page title row (next to breadcrumbs). This site renders it from **`PageTitle.astro`** via:
+
+```ts
+import { AIDropdown } from "@stainless-api/docs/components/AIDropdown";
+```
+
+It appears only when the page is in the sidebar, has a markdown route (`hasMarkdownRoute`), and Stainless’s **`enableProseMarkdownRendering`** and **`contextMenu`** features are on (defaults keep the dropdown visible). Behavior and styling come from **`@stainless-api/docs`** + **`@stainless-api/ui-primitives`** (including **Gemini** in the menu where configured).
+
+To drop the control into another layout (uncommon), use the same import; options are driven by the docs plugin’s global scripts, not props.
+
+### CopyToClipboard (copy to clipboard) – Stainless-style
+
+The **CopyToClipboard** component is a button that copies a given string to the clipboard on click and shows “Copied!” feedback. It matches the same visual style as SecondaryButton (Figma 3245-9636, 3245-9637) so it fits the Stainless Docs Platform / Tiger Data design system. Use it for connection strings, one-line code snippets, or any text you want users to copy with one click. For full code blocks, rely on Starlight’s Expressive Code copy button.
+
+**Import (MDX; React component, use `client:load`):**
+
+```mdx
+import CopyToClipboard from "@components/CopyToClipboard";
+```
+
+**Usage:**
+
+```mdx
+<CopyToClipboard client:load text="postgres://user:pass@host:5432/mydb" />
+<CopyToClipboard client:load text="SELECT 1;" label="Copy query" copiedLabel="Copied!" variant="subtle" />
+```
+
+| Prop           | Description                                                                                    |
+|----------------|------------------------------------------------------------------------------------------------|
+| `text`         | String to copy to the clipboard (required).                                                    |
+| `label`        | Button label before copy. Default: `"Copy"`.                                                  |
+| `copiedLabel`  | Label shown after a successful copy. Default: `"Copied!"`.                                    |
+| `variant`      | `"default"` (white bg) or `"subtle"` (gray bg). Same as SecondaryButton. Default: `"default"`.  |
+| `aria-label`   | Override accessible name (defaults to `label` or “Copy to clipboard”).                          |
+| `className`    | Optional CSS class(es) for the button.                                                          |
+
+**When to use which:** Use **CopyToClipboard** when the action is “copy this specific text” (e.g. connection string, env var, one-liner). Use **SecondaryButton** for other secondary actions (e.g. “Download”, “View repo”) that navigate or submit.
 
 ### Button (outline + hover, optional icon)
 

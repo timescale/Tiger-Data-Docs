@@ -1,42 +1,63 @@
 ---
 title: "Automate tasks with triggers"
-description: "Use PostgreSQL triggers to automatically execute functions when data changes occur. Learn how to create triggers on TimescaleDB hypertables"
+description: "Use PostgreSQL triggers to automatically execute functions when data changes occur in TimescaleDB hypertables"
+products: [cloud, mst, self_hosted]
 ---
 
 import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
-Triggers are special {C.PG} functions that automatically execute when specific events occur on a table, such as inserts, updates, or deletes. They enable you to automate tasks like data validation, audit logging, maintaining derived data, or enforcing complex business rules without requiring application-level code. Common use cases for triggers include:
+{C.TIMESCALE_DB} supports the full range of {C.PG} triggers. Creating, altering,
+or dropping triggers on a hypertable propagates the changes to all of the
+underlying chunks.
 
--   **Data validation**: Enforce complex validation rules beyond what constraints can provide
--   **Audit logging**: Automatically track changes to sensitive data
--   **Derived data**: Maintain summary tables or denormalized data in sync
--   **Error handling**: Capture and route problematic data to separate tables for analysis
--   **Notifications**: Send alerts or update external systems when data changes
+## Create a trigger
 
-TimescaleDB supports the full range of {C.PG} triggers. Creating, altering, or dropping triggers on a hypertable propagates the changes to all of the underlying chunks.
+This example creates a new table called `error_conditions` with the same schema
+as `conditions`, but that only stores records which are considered errors. An
+error, in this case, is when an application sends a `temperature` or `humidity`
+reading with a value that is greater than or equal to 1000.
 
-Create a trigger
+<NumberedList>
 
-This example creates a new table called `error_conditions` with the same schema as `conditions`, but that only stores records which are considered errors. An error, in this case, is when an application sends a `temperature` or `humidity` reading with a value that is greater than or equal to 1000.
+<NumberedItem title="Create a function that inserts erroneous data into the `error_conditions` table">
 
-1
+```sql
+CREATE OR REPLACE FUNCTION record_error()
+  RETURNS trigger AS $record_error$
+BEGIN
+ IF NEW.temperature >= 1000 OR NEW.humidity >= 1000 THEN
+   INSERT INTO error_conditions
+     VALUES(NEW.time, NEW.location, NEW.temperature, NEW.humidity);
+ END IF;
+ RETURN NEW;
+END;
+$record_error$ LANGUAGE plpgsql;
+```
 
-[(todo)](#)
+</NumberedItem>
 
-Create a function that inserts erroneous data into the error\_conditions table
+<NumberedItem title="Create a trigger that calls this function whenever a new row is inserted into the hypertable">
 
-2
+```sql
+CREATE TRIGGER record_error
+  BEFORE INSERT ON conditions
+  FOR EACH ROW
+  EXECUTE PROCEDURE record_error();
+```
 
-[(todo)](#)
+</NumberedItem>
 
-Create a trigger that calls this function whenever a new row is inserted into the hypertable
+<NumberedItem title="Verify that error rows are captured">
 
-3
+All data is inserted into the `conditions` table, but rows that contain errors
+are also added to the `error_conditions` table.
 
-[(todo)](#)
+</NumberedItem>
 
-Verify the trigger works
+</NumberedList>
 
-All data is inserted into the `conditions` table, but rows that contain errors are also added to the `error_conditions` table.
-
-TimescaleDB supports the full range of triggers, including `BEFORE INSERT`, `AFTER INSERT`, `BEFORE UPDATE`, `AFTER UPDATE`, `BEFORE DELETE`, and `AFTER DELETE`. For more information, see the [{C.PG} docs](https://www.postgresql.org/docs/current/sql-createtrigger.html).
+{C.TIMESCALE_DB} supports the full range of triggers, including `BEFORE INSERT`,
+`AFTER INSERT`, `BEFORE UPDATE`, `AFTER UPDATE`, `BEFORE DELETE`, and
+`AFTER DELETE`. For more information, see the
+[{C.PG} docs](https://www.postgresql.org/docs/current/sql-createtrigger.html).

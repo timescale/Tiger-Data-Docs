@@ -6,11 +6,6 @@ import rehypeBasePath from "./src/plugins/rehype-base-path";
 
 const require = createRequire(import.meta.url);
 
-// Only load when running link checks (e.g. pnpm run lint:links); avoids requiring the package for dev/build.
-const starlightLinksValidator = process.env.CHECK_LINKS
-  ? require("starlight-links-validator").default
-  : null;
-
 // Resolve package subpaths so aliasing the main "components" entry doesn't break ThemeSelect/SDKSelect.
 const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/components/scripts");
 
@@ -117,7 +112,14 @@ function withBase(redirects: Record<string, string>): Record<string, string> {
 }
 
 // https://astro.build/config
-export default defineConfig({
+export default defineConfig(async () => {
+  // ESM dynamic import: starlight-links-validator ships TypeScript; `require()` fails on Node 22+
+  // ("Stripping types is currently unsupported for files under node_modules").
+  const starlightLinksValidator = process.env.CHECK_LINKS
+    ? (await import("starlight-links-validator")).default
+    : null;
+
+  return {
   site: 'https://www.tigerdata.com',
   base: BASE,
   markdown: {
@@ -333,6 +335,16 @@ export default defineConfig({
                 { label: "Operations", link: "/build/data-management/operations" },
                 { label: "Run your queries from Tiger Console", link: "/build/data-management/run-queries-from-tiger-console" },
                 {
+                  label: "Query data",
+                  collapsed: true,
+                  items: [
+                    { label: "About querying data", link: "/build/data-management/query-data/about-query-data" },
+                    { label: "SELECT data", link: "/build/data-management/query-data/select" },
+                    { label: "SkipScan for DISTINCT queries", link: "/build/data-management/query-data/skipscan" },
+                    { label: "Advanced analytic queries", link: "/build/data-management/query-data/advanced-analytic-queries" },
+                  ],
+                },
+                {
                   label: "Data Retention",
                   collapsed: true,
                   items: [
@@ -452,6 +464,7 @@ export default defineConfig({
                 { label: "Improve hypertable and query performance", link: "/build/performance-optimization/improve-hypertable-performance" },
                 { label: "Enforce constraints with unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
                 { label: "Query external data sources with FDW", link: "/build/performance-optimization/query-external-data-sources-with-fdw" },
+                { label: "Improve query and upsert performance", link: "/build/performance-optimization/secondary-indexes" },
               ],
             },
             {
@@ -470,6 +483,9 @@ export default defineConfig({
                 { label: "Troubleshoot continuous aggregates", link: "/build/tips-and-tricks/troubleshoot-continuous-aggregates" },
                 { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
                 { label: "Troubleshoot import and ingest", link: "/build/tips-and-tricks/troubleshoot-import-ingest" },
+                { label: "Troubleshoot hypercore", link: "/build/tips-and-tricks/troubleshoot-hypercore" },
+                { label: "Troubleshoot schema management", link: "/build/tips-and-tricks/troubleshoot-schema-management" },
+                { label: "Troubleshoot query data", link: "/build/tips-and-tricks/troubleshoot-query-data" },
               ],
             },
           ],
@@ -507,7 +523,7 @@ export default defineConfig({
             },
           ],
         },
-        // Integrate tab — Sort by Category, Industry, Integration Type; Troubleshooting
+        // Integrate tab — mirrors the 5 filter dimensions in IntegrateOverview
         {
           label: "Integrate",
           link: "/integrate",
@@ -520,11 +536,11 @@ export default defineConfig({
               label: "Find connection details",
               link: "/integrate/find-connection-details",
             },
+            // --- Type of Tool (matches integrationCategory) ---
             {
-              label: "Sort by Category",
-              collapsed: true,
+              label: "Type of Tool",
+              collapsed: false,
               items: [
-                { label: "Sort by Category", link: "/integrate/#integrate-categories-heading" },
                 {
                   label: "Data Engineering & ETL",
                   collapsed: true,
@@ -572,26 +588,55 @@ export default defineConfig({
                 },
               ],
             },
+            // --- Industry (matches integrationIndustry) ---
             {
-              label: "Sort by Industry",
+              label: "Industry",
               collapsed: true,
               items: [
-                { label: "Sort by Industry", link: "/integrate/#by-industry" },
-                { label: "Oil and Gas", link: "/integrate/#integrate-industry-oil-and-gas" },
-                { label: "IoT", link: "/integrate/#integrate-industry-iot" },
-                { label: "Energy", link: "/integrate/#integrate-industry-energy" },
-                { label: "Crypto", link: "/integrate/#integrate-industry-crypto" },
-                { label: "Healthcare", link: "/integrate/#integrate-industry-healthcare" },
-                { label: "Manufacturing", link: "/integrate/#integrate-industry-manufacturing" },
+                { label: "Oil and Gas", link: "/integrate/?industry=oil-and-gas" },
+                { label: "IoT", link: "/integrate/?industry=iot" },
+                { label: "Energy", link: "/integrate/?industry=energy" },
+                { label: "Crypto", link: "/integrate/?industry=crypto" },
+                { label: "Healthcare", link: "/integrate/?industry=healthcare" },
+                { label: "Manufacturing", link: "/integrate/?industry=manufacturing" },
               ],
             },
+            // --- Platform (matches integrationPlatforms) ---
             {
-              label: "Sort by Integration Type",
+              label: "Platform",
               collapsed: true,
               items: [
-                { label: "Tiger Connectors", link: "/integrate/connectors" },
-                { label: "Partner Integrations", link: "/integrate/#integrate-type-partner" },
-                { label: "Third Party Integrations", link: "/integrate/#integrate-type-third-party" },
+                { label: "Tiger Cloud on AWS", link: "/integrate/?platform=aws" },
+                { label: "Tiger Cloud on Azure", link: "/integrate/?platform=azure" },
+                { label: "Self-Hosted", link: "/integrate/?platform=self-hosted" },
+              ],
+            },
+            // --- First Party / Third Party ---
+            {
+              label: "First Party/Third Party",
+              collapsed: true,
+              items: [
+                { label: "First Party", link: "/integrate/?party=first-party" },
+                { label: "Third Party", link: "/integrate/?party=third-party" },
+              ],
+            },
+            // --- Technology ---
+            {
+              label: "Technology",
+              collapsed: true,
+              items: [
+                { label: "PostgreSQL", link: "/integrate/?technology=PostgreSQL" },
+                { label: "Python", link: "/integrate/?technology=Python" },
+                { label: "SQL", link: "/integrate/?technology=SQL" },
+                { label: "Kafka", link: "/integrate/?technology=Kafka" },
+                { label: "AWS", link: "/integrate/?technology=AWS" },
+                { label: "Azure", link: "/integrate/?technology=Azure" },
+                { label: "GCP", link: "/integrate/?technology=GCP" },
+                { label: "Terraform", link: "/integrate/?technology=Terraform" },
+                { label: "Kubernetes", link: "/integrate/?technology=Kubernetes" },
+                { label: "Grafana", link: "/integrate/?technology=Grafana" },
+                { label: "Prometheus", link: "/integrate/?technology=Prometheus" },
+                { label: "REST API", link: "/integrate/?technology=REST+API" },
               ],
             },
             {
@@ -1156,5 +1201,10 @@ export default defineConfig({
     "/get-started/key-features-timescale": "/get-started/tools/key-features-timescale",
     "/get-started/new": "/get-started/news/new",
     "/get-started/release-notes": "/get-started/news/release-notes",
+    // Self-hosted install lived under deploy/ in older IA; content is under Get started now.
+    "/deploy/self-hosted/install-and-update": "/get-started/choose-your-path/install-timescaledb",
+    "/deploy/self-hosted/install-and-update/install-self-hosted":
+      "/get-started/choose-your-path/install-timescaledb",
   }),
+  };
 });
