@@ -460,8 +460,31 @@ function slugToHref(slug: string): string {
   clearBtn?.addEventListener("click", () => {
     allCheckboxes.forEach((cb) => { cb.checked = false; });
     if (searchInput) searchInput.value = "";
+    // Remove query params from URL
+    window.history.replaceState({}, "", window.location.pathname);
     applyFilters();
   });
+
+  // Apply filters from URL query params (e.g. ?industry=energy&platform=aws)
+  // This allows sidebar links like /integrate/?industry=energy to pre-activate filters.
+  const FILTER_KEYS = ["category", "industry", "platform", "party", "technology"];
+  function applyFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    let anyApplied = false;
+    for (const key of FILTER_KEYS) {
+      const val = params.get(key);
+      if (!val) continue;
+      // Find matching checkbox and check it
+      allCheckboxes.forEach((cb) => {
+        if (cb.getAttribute("data-filter-check") === key && cb.value === val) {
+          cb.checked = true;
+          anyApplied = true;
+        }
+      });
+    }
+    if (anyApplied) applyFilters();
+  }
+  applyFromURL();
 </script>
 
 <style>

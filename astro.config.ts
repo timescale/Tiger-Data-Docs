@@ -433,7 +433,7 @@ export default defineConfig({
             },
           ],
         },
-        // Integrate tab — Browse by category; Troubleshooting
+        // Integrate tab — mirrors the 5 filter dimensions in IntegrateOverview
         {
           label: "Integrate",
           link: "/integrate",
@@ -446,50 +446,108 @@ export default defineConfig({
               label: "Find connection details",
               link: "/integrate/find-connection-details",
             },
+            // --- Type of Tool (matches integrationCategory) ---
             {
-              label: "Data Engineering & ETL",
-              collapsed: true,
-              autogenerate: { directory: "integrate/data-engineering-etl" },
+              label: "Type of Tool",
+              collapsed: false,
+              items: [
+                {
+                  label: "Data Engineering & ETL",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/data-engineering-etl" },
+                },
+                {
+                  label: "Data Ingestion & Streaming",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/data-ingestion-streaming" },
+                },
+                {
+                  label: "BI & Visualization",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/bi-vizualization" },
+                },
+                {
+                  label: "Connectors",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/connectors" },
+                },
+                {
+                  label: "Code & Libraries",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/code" },
+                },
+                {
+                  label: "Query & Administration",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/query-administration" },
+                },
+                {
+                  label: "Secure Connectivity",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/secure-connectivity" },
+                },
+                {
+                  label: "Observability & Alerting",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/observability-alerting" },
+                },
+                {
+                  label: "Configuration & Deployment",
+                  collapsed: true,
+                  autogenerate: { directory: "integrate/configuration-deployment" },
+                },
+              ],
             },
+            // --- Industry (matches integrationIndustry) ---
             {
-              label: "Data Ingestion & Streaming",
+              label: "Industry",
               collapsed: true,
-              autogenerate: { directory: "integrate/data-ingestion-streaming" },
+              items: [
+                { label: "Oil and Gas", link: "/integrate/?industry=oil-and-gas" },
+                { label: "IoT", link: "/integrate/?industry=iot" },
+                { label: "Energy", link: "/integrate/?industry=energy" },
+                { label: "Crypto", link: "/integrate/?industry=crypto" },
+                { label: "Healthcare", link: "/integrate/?industry=healthcare" },
+                { label: "Manufacturing", link: "/integrate/?industry=manufacturing" },
+              ],
             },
+            // --- Platform (matches integrationPlatforms) ---
             {
-              label: "BI & Visualization",
+              label: "Platform",
               collapsed: true,
-              autogenerate: { directory: "integrate/bi-vizualization" },
+              items: [
+                { label: "Tiger Cloud on AWS", link: "/integrate/?platform=aws" },
+                { label: "Tiger Cloud on Azure", link: "/integrate/?platform=azure" },
+                { label: "Self-Hosted", link: "/integrate/?platform=self-hosted" },
+              ],
             },
+            // --- First Party / Third Party ---
             {
-              label: "Connectors",
+              label: "First Party/Third Party",
               collapsed: true,
-              autogenerate: { directory: "integrate/connectors" },
+              items: [
+                { label: "First Party", link: "/integrate/?party=first-party" },
+                { label: "Third Party", link: "/integrate/?party=third-party" },
+              ],
             },
+            // --- Technology ---
             {
-              label: "Code & Libraries",
+              label: "Technology",
               collapsed: true,
-              autogenerate: { directory: "integrate/code" },
-            },
-            {
-              label: "Query & Administration",
-              collapsed: true,
-              autogenerate: { directory: "integrate/query-administration" },
-            },
-            {
-              label: "Secure Connectivity",
-              collapsed: true,
-              autogenerate: { directory: "integrate/secure-connectivity" },
-            },
-            {
-              label: "Observability & Alerting",
-              collapsed: true,
-              autogenerate: { directory: "integrate/observability-alerting" },
-            },
-            {
-              label: "Configuration & Deployment",
-              collapsed: true,
-              autogenerate: { directory: "integrate/configuration-deployment" },
+              items: [
+                { label: "PostgreSQL", link: "/integrate/?technology=PostgreSQL" },
+                { label: "Python", link: "/integrate/?technology=Python" },
+                { label: "SQL", link: "/integrate/?technology=SQL" },
+                { label: "Kafka", link: "/integrate/?technology=Kafka" },
+                { label: "AWS", link: "/integrate/?technology=AWS" },
+                { label: "Azure", link: "/integrate/?technology=Azure" },
+                { label: "GCP", link: "/integrate/?technology=GCP" },
+                { label: "Terraform", link: "/integrate/?technology=Terraform" },
+                { label: "Kubernetes", link: "/integrate/?technology=Kubernetes" },
+                { label: "Grafana", link: "/integrate/?technology=Grafana" },
+                { label: "Prometheus", link: "/integrate/?technology=Prometheus" },
+                { label: "REST API", link: "/integrate/?technology=REST+API" },
+              ],
             },
             {
               label: "Troubleshooting",
