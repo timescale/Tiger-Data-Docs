@@ -455,6 +455,7 @@ export default defineConfig({
                 { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
                 { label: "Troubleshoot import and ingest", link: "/build/tips-and-tricks/troubleshoot-import-ingest" },
                 { label: "Troubleshoot hypercore", link: "/build/tips-and-tricks/troubleshoot-hypercore" },
+                { label: "Troubleshoot schema management", link: "/build/tips-and-tricks/troubleshoot-schema-management" },
               ],
             },
           ],
