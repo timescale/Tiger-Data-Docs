@@ -1,45 +1,83 @@
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
-
-import CreateHypertableProcedure from "./_hypercore_create_hypertable_columnstore_policy.mdx";
-
-<NumberedList>
+import CreateHypertablePolicyNote from "./_create-hypertable-columnstore-policy-note.mdx";
 
 <NumberedItem title={`Connect to your ${C.SERVICE_LONG}`}>
 
-In [{C.CONSOLE}](https://console.cloud.timescale.com/dashboard/services) open an [SQL editor](/getting-started/run-queries-from-console/). You can also connect to your {C.SERVICE_SHORT} using [psql](/integrate/query-administration/psql/#connect-to-your-service).
+In [{C.CONSOLE}](https://console.cloud.timescale.com/dashboard/services) open an [SQL editor](/build/data-management/run-queries-from-tiger-console). You can also connect to your {C.SERVICE_SHORT} using [psql](/integrate/query-administration/psql/#connect-to-your-service).
 
-<CreateHypertableProcedure />
+</NumberedItem>
+
+<NumberedItem title={`Enable ${C.COLUMNSTORE} on a ${C.HYPERTABLE}`}>
+
+For [efficient queries](/build/performance-optimization/secondary-indexes), remember to `segmentby` the column you will
+use most often to filter your data. For example:
+
+* **{C.HYPERTABLE_CAP}s**:
+
+  [Use `CREATE TABLE` for a {C.HYPERTABLE}](/api/hypertable/create_table/)
+
+   ```sql
+   CREATE TABLE crypto_ticks (
+     "time" TIMESTAMPTZ,
+     symbol TEXT,
+     price DOUBLE PRECISION,
+     day_volume NUMERIC
+   ) WITH (
+     timescaledb.hypertable,
+     timescaledb.segmentby='symbol',
+     timescaledb.orderby='time DESC'
+   );
+   ```
+   <CreateHypertablePolicyNote />
+
+* **{C.CAGG_CAP}s**:
+
+  [Use `ALTER MATERIALIZED VIEW` for a {C.CAGG}](/api/continuous-aggregates/alter_materialized_view/):
+
+   ```sql
+   ALTER MATERIALIZED VIEW assets_candlestick_daily set (
+      timescaledb.enable_columnstore = true,
+      timescaledb.segmentby = 'symbol');
+   ```
+   Before you say `huh`, a {C.CAGG} is a specialized {C.HYPERTABLE}.
+
+   Add a policy to convert {C.CHUNK}s to the {C.COLUMNSTORE} at a specific time interval.
+   Create a [columnstore_policy](/api/hypercore/add_columnstore_policy/) that automatically converts {C.CHUNK}s in a {C.HYPERTABLE} to
+   the {C.COLUMNSTORE}. For example:
+
+   ```sql
+   CALL add_columnstore_policy('assets_candlestick_daily', after => INTERVAL '1d');
+   ```
+
+{C.TIMESCALE_DB} is optimized for fast updates on compressed data in the {C.COLUMNSTORE}. To modify data in the
+{C.COLUMNSTORE}, use standard SQL.
 
 </NumberedItem>
 
 <NumberedItem title={`Check the ${C.COLUMNSTORE} policy`}>
 
-1. View your data space saving:
+View your data space saving. When you convert data to the {C.COLUMNSTORE}, as well as being optimized for analytics, it is compressed by more than 90%. This helps you save on storage costs and keeps your queries operating at lightning speed. To see the amount of space saved:
 
-   When you convert data to the {C.COLUMNSTORE}, as well as being optimized for analytics, it is compressed by more than
-   90%. This helps you save on storage costs and keeps your queries operating at lightning speed. To see the amount of space
-   saved:
+``` sql
+SELECT
+  pg_size_pretty(before_compression_total_bytes) as before,
+  pg_size_pretty(after_compression_total_bytes) as after
+FROM hypertable_columnstore_stats('crypto_ticks');
+```
+You see something like:
 
-   ``` sql
-   SELECT
-     pg_size_pretty(before_compression_total_bytes) as before,
-     pg_size_pretty(after_compression_total_bytes) as after
-   FROM hypertable_columnstore_stats('crypto_ticks');
-   ```
-   You see something like:
+| before	 | after  |
+|---------|--------|
+| 194 MB  | 	24 MB |
 
-   | before	 | after  |
-   |---------|--------|
-   | 194 MB  | 	24 MB |
+View the policies that you set or that already exist:
 
-1. View the policies that you set or the policies that already exist:
-
-   ``` sql
-   SELECT * FROM timescaledb_information.jobs
-   WHERE proc_name='policy_compression';
-   ```
-   See [timescaledb_information.jobs](/api/informational-views/jobs/).
+``` sql
+SELECT * FROM timescaledb_information.jobs
+WHERE proc_name='policy_compression';
+```
+See [timescaledb_information.jobs](/api/informational-views/jobs/).
 
 </NumberedItem>
 
@@ -85,5 +123,3 @@ ALTER TABLE crypto_ticks SET (timescaledb.enable_columnstore = false);
 See [alter_table_hypercore](/api/hypercore/alter_table/).
 
 </NumberedItem>
-
-</NumberedList>

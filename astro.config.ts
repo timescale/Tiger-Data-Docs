@@ -435,6 +435,7 @@ export default defineConfig({
                 { label: "Improve hypertable and query performance", link: "/build/performance-optimization/improve-hypertable-performance" },
                 { label: "Enforce constraints with unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
                 { label: "Query external data sources with FDW", link: "/build/performance-optimization/query-external-data-sources-with-fdw" },
+                { label: "Improve query and upsert performance", link: "/build/performance-optimization/secondary-indexes" },
               ],
             },
             {
@@ -453,6 +454,7 @@ export default defineConfig({
                 { label: "Troubleshoot continuous aggregates", link: "/build/tips-and-tricks/troubleshoot-continuous-aggregates" },
                 { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
                 { label: "Troubleshoot import and ingest", link: "/build/tips-and-tricks/troubleshoot-import-ingest" },
+                { label: "Troubleshoot hypercore", link: "/build/tips-and-tricks/troubleshoot-hypercore" },
               ],
             },
           ],
