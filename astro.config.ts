@@ -131,6 +131,7 @@ export default defineConfig(async () => {
     stainlessDocs({
       apiReference: {
         stainlessProject: "tiger-cloud",
+        basePath: "/reference/tiger-cloud-rest",
         propertySettings: {
           collapseDescription: false,
           expandDepth: 2,
@@ -316,15 +317,81 @@ export default defineConfig(async () => {
                 { label: "Create and manage jobs", link: "/build/data-management/create-and-manage-jobs" },
                 { label: "Operations", link: "/build/data-management/operations" },
                 { label: "Run your queries from Tiger Console", link: "/build/data-management/run-queries-from-tiger-console" },
-                { label: "Tiered Storage", link: "/build/data-management/tiered-storage" },
-                { label: "Improve hypertable and query performance", link: "/build/data-management/improve-query-performance" },
-                { label: "Gapfilling and interpolation", link: "/build/data-management/gapfilling-and-interpolation" },
-                { label: "Monitor application performance", link: "/build/data-management/counter-aggregation" },
-                { label: "Calculate common statistical measures", link: "/build/data-management/statistical-aggregation" },
-                { label: "Handle unevenly sampled time series data", link: "/build/data-management/time-weighted-averages" },
-                { label: "Analyze intermittent time-series data", link: "/build/data-management/heartbeat-aggregation" },
-                { label: "Count distinct values efficiently", link: "/build/data-management/approximate-count-distinct" },
-                { label: "Analyse data distribution", link: "/build/data-management/analyse-data-distribution" },
+                {
+                  label: "Query data",
+                  collapsed: true,
+                  items: [
+                    { label: "About querying data", link: "/build/data-management/query-data/about-query-data" },
+                    { label: "SELECT data", link: "/build/data-management/query-data/select" },
+                    { label: "SkipScan for DISTINCT queries", link: "/build/data-management/query-data/skipscan" },
+                    { label: "Advanced analytic queries", link: "/build/data-management/query-data/advanced-analytic-queries" },
+                  ],
+                },
+                {
+                  label: "Data Retention",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/build/data-management/data-retention" },
+                    { label: "About data retention", link: "/build/data-management/data-retention/about-data-retention" },
+                    { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
+                    { label: "Data retention with continuous aggregates", link: "/build/data-management/data-retention/data-retention-with-continuous-aggregates" },
+                    { label: "Manually drop chunks", link: "/build/data-management/data-retention/manually-drop-chunks" },
+                  ],
+                },
+                {
+                  label: "Storage and Tiering",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/build/data-management/storage" },
+                    { label: "About storage tiers", link: "/build/data-management/storage/about-storage-tiers" },
+                    { label: "Manage storage and tiering", link: "/build/data-management/storage/manage-storage" },
+                    { label: "Query tiered data", link: "/build/data-management/storage/query-tiered-data" },
+                    { label: "Replicas and forks with tiered data", link: "/build/data-management/storage/tiered-data-replicas-forks" },
+                  ],
+                },
+                {
+                  label: "Jobs",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/build/data-management/jobs" },
+                    { label: "Create and manage jobs", link: "/build/data-management/jobs/create-and-manage-jobs" },
+                    { label: "Downsample and compress chunks", link: "/build/data-management/jobs/example-downsample-and-compress" },
+                    { label: "Generic retention policy", link: "/build/data-management/jobs/example-generic-retention" },
+                    { label: "Automatic tablespace management", link: "/build/data-management/jobs/example-tiered-storage" },
+                  ],
+                },
+                {
+                  label: "Hyperfunctions",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/build/data-management/hyperfunctions" },
+                    { label: "About hyperfunctions", link: "/build/data-management/hyperfunctions/about-hyperfunctions" },
+                    { label: "Counter aggregation", link: "/build/data-management/hyperfunctions/counter-aggregation" },
+                    { label: "Function pipelines", link: "/build/data-management/hyperfunctions/function-pipelines" },
+                    {
+                      label: "Gapfilling and interpolation",
+                      collapsed: true,
+                      items: [
+                        { label: "Overview", link: "/build/data-management/hyperfunctions/gapfilling-interpolation" },
+                        { label: "Time bucket gapfill", link: "/build/data-management/hyperfunctions/gapfilling-interpolation/time-bucket-gapfill" },
+                        { label: "Last observation carried forward", link: "/build/data-management/hyperfunctions/gapfilling-interpolation/locf" },
+                      ],
+                    },
+                    { label: "Heartbeat aggregation", link: "/build/data-management/hyperfunctions/heartbeat-agg" },
+                    { label: "Hyperloglog", link: "/build/data-management/hyperfunctions/hyperloglog" },
+                    {
+                      label: "Percentile approximation",
+                      collapsed: true,
+                      items: [
+                        { label: "Overview", link: "/build/data-management/hyperfunctions/percentile-approx" },
+                        { label: "Approximate percentiles", link: "/build/data-management/hyperfunctions/percentile-approx/approximate-percentile" },
+                        { label: "Advanced aggregation methods", link: "/build/data-management/hyperfunctions/percentile-approx/advanced-agg" },
+                      ],
+                    },
+                    { label: "Statistical aggregation", link: "/build/data-management/hyperfunctions/stats-aggs" },
+                    { label: "Time-weighted averages", link: "/build/data-management/hyperfunctions/time-weighted-averages" },
+                  ],
+                },
               ],
             },
             {
@@ -380,6 +447,7 @@ export default defineConfig(async () => {
                 { label: "Improve hypertable and query performance", link: "/build/performance-optimization/improve-hypertable-performance" },
                 { label: "Enforce constraints with unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
                 { label: "Query external data sources with FDW", link: "/build/performance-optimization/query-external-data-sources-with-fdw" },
+                { label: "Improve query and upsert performance", link: "/build/performance-optimization/secondary-indexes" },
               ],
             },
             {
@@ -398,6 +466,9 @@ export default defineConfig(async () => {
                 { label: "Troubleshoot continuous aggregates", link: "/build/tips-and-tricks/troubleshoot-continuous-aggregates" },
                 { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
                 { label: "Troubleshoot import and ingest", link: "/build/tips-and-tricks/troubleshoot-import-ingest" },
+                { label: "Troubleshoot hypercore", link: "/build/tips-and-tricks/troubleshoot-hypercore" },
+                { label: "Troubleshoot schema management", link: "/build/tips-and-tricks/troubleshoot-schema-management" },
+                { label: "Troubleshoot query data", link: "/build/tips-and-tricks/troubleshoot-query-data" },
               ],
             },
           ],
@@ -1092,6 +1163,8 @@ export default defineConfig(async () => {
   ],
 
   redirects: {
+    "/api": "/reference/tiger-cloud-rest",
+    "/api/api-reference": "/reference/tiger-cloud-rest",
     "/api-reference/timescaledb-toolkit": "/reference/toolkit",
     "/api-reference/timescaledb": "/reference/timescaledb",
     "/api-reference": "/reference",

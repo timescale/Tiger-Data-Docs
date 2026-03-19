@@ -1,0 +1,240 @@
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import SupportMatrix from "./_migrate_self_postgres_timescaledb_compatibility.mdx";
+
+{C.CLOUD_LONG} offers managed database {C.SERVICE_SHORT}s that provide a stable and reliable environment for your
+applications. Each {C.SERVICE_SHORT} is based on a specific version of the {C.PG} database and the {C.TIMESCALE_DB} extension.
+To ensure that you benefit from the latest features, performance and security improvements, it is important that your
+{C.SERVICE_LONG} is kept up to date with the latest versions of {C.TIMESCALE_DB} and {C.PG}.
+
+{C.CLOUD_LONG} has the following upgrade policies:
+* **Minor software upgrades**: handled automatically, you do not need to do anything.
+
+  Upgrades are performed on your {C.SERVICE_LONG} during a maintenance window that you
+  [define to suit your workload](#define-your-maintenance-window). You can also [manually upgrade {C.TIMESCALE_DB}](#manually-upgrade-timescaledb-for-non-critical-upgrades).
+* **Critical security upgrades**: installed outside normal maintenance windows when necessary, and sometimes require
+  a short outage.
+
+  Downtime is usually between 30 seconds and 5 minutes. {C.COMPANY} aims to notify you by email
+  if downtime is required, so that you can plan accordingly. However, in some cases this is not possible.
+* **Major upgrades**: such as a new version of {C.PG} are performed [manually by you](#manually-upgrade-postgresql-for-a-service), or [automatically
+  by {C.CLOUD_LONG}](#automatic-postgresql-upgrades-for-a-service).
+
+<Callout variant="info">
+
+After a maintenance upgrade, the DNS name remains the same. However, the IP address often changes.
+
+</Callout>
+
+## Minor software upgrades
+
+If you do not [manually upgrade {C.TIMESCALE_DB}](#manually-upgrade-timescaledb-for-non-critical-upgrades) for non-critical upgrades,
+{C.CLOUD_LONG} performs upgrades automatically in the next available maintenance window. The upgrade is first applied to your standard {C.SERVICE_SHORT}s tagged `#dev`, and three weeks later to those tagged `#prod`. [Subscribe](https://status.timescale.com/) to get an email notification before your `#prod` {C.SERVICE_SHORT}s are upgraded. To upgrade your `#prod` {C.SERVICE_SHORT}s manually before the service window, see [Service management](service-management/service-management#change-the-service-environment).
+
+Most upgrades that occur during your maintenance windows do not require any downtime. This means that there is no
+{C.SERVICE_SHORT} outage during the upgrade. However, all connections and transactions in progress during the upgrade are
+reset. Usually, the {C.SERVICE_SHORT} connection is automatically restored after the reset.
+
+Some minor upgrades do require some downtime. This is usually between 30 seconds and 5 minutes. If downtime is required
+for an upgrade, {C.COMPANY} endeavors to notify you by email ahead of the upgrade. However, in some cases, we might not be
+able to do so. Best practice is to [schedule your maintenance window](#define-your-maintenance-window) so that any downtime
+disrupts your workloads as little as possible and [minimize downtime with replicas](#minimize-downtime-with-replicas). If there are no
+pending upgrades available during a regular maintenance window, no changes are performed.
+
+Free {C.SERVICE_SHORT}s are upgraded and restarted during the maintenance window each week, if there is a new version available. Some background maintenance tasks performed at other times can also cause connection resets. When a connection reset occurs, you can immediately reconnect to your {C.SERVICE_SHORT}s.
+
+To track the status of maintenance events, see the {C.CLOUD_LONG} [status page](https://status.timescale.com/).
+
+### Minimize downtime with replicas
+
+Maintenance upgrades require up to two automatic failovers. Each failover takes less than a few seconds.
+{C.SERVICE_LONG}s with [{C.HA_REPLICA}s and {C.READ_REPLICA}s](high-availability/high-availability) require minimal write downtime during maintenance,
+read-only queries keep working throughout.
+
+During a maintenance event, services with replicas perform maintenance on each node independently. When maintenance is
+complete on the primary node, it is restarted:
+- If the restart takes more than a minute, a replica node is promoted to primary, given that the replica has no
+  replication lag. Maintenance now proceeds on the newly promoted replica, following the same
+  sequence. If the newly promoted replica takes more than a minute to restart, the former
+  primary is promoted back. In total, the process may result in up to two minutes of write
+  downtime and two failover events.
+- If the maintenance on the primary node is completed within a minute and it comes back online, the replica remains
+  the replica.
+
+
+### Manually upgrade {C.TIMESCALE_DB} for non-critical upgrades
+
+Non-critical upgrades are available before the upgrade is performed automatically by {C.CLOUD_LONG}. To upgrade
+{C.TIMESCALE_DB} manually:
+
+<NumberedList>
+
+<NumberedItem title="Connect to your service">
+
+In [{C.CONSOLE}](https://console.cloud.timescale.com/dashboard/services), select the {C.SERVICE_SHORT} you want to upgrade.
+
+</NumberedItem>
+
+<NumberedItem title={`Upgrade ${C.TIMESCALE_DB}`}>
+
+Either:
+<ol type="a">
+<li>Click <code>SQL Editor</code> at the bottom, then run <code>ALTER EXTENSION timescaledb UPDATE</code>.</li>
+<li>Click <code>&#x22EE;</code>, then <code>Pause</code> and <code>Resume</code> the service.</li>
+</ol>
+
+</NumberedItem>
+
+</NumberedList>
+
+
+Upgrading to a newer version of {C.PG} allows you to take advantage of new
+features, enhancements, and security fixes. It also ensures that you are using a
+version of {C.PG} that's compatible with the newest version of {C.TIMESCALE_DB},
+allowing you to take advantage of everything it has to offer. For more
+information about feature changes between versions, see the [{C.CLOUD_LONG} release notes](/get-started/news/new),
+[supported systems](/get-started/choose-your-path/supported-platforms), and the [{C.PG} release notes](https://www.postgresql.org/docs/release/).
+
+## Deprecations
+
+To ensure you benefit from the latest features, optimal performance, enhanced security, and full compatibility
+with {C.TIMESCALE_DB}, {C.CLOUD_LONG} supports a defined set of {C.PG} major versions. To reduce the maintenance burden and
+continue providing a high-quality managed experience, as {C.PG} and {C.TIMESCALE_DB} evolve, {C.COMPANY} periodically deprecates
+older {C.PG} versions.
+
+{C.COMPANY} provides advance notification to allow you ample time to plan and perform your upgrade. The timeline
+deprecation is as follows:
+- **Deprecation notice period begins**: you receive email notification of the deprecation and the timeline for the
+  upgrade.
+- **Customer self-service upgrade window**: best practice is to [manually upgrade to a new {C.PG} version](#manually-upgrade-postgresql-for-a-service) in
+  this time.
+- **Automatic upgrade deadline**: {C.CLOUD_LONG} performs an [automatic upgrade](#automatic-postgresql-upgrades-for-a-service) of your {C.SERVICE_SHORT}.
+
+
+## Manually upgrade {C.PG} for a {C.SERVICE_SHORT}
+
+Upgrading to a newer version of {C.PG} enables you to take advantage of new features, enhancements, and security fixes.
+It also ensures that you are using a version of {C.PG} that's compatible with the newest version of {C.TIMESCALE_DB}.
+
+For a smooth upgrade experience, make sure you:
+
+*  **Plan ahead**: upgrades cause downtime, so ideally perform an upgrade during a low traffic time.
+*  **Run a test upgrade**: [fork your {C.SERVICE_SHORT}](service-management/service-management#fork-a-service), then try out the upgrade on the fork before
+   running it on your production system. This gives you a good idea of what happens during the upgrade, and how long it
+   might take.
+*  **Keep a copy of your {C.SERVICE_SHORT}**: if you're worried about losing your data,
+   [fork your {C.SERVICE_SHORT}](service-management/service-management#fork-a-service) without upgrading, and keep this duplicate of your {C.SERVICE_SHORT}.
+   To reduce cost, you can immediately pause this fork and only pay for storage until you are comfortable deleting it
+   after the upgrade is complete.
+
+<Callout variant="info">
+
+{C.SERVICE_LONG}s with replicas cannot be upgraded. To upgrade a service
+with a replica, you must first delete the replica and then upgrade the service.
+
+</Callout>
+
+The following table shows you the compatible versions of {C.PG} and {C.TIMESCALE_DB}.
+
+<SupportMatrix />
+
+For more information about feature changes between versions, see the
+[{C.PG} release notes](https://www.postgresql.org/docs/release/) and
+[{C.TIMESCALE_DB} release notes](https://github.com/timescale/timescaledb/releases).
+
+<Callout variant="warning">
+
+Your {C.SERVICE_LONG} is unavailable until the upgrade is complete. This can take up to 20 minutes. Best practice is to
+test on a fork first, so you can estimate how long the upgrade will take.
+
+</Callout>
+
+To upgrade your {C.SERVICE_SHORT} to a newer version of {C.PG}:
+
+<NumberedList>
+
+<NumberedItem title="Connect to your service">
+
+In [{C.CONSOLE}](https://console.cloud.timescale.com/dashboard/services), select the {C.SERVICE_SHORT} you want to upgrade.
+
+</NumberedItem>
+
+<NumberedItem title={`Disable ${C.HA_REPLICA}s`}>
+
+<ol type="a">
+<li>Click <code>Operations</code> &gt; <code>High Availability</code>, then click <code>Change configuaration</code>.</li>
+<li>Select <code>Non-production  (No replica)</code>, then click <code>Change configuration</code>.</li>
+</ol>
+
+</NumberedItem>
+
+<NumberedItem title={`Disable ${C.READ_REPLICA}s`}>
+
+Click <code>Operations</code> &gt; <code>Read scaling</code>, then click the trash icon next to all replica sets.
+
+</NumberedItem>
+
+<NumberedItem title={`Upgrade ${C.PG}`}>
+
+<ol type="a">
+<li>Click <code>Operations</code> &gt; <code>Service Upgrades</code>.</li>
+<li>Click <code>Upgrade service</code>, then confirm that you are ready to start the upgrade.</li>
+</ol>
+
+
+Your {C.SERVICE_LONG} is unavailable until the upgrade is complete. This normally takes up to 20 minutes.
+However, it can take longer if you have a large or complex {C.SERVICE_SHORT}.
+
+When the upgrade is finished, your service automatically resumes normal
+operations. If the upgrade is unsuccessful, the service returns to the state
+it was in before you started the upgrade.
+
+</NumberedItem>
+
+<NumberedItem title={`Enable ${C.HA_REPLICA}s and replace your ${C.READ_REPLICA}s`}>
+</NumberedItem>
+
+</NumberedList>
+
+## Automatic {C.PG} upgrades for a {C.SERVICE_SHORT}
+
+If you do not manually upgrade your {C.SERVICE_SHORT}s within the [customer self-service upgrade window](#deprecations),
+{C.CLOUD_LONG} performs an automatic upgrade. Automatic upgrades can result in downtime, best practice is to
+[manually upgrade your {C.SERVICE_SHORT}s](#manually-upgrade-postgresql-for-a-service) during a low-traffic period for your application.
+
+During an automatic upgrade:
+1. Any configured [{C.HA_REPLICA}s](high-availability/high-availability) or [{C.READ_REPLICA}s](high-availability/read-scaling) are temporarily removed.
+1. The primary {C.SERVICE_SHORT} is upgraded.
+1. {C.HA_REPLICA_CAP}s and {C.READ_REPLICA}s are added back to the {C.SERVICE_SHORT}.
+
+
+## Define your maintenance window
+
+When you are considering your maintenance window schedule, best practice is to choose a day and time that usually
+has very low activity, such as during the early hours of the morning, or over the weekend. This helps minimize the
+impact of a short service interruption. Alternatively, you might prefer to have your maintenance window occur during
+office hours, so that you can monitor your system during the upgrade.
+
+To change your maintenance window:
+
+<NumberedList>
+
+<NumberedItem title="Connect to your service">
+
+In [{C.CONSOLE}](https://console.cloud.timescale.com/dashboard/services), select the {C.SERVICE_SHORT} you want to manage.
+
+</NumberedItem>
+
+<NumberedItem title="Set your maintenance window">
+
+<ol type="a">
+<li>Click <code>Operations</code> &gt; <code>Environment</code>, then click <code>Change maintenance window</code>.<br/><img src="https://assets.timescale.com/docs/images/tiger-on-azure/tiger-console-maintenance-upgrades.png" alt="Maintenance and upgrades" /></li>
+<li>Select the maintenance window start time, then click <code>Apply</code>.</li>
+</ol>
+
+Maintenance windows can run for up to four hours.
+
+</NumberedItem>
+
+</NumberedList>

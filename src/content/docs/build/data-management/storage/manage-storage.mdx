@@ -1,0 +1,310 @@
+---
+title: Manage storage and tiering
+description: Configure high-performance and low-cost object storage tiers in Tiger Console
+products: [cloud]
+keywords: [tiered storage]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TieredStorageBilling from "../../../../../partials/_tiered-storage-billing.mdx";
+
+The tiered storage architecture in {C.CLOUD_LONG} includes a high-performance storage tier and a low-cost object storage tier:
+
+- You use [high-performance storage](#high-performance-storage-tier) to store and query frequently accessed data.
+
+- You use [low-cost object storage](#low-cost-object-storage-tier) to cut costs by migrating rarely used data from the high-performance storage. After you
+enable tiered storage, you then either [create automated tiering policies](#automate-tiering-with-policies) or [manually tier and untier data](#manually-tier-and-untier-chunks).
+
+You can query the data on the object storage tier, but you cannot modify it. Make sure that you are not tiering data that needs to be **actively modified**.
+
+<TieredStorageBilling />
+
+## High-performance storage tier
+
+By default, {C.CLOUD_LONG} stores your {C.SERVICE_SHORT} data in the standard high-performance storage. This storage tier comes in the standard and enhanced types. Enhanced storage is available under the [{C.ENTERPRISE} {C.PRICING_PLAN}](/deploy/tiger-cloud/understand/pricing-and-account-management) only.
+
+### Standard high-performance storage
+
+This storage type gives you up to 16 TB of storage and is available under [all {C.PRICING_PLAN}s](/deploy/tiger-cloud/understand/pricing-and-account-management). You change the IOPS value to better suit your needs in {C.CONSOLE}:
+
+<NumberedList>
+<NumberedItem title={`Select your ${C.SERVICE_SHORT}`}>
+In <a href={C.CONSOLE_URL}>{C.CONSOLE}</a>, select your {C.SERVICE_SHORT}, then click `Operations` > `Compute and storage`.
+
+By default, the type of high-performance storage is set to `Standard`.
+</NumberedItem>
+
+<NumberedItem title="Select the IOPS value">
+Select the IOPS value in the `I/O boost` dropdown:
+
+- Under the [{C.PERFORMANCE} {C.PRICING_PLAN}](/deploy/tiger-cloud/understand/pricing-and-account-management), IOPS is set to 3,000 - 5,000 autoscale and cannot be changed.
+- Under the [{C.SCALE} and {C.ENTERPRISE} {C.PRICING_PLAN}s](/deploy/tiger-cloud/understand/pricing-and-account-management), IOPS is set to 5,000 - 8,000 autoscale and can be upgraded to 16,000 IOPS.
+
+![Default standard storage in {C.CLOUD_LONG}](https://assets.timescale.com/docs/images/tiger-on-azure/high-performance-storage-tiger-console.png)
+
+The autoscaled IOPS value depends on your provisioned storage and {C.PRICING_PLAN}:
+
+| Storage size | {C.PERFORMANCE} plan IOPS | {C.SCALE}/{C.ENTERPRISE} plan IOPS |
+|---|---|---|
+| Under 500 GB | Up to 3,000 | Up to 5,000 |
+| 500 GB – 1,000 GB | Up to 4,000 | Up to 6,000 |
+| 1,000 GB – 1,500 GB | Up to 5,000 | Up to 7,000 |
+| Above 1,500 GB | Up to 5,000 | Up to 8,000 |
+</NumberedItem>
+
+<NumberedItem title="Click `Apply`">
+</NumberedItem>
+</NumberedList>
+
+### Enhanced high-performance storage
+
+<Callout variant="note">
+Enhanced high-performance storage is available on the {C.ENTERPRISE} {C.PRICING_PLAN}.
+</Callout>
+
+This storage type gives you up to 64 TB and 32,000 IOPS, and is available under the [{C.ENTERPRISE} {C.PRICING_PLAN}](/deploy/tiger-cloud/understand/pricing-and-account-management).
+
+To get enhanced storage:
+
+<NumberedList>
+<NumberedItem title={`Select your ${C.SERVICE_SHORT}`}>
+In <a href={C.CONSOLE_URL}>{C.CONSOLE}</a>, select your {C.SERVICE_SHORT}, then click `Operations` > `Compute and storage`.
+</NumberedItem>
+
+<NumberedItem title="Select Enhanced storage type">
+Select `Enhanced` in the `Storage type` dropdown.
+
+![Enhanced storage in {C.CLOUD_LONG}](https://assets.timescale.com/docs/images/tiger-on-azure/enable-enhanced-storage-tiger-console.png)
+
+<Callout variant="note">
+The enhanced storage is currently not available in `sa-east-1`.
+</Callout>
+</NumberedItem>
+
+<NumberedItem title="Select the IOPS value">
+Select the IOPS value in the `I/O boost` dropdown.
+
+Select between 8,000, 16,000, 24,000, and 32,000 IOPS. The value that you can apply depends on the number of CPUs in your {C.SERVICE_SHORT}. {C.CONSOLE} notifies you if your selected IOPS requires increasing the number of CPUs. To increase IOPS to 64,000, click `Contact us` and we will be in touch to confirm the details.
+
+![I/O boost in Tiger Cloud](https://assets.timescale.com/docs/images/tiger-on-azure/set-io-boost-tiger-console.png)
+</NumberedItem>
+
+<NumberedItem title="Click `Apply`">
+</NumberedItem>
+</NumberedList>
+
+You change from enhanced storage to standard in the same way. If you are using over 16 TB of enhanced storage, changing back to standard is not available until you shrink your data to be under 16 TB. You can make changes to the storage type and I/O boost settings without any downtime. Wait at least 6 hours to attempt another change.
+
+## Low-cost object storage tier
+
+<Callout variant="note">
+Low-cost tiered storage is available on {C.SCALE} and {C.ENTERPRISE} {C.PRICING_PLAN}s.
+</Callout>
+
+You enable the low-cost object storage tier in {C.CONSOLE} and then tier the data with policies or manually.
+
+### Enable tiered storage
+
+You enable tiered storage from the `Overview` tab in {C.CONSOLE}.
+
+<NumberedList>
+<NumberedItem title={`Select your ${C.SERVICE_SHORT}`}>
+In <a href={C.CONSOLE_URL}>{C.CONSOLE}</a>, select the {C.SERVICE_SHORT} to modify.
+</NumberedItem>
+
+<NumberedItem title="Enable tiered storage">
+In `Explorer`, click `Data Tiering` > then click `Enable tiered storage`.
+
+![Enable tiered storage](https://assets.timescale.com/docs/images/tiger-on-azure/enable-tiered-storage-tiger-console.png)
+
+Once enabled, you can proceed to [tier data manually](#manually-tier-and-untier-chunks) or [set up tiering policies](#automate-tiering-with-policies). When tiered storage is enabled, you see the amount of data in the tiered object storage.
+</NumberedItem>
+</NumberedList>
+
+### Automate tiering with policies
+
+A tiering policy automatically moves any {C.CHUNK}s that only contain data
+older than the `move_after` threshold to the object storage tier. This works similarly to a
+[data retention policy](/build/data-management/data-retention), but {C.CHUNK}s are moved rather than deleted.
+
+A tiering policy schedules a {C.JOB} that runs periodically to asynchronously migrate eligible {C.CHUNK}s to object storage. {C.CHUNK_CAP}s are considered tiered once they appear in the `timescaledb_osm.tiered_chunks` view.
+
+You can add tiering policies to [{C.HYPERTABLE}s](/build/data-management/understand-hypertables), including [{C.CAGG}s](/build/continuous-aggregates), via {C.CONSOLE_SHORT} UI or an SQL editor.
+
+#### Add a tiering policy
+
+To add a tiering policy, [connect to your {C.SERVICE_SHORT}](/get-started/quickstart/run-queries-from-console) and call `add_tiering_policy`:
+
+```sql
+SELECT add_tiering_policy(hypertable REGCLASS, move_after INTERVAL, if_not_exists BOOL = false);
+```
+
+For example, to tier {C.CHUNK}s that are more than three days old in the `example` [{C.HYPERTABLE}](/build/data-management/understand-hypertables):
+
+```sql
+SELECT add_tiering_policy('example', INTERVAL '3 days');
+```
+
+By default, a tiering policy runs hourly on your database. To change this interval, call [`alter_job`](/reference/timescaledb/jobs-automation/alter_job).
+
+#### Remove a tiering policy
+
+To remove an existing tiering policy, call `remove_tiering_policy`:
+
+```sql
+SELECT remove_tiering_policy(hypertable REGCLASS, if_exists BOOL = false);
+```
+
+For example, to remove the tiering policy from the `example` {C.HYPERTABLE}:
+
+```sql
+SELECT remove_tiering_policy('example');
+```
+
+If you remove a tiering policy, the remaining scheduled {C.CHUNK}s are not tiered. However, {C.CHUNK}s in tiered storage are not untiered. You [untier {C.CHUNK}s manually](#manually-tier-and-untier-chunks) to local storage.
+
+### Manually tier and untier {C.CHUNK}s
+
+If tiering policies do not meet your current needs, you can tier and untier {C.CHUNK}s manually. To do so, [connect to your {C.SERVICE_SHORT}](/get-started/quickstart/run-queries-from-console) and run the queries below in the data mode, the SQL editor, or using `psql`.
+
+#### Tier {C.CHUNK}s
+
+Tiering a {C.CHUNK} is an asynchronous process that schedules the {C.CHUNK} to be tiered. In the following example, you tier {C.CHUNK}s older than three days in the `example` {C.HYPERTABLE}. You then list the tiered {C.CHUNK}s.
+
+<NumberedList>
+<NumberedItem title={`Select old ${C.CHUNK}s`}>
+Select all {C.CHUNK}s in `example` that are older than three days:
+
+```sql
+SELECT show_chunks('example', older_than => INTERVAL '3 days');
+```
+
+This returns a list of {C.CHUNK}s:
+
+```sql
+_timescaledb_internal._hyper_1_1_chunk
+_timescaledb_internal._hyper_1_2_chunk
+```
+</NumberedItem>
+
+<NumberedItem title={`Tier each ${C.CHUNK}`}>
+```sql
+SELECT tier_chunk('_timescaledb_internal._hyper_1_1_chunk');
+```
+
+Repeat for all {C.CHUNK}s you want to tier. Tiering a {C.CHUNK} schedules it for migration to the object storage tier, but the migration won't happen immediately. {C.CHUNK_CAP}s are tiered one at a time to minimize database resource consumption. A {C.CHUNK} is marked as migrated and deleted from the standard storage only after it has been durably stored in the object storage tier. You can continue to query a {C.CHUNK} during migration.
+</NumberedItem>
+
+<NumberedItem title={`View tiered ${C.CHUNK}s`}>
+```sql
+SELECT * FROM timescaledb_osm.tiered_chunks;
+```
+</NumberedItem>
+</NumberedList>
+
+To see which {C.CHUNK}s are scheduled for tiering either by policy or by a manual call, but have not yet been tiered:
+
+```sql
+SELECT * FROM timescaledb_osm.chunks_queued_for_tiering;
+```
+
+#### Untier {C.CHUNK}s
+
+To update data in a tiered {C.CHUNK}, move it back to the standard high-performance storage tier in {C.CLOUD_LONG}. Untiering {C.CHUNK}s is a synchronous process. {C.CHUNK_CAP}s are renamed when the data is untiered.
+
+<NumberedList>
+<NumberedItem title={`Check which ${C.CHUNK}s are tiered`}>
+```sql
+SELECT * FROM timescaledb_osm.tiered_chunks;
+```
+
+Sample output:
+
+```sql
+ hypertable_schema | hypertable_name |    chunk_name    |      range_start       |       range_end
+-------------------+-----------------+------------------+------------------------+------------------------
+public            | sample          | _hyper_1_1_chunk | 2023-02-16 00:00:00+00 | 2023-02-23 00:00:00+00
+(1 row)
+```
+</NumberedItem>
+
+<NumberedItem title="Call `untier_chunk`">
+```sql
+CALL untier_chunk('_hyper_1_1_chunk');
+```
+</NumberedItem>
+
+<NumberedItem title={`Verify the ${C.CHUNK} details`}>
+```sql
+SELECT * FROM timescaledb_information.chunks;
+```
+
+Sample output:
+
+```sql
+-[ RECORD 1 ]----------+-------------------------
+hypertable_schema      | public
+hypertable_name        | sample
+chunk_schema           | _timescaledb_internal
+chunk_name             | _hyper_1_4_chunk
+primary_dimension      | ts
+primary_dimension_type | timestamp with time zone
+range_start            | 2023-02-16 00:00:00+00
+range_end              | 2020-03-23 00:00:00+00
+range_start_integer    |
+range_end_integer      |
+is_compressed          | f
+chunk_tablespace       |
+data_nodes             |
+```
+</NumberedItem>
+</NumberedList>
+
+### Drop tiered data
+
+To drop tiered data, call [`DROP TABLE`](/build/data-management/operations) on the corresponding {C.HYPERTABLE}. This removes the {C.HYPERTABLE} and all its associated data from the high-performance and low-cost storage.
+
+### Disable tiering
+
+If you no longer want to use tiered storage for a particular {C.HYPERTABLE}, drop the associated metadata by calling `disable_tiering`.
+
+<NumberedList>
+<NumberedItem title="Remove tiering policies">
+Drop all tiering policies by calling `remove_tiering_policy`.
+</NumberedItem>
+
+<NumberedItem title="Check for tiered data">
+Make sure that there is no tiered data associated with this {C.HYPERTABLE}:
+
+<ol type="a">
+<li>
+
+List the tiered {C.CHUNK}s:
+
+```sql
+SELECT * FROM timescaledb_osm.tiered_chunks;
+```
+
+</li>
+<li>
+
+If you have any tiered {C.CHUNK}s, either untier this data, or drop these {C.CHUNK}s from tiered storage.
+
+</li>
+</ol>
+</NumberedItem>
+
+<NumberedItem title="Disable tiering">
+```sql
+SELECT disable_tiering('my_hypertable_name');
+```
+</NumberedItem>
+
+<NumberedItem title="Verify tiering is disabled">
+```sql
+SELECT * FROM timescaledb_osm.tiered_hypertables;
+```
+</NumberedItem>
+</NumberedList>

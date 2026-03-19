@@ -1,0 +1,158 @@
+---
+title: Back up and recover services
+description: Protect your data with automatic backups, cross-region protection, and point-in-time recovery
+products: [cloud]
+---
+
+import * as C from "@constants";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import PitrIntro from "../../../../../../partials/_pitr-intro.mdx";
+import CLIForks from "../../../../../../partials/_devops-cli-service-forks.mdx";
+
+{C.CLOUD_LONG} provides comprehensive backup and recovery solutions to protect your data, including automatic daily backups,
+cross-region protection, and point-in-time recovery.
+
+## Automatic backups
+
+{C.CLOUD_LONG} automatically handles backup for your {C.SERVICE_LONG}s using the `pgBackRest` tool. You don't need to perform
+backups manually. What's more, with [cross-region backup](#enable-cross-region-backup), you are protected when an entire AWS region goes down.
+
+{C.CLOUD_LONG} automatically creates one full backup every week, and incremental backups every day in the same region as
+your {C.SERVICE_SHORT}. Additionally, all [Write-Ahead Log (WAL)](https://www.postgresql.org/docs/current/wal-intro.html) files are retained back to the oldest full backup.
+This means that you always have a full backup available for the current and previous week:
+
+![Backup in Tiger Cloud](https://assets.timescale.com/docs/images/database-backup-recovery.png)
+
+On [{C.SCALE} and {C.ENTERPRISE}](../../pricing-and-account-management) {C.PRICING_PLAN}s, you can check the list of backups for the previous 14 days in {C.CONSOLE_LONG}. To do so, select your {C.SERVICE_SHORT}, then click `Operations` > `Backup and restore` > `Backup history`.
+
+In the event of a storage failure, a {C.SERVICE_SHORT} automatically recovers from a backup
+to the point of failure. If the whole availability zone goes down, your {C.SERVICE_LONG}s are recovered in a different zone. In the event of a user error, you can [create a point-in-time recovery fork](#create-a-point-in-time-recovery-fork).
+
+## Enable cross-region backup
+
+<Callout variant="note">
+Cross-region backup is available on [{C.ENTERPRISE}](../../pricing-and-account-management) pricing plan.
+</Callout>
+
+For added reliability, you can enable cross-region backup. This protects your data when an entire AWS region goes down. In this case, you have two identical backups of your {C.SERVICE_SHORT} at any time, but one of them is in a different AWS region. Cross-region backups are updated daily and weekly in the same way as a regular backup. You can have one cross-region backup for a {C.SERVICE_SHORT}.
+
+You enable cross-region backup when you create a {C.SERVICE_SHORT}, or configure it for an existing {C.SERVICE_SHORT} in {C.CONSOLE_LONG}:
+
+<NumberedList>
+
+<NumberedItem title={`Select your ${C.SERVICE_SHORT} and open backup settings`}>
+
+In [{C.CONSOLE_SHORT}](https://console.cloud.timescale.com/dashboard/services), select your {C.SERVICE_SHORT} and click `Operations` > `Backup & restore`.
+
+</NumberedItem>
+
+<NumberedItem title="Enable cross-region backup">
+
+In `Cross-region backup`, select the region in the dropdown and click `Enable backup`.
+
+![Create cross-region backup](https://assets.timescale.com/docs/images/tiger-on-azure/create-cross-region-backup-in-tiger-console.png)
+
+You can now see the backup, its region, and creation date in a list.
+
+</NumberedItem>
+
+</NumberedList>
+
+You can have one cross-region backup per {C.SERVICE_SHORT}. To change the region of your backup:
+
+<NumberedList>
+
+<NumberedItem title={`Open backup settings for your ${C.SERVICE_SHORT}`}>
+
+In [{C.CONSOLE_SHORT}](https://console.cloud.timescale.com/dashboard/services), select your {C.SERVICE_SHORT} and click `Operations` > `Backup & restore`.
+
+</NumberedItem>
+
+<NumberedItem title="Disable the existing backup">
+
+Click the trash icon next to the existing backup to disable it.
+
+![Disable cross-region backup](https://assets.timescale.com/docs/images/tiger-on-azure/cross-region-backup-list-in-tiger-console.png)
+
+</NumberedItem>
+
+<NumberedItem title="Create a new backup in a different region">
+
+</NumberedItem>
+
+</NumberedList>
+
+## Create a point-in-time recovery fork
+
+<PitrIntro />
+
+You initiate a point-in-time recovery from a same-region or cross-region backup in {C.CONSOLE_LONG}:
+
+<Tabs>
+
+<TabItem label="Same-region backup">
+
+<NumberedList>
+
+<NumberedItem title={`Ensure the ${C.SERVICE_SHORT} is running or paused`}>
+
+In [{C.CONSOLE}](https://console.cloud.timescale.com/dashboard/services), from the `Services` list, ensure the {C.SERVICE_SHORT}
+you want to recover has a status of `Running` or `Paused`.
+
+</NumberedItem>
+
+<NumberedItem title="Create a recovery fork">
+
+Navigate to `Operations` > `Service management` and click `Create recovery fork`.
+
+</NumberedItem>
+
+<NumberedItem title="Select the recovery point">
+
+Select the recovery point, ensuring the correct time zone (UTC offset).
+
+</NumberedItem>
+
+<NumberedItem title="Configure the fork">
+
+![Create recovery fork](https://assets.timescale.com/docs/images/tiger-cloud-console/create-recovery-fork-tiger-console.png)
+
+You can configure the compute resources, add an HA replica, tag your fork, and
+add a connection pooler. Best practice is to match
+the same configuration you had at the point you want to recover to.
+
+</NumberedItem>
+
+<NumberedItem title="Confirm the recovery fork">
+
+Confirm by clicking `Create recovery fork`.
+
+A fork of the {C.SERVICE_SHORT} is created. The recovered {C.SERVICE_SHORT} shows in `Services` with a label specifying which {C.SERVICE_SHORT} it has been forked from.
+
+</NumberedItem>
+
+<NumberedItem title="Update the connection strings in your app">
+
+Since the point-in-time recovery is done in a fork, to migrate your
+application to the point of recovery, change the connection
+strings in your application to use the fork.
+
+</NumberedItem>
+
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="Cross-region backup">
+
+[Contact us](mailto:support@tigerdata.com), and we will assist in recovering your {C.SERVICE_SHORT}.
+
+</TabItem>
+
+</Tabs>
+
+## Create a service fork
+
+<CLIForks />

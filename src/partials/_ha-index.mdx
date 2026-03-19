@@ -1,0 +1,39 @@
+import * as C from "@constants";
+
+In {C.CLOUD_LONG}, replicas are copies of the primary data instance in a {C.SERVICE_LONG}.
+If your primary becomes unavailable, {C.CLOUD_LONG} automatically fails over to your HA replica.
+
+The replication strategies offered by {C.CLOUD_LONG} are:
+
+- [High Availability (HA) replicas](../high-availability): significantly reduce the risk of downtime and data
+  loss due to system failure, and enable {C.SERVICE_SHORT}s to avoid downtime during routine maintenance.
+
+- [Read replicas](../read-scaling): safely scale a {C.SERVICE_SHORT} to power your read-intensive
+  apps and business intelligence tooling and remove the load from the primary data instance.
+
+For {C.MST_SHORT}, see [Failover in {C.MST_LONG}](/deploy/mst/failover).
+For {C.SELF_LONG}, see [Replication and high availability](/deploy/self-hosted/replication-and-ha/about-ha).
+
+## Rapid recovery
+
+By default, all {C.SERVICE_SHORT}s have rapid recovery enabled.
+
+Because compute and storage are handled separately in {C.CLOUD_LONG}, {C.SERVICE_SHORT}s recover
+quickly from compute failures, but usually need a full recovery from backup for storage failures.
+
+- **Compute failure**: the most common cause of database failure. Compute failures
+can be caused by hardware failing, or through things like unoptimized queries,
+causing increased load that maxes out the CPU usage. In these cases, data on disk is unaffected
+and only the compute and memory needs replacing. {C.CLOUD_LONG} recovery immediately provisions
+new compute infrastructure for the {C.SERVICE_SHORT} and mounts the existing storage to the new node. Any WAL
+that was in memory then replays. This process typically only takes thirty seconds. However,
+depending on the amount of WAL that needs replaying this may take up to twenty minutes. Even in the
+worst-case scenario, {C.CLOUD_LONG} recovery is an order of magnitude faster than a standard recovery
+from backup.
+
+- **Storage failure**: in the rare occurrence of disk failure, {C.CLOUD_LONG} automatically
+[performs a full recovery from backup](../backup-restore).
+
+If CPU usage for a {C.SERVICE_SHORT} runs high for long periods of time, issues such as WAL archiving getting queued
+behind other processes can occur. This can cause a failure and could result in a larger data loss.
+To avoid data loss, {C.SERVICE_SHORT}s are monitored for this kind of scenario.

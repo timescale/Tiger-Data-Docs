@@ -1,0 +1,129 @@
+import * as C from "@constants";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+The default connection string for {C.CLOUD_LONG} uses the Secure Sockets Layer (SSL) mode `require`.
+Users can choose not to use Transport Layer Security (TLS) while connecting to their databases, but connecting to
+production databases without encryption is strongly discouraged. To
+achieve even stronger security, clients may select to verify the identity of the
+server. If you want your connection client to verify the server's identity, you
+can connect with an [SSL mode](https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS) of `verify-ca` or `verify-full`. To
+do so, you need to store a copy of the certificate chain where your connection
+tool can find it.
+
+This section provides instructions for setting up a stricter SSL connection.
+
+## SSL certificates
+
+As part of the secure connection protocol, the server proves its identity by
+providing clients with a certificate. This certificate should be issued and
+signed by a well-known and trusted Certificate Authority.
+
+Because requesting a certificate from a Certificate Authority takes some time,
+{C.SERVICE_LONG}s are initialized with a self-signed certificate. This
+lets you start up a {C.SERVICE_SHORT} immediately. After your {C.SERVICE_SHORT} is started, a
+signed certificate is requested behind the scenes. The new certificate is
+usually received within 30 minutes. Your certificate is then replaced
+with almost no interruption. Connections are reset, and most clients reconnect
+automatically. Free services do not supply SSL certificates.
+
+With the signed certificate, you can switch your connections to a stricter SSL
+mode, such as `verify-ca` or `verify-full`.
+
+For more information on the different SSL modes, see the [{C.PG} SSL mode
+descriptions](https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS).
+
+## Connect to your database with a stricter SSL mode
+
+To set up a stricter SSL connection:
+
+1.  Generate a copy of your certificate chain and store it in the right location
+1.  Change your {C.CLOUD_LONG} connection string
+
+<NumberedList>
+
+<NumberedItem title={`Use the \`openssl\` tool to connect to your ${C.SERVICE_LONG} and get the certificate bundle`}>
+
+Store the bundle in a file called `bundle.crt`.
+
+Replace `$SERVICE_URL_WITH_PORT` with your {C.CLOUD_LONG} connection URL:
+
+```shell
+openssl s_client -showcerts -partial_chain -starttls postgres \
+             -connect $SERVICE_URL_WITH_PORT < /dev/null 2>/dev/null | \
+             awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/{ print }' > bundle.crt
+```
+
+</NumberedItem>
+
+<NumberedItem title="Copy the bundle to your clipboard">
+
+<Tabs>
+
+<TabItem label="MacOS">
+
+```shell
+pbcopy < bundle.crt
+```
+
+</TabItem>
+
+<TabItem label="Linux">
+
+```shell
+xclip -sel clip < bundle.crt
+```
+
+</TabItem>
+
+<TabItem label="Windows">
+
+```shell
+clip.exe < bundle.crt
+```
+
+</TabItem>
+
+</Tabs>
+
+</NumberedItem>
+
+<NumberedItem title="Navigate to https://whatsmychaincert.com/">
+
+This online tool generates a full certificate chain, including the root Certificate Authority certificate, which is not
+included in the certificate bundle returned by the database.
+
+</NumberedItem>
+
+<NumberedItem title="Paste your certificate bundle in the provided box">
+
+Check `Include Root Certificate`. Click `Generate Chain`.
+
+</NumberedItem>
+
+<NumberedItem title="Save the downloaded certificate chain to `~/.postgresql/root.crt`">
+
+</NumberedItem>
+
+<NumberedItem title={`Change your ${C.CLOUD_LONG} connection string from \`sslmode=require\` to either \`sslmode=verify-full\` or \`sslmode=verify-ca\``}>
+
+For example, to connect to your database with `psql`, run:
+
+```shell
+psql "postgres://tsdbadmin@$SERVICE_URL_WITH_PORT/tsdb?sslmode=verify-full"
+```
+
+</NumberedItem>
+
+</NumberedList>
+
+## Verify the certificate type used by your database
+
+To check whether the certificate has been replaced yet, connect to your
+database instance and inspect the returned certificate. We are using two
+certificate providers - Google and ZeroSSL, that's why chances are you can have
+a certificate issued by either of those CAs:
+
+```shell
+openssl s_client -showcerts -partial_chain -starttls postgres -connect <HOST>:<PORT> < /dev/null 2>/dev/null  | grep "Google\|ZeroSSL"
+```
