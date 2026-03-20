@@ -1,70 +1,72 @@
 import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
+<NumberedList>
+<NumberedItem title="Dump the roles from your source database">
+Export your role-based security hierarchy. `<db_name>` has the same value as `<db_name>` in `$SOURCE`.
+I know, it confuses me as well.
 
-1. **Dump the roles from your source database**
+```bash
+pg_dumpall -d "$SOURCE" \
+  -l <db_name>  \
+  --quote-all-identifiers \
+  --roles-only \
+  --no-role-passwords \
+  --file=roles.sql
+```
 
-   Export your role-based security hierarchy. `<db_name>` has the same value as `<db_name>` in `$SOURCE`.
-   I know, it confuses me as well.
+{C.MST_SHORT} does not allow you to export passwords with roles. You assign passwords to these roles
+when you have uploaded them to your {C.SERVICE_LONG}.
+</NumberedItem>
 
-   ```bash
-   pg_dumpall -d "$SOURCE" \
-     -l <db_name>  \
-     --quote-all-identifiers \
-     --roles-only \
-     --no-role-passwords \
-     --file=roles.sql
-   ```
+<NumberedItem title="Remove roles with superuser access">
+{C.SERVICE_LONG}s do not support roles with superuser access. Run the following script
+to remove statements, permissions and clauses that require superuser permissions from `roles.sql`:
 
-   MST does not allow you to export passwords with roles. You assign passwords to these roles
-   when you have uploaded them to your {C.SERVICE_LONG}.
+```bash
+sed -i -E \
+-e '/DROP ROLE IF EXISTS "postgres";/d' \
+-e '/DROP ROLE IF EXISTS "tsdbadmin";/d' \
+-e '/CREATE ROLE "postgres";/d' \
+-e '/ALTER ROLE "postgres"/d' \
+-e '/CREATE ROLE "rds/d' \
+-e '/ALTER ROLE "rds/d' \
+-e '/TO "rds/d' \
+-e '/GRANT "rds/d' \
+-e '/GRANT "pg_read_all_stats" TO "tsdbadmin"/d' \
+-e 's/(NO)*SUPERUSER//g' \
+-e 's/(NO)*REPLICATION//g' \
+-e 's/(NO)*BYPASSRLS//g' \
+-e 's/GRANTED BY "[^"]*"//g' \
+-e '/CREATE ROLE "tsdbadmin";/d' \
+-e '/ALTER ROLE "tsdbadmin"/d' \
+-e 's/WITH ADMIN OPTION,/WITH /g' \
+-e 's/WITH ADMIN OPTION//g' \
+-e 's/GRANTED BY ".*"//g' \
+-e '/GRANT "pg_.*" TO/d' \
+-e '/CREATE ROLE "_aiven";/d' \
+-e '/ALTER ROLE "_aiven"/d' \
+-e '/GRANT SET ON PARAMETER "pgaudit\.[^"]+" TO "_tsdbadmin_auditing"/d' \
+-e '/GRANT SET ON PARAMETER "anon\.[^"]+" TO "tsdbadmin_group"/d' \
+roles.sql
+```
+</NumberedItem>
 
-1. **Remove roles with superuser access**
+<NumberedItem title="Dump the source database schema and data">
+The `pg_dump` flags remove superuser access and tablespaces from your data. When you run
+`pg_dump`, check the run time, [a long-running `pg_dump` can cause issues](/build/tips-and-tricks/troubleshoot-import-ingest).
 
-   {C.SERVICE_LONG}s do not support roles with superuser access. Run the following script
-   to remove statements, permissions and clauses that require superuser permissions from `roles.sql`:
+```bash
+pg_dump -d "$SOURCE" \
+--format=plain \
+--quote-all-identifiers \
+--no-tablespaces \
+--no-owner \
+--no-privileges \
+--file=dump.sql
+```
 
-   ```bash
-   sed -i -E \
-  -e '/DROP ROLE IF EXISTS "postgres";/d' \
-  -e '/DROP ROLE IF EXISTS "tsdbadmin";/d' \
-  -e '/CREATE ROLE "postgres";/d' \
-  -e '/ALTER ROLE "postgres"/d' \
-  -e '/CREATE ROLE "rds/d' \
-  -e '/ALTER ROLE "rds/d' \
-  -e '/TO "rds/d' \
-  -e '/GRANT "rds/d' \
-  -e '/GRANT "pg_read_all_stats" TO "tsdbadmin"/d' \
-  -e 's/(NO)*SUPERUSER//g' \
-  -e 's/(NO)*REPLICATION//g' \
-  -e 's/(NO)*BYPASSRLS//g' \
-  -e 's/GRANTED BY "[^"]*"//g' \
-  -e '/CREATE ROLE "tsdbadmin";/d' \
-  -e '/ALTER ROLE "tsdbadmin"/d' \
-  -e 's/WITH ADMIN OPTION,/WITH /g' \
-  -e 's/WITH ADMIN OPTION//g' \
-  -e 's/GRANTED BY ".*"//g' \
-  -e '/GRANT "pg_.*" TO/d' \
-  -e '/CREATE ROLE "_aiven";/d' \
-  -e '/ALTER ROLE "_aiven"/d' \
-  -e '/GRANT SET ON PARAMETER "pgaudit\.[^"]+" TO "_tsdbadmin_auditing"/d' \
-  -e '/GRANT SET ON PARAMETER "anon\.[^"]+" TO "tsdbadmin_group"/d' \
-   roles.sql
-   ```
-
-1. **Dump the source database schema and data**
-
-   The `pg_dump` flags remove superuser access and tablespaces from your data. When you run
-   `pgdump`, check the run time, [a long-running `pg_dump` can cause issues](/migrate/troubleshooting/#dumping-and-locks).
-
-   ```bash
-   pg_dump -d "$SOURCE" \
-   --format=plain \
-   --quote-all-identifiers \
-   --no-tablespaces \
-   --no-owner \
-   --no-privileges \
-   --file=dump.sql
-   ```
-
-   To dramatically reduce the time taken to dump the source database, using multiple connections. For more information,
-   see [dumping with concurrency](/migrate/troubleshooting/#dumping-with-concurrency) and [restoring with concurrency](/migrate/troubleshooting/#restoring-with-concurrency).
+To dramatically reduce the time taken to dump the source database, use multiple connections. For more information,
+see [dumping with concurrency](/build/tips-and-tricks/troubleshoot-import-ingest) and [restoring with concurrency](/build/tips-and-tricks/troubleshoot-import-ingest).
+</NumberedItem>
+</NumberedList>

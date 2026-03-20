@@ -327,11 +327,25 @@ export default defineConfig({
                 items: [
                   { label: "Overview", link: "/build/data-management" },
                   { label: "Understand hypertables", link: "/build/data-management/understand-hypertables" },
-                  { label: "Time-Series / Hypertables", link: "/build/data-management/time-series-hypertables" },
-                  { label: "Understand hyperfunctions", link: "/build/data-management/understand-hyperfunctions" },
-                  { label: "Aggregate data by time interval", link: "/build/data-management/time-buckets" },
-                  { label: "Create and manage jobs", link: "/build/data-management/create-and-manage-jobs" },
-                  { label: "Operations", link: "/build/data-management/operations" },
+                  {
+                    label: "Time Buckets",
+                    collapsed: true,
+                    items: [
+                      { label: "About time buckets", link: "/build/data-management/time-buckets/about-time-buckets" },
+                      { label: "Use time buckets", link: "/build/data-management/time-buckets/use-time-buckets" },
+                    ],
+                  },
+                  {
+                    label: "Write Data",
+                    collapsed: true,
+                    items: [
+                      { label: "About writing data", link: "/build/data-management/write-data/about-writing-data" },
+                      { label: "Insert data", link: "/build/data-management/write-data/insert" },
+                      { label: "Update data", link: "/build/data-management/write-data/update" },
+                      { label: "Upsert data", link: "/build/data-management/write-data/upsert" },
+                      { label: "Delete data", link: "/build/data-management/write-data/delete" },
+                    ],
+                  },
                   { label: "Run your queries from Tiger Console", link: "/build/data-management/run-queries-from-tiger-console" },
                   {
                     label: "Query data",
@@ -434,18 +448,8 @@ export default defineConfig({
                 items: [
                   { label: "Overview", link: "/build/columnar-storage" },
                   { label: "Understand hypercore", link: "/build/columnar-storage/understand-hypercore" },
-                  { label: "About compression", link: "/build/columnar-storage/about-compression" },
                   { label: "Setup hypercore", link: "/build/columnar-storage/setup-hypercore" },
                   { label: "Compression methods in hypercore", link: "/build/columnar-storage/compression-methods" },
-                  { label: "Designing your database for compression", link: "/build/columnar-storage/compression-design" },
-                  { label: "Create a compression policy", link: "/build/columnar-storage/compression-policy" },
-                  { label: "Improve query and upsert performance", link: "/build/columnar-storage/secondary-indexes" },
-                  { label: "Manual compression", link: "/build/columnar-storage/manual-compression" },
-                  { label: "Decompression", link: "/build/columnar-storage/decompress-chunks" },
-                  { label: "Inserting or modifying data in the columnstore", link: "/build/columnar-storage/modify-compressed-data" },
-                  { label: "Schema modifications", link: "/build/columnar-storage/modify-a-schema" },
-                  { label: "Data retention", link: "/build/columnar-storage/data-retention" },
-                  { label: "Compress a continuous aggregate", link: "/build/columnar-storage/compression-on-continuous-aggregates" },
                 ],
               },
               {
@@ -478,13 +482,13 @@ export default defineConfig({
                 collapsed: true,
                 items: [
                   { label: "Overview", link: "/build/tips-and-tricks" },
-                  { label: "Troubleshoot TimescaleDB", link: "/build/tips-and-tricks/troubleshooting" },
                   { label: "Troubleshoot continuous aggregates", link: "/build/tips-and-tricks/troubleshoot-continuous-aggregates" },
                   { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
                   { label: "Troubleshoot import and ingest", link: "/build/tips-and-tricks/troubleshoot-import-ingest" },
                   { label: "Troubleshoot hypercore", link: "/build/tips-and-tricks/troubleshoot-hypercore" },
                   { label: "Troubleshoot schema management", link: "/build/tips-and-tricks/troubleshoot-schema-management" },
                   { label: "Troubleshoot query data", link: "/build/tips-and-tricks/troubleshoot-query-data" },
+                  { label: "Troubleshoot time buckets", link: "/build/tips-and-tricks/troubleshoot-time-buckets" },
                 ],
               },
             ],
@@ -504,10 +508,23 @@ export default defineConfig({
                 items: [
                   { label: "Sync from Postgres", link: "/migrate/livesync-for-postgresql" },
                   { label: "Sync from S3", link: "/migrate/livesync-for-s3" },
+                  { label: "Stream from Kafka", link: "/migrate/livesync-for-kafka" },
                   { label: "Upload a file (Console)", link: "/migrate/import-console" },
                   { label: "Upload a file (terminal)", link: "/migrate/import-terminal" },
                   { label: "Live migration", link: "/migrate/live-migration" },
                   { label: "Migrate with downtime", link: "/migrate/migrate-with-downtime" },
+                  {
+                    label: "Dual-write and backfill",
+                    collapsed: true,
+                    items: [
+                      { label: "Overview", link: "/migrate/dual-write-and-backfill" },
+                      { label: "From TimescaleDB", link: "/migrate/dual-write-and-backfill/dual-write-from-timescaledb" },
+                      { label: "From PostgreSQL", link: "/migrate/dual-write-and-backfill/dual-write-from-postgres" },
+                      { label: "From other databases", link: "/migrate/dual-write-and-backfill/dual-write-from-other" },
+                      { label: "timescaledb-backfill tool", link: "/migrate/dual-write-and-backfill/timescaledb-backfill" },
+                    ],
+                  },
+                  { label: "FAQ and troubleshooting", link: "/migrate/troubleshooting" },
                 ],
               },
               {

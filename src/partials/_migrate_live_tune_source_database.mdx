@@ -1,32 +1,37 @@
 import * as C from "@constants";
-
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 import EnableReplication from "./_migrate_live_setup_enable_replication.mdx";
 
 You need admin rights to to update the configuration on your source database. If you are using
-a managed service, follow the instructions in the `From MST` tab on this page. 
+a managed service, follow the instructions in the `From MST` tab on this page.
 
-1. **Install the `wal2json` extension on your source database**
+<NumberedList>
+<NumberedItem title={`Install the \`wal2json\` extension on your source database`}>
+[Install wal2json](https://github.com/eulerto/wal2json) on your source database.
+</NumberedItem>
 
-   [Install wal2json](https://github.com/eulerto/wal2json) on your source database.
+<NumberedItem title={`Prevent ${C.PG} from treating the data in a snapshot as outdated`}>
 
-1. **Prevent {C.PG} from treating the data in a snapshot as outdated**
+```shell
+psql -X -d $SOURCE -c 'alter system set old_snapshot_threshold=-1'
+```
 
-   ```shell
-   psql -X -d $SOURCE -c 'alter system set old_snapshot_threshold=-1'
-   ```
-   This is not applicable if the source database is {C.PG} 17 or later.
+This is not applicable if the source database is {C.PG} 17 or later.
+</NumberedItem>
 
-1. **Set the write-Ahead Log (WAL) to record the information needed for logical decoding**
-   ```shell
-   psql -X -d $SOURCE -c 'alter system set wal_level=logical'
-   ```
+<NumberedItem title="Set the Write-Ahead Log (WAL) to record the information needed for logical decoding">
 
-1. **Restart the source database** 
+```shell
+psql -X -d $SOURCE -c 'alter system set wal_level=logical'
+```
+</NumberedItem>
 
-   Your configuration changes are now active. However, verify that the
-   settings are live in your database.  
+<NumberedItem title="Restart the source database">
+Your configuration changes are now active. However, verify that the
+settings are live in your database.
+</NumberedItem>
 
-1. **Enable live-migration to replicate `DELETE` and`UPDATE` operations**
-
-   <EnableReplication />
-
+<NumberedItem title={`Enable live-migration to replicate \`DELETE\` and \`UPDATE\` operations`}>
+<EnableReplication />
+</NumberedItem>
+</NumberedList>

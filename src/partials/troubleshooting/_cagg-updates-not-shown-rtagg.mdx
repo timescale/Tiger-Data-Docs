@@ -1,0 +1,183 @@
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import CaggsRealTimeHistoricalDataRefreshes from "../_caggs-real-time-historical-data-refreshes.mdx";
+import OldCreateHypertable from "../_old-api-create-hypertable.mdx";
+
+## Updates to previously materialized regions aren't shown in {C.RTAGG}s
+
+<CaggsRealTimeHistoricalDataRefreshes />
+
+The following example shows how this works:
+
+<NumberedList>
+<NumberedItem title={`Create the ${C.HYPERTABLE}`}>
+```sql
+CREATE TABLE conditions(
+  day DATE NOT NULL,
+  city text NOT NULL,
+  temperature INT NOT NULL
+)
+WITH (
+   tsdb.hypertable,
+   tsdb.partition_column='day',
+   tsdb.chunk_interval='1 day'
+);
+```
+
+<OldCreateHypertable />
+</NumberedItem>
+
+<NumberedItem title="Add data">
+```sql
+INSERT INTO conditions (day, city, temperature) VALUES
+  ('2021-06-14', 'Moscow', 26),
+  ('2021-06-15', 'Moscow', 22),
+  ('2021-06-16', 'Moscow', 24),
+  ('2021-06-17', 'Moscow', 24),
+  ('2021-06-18', 'Moscow', 27),
+  ('2021-06-19', 'Moscow', 28),
+  ('2021-06-20', 'Moscow', 30),
+  ('2021-06-21', 'Moscow', 31),
+  ('2021-06-22', 'Moscow', 34),
+  ('2021-06-23', 'Moscow', 34),
+  ('2021-06-24', 'Moscow', 34),
+  ('2021-06-25', 'Moscow', 32),
+  ('2021-06-26', 'Moscow', 32),
+  ('2021-06-27', 'Moscow', 31);
+```
+</NumberedItem>
+
+<NumberedItem title={`Create a ${C.CAGG} with no materialized data`}>
+
+<ol type="a">
+<li>
+
+Create the {C.CAGG}:
+
+```sql
+CREATE MATERIALIZED VIEW conditions_summary
+WITH (timescaledb.continuous) AS
+SELECT city,
+   time_bucket('7 days', day) AS bucket,
+   MIN(temperature),
+   MAX(temperature)
+FROM conditions
+GROUP BY city, bucket
+WITH NO DATA;
+```
+
+</li>
+<li>
+
+Check your data:
+
+```sql
+SELECT * FROM conditions_summary ORDER BY bucket;
+```
+
+The query fetches data directly from the {C.HYPERTABLE}:
+
+| city | bucket | min | max |
+|------|--------|-----|-----|
+| Moscow | 2021-06-14 | 22 | 30 |
+| Moscow | 2021-06-21 | 31 | 34 |
+
+</li>
+</ol>
+</NumberedItem>
+
+<NumberedItem title="Materialize the data">
+
+<ol type="a">
+<li>
+
+Refresh the {C.CAGG}:
+
+```sql
+CALL refresh_continuous_aggregate('conditions_summary', '2021-06-14', '2021-06-21');
+```
+
+</li>
+<li>
+
+Check your data:
+
+```sql
+SELECT * FROM conditions_summary ORDER BY bucket;
+```
+
+The same data is returned, but this time from the underlying materialized table:
+
+| city | bucket | min | max |
+|------|--------|-----|-----|
+| Moscow | 2021-06-14 | 22 | 30 |
+| Moscow | 2021-06-21 | 31 | 34 |
+
+</li>
+</ol>
+</NumberedItem>
+
+<NumberedItem title="Update data in a previously materialized bucket">
+
+<ol type="a">
+<li>
+
+Update the data in your {C.HYPERTABLE}:
+
+```sql
+UPDATE conditions
+SET temperature = 35
+WHERE day = '2021-06-14' and city = 'Moscow';
+```
+
+</li>
+<li>
+
+Check your data:
+
+```sql
+SELECT * FROM conditions_summary ORDER BY bucket;
+```
+
+The updated data is not yet visible. This is because the changes have not been materialized:
+
+| city | bucket | min | max |
+|------|--------|-----|-----|
+| Moscow | 2021-06-14 | 22 | 30 |
+| Moscow | 2021-06-21 | 31 | 34 |
+
+</li>
+</ol>
+</NumberedItem>
+
+<NumberedItem title="Refresh to update the materialized region">
+
+<ol type="a">
+<li>
+
+Refresh the data:
+
+```sql
+CALL refresh_continuous_aggregate('conditions_summary', '2021-06-14', '2021-06-21');
+```
+
+</li>
+<li>
+
+Check your data:
+
+```sql
+SELECT * FROM conditions_summary ORDER BY bucket;
+```
+
+The update is now visible:
+
+| city | bucket | min | max |
+|------|--------|-----|-----|
+| Moscow | 2021-06-14 | 22 | 35 |
+| Moscow | 2021-06-21 | 31 | 34 |
+
+</li>
+</ol>
+</NumberedItem>
+</NumberedList>
