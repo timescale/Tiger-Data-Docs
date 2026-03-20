@@ -1,0 +1,92 @@
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+## {C.CAGG_CAP} watermark is in the future
+
+{C.CAGG_CAP}s use a watermark to indicate which {C.TIME_BUCKET}s have
+already been materialized. When you query a {C.CAGG}, your query
+returns materialized data from before the watermark. It returns real-time,
+non-materialized data from after the watermark.
+
+In certain cases, the watermark might be in the future. If this happens, all
+buckets, including the most recent bucket, are materialized and below the
+watermark. No real-time data is returned.
+
+This might happen if you refresh your {C.CAGG} over the time window
+`<START_TIME>, NULL`, which materializes all recent data. It might also happen
+if you create a {C.CAGG} using the `WITH DATA` option. This also
+implicitly refreshes your {C.CAGG} with a window of `NULL, NULL`.
+
+To fix this, create a new {C.CAGG} using the `WITH NO DATA` option.
+Then use a policy to refresh this {C.CAGG} over an explicit time
+window.
+
+### Creating a new {C.CAGG} with an explicit refresh window
+
+<NumberedList>
+<NumberedItem title={`Create the ${C.CAGG} with WITH NO DATA`}>
+```sql
+CREATE MATERIALIZED VIEW <continuous_aggregate_name>
+    WITH (timescaledb.continuous)
+    AS SELECT time_bucket('<interval>', <partition_column>),
+    <other_columns_to_select>,
+    ...
+    FROM <hypertable>
+    GROUP BY bucket, <optional_other_columns>
+    WITH NO DATA;
+```
+</NumberedItem>
+
+<NumberedItem title="Add a refresh policy with an explicit end_offset">
+```sql
+SELECT add_continuous_aggregate_policy('<continuous_aggregate_name>',
+    start_offset => INTERVAL '30 day',
+    end_offset => INTERVAL '1 hour',
+    schedule_interval => INTERVAL '1 hour');
+```
+</NumberedItem>
+
+<NumberedItem title="Check the watermark">
+Get the ID for the materialization {C.HYPERTABLE} that contains the actual
+{C.CAGG} data:
+
+```sql
+SELECT id FROM _timescaledb_catalog.hypertable
+    WHERE table_name=(
+        SELECT materialization_hypertable_name
+            FROM timescaledb_information.continuous_aggregates
+            WHERE view_name='<continuous_aggregate_name>'
+    );
+```
+</NumberedItem>
+
+<NumberedItem title="Query for the watermark timestamp">
+Use the returned ID to query for the watermark's timestamp:
+
+For {C.TIMESCALE_DB} &gt;= 2.12:
+
+```sql
+SELECT COALESCE(
+    _timescaledb_functions.to_timestamp(_timescaledb_functions.cagg_watermark(<ID>)),
+    '-infinity'::timestamp with time zone
+);
+```
+
+For {C.TIMESCALE_DB} &lt; 2.12:
+
+```sql
+SELECT COALESCE(
+    _timescaledb_internal.to_timestamp(_timescaledb_internal.cagg_watermark(<ID>)),
+    '-infinity'::timestamp with time zone
+);
+```
+</NumberedItem>
+</NumberedList>
+
+<Callout variant="warning">
+If you choose to delete your old {C.CAGG} after creating a new one,
+beware of historical data loss. If your old {C.CAGG} contained data
+that you dropped from your original {C.HYPERTABLE}, for example through a data
+retention policy, the dropped data is not included in your new {C.CAGG}.
+</Callout>
