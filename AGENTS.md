@@ -103,14 +103,15 @@ src/content/docs/
 │   ├── tools/             # CLI/REST API, MCP/CLI, Tiger Cloud essentials
 │   └── news/              # Changelog (new.mdx), release-notes.mdx
 │
-├── learn/                 # Conceptual learning content
-│   ├── fundamentals/      # Core concepts (hypertables, chunks, compression)
+├── learn/                 # Conceptual learning content (concepts, glossary)
+│   ├── fundamentals/      # Core concepts (hypertables, chunks, design—URLs under /learn/fundamentals/...)
 │   ├── deep-dive/         # Advanced architecture topics
-│   ├── examples/          # Real-world use case tutorials
-│   ├── production-patterns/  # Best practices for production
 │   └── glossary.mdx       # Glossary with category filtering
 │
-├── build/                 # Task-oriented guides by feature
+├── build/                 # Task-oriented guides, tutorials, examples, production patterns (URLs under /build/...)
+│   ├── how-to/            # Quickstarts (e.g. your first hypertable, basic compression)
+│   ├── examples/          # Real-world tutorials and cookbook (Build sidebar → Examples)
+│   ├── production-patterns/  # Production best practices (Build sidebar → Production patterns)
 │   ├── data-management/   # General data management operations
 │   ├── continuous-aggregates/  # CAGG setup and management
 │   ├── columnar-storage/  # Hypercore and compression
@@ -171,12 +172,12 @@ The following legacy paths have redirect `.mdx` stubs at the top level of `src/c
 - `deploy-and-operate.mdx` — redirects to `deploy/`
 - `integrations.mdx` — redirects to `integrate/`
 - `manage-data.mdx` — redirects to `build/` and `learn/`
-- `tutorials.mdx` — redirects to `learn/examples/`
+- `tutorials.mdx` — legacy page with links; prefer **`/build/examples`** for tutorials (`astro.config.ts` redirects old `/learn/examples` URLs)
 
 Previous directory reorganization:
 - `getting-started/` → `get-started/`
 - `manage-data/` → `build/` and `learn/`
-- `tutorials/` → `learn/examples/`
+- `tutorials/` → `build/examples/` (old `/learn/examples` URLs redirect in `astro.config.ts`)
 - `integrations/` → `integrate/`
 - `deploy-and-operate/` → `deploy/`
 

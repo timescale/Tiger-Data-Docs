@@ -200,7 +200,7 @@ export default defineConfig({
                 items: [
                   { label: "1. 5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
                   { label: "2. Connect your app", link: "/get-started/quickstart/connect-your-app" },
-                  { label: "3. Your first hypertable", link: "/learn/fundamentals/your-first-hypertable" },
+                  { label: "3. Your first hypertable", link: "/build/how-to/your-first-hypertable" },
                 ],
               },
               {
@@ -229,8 +229,8 @@ export default defineConfig({
                 label: "Hands-on",
                 collapsed: true,
                 items: [
-                  { label: "Your first hypertable", link: "/learn/fundamentals/your-first-hypertable" },
-                  { label: "Basic compression", link: "/learn/fundamentals/basic-compression" },
+                  { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
+                  { label: "Basic compression", link: "/build/how-to/basic-compression" },
                 ],
               },
               {
@@ -270,43 +270,6 @@ export default defineConfig({
                 ],
               },
               {
-                label: "Hands-on",
-                collapsed: true,
-                items: [
-                  { label: "Your first hypertable", link: "/learn/fundamentals/your-first-hypertable" },
-                  { label: "Basic compression", link: "/learn/fundamentals/basic-compression" },
-                ],
-              },
-              {
-                label: "Tutorials",
-                collapsed: true,
-                items: [
-                  { label: "Aggregate organizational data with AI agents", link: "/learn/examples/aggregate-organizational-data-with-ai/" },
-                  { label: "Create Tiger Cloud services with Terraform", link: "/learn/examples/create-services-with-terraform" },
-                  { label: "Template tutorial (preview)", link: "/learn/examples/00-template-tutorial-render" },
-                ],
-              },
-              {
-                label: "Guided projects",
-                collapsed: true,
-                items: [
-                  { label: "Tiger Data cookbook", link: "/learn/examples/cookbook" },
-                  { label: "Simulate an IoT sensor dataset", link: "/learn/examples/simulate-iot-sensor-data" },
-                  { label: "Analyze financial tick data", link: "/learn/examples/analyze-financial-tick-data" },
-                  { label: "Ingest real-time financial data", link: "/learn/examples/ingest-real-time-financial-data" },
-                  { label: "Analyze transport and geospatial data", link: "/learn/examples/analyze-transport-data" },
-                  { label: "Analyze Bitcoin blockchain", link: "/learn/examples/analyze-blockchain" },
-                  { label: "Analyze energy consumption", link: "/learn/examples/analyze-energy-consumption" },
-                ],
-              },
-              {
-                label: "Production patterns",
-                collapsed: true,
-                items: [
-                  { label: "Production patterns overview", link: "/learn/production-patterns" },
-                ],
-              },
-              {
                 label: "Glossary",
                 link: "/learn/glossary",
               },
@@ -320,6 +283,42 @@ export default defineConfig({
               {
                 label: "Overview",
                 link: "/build",
+              },
+              {
+                label: "Tutorials",
+                collapsed: true,
+                items: [
+                  { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
+                  { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
+                  { label: "Template tutorial (preview)", link: "/build/examples/00-template-tutorial-render" },
+                ],
+              },
+              {
+                label: "How-to guides",
+                collapsed: true,
+                items: [
+                  { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
+                  { label: "Basic compression", link: "/build/how-to/basic-compression" },
+                ],
+              },
+              {
+                label: "Examples",
+                collapsed: true,
+                items: [
+                  { label: "Examples overview", link: "/build/examples" },
+                  { label: "Tiger Data cookbook", link: "/build/examples/cookbook" },
+                  { label: "Simulate an IoT sensor dataset", link: "/build/examples/simulate-iot-sensor-data" },
+                  { label: "Analyze financial tick data", link: "/build/examples/analyze-financial-tick-data" },
+                  { label: "Ingest real-time financial data", link: "/build/examples/ingest-real-time-financial-data" },
+                  { label: "Analyze transport and geospatial data", link: "/build/examples/analyze-transport-data" },
+                  { label: "Analyze Bitcoin blockchain", link: "/build/examples/analyze-blockchain" },
+                  { label: "Analyze energy consumption", link: "/build/examples/analyze-energy-consumption" },
+                ],
+              },
+              {
+                label: "Production patterns",
+                collapsed: true,
+                items: [{ label: "Production patterns overview", link: "/build/production-patterns" }],
               },
               {
                 label: "Manage my time-series data",
@@ -1221,5 +1220,24 @@ export default defineConfig({
       "/deploy/self-hosted/install-and-update": "/get-started/choose-your-path/install-timescaledb",
       "/deploy/self-hosted/install-and-update/install-self-hosted":
         "/get-started/choose-your-path/install-timescaledb",
+      // Content moved from Learn → Build (same pages; old URLs redirect)
+      "/learn/examples": "/build/examples",
+      "/learn/examples/": "/build/examples/",
+      "/learn/examples/simulate-iot-sensor-data": "/build/examples/simulate-iot-sensor-data",
+      "/learn/examples/analyze-financial-tick-data": "/build/examples/analyze-financial-tick-data",
+      "/learn/examples/ingest-real-time-financial-data": "/build/examples/ingest-real-time-financial-data",
+      "/learn/examples/analyze-blockchain": "/build/examples/analyze-blockchain",
+      "/learn/examples/analyze-energy-consumption": "/build/examples/analyze-energy-consumption",
+      "/learn/examples/analyze-transport-data": "/build/examples/analyze-transport-data",
+      "/learn/examples/aggregate-organizational-data-with-ai": "/build/examples/aggregate-organizational-data-with-ai",
+      "/learn/examples/aggregate-organizational-data-with-ai/": "/build/examples/aggregate-organizational-data-with-ai/",
+      "/learn/examples/cookbook": "/build/examples/cookbook",
+      "/learn/examples/create-services-with-terraform": "/build/examples/create-services-with-terraform",
+      "/learn/examples/00-template-tutorial-render": "/build/examples/00-template-tutorial-render",
+      "/learn/examples/aggregate-organizational-data-with-ai-2": "/build/examples/aggregate-organizational-data-with-ai-2",
+      "/learn/production-patterns": "/build/production-patterns",
+      "/learn/production-patterns/": "/build/production-patterns/",
+      "/learn/fundamentals/your-first-hypertable": "/build/how-to/your-first-hypertable",
+      "/learn/fundamentals/basic-compression": "/build/how-to/basic-compression",
     }),
 });

@@ -228,7 +228,7 @@ The **Integration Prereqs** partials are reusable MDX fragments that tell the re
 
 - **Learn, get-started, or general “follow along” pages** that work on both Tiger Cloud and self-hosted  
   → Use **`_integration-prereqs.mdx`** (more detail: Real-time analytics, connection details) or **`_prereqs-cloud-and-self.mdx`** (shorter, “procedure also works for self-hosted”).  
-  Examples: get-started key-features, learn/fundamentals, learn/examples (e.g. simulate-iot-sensor-data, analyze-energy-consumption).
+  Examples: get-started key-features, learn/fundamentals, build/examples (e.g. simulate-iot-sensor-data, analyze-energy-consumption).
 
 - **Integrate guides** (tools, connectors, BI, observability, etc.) that support both cloud and self-hosted  
   → Use **`_prereqs-cloud-and-self.mdx`**.  
@@ -286,7 +286,7 @@ import IntegrationPrereqsSelfOnly from '@partials/_integration-prereqs-self-only
 <IntegrationPrereqsSelfOnly />
 ```
 
-If `@partials` is not configured in your environment, use a relative path from your doc to `src/partials/`, e.g. from `src/content/docs/learn/examples/`:
+If `@partials` is not configured in your environment, use a relative path from your doc to `src/partials/`, e.g. from `src/content/docs/build/examples/`:
 
 ```mdx
 import IntegrationPrereqs from "../../../../partials/_prereqs-cloud-and-self.mdx";
@@ -394,7 +394,7 @@ See **Main / primary button** above for when to use primary vs outline and how i
 
 - **Glossary** (`Glossary/`) — glossary UI (filters, letter nav, term cards). Used on glossary pages.
 - **NumberedList** / **NumberedItem** — step-by-step or ordered flows in docs.
-- **AuthorByline** — compact author card for tutorials (avatar from GitHub, name, role, GitHub · Email · LinkedIn links). Use in learn/examples or any tutorial. Import: `import AuthorByline from "@components/AuthorByline.astro";` then `<AuthorByline name="..." role="..." githubUsername="..." email="..." linkedinUrl="..." />`. Optional: `avatarUrl` to override the default GitHub avatar.
+- **AuthorByline** — compact author card for tutorials (avatar from GitHub, name, role, GitHub · Email · LinkedIn links). Use in build/examples or any tutorial. Import: `import AuthorByline from "@components/AuthorByline.astro";` then `<AuthorByline name="..." role="..." githubUsername="..." email="..." linkedinUrl="..." />`. Optional: `avatarUrl` to override the default GitHub avatar.
 - **IntegrateToc** — table of contents for the Integrate section.
 - **Changelog** — changelog entries, tags, filters. Used on changelog pages.
 
