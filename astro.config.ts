@@ -3,6 +3,7 @@ import { defineConfig } from "astro/config";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
 import aiChat from "@stainless-api/docs-ai-chat/plugin";
 import rehypeBasePath from "./src/plugins/rehype-base-path";
+import remarkResolveConstantsInHeadings from "./src/plugins/remark-resolve-constants-in-headings";
 
 const require = createRequire(import.meta.url);
 
@@ -122,6 +123,7 @@ export default defineConfig({
   site: 'https://www.tigerdata.com',
   base: BASE,
   markdown: {
+    remarkPlugins: [remarkResolveConstantsInHeadings],
     rehypePlugins: [[rehypeBasePath, { base: BASE }]],
   },
     vite: {
