@@ -2617,11 +2617,32 @@ main .splash-section__cards a.stl-ui-mintlify-compat-card .stl-ui-mintlify-compa
 /* ============================================
    Changelog page: layout – narrower right sidebar, wider centered content
    ============================================ */
-/* Shrink the right sidebar and widen the main content so changelog entries
-   are visually centered with a compact "On this page" TOC on the side. */
-:root:has(main .changelog-page-toc) {
-  --sl-sidebar-width: 13rem;
-  --sl-content-width: 52rem;
+/*
+ * Stainless Docs (not vanilla Starlight) lays out `.page` with CSS grid; the TOC lives in
+ * `.right-sidebar-panel`. The framework sets `nav { width: calc(16 * var(--vw)) }` on that
+ * panel, which makes "On this page" enormous and squeezes the article. Rules targeting
+ * Starlight-only `.right-sidebar-container` / `.main-pane` do not apply here.
+ * Match the integrate overview pattern: raise `--stl-content-max-width` on `main` and
+ * cap the TOC nav width with !important so we win over bundled middleware CSS order.
+ */
+@media (min-width: 72rem) {
+  .page:has(main .changelog-page-toc) > main {
+    --stl-content-max-width: 72rem;
+    max-width: min(var(--stl-content-max-width), 100%) !important;
+  }
+
+  .page:has(main .changelog-page-toc) .right-sidebar-panel {
+    max-width: 15rem;
+    min-width: 0;
+    justify-self: start;
+  }
+
+  .page:has(main .changelog-page-toc) .right-sidebar-panel nav,
+  .page:has(main .changelog-page-toc) .right-sidebar-panel starlight-toc nav {
+    width: 100% !important;
+    max-width: 15rem !important;
+    min-width: 0 !important;
+  }
 }
 
 /* ============================================
