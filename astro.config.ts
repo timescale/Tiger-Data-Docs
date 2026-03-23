@@ -255,18 +255,19 @@ export default defineConfig({
                 items: [
                   { label: "What is Tiger Data", link: "/learn" },
                   { label: "Tiger Data architecture for real-time analytics", link: "/learn/deep-dive/whitepaper" },
-                  { label: "Understand capabilities", link: "/learn/fundamentals/understand-capabilities" },
-                  { label: "Compare Tiger Data product features", link: "/learn/fundamentals/tiger-cloud-feature-comparison" },
                 ],
               },
               {
                 label: "Concepts",
                 collapsed: true,
                 items: [
-                  { label: "Understanding chunks", link: "/learn/fundamentals/understanding-chunks" },
-                  { label: "Optimize time-series data in hypertables", link: "/learn/fundamentals/optimize-data-in-hypertables" },
-                  { label: "Querying time-series data", link: "/learn/fundamentals/querying-time-series-data" },
-                  { label: "Design your data model", link: "/learn/fundamentals/design-your-data-model" },
+                  { label: "Understand hypertables", link: "/learn/concepts/understand-hypertables" },
+                  { label: "Understanding chunks", link: "/learn/concepts/understanding-chunks" },
+                  { label: "Understand capabilities", link: "/learn/concepts/understand-capabilities" },
+                  { label: "Optimize time-series data in hypertables", link: "/learn/concepts/optimize-data-in-hypertables" },
+                  { label: "Design your data model", link: "/learn/concepts/design-your-data-model" },
+                  { label: "Querying time-series data", link: "/learn/concepts/querying-time-series-data" },
+                  { label: "Compare the features in Tiger Data products", link: "/learn/concepts/tiger-cloud-feature-comparison" },
                 ],
               },
               {
@@ -1239,5 +1240,15 @@ export default defineConfig({
       "/learn/production-patterns/": "/build/production-patterns/",
       "/learn/fundamentals/your-first-hypertable": "/build/how-to/your-first-hypertable",
       "/learn/fundamentals/basic-compression": "/build/how-to/basic-compression",
+      // Learn concepts live under /learn/concepts/; keep old /learn/fundamentals/ URLs working
+      "/learn/fundamentals": "/learn/concepts/",
+      "/learn/fundamentals/": "/learn/concepts/",
+      "/learn/fundamentals/understand-hypertables": "/learn/concepts/understand-hypertables",
+      "/learn/fundamentals/understanding-chunks": "/learn/concepts/understanding-chunks",
+      "/learn/fundamentals/understand-capabilities": "/learn/concepts/understand-capabilities",
+      "/learn/fundamentals/optimize-data-in-hypertables": "/learn/concepts/optimize-data-in-hypertables",
+      "/learn/fundamentals/design-your-data-model": "/learn/concepts/design-your-data-model",
+      "/learn/fundamentals/querying-time-series-data": "/learn/concepts/querying-time-series-data",
+      "/learn/fundamentals/tiger-cloud-feature-comparison": "/learn/concepts/tiger-cloud-feature-comparison",
     }),
 });
