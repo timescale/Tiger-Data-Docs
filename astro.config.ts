@@ -248,7 +248,7 @@ export default defineConfig({
             ],
           },
           // Learn tab, topic groups link to Learn + Build pages (most how-tos live under Build).
-          // Learn sidebar: groups follow dependency order; within each group, items go surface → in-depth (overview/concept → setup → tuning → advanced/platform guides).
+          // Learn sidebar: groups follow dependency order; within each group, items go surface → in-depth (overview/concept → setup → tuning → advanced/platform guides). Chunks is nested under Hypertables (after partitioning: understanding chunks → sizing → time buckets → drop).
           {
             label: "Learn",
             link: "/learn",
@@ -288,23 +288,23 @@ export default defineConfig({
                   { label: "Understand hypertables", link: "/learn/hypertables/understand-hypertables" },
                   { label: "Creating and configuring hypertables", link: "/learn/hypertables/creating-and-configuring-hypertables" },
                   { label: "Partitioning hypertables", link: "/learn/hypertables/partitioning-hypertables" },
-                  { label: "Sizing hypertable chunks", link: "/learn/hypertables/sizing-hypertable-chunks" },
+                  {
+                    label: "Chunks",
+                    collapsed: true,
+                    items: [
+                      { label: "Understanding chunks", link: "/learn/chunks/understanding-chunks" },
+                      { label: "Sizing hypertable chunks", link: "/learn/hypertables/sizing-hypertable-chunks" },
+                      { label: "About time buckets", link: "/build/data-management/time-buckets/about-time-buckets" },
+                      { label: "Use time buckets", link: "/build/data-management/time-buckets/use-time-buckets" },
+                      { label: "Manually drop chunks", link: "/build/data-management/data-retention/manually-drop-chunks" },
+                    ],
+                  },
                   { label: "Hypertable indexes", link: "/learn/hypertables/hypertable-indexes" },
                   { label: "Querying time-series data", link: "/learn/hypertables/querying-time-series-data" },
                   { label: "Optimize time-series data in hypertables", link: "/learn/hypertables/optimize-data-in-hypertables" },
                   { label: "Hypertable operations", link: "/learn/hypertables/hypertable-operations" },
                   { label: "Improve hypertable performance", link: "/build/performance-optimization/improve-hypertable-performance" },
                   { label: "Hypertables and unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
-                ],
-              },
-              {
-                label: "Chunks",
-                collapsed: true,
-                items: [
-                  { label: "Understanding chunks", link: "/learn/chunks/understanding-chunks" },
-                  { label: "About time buckets", link: "/build/data-management/time-buckets/about-time-buckets" },
-                  { label: "Use time buckets", link: "/build/data-management/time-buckets/use-time-buckets" },
-                  { label: "Manually drop chunks", link: "/build/data-management/data-retention/manually-drop-chunks" },
                 ],
               },
               {
