@@ -103,8 +103,14 @@ src/content/docs/
 │   ├── tools/             # CLI/REST API, MCP/CLI, Tiger Cloud essentials
 │   └── news/              # Changelog (new.mdx), release-notes.mdx
 │
-├── learn/                 # Conceptual learning content (concepts, glossary)
-│   ├── fundamentals/      # Core concepts (hypertables, chunks, design—URLs under /learn/fundamentals/...)
+├── learn/                 # Conceptual learning content (glossary, topics)
+│   ├── data-model/        # Table layout, keys & uniqueness (wide/narrow/medium, primary keys, …)
+│   ├── hypertables/       # Hypertable concepts + Tiger Cloud design hub (/learn/hypertables/...)
+│   ├── compression/       # Tiger Cloud compression guides (/learn/compression/...)
+│   ├── continuous-aggregates/  # Tiger Cloud CAGG notes (/learn/continuous-aggregates/...)
+│   ├── data-lifecycle/    # Retention & tiering guides (/learn/data-lifecycle/...)
+│   ├── chunks/            # Chunk concepts (/learn/chunks/...)
+│   ├── capabilities-and-comparison/  # Capabilities & product comparison (/learn/capabilities-and-comparison/...)
 │   ├── deep-dive/         # Advanced architecture topics
 │   └── glossary.mdx       # Glossary with category filtering
 │
