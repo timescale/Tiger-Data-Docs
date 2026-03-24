@@ -163,8 +163,31 @@ export default defineConfig({
           replacesTitle: true,
         },
         favicon: "favicon.ico",
-        customCss: ["./theme.css"],
+        customCss: ["./theme.css", "./osano.css"],
         lastUpdated: true,
+        head: [
+          {
+            // Segment
+            tag: "script",
+            content: `!function(){function isBot(){if(typeof navigator==='undefined'||!navigator.userAgent)return true;var ua=navigator.userAgent.toLowerCase();var botPatterns=['bot','crawler','spider','crawling','slurp','bingpreview','facebookexternalhit','facebot','twitterbot','rogerbot','linkedinbot','embedly','quora link preview','showyoubot','outbrain','pinterest','developers.google.com/+/web/snippet','slackbot','vkshare','w3c_validator','redditbot','applebot','whatsapp','flipboard','tumblr','bitlybot','skypeuripreview','nuzzel','discordbot','google page speed','qwantify','pinterestbot','bitrix link preview','xing-contenttabreceiver','chrome-lighthouse','telegrambot','headlesschrome','phantom','baiduspider','baiduspider-render','yandexbot','duckduckbot','ahrefsbot','semrushbot','dotbot','mj12bot','petalbot','gptbot','chatgpt','claudebot','claude-web','anthropic-ai','google-extended','cohere-ai','omgilibot','omgili','facebookbot','meta-externalagent','diffbot','bytespider','perplexitybot','youbot','ai2bot','ccbot','dataforseobotd'];return botPatterns.some(function(pattern){return ua.indexOf(pattern)!==-1})}if(isBot()){console.debug('Bot detected, skipping Segment analytics');return}var i="analytics",analytics=window[i]=window[i]||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","screen","once","off","on","addSourceMiddleware","addIntegrationMiddleware","setAnonymousId","addDestinationMiddleware","register"];analytics.factory=function(e){return function(){if(window[i].initialized)return window[i][e].apply(window[i],arguments);var n=Array.prototype.slice.call(arguments);if(["track","screen","alias","group","page","identify"].indexOf(e)>-1){var c=document.querySelector("link[rel='canonical']");n.push({__t:"bpc",c:c&&c.getAttribute("href")||void 0,p:location.pathname,u:location.href,s:location.search,t:document.title,r:document.referrer})}n.unshift(e);analytics.push(n);return analytics}};for(var n=0;n<analytics.methods.length;n++){var key=analytics.methods[n];analytics[key]=analytics.factory(key)}analytics.load=function(key,n){var t=document.createElement("script");t.type="text/javascript";t.async=!0;t.setAttribute("data-global-segment-analytics-key",i);t.src="https://cdn.segment.com/analytics.js/v1/"+key+"/analytics.min.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r);analytics._loadOptions=n};analytics._writeKey="CF77jkjlE82B4PhIHbbMDiSmOJsDYMqF";analytics.SNIPPET_VERSION="5.2.0";analytics.load("CF77jkjlE82B4PhIHbbMDiSmOJsDYMqF");analytics.page()}}();`,
+          },
+          {
+            // GTM
+            tag: "script",
+            content: `
+              (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+              new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+              j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+              'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+              })(window,document,'script','dataLayer','GTM-PFLX3HP');
+            `,
+          },
+          {
+            // Twitter/X ads pixel
+            tag: "script",
+            content: `!function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);},s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='//static.ads-twitter.com/uwt.js',a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');twq('init','o8fs3');twq('track','PageView');`,
+          },
+        ],
         header: {
           layout: "stacked",
           links: [
@@ -185,6 +208,7 @@ export default defineConfig({
               PageTitle: "./src/components/PageTitle.astro",
               Pagination: "./src/components/PageNavigation.astro",
               Callout: "./src/components/Callout.astro",
+              Footer: "./src/components/Footer.astro",
             } as Record<string, string>,
             plugins: starlightLinksValidator ? [starlightLinksValidator()] : [],
           },
