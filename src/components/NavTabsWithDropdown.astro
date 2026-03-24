@@ -9,17 +9,36 @@ import type { StarlightRouteData } from "@astrojs/starlight/route-data";
 import type { NavTreeNode, GroupNode } from "./nav-dropdown-tree-types";
 import NavDropdownTree from "./NavDropdownTree.astro";
 
+/**
+ * Tab shape from `stainlessDocs({ tabs: [...] })` in `astro.config.ts`.
+ * `virtual:stl-docs-virtual-module` only declares `label`, `link`, and `hidden`; sidebar config is added at runtime.
+ */
+type NavTabConfig = {
+  label: string;
+  link: string;
+  hidden?: boolean;
+  sidebar?: unknown[];
+};
+
+type NavTabWithActive = NavTabConfig & { active: boolean };
+
+const tabsFromConfig = TABS as readonly NavTabConfig[];
+
 const routeData = Astro.locals.starlightRoute as StarlightRouteData & {
   _stlDocs?: { activeTabIndex?: number };
 };
 const activeTabIndex = routeData?._stlDocs?.activeTabIndex ?? -1;
 
-const tabList = TABS.map((item: { hidden?: boolean }, index: number) => ({
-  ...item,
-  active: index === activeTabIndex,
-})).filter((item: { hidden?: boolean }) => !item.hidden);
+const tabList: NavTabWithActive[] = tabsFromConfig
+  .map(
+    (item, index): NavTabWithActive => ({
+      ...item,
+      active: index === activeTabIndex,
+    })
+  )
+  .filter((item) => !item.hidden);
 
-const navItems = [...tabList].sort((a: { label: string }, b: { label: string }) => {
+const navItems: NavTabWithActive[] = [...tabList].sort((a, b) => {
   if (a.label === "Reference" && b.label === "Deploy") return 1;
   if (a.label === "Deploy" && b.label === "Reference") return -1;
   return 0;
@@ -156,12 +175,9 @@ function getNavTreeForSidebar(sidebar: unknown, tabLink: string): NavTreeNode[] 
 
 const dropdownTreeByTab = new Map<string, NavTreeNode[]>();
 for (const item of navItems) {
-  const sidebar = "sidebar" in item ? (item as { sidebar?: unknown }).sidebar : undefined;
-  if (sidebar && Array.isArray(sidebar)) {
-    dropdownTreeByTab.set(
-      (item as { label: string }).label,
-      getNavTreeForSidebar(sidebar, (item as { link: string }).link)
-    );
+  const sidebar = item.sidebar;
+  if (Array.isArray(sidebar) && sidebar.length > 0) {
+    dropdownTreeByTab.set(item.label, getNavTreeForSidebar(sidebar, item.link));
   }
 }
 ---
@@ -169,7 +185,7 @@ for (const item of navItems) {
 <div class="stl-secondary-nav-tabs stl-nav-tabs-with-dropdown">
   <ul>
     {
-      navItems.map((item: { label: string; link: string; active?: boolean }) => {
+      navItems.map((item) => {
         const tree = dropdownTreeByTab.get(item.label) ?? [];
         const hasDropdown = tree.length > 0;
 
