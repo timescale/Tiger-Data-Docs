@@ -181,6 +181,7 @@ export default defineConfig({
           aiChat: aiChat(),
           starlightCompat: {
             components: {
+              Head: "./src/components/Head.astro",
               Header: "./src/components/Header.astro",
               PageTitle: "./src/components/PageTitle.astro",
               Pagination: "./src/components/PageNavigation.astro",

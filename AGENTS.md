@@ -190,6 +190,7 @@ Previous directory reorganization:
 ### Documentation style (prose)
 
 - Do not use the em dash (Unicode U+2014) in documentation. Prefer commas, semicolons, colons, or parentheses, or split into two sentences. For label-and-description lines, use a colon after the label (for example `**Label**: description`). See [Contribute to the docs: Writing style](/get-started/contributing#writing-style).
+- Optional frontmatter **`seoDescription`**: SEO/social summary without sidebar subtitles (see [Writing style: SEO summary](/get-started/contributing#seo-summary-in-frontmatter)); implemented in `src/components/Head.astro`. If both `description` and `seoDescription` are set, **`description` is used** for meta and sidebar; `seoDescription` is ignored for injection.
 
 ### MDX Components
 
