@@ -176,7 +176,7 @@ function checkSentenceCase(text: string): string | null {
     // Subsequent words: should be lowercase unless allowed
     if (isCapitalized && rest !== rest.toUpperCase()) {
       if (allowedCapitalized(core)) continue;
-      return `Use sentence case: "${word}" should be "${core.charAt(0).toLowerCase() + rest}" (unless it's a proper noun — add to allowlist if so)`;
+      return `Use sentence case: "${word}" should be "${core.charAt(0).toLowerCase() + rest}" (unless it's a proper noun; add to the allowlist if so)`;
     }
   }
 
