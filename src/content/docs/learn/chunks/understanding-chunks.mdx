@@ -7,15 +7,15 @@ import { Callout } from "@stainless-api/docs/components";
 
 # Understanding chunks
 
-This page explains **chunks** in the context of Tiger Data: what they are, why they exist, and how they support fast, scalable time-series workloads. Chunks are the underlying mechanism that makes [hypertables](/build/data-management/understand-hypertables) fast and manageable. You rarely interact with them directly—you work with the hypertable—but understanding chunks helps you design better schemas, tune performance, and reason about how Tiger Cloud (and self-hosted TimescaleDB) organize your data.
+This page explains **chunks** in the context of Tiger Data: what they are, why they exist, and how they support fast, scalable time-series workloads. Chunks are the underlying mechanism that makes [hypertables](/build/data-management/understand-hypertables) fast and manageable. You rarely interact with them directly, you work with the hypertable, but understanding chunks helps you design better schemas, tune performance, and reason about how Tiger Cloud (and self-hosted TimescaleDB) organize your data.
 
-The documentation here follows the [Diátaxis](https://diataxis.fr/) framework: this is **explanation**—conceptual understanding that ties together what you do in tutorials and how-to guides. For step-by-step tasks (e.g. choosing chunk intervals or listing chunks), see the links in [How to use chunks effectively](#how-to-use-chunks-effectively) and [Next steps](#next-steps).
+The documentation here follows the [Diátaxis](https://diataxis.fr/) framework: this is **explanation**, conceptual understanding that ties together what you do in tutorials and how-to guides. For step-by-step tasks (e.g. choosing chunk intervals or listing chunks), see the links in [How to use chunks effectively](#how-to-use-chunks-effectively) and [Next steps](#next-steps).
 
 ---
 
 ## What are chunks?
 
-A **chunk** is a horizontal partition of a [hypertable](/build/data-management/understand-hypertables): it is a table that holds rows for a **specific time range** (and optionally a specific **space partition** if you use multiple dimensions). When you insert data into a hypertable, Tiger Data’s engine (TimescaleDB) does not store everything in one giant table. Instead, it splits the data into chunks—smaller tables, each responsible for a slice of time (for example one day or one week). That split happens **automatically and transparently**: you always insert and query against the hypertable name; the system creates and uses chunks behind the scenes.
+A **chunk** is a horizontal partition of a [hypertable](/build/data-management/understand-hypertables): it is a table that holds rows for a **specific time range** (and optionally a specific **space partition** if you use multiple dimensions). When you insert data into a hypertable, Tiger Data’s engine (TimescaleDB) does not store everything in one giant table. Instead, it splits the data into chunks, smaller tables, each responsible for a slice of time (for example one day or one week). That split happens **automatically and transparently**: you always insert and query against the hypertable name; the system creates and uses chunks behind the scenes.
 
 So in practice: **a hypertable is the logical table you see; chunks are the physical partitions that store the data.** You can think of a hypertable as a single table in SQL, and chunks as the internal “drawers” that the database opens only when they’re needed for a given query or write.
 
@@ -27,7 +27,7 @@ So in practice: **a hypertable is the logical table you see; chunks are the phys
 
 ## Why chunks matter
 
-Chunks are not just an implementation detail—they are why hypertables can deliver **efficient data management**, **better query performance**, and **scalable maintenance** without you changing how you write SQL.
+Chunks are not just an implementation detail, they are why hypertables can deliver **efficient data management**, **better query performance**, and **scalable maintenance** without you changing how you write SQL.
 
 ### Query performance and chunk skipping
 
@@ -55,7 +55,7 @@ The **chunk interval** is the time span each chunk is responsible for (e.g. one 
 
 - **Default**: Typically each chunk holds about **7 days** of data, but you can change this to match how you ingest and query (e.g. one chunk per day for high-volume, time-bound queries).
 - **Creation**: When you insert a row whose time falls in a range that doesn’t yet have a chunk, TimescaleDB **creates a new chunk** for that range automatically. So the number of chunks grows as new time ranges receive data.
-- **Columnstore and compression**: On Tiger Data, a [columnstore policy](/build/columnar-storage/setup-hypercore) often converts chunks to columnar format after a certain age (e.g. after one chunk interval). So the chunk interval also influences when data moves into the columnstore and gets compressed—often by a significant factor (e.g. up to ~98% in many workloads). See the [Hypertables and chunks](https://www.tigerdata.com/docs/api/latest/hypertable) overview on the Tiger Data docs for the exact behavior of your version.
+- **Columnstore and compression**: On Tiger Data, a [columnstore policy](/build/columnar-storage/setup-hypercore) often converts chunks to columnar format after a certain age (e.g. after one chunk interval). So the chunk interval also influences when data moves into the columnstore and gets compressed, often by a significant factor (e.g. up to ~98% in many workloads). See the [Hypertables and chunks](https://www.tigerdata.com/docs/api/latest/hypertable) overview on the Tiger Data docs for the exact behavior of your version.
 
 Choosing the right chunk interval is a trade-off: you want chunks **small enough** that active (recent) chunks and their indexes fit in memory for fast access, but **not so small** that you end up with too many chunks (which can slow query planning and reduce compression effectiveness). The [Improve query performance](/build/data-management/improve-query-performance) guide explains how to choose and tune the chunk interval in practice.
 
@@ -63,7 +63,7 @@ Choosing the right chunk interval is a trade-off: you want chunks **small enough
 
 ## How to use chunks effectively
 
-You don’t need to create or manage chunks manually for normal use—you create a [hypertable](/build/how-to/your-first-hypertable) and insert/query it; chunks are created and used automatically. “Using chunks effectively” means **designing and tuning so that chunking works in your favor**.
+You don’t need to create or manage chunks manually for normal use, you create a [hypertable](/build/how-to/your-first-hypertable) and insert/query it; chunks are created and used automatically. “Using chunks effectively” means **designing and tuning so that chunking works in your favor**.
 
 1. **Choose an appropriate chunk interval**  
    Set the chunk interval when you [create the hypertable](/build/how-to/your-first-hypertable) (or change it for new chunks with `set_chunk_time_interval()`). A common guideline is to size the interval so that the indexes of chunks you’re currently ingesting into fit within a reasonable share of main memory (e.g. 25% of RAM). For step-by-step guidance and examples, see [Optimize hypertable chunk intervals](/build/data-management/improve-query-performance#optimize-hypertable-chunk-intervals).
@@ -75,7 +75,7 @@ You don’t need to create or manage chunks manually for normal use—you create
    You can list chunks for a hypertable with [`show_chunks()`](https://www.tigerdata.com/docs/api/latest/hypertable/show_chunks) and inspect size with functions like [`chunks_detailed_size()`](https://www.tigerdata.com/docs/api/latest/hypertable/chunks_detailed_size). That’s useful when you’re deciding whether to change the chunk interval or investigating query plans.
 
 4. **Prefer chunk-level operations for bulk lifecycle actions**  
-   For dropping old data, use retention policies or [`drop_chunks()`](https://www.tigerdata.com/docs/api/latest/hypertable/drop_chunk) instead of large `DELETE`s. For compression and columnstore, policies operate per chunk—so your chunk interval and policy settings work together.
+   For dropping old data, use retention policies or [`drop_chunks()`](https://www.tigerdata.com/docs/api/latest/hypertable/drop_chunk) instead of large `DELETE`s. For compression and columnstore, policies operate per chunk, so your chunk interval and policy settings work together.
 
 If you’re just getting started, [Your first hypertable](/build/how-to/your-first-hypertable) and [Time-Series / Hypertables](/build/data-management/time-series-hypertables) are the right places to create and configure hypertables; the default chunk interval is a reasonable starting point, and you can refine it later using the guides above.
 
@@ -83,8 +83,8 @@ If you’re just getting started, [Your first hypertable](/build/how-to/your-fir
 
 ## Next steps
 
-- [Understand hypertables](/build/data-management/understand-hypertables) — Partitioning, indexes, and how hypertables behave.
-- [Improve hypertable and query performance](/build/data-management/improve-query-performance) — Optimize chunk intervals and enable chunk skipping.
-- [Time-Series / Hypertables](/build/data-management/time-series-hypertables) — Create and alter hypertables (including chunk interval).
-- [Hypertables and chunks (Tiger Data API)](https://www.tigerdata.com/docs/api/latest/hypertable) — API overview and related functions (`show_chunks`, `drop_chunk`, `move_chunk`, etc.).
-- [Glossary: Chunk, Chunk interval, Chunk skipping](/reference/glossary) — Short definitions for reference.
+- [Understand hypertables](/build/data-management/understand-hypertables): Partitioning, indexes, and how hypertables behave.
+- [Improve hypertable and query performance](/build/data-management/improve-query-performance): Optimize chunk intervals and enable chunk skipping.
+- [Time-Series / Hypertables](/build/data-management/time-series-hypertables): Create and alter hypertables (including chunk interval).
+- [Hypertables and chunks (Tiger Data API)](https://www.tigerdata.com/docs/api/latest/hypertable): API overview and related functions (`show_chunks`, `drop_chunk`, `move_chunk`, etc.).
+- [Glossary: Chunk, Chunk interval, Chunk skipping](/reference/glossary): Short definitions for reference.

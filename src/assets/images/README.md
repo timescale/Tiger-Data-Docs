@@ -12,7 +12,7 @@ Store documentation-owned images here so Astro can **bundle, fingerprint, and op
 
 ## Usage in MDX
 
-**Raster images (PNG, WebP, etc.)** — import and use `<Image>`:
+**Raster images (PNG, WebP, etc.)**: import and use `<Image>`:
 
 ```mdx
 import { Image } from "astro:assets";
@@ -21,7 +21,7 @@ import diagram from "../../../assets/images/learn/fundamentals/my-diagram.png";
 <Image src={diagram} alt="Short description of the diagram" />
 ```
 
-**SVG** — use a URL import with `<img>` (the `Image` component does not optimize SVGs the same way):
+**SVG**: use a URL import with `<img>` (the `Image` component does not optimize SVGs the same way):
 
 ```mdx
 import illustration from "../../../assets/images/migrate/my-flow.svg?url";

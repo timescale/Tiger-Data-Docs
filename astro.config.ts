@@ -204,6 +204,7 @@ export default defineConfig({
           aiChat: aiChat(),
           starlightCompat: {
             components: {
+              Head: "./src/components/Head.astro",
               Header: "./src/components/Header.astro",
               PageTitle: "./src/components/PageTitle.astro",
               Pagination: "./src/components/PageNavigation.astro",
@@ -271,8 +272,8 @@ export default defineConfig({
               },
             ],
           },
-          // Learn tab — topic groups link to Learn + Build pages (most how-tos live under Build).
-          // Learn sidebar: groups follow dependency order; within each group, items go surface → in-depth (overview/concept → setup → tuning → advanced/platform guides).
+          // Learn tab, topic groups link to Learn + Build pages (most how-tos live under Build).
+          // Learn sidebar: groups follow dependency order; within each group, items go surface → in-depth (overview/concept → setup → tuning → advanced/platform guides). Chunks is nested under Hypertables (after partitioning: understanding chunks → sizing → time buckets → drop).
           {
             label: "Learn",
             link: "/learn",
@@ -312,23 +313,23 @@ export default defineConfig({
                   { label: "Understand hypertables", link: "/learn/hypertables/understand-hypertables" },
                   { label: "Creating and configuring hypertables", link: "/learn/hypertables/creating-and-configuring-hypertables" },
                   { label: "Partitioning hypertables", link: "/learn/hypertables/partitioning-hypertables" },
-                  { label: "Sizing hypertable chunks", link: "/learn/hypertables/sizing-hypertable-chunks" },
+                  {
+                    label: "Chunks",
+                    collapsed: true,
+                    items: [
+                      { label: "Understanding chunks", link: "/learn/chunks/understanding-chunks" },
+                      { label: "Sizing hypertable chunks", link: "/learn/hypertables/sizing-hypertable-chunks" },
+                      { label: "About time buckets", link: "/build/data-management/time-buckets/about-time-buckets" },
+                      { label: "Use time buckets", link: "/build/data-management/time-buckets/use-time-buckets" },
+                      { label: "Manually drop chunks", link: "/build/data-management/data-retention/manually-drop-chunks" },
+                    ],
+                  },
                   { label: "Hypertable indexes", link: "/learn/hypertables/hypertable-indexes" },
                   { label: "Querying time-series data", link: "/learn/hypertables/querying-time-series-data" },
                   { label: "Optimize time-series data in hypertables", link: "/learn/hypertables/optimize-data-in-hypertables" },
                   { label: "Hypertable operations", link: "/learn/hypertables/hypertable-operations" },
                   { label: "Improve hypertable performance", link: "/build/performance-optimization/improve-hypertable-performance" },
                   { label: "Hypertables and unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
-                ],
-              },
-              {
-                label: "Chunks",
-                collapsed: true,
-                items: [
-                  { label: "Understanding chunks", link: "/learn/chunks/understanding-chunks" },
-                  { label: "About time buckets", link: "/build/data-management/time-buckets/about-time-buckets" },
-                  { label: "Use time buckets", link: "/build/data-management/time-buckets/use-time-buckets" },
-                  { label: "Manually drop chunks", link: "/build/data-management/data-retention/manually-drop-chunks" },
                 ],
               },
               {
@@ -398,7 +399,7 @@ export default defineConfig({
               },
             ],
           },
-          // Build tab — sidebar group labels match Build overview cards (“I want to…”)
+          // Build tab, sidebar group labels match Build overview cards (“I want to…”)
           {
             label: "Build",
             link: "/build",
@@ -415,20 +416,6 @@ export default defineConfig({
                   { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
                   { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
                   { label: "Template tutorial (preview)", link: "/build/examples/00-template-tutorial-render" },
-                  {
-                    label: "Troubleshooting",
-                    collapsed: true,
-                    items: [
-                      { label: "Overview", link: "/build/tips-and-tricks" },
-                      { label: "Troubleshoot continuous aggregates", link: "/build/tips-and-tricks/troubleshoot-continuous-aggregates" },
-                      { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
-                      { label: "Troubleshoot import and ingest", link: "/build/tips-and-tricks/troubleshoot-import-ingest" },
-                      { label: "Troubleshoot hypercore", link: "/build/tips-and-tricks/troubleshoot-hypercore" },
-                      { label: "Troubleshoot schema management", link: "/build/tips-and-tricks/troubleshoot-schema-management" },
-                      { label: "Troubleshoot query data", link: "/build/tips-and-tricks/troubleshoot-query-data" },
-                      { label: "Troubleshoot time buckets", link: "/build/tips-and-tricks/troubleshoot-time-buckets" },
-                    ],
-                  },
                 ],
               },
               {
@@ -614,9 +601,23 @@ export default defineConfig({
                   { label: "Overview", link: "/build/cost-optimization" },
                 ],
               },
+              {
+                label: "Tips and tricks",
+                collapsed: true,
+                items: [
+                  { label: "Overview", link: "/build/tips-and-tricks" },
+                  { label: "Troubleshoot continuous aggregates", link: "/build/tips-and-tricks/troubleshoot-continuous-aggregates" },
+                  { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
+                  { label: "Troubleshoot import and ingest", link: "/build/tips-and-tricks/troubleshoot-import-ingest" },
+                  { label: "Troubleshoot hypercore", link: "/build/tips-and-tricks/troubleshoot-hypercore" },
+                  { label: "Troubleshoot schema management", link: "/build/tips-and-tricks/troubleshoot-schema-management" },
+                  { label: "Troubleshoot query data", link: "/build/tips-and-tricks/troubleshoot-query-data" },
+                  { label: "Troubleshoot time buckets", link: "/build/tips-and-tricks/troubleshoot-time-buckets" },
+                ],
+              },
             ],
           },
-          // Migrate tab — logical order: overview → how to import/migrate → source-specific guides
+          // Migrate tab, logical order: overview → how to import/migrate → source-specific guides
           {
             label: "Migrate",
             link: "/migrate",
@@ -663,7 +664,7 @@ export default defineConfig({
               },
             ],
           },
-          // Integrate tab — mirrors the 5 filter dimensions in IntegrateOverview
+          // Integrate tab, mirrors the 5 filter dimensions in IntegrateOverview
           {
             label: "Integrate",
             link: "/integrate",
@@ -1372,7 +1373,7 @@ export default defineConfig({
       "/learn/production-patterns/": "/build/production-patterns/",
       "/learn/fundamentals/your-first-hypertable": "/build/how-to/your-first-hypertable",
       "/learn/fundamentals/basic-compression": "/build/how-to/basic-compression",
-      // Learn IA: /learn/hypertables/*, /learn/chunks/*, /learn/capabilities-and-comparison/* — keep legacy URLs working
+      // Learn IA: /learn/hypertables/*, /learn/chunks/*, /learn/capabilities-and-comparison/*. Keep legacy URLs working.
       "/learn/fundamentals": "/learn/",
       "/learn/fundamentals/": "/learn/",
       "/learn/fundamentals/understand-hypertables": "/learn/hypertables/understand-hypertables",
