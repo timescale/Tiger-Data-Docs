@@ -246,7 +246,7 @@ export default defineConfig({
               },
             ],
           },
-          // Learn tab
+          // Learn tab — topic groups link to Learn + Build pages (most how-tos live under Build)
           {
             label: "Learn",
             link: "/learn",
@@ -257,19 +257,79 @@ export default defineConfig({
                 items: [
                   { label: "What is Tiger Data", link: "/learn" },
                   { label: "Tiger Data architecture for real-time analytics", link: "/learn/deep-dive/whitepaper" },
+                  { label: "Concepts overview", link: "/learn/concepts" },
+                  { label: "Understand capabilities", link: "/learn/concepts/understand-capabilities" },
+                  { label: "Compare the features in Tiger Data products", link: "/learn/concepts/tiger-cloud-feature-comparison" },
                 ],
               },
               {
-                label: "Concepts",
+                label: "Hypertables",
                 collapsed: true,
                 items: [
                   { label: "Understand hypertables", link: "/learn/concepts/understand-hypertables" },
-                  { label: "Understanding chunks", link: "/learn/concepts/understanding-chunks" },
-                  { label: "Understand capabilities", link: "/learn/concepts/understand-capabilities" },
                   { label: "Optimize time-series data in hypertables", link: "/learn/concepts/optimize-data-in-hypertables" },
                   { label: "Design your data model", link: "/learn/concepts/design-your-data-model" },
                   { label: "Querying time-series data", link: "/learn/concepts/querying-time-series-data" },
-                  { label: "Compare the features in Tiger Data products", link: "/learn/concepts/tiger-cloud-feature-comparison" },
+                  { label: "Improve hypertable performance", link: "/build/performance-optimization/improve-hypertable-performance" },
+                  { label: "Hypertables and unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
+                ],
+              },
+              {
+                label: "Hypercore",
+                collapsed: true,
+                items: [
+                  { label: "Columnar storage overview", link: "/build/columnar-storage" },
+                  { label: "Understand Hypercore", link: "/build/columnar-storage/understand-hypercore" },
+                  { label: "Set up Hypercore", link: "/build/columnar-storage/setup-hypercore" },
+                  { label: "Compression methods", link: "/build/columnar-storage/compression-methods" },
+                  { label: "Basic compression", link: "/build/how-to/basic-compression" },
+                ],
+              },
+              {
+                label: "Chunks",
+                collapsed: true,
+                items: [
+                  { label: "Understanding chunks", link: "/learn/concepts/understanding-chunks" },
+                  { label: "About time buckets", link: "/build/data-management/time-buckets/about-time-buckets" },
+                  { label: "Use time buckets", link: "/build/data-management/time-buckets/use-time-buckets" },
+                  { label: "Manually drop chunks", link: "/build/data-management/data-retention/manually-drop-chunks" },
+                ],
+              },
+              {
+                label: "CAGGs",
+                collapsed: true,
+                items: [
+                  { label: "Continuous aggregates overview", link: "/build/continuous-aggregates" },
+                  { label: "About continuous aggregates", link: "/build/continuous-aggregates/about-continuous-aggregates" },
+                  { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
+                  { label: "Hierarchical continuous aggregates", link: "/build/continuous-aggregates/hierarchical-continuous-aggregates" },
+                  { label: "Refresh policies", link: "/build/continuous-aggregates/refresh-policies" },
+                  { label: "Real-time aggregates", link: "/build/continuous-aggregates/real-time-aggregates" },
+                  { label: "Time and continuous aggregates", link: "/build/continuous-aggregates/time-and-continuous-aggregates" },
+                  { label: "Materialized hypertables", link: "/build/continuous-aggregates/materialized-hypertables" },
+                ],
+              },
+              {
+                label: "Backfills",
+                collapsed: true,
+                items: [
+                  { label: "Refresh policies and backfill behavior", link: "/build/continuous-aggregates/refresh-policies" },
+                  { label: "Real-time aggregates and historical refresh", link: "/build/continuous-aggregates/real-time-aggregates" },
+                  { label: "TimescaleDB backfill migration tool", link: "/migrate/dual-write-and-backfill/timescaledb-backfill" },
+                ],
+              },
+              {
+                label: "Data tiering and retention",
+                collapsed: true,
+                items: [
+                  { label: "Tiered storage overview", link: "/build/data-management/storage" },
+                  { label: "About storage tiers", link: "/build/data-management/storage/about-storage-tiers" },
+                  { label: "Manage storage", link: "/build/data-management/storage/manage-storage" },
+                  { label: "Query tiered data", link: "/build/data-management/storage/query-tiered-data" },
+                  { label: "Data retention overview", link: "/build/data-management/data-retention" },
+                  { label: "About data retention", link: "/build/data-management/data-retention/about-data-retention" },
+                  { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
+                  { label: "Data retention with continuous aggregates", link: "/build/data-management/data-retention/data-retention-with-continuous-aggregates" },
                 ],
               },
               {
