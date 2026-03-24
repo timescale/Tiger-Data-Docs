@@ -3,6 +3,7 @@ import { defineConfig } from "astro/config";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
 import aiChat from "@stainless-api/docs-ai-chat/plugin";
 import rehypeBasePath from "./src/plugins/rehype-base-path";
+import remarkResolveConstantsInHeadings from "./src/plugins/remark-resolve-constants-in-headings";
 
 const require = createRequire(import.meta.url);
 
@@ -122,6 +123,7 @@ export default defineConfig({
   site: 'https://www.tigerdata.com',
   base: BASE,
   markdown: {
+    remarkPlugins: [remarkResolveConstantsInHeadings],
     rehypePlugins: [[rehypeBasePath, { base: BASE }]],
   },
     vite: {
@@ -244,7 +246,7 @@ export default defineConfig({
               },
             ],
           },
-          // Learn tab
+          // Learn tab — topic groups link to Learn + Build pages (most how-tos live under Build)
           {
             label: "Learn",
             link: "/learn",
@@ -255,18 +257,85 @@ export default defineConfig({
                 items: [
                   { label: "What is Tiger Data", link: "/learn" },
                   { label: "Tiger Data architecture for real-time analytics", link: "/learn/deep-dive/whitepaper" },
-                  { label: "Understand capabilities", link: "/learn/fundamentals/understand-capabilities" },
-                  { label: "Compare Tiger Data product features", link: "/learn/fundamentals/tiger-cloud-feature-comparison" },
+                  { label: "Concepts overview", link: "/learn/concepts" },
+                  { label: "Understand capabilities", link: "/learn/concepts/understand-capabilities" },
+                  { label: "Compare the features in Tiger Data products", link: "/learn/concepts/tiger-cloud-feature-comparison" },
                 ],
               },
               {
-                label: "Concepts",
+                label: "Hypertables",
                 collapsed: true,
                 items: [
-                  { label: "Understanding chunks", link: "/learn/fundamentals/understanding-chunks" },
-                  { label: "Optimize time-series data in hypertables", link: "/learn/fundamentals/optimize-data-in-hypertables" },
-                  { label: "Querying time-series data", link: "/learn/fundamentals/querying-time-series-data" },
-                  { label: "Design your data model", link: "/learn/fundamentals/design-your-data-model" },
+                  { label: "Understand hypertables", link: "/learn/concepts/understand-hypertables" },
+                  { label: "Optimize time-series data in hypertables", link: "/learn/concepts/optimize-data-in-hypertables" },
+                  { label: "Design your data model", link: "/learn/concepts/design-your-data-model" },
+                  { label: "Querying time-series data", link: "/learn/concepts/querying-time-series-data" },
+                  { label: "Improve hypertable performance", link: "/build/performance-optimization/improve-hypertable-performance" },
+                  { label: "Hypertables and unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
+                ],
+              },
+              {
+                label: "Hypercore",
+                collapsed: true,
+                items: [
+                  { label: "Columnar storage overview", link: "/build/columnar-storage" },
+                  { label: "Understand Hypercore", link: "/build/columnar-storage/understand-hypercore" },
+                  { label: "Set up Hypercore", link: "/build/columnar-storage/setup-hypercore" },
+                  { label: "Compression methods", link: "/build/columnar-storage/compression-methods" },
+                  { label: "Basic compression", link: "/build/how-to/basic-compression" },
+                ],
+              },
+              {
+                label: "Chunks",
+                collapsed: true,
+                items: [
+                  { label: "Understanding chunks", link: "/learn/concepts/understanding-chunks" },
+                  { label: "About time buckets", link: "/build/data-management/time-buckets/about-time-buckets" },
+                  { label: "Use time buckets", link: "/build/data-management/time-buckets/use-time-buckets" },
+                  { label: "Manually drop chunks", link: "/build/data-management/data-retention/manually-drop-chunks" },
+                ],
+              },
+              {
+                label: "CAGGs",
+                collapsed: true,
+                items: [
+                  { label: "Continuous aggregates overview", link: "/build/continuous-aggregates" },
+                  { label: "About continuous aggregates", link: "/build/continuous-aggregates/about-continuous-aggregates" },
+                  { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
+                  { label: "Hierarchical continuous aggregates", link: "/build/continuous-aggregates/hierarchical-continuous-aggregates" },
+                  { label: "Refresh policies", link: "/build/continuous-aggregates/refresh-policies" },
+                  { label: "Real-time aggregates", link: "/build/continuous-aggregates/real-time-aggregates" },
+                  { label: "Time and continuous aggregates", link: "/build/continuous-aggregates/time-and-continuous-aggregates" },
+                  { label: "Materialized hypertables", link: "/build/continuous-aggregates/materialized-hypertables" },
+                ],
+              },
+              {
+                label: "Backfills",
+                collapsed: true,
+                items: [
+                  { label: "Refresh policies and backfill behavior", link: "/build/continuous-aggregates/refresh-policies" },
+                  { label: "Real-time aggregates and historical refresh", link: "/build/continuous-aggregates/real-time-aggregates" },
+                  { label: "TimescaleDB backfill migration tool", link: "/migrate/dual-write-and-backfill/timescaledb-backfill" },
+                ],
+              },
+              {
+                label: "Data tiering",
+                collapsed: true,
+                items: [
+                  { label: "Tiered storage overview", link: "/build/data-management/storage" },
+                  { label: "About storage tiers", link: "/build/data-management/storage/about-storage-tiers" },
+                  { label: "Manage storage", link: "/build/data-management/storage/manage-storage" },
+                  { label: "Query tiered data", link: "/build/data-management/storage/query-tiered-data" },
+                ],
+              },
+              {
+                label: "Data retention",
+                collapsed: true,
+                items: [
+                  { label: "Data retention overview", link: "/build/data-management/data-retention" },
+                  { label: "About data retention", link: "/build/data-management/data-retention/about-data-retention" },
+                  { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
+                  { label: "Data retention with continuous aggregates", link: "/build/data-management/data-retention/data-retention-with-continuous-aggregates" },
                 ],
               },
               {
@@ -1239,5 +1308,15 @@ export default defineConfig({
       "/learn/production-patterns/": "/build/production-patterns/",
       "/learn/fundamentals/your-first-hypertable": "/build/how-to/your-first-hypertable",
       "/learn/fundamentals/basic-compression": "/build/how-to/basic-compression",
+      // Learn concepts live under /learn/concepts/; keep old /learn/fundamentals/ URLs working
+      "/learn/fundamentals": "/learn/concepts/",
+      "/learn/fundamentals/": "/learn/concepts/",
+      "/learn/fundamentals/understand-hypertables": "/learn/concepts/understand-hypertables",
+      "/learn/fundamentals/understanding-chunks": "/learn/concepts/understanding-chunks",
+      "/learn/fundamentals/understand-capabilities": "/learn/concepts/understand-capabilities",
+      "/learn/fundamentals/optimize-data-in-hypertables": "/learn/concepts/optimize-data-in-hypertables",
+      "/learn/fundamentals/design-your-data-model": "/learn/concepts/design-your-data-model",
+      "/learn/fundamentals/querying-time-series-data": "/learn/concepts/querying-time-series-data",
+      "/learn/fundamentals/tiger-cloud-feature-comparison": "/learn/concepts/tiger-cloud-feature-comparison",
     }),
 });
