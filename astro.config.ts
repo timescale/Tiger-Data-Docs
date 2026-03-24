@@ -161,7 +161,7 @@ export default defineConfig({
           replacesTitle: true,
         },
         favicon: "favicon.ico",
-        customCss: ["./theme.css"],
+        customCss: ["./theme.css", "./osano.css"],
         lastUpdated: true,
         head: [
           {
@@ -206,6 +206,7 @@ export default defineConfig({
               PageTitle: "./src/components/PageTitle.astro",
               Pagination: "./src/components/PageNavigation.astro",
               Callout: "./src/components/Callout.astro",
+              Footer: "./src/components/Footer.astro",
             } as Record<string, string>,
             plugins: starlightLinksValidator ? [starlightLinksValidator()] : [],
           },
