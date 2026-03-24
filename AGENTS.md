@@ -123,7 +123,7 @@ src/content/docs/
 │   ├── columnar-storage/  # Hypercore and compression
 │   ├── performance-optimization/  # Query and schema optimization
 │   ├── cost-optimization/ # Cost reduction strategies
-│   └── tips-and-tricks/   # Practical tips and recipes
+│   └── tips-and-tricks/   # Practical tips and troubleshooting
 │
 ├── migrate/               # Migration from other databases
 │   ├── index.mdx          # Migration overview
