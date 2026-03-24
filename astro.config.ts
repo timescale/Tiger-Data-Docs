@@ -319,13 +319,19 @@ export default defineConfig({
                 ],
               },
               {
-                label: "Data tiering and retention",
+                label: "Data tiering",
                 collapsed: true,
                 items: [
                   { label: "Tiered storage overview", link: "/build/data-management/storage" },
                   { label: "About storage tiers", link: "/build/data-management/storage/about-storage-tiers" },
                   { label: "Manage storage", link: "/build/data-management/storage/manage-storage" },
                   { label: "Query tiered data", link: "/build/data-management/storage/query-tiered-data" },
+                ],
+              },
+              {
+                label: "Data retention",
+                collapsed: true,
+                items: [
                   { label: "Data retention overview", link: "/build/data-management/data-retention" },
                   { label: "About data retention", link: "/build/data-management/data-retention/about-data-retention" },
                   { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
