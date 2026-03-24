@@ -327,10 +327,10 @@ export default defineConfig({
                   { label: "Continuous aggregates overview", link: "/build/continuous-aggregates" },
                   { label: "About continuous aggregates", link: "/build/continuous-aggregates/about-continuous-aggregates" },
                   { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
-                  { label: "Hierarchical continuous aggregates", link: "/build/continuous-aggregates/hierarchical-continuous-aggregates" },
                   { label: "Refresh policies", link: "/build/continuous-aggregates/refresh-policies" },
                   { label: "Real-time aggregates", link: "/build/continuous-aggregates/real-time-aggregates" },
                   { label: "Time and continuous aggregates", link: "/build/continuous-aggregates/time-and-continuous-aggregates" },
+                  { label: "Hierarchical continuous aggregates", link: "/build/continuous-aggregates/hierarchical-continuous-aggregates" },
                   { label: "Materialized hypertables", link: "/build/continuous-aggregates/materialized-hypertables" },
                   { label: "Continuous aggregates on Tiger Cloud", link: "/learn/continuous-aggregates/tiger-cloud-caggs" },
                   { label: "Compression with CAGGs and backfill (Tiger Cloud)", link: "/learn/compression/caggs-and-backfill" },
@@ -351,9 +351,9 @@ export default defineConfig({
                 items: [
                   { label: "Data retention overview", link: "/build/data-management/data-retention" },
                   { label: "About data retention", link: "/build/data-management/data-retention/about-data-retention" },
+                  { label: "Data retention on Tiger Cloud", link: "/learn/data-lifecycle/data-retention-policies" },
                   { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
                   { label: "Data retention with continuous aggregates", link: "/build/data-management/data-retention/data-retention-with-continuous-aggregates" },
-                  { label: "Data retention on Tiger Cloud", link: "/learn/data-lifecycle/data-retention-policies" },
                 ],
               },
               {
@@ -362,9 +362,9 @@ export default defineConfig({
                 items: [
                   { label: "Tiered storage overview", link: "/build/data-management/storage" },
                   { label: "About storage tiers", link: "/build/data-management/storage/about-storage-tiers" },
+                  { label: "Tiered storage on Tiger Cloud", link: "/learn/data-lifecycle/tiered-storage" },
                   { label: "Manage storage", link: "/build/data-management/storage/manage-storage" },
                   { label: "Query tiered data", link: "/build/data-management/storage/query-tiered-data" },
-                  { label: "Tiered storage on Tiger Cloud", link: "/learn/data-lifecycle/tiered-storage" },
                 ],
               },
               {
