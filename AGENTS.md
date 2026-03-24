@@ -109,7 +109,7 @@ src/content/docs/
 │   ├── compression/       # Tiger Cloud compression guides (/learn/compression/...)
 │   ├── continuous-aggregates/  # Tiger Cloud CAGG notes (/learn/continuous-aggregates/...)
 │   ├── data-lifecycle/    # Retention & tiering guides (/learn/data-lifecycle/...)
-│   ├── chunks/            # Chunk concepts (/learn/chunks/...)
+│   ├── chunks/            # Chunk concepts (/learn/chunks/...); Learn sidebar nests this group under Hypertables
 │   ├── capabilities-and-comparison/  # Capabilities & product comparison (/learn/capabilities-and-comparison/...)
 │   ├── deep-dive/         # Advanced architecture topics
 │   └── glossary.mdx       # Glossary with category filtering
