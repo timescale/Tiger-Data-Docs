@@ -1,0 +1,31 @@
+---
+title: "Hypertable indexes"
+description: "Default indexes on partition columns, composite unique keys, per-chunk index builds, and maintenance_work_mem on Tiger Cloud."
+---
+
+import * as C from "@constants";
+
+## Default indexes
+
+Creating a hypertable can add an index on the partitioning column (`create_default_indexes`). Indexes speed up `SELECT` but slow bulk `INSERT`. Drop unused indexes to save space and write cost.
+
+For **composite unique** indexes, every column in the unique constraint must be compatible with hypertable partitioning rules—usually the time column and any other keys your uniqueness requires.
+
+## Safer index builds
+
+Use [`timescaledb.transaction_per_chunk`](https://docs.timescale.com/api/latest/hypertable/create_index/) when creating indexes so work happens **per chunk**, reducing exclusive locks on the whole hypertable.
+
+## Invalid indexes
+
+Indexes can be **invalid** after failed `CREATE INDEX` or corruption. Find and drop/recreate them rather than leaving them invalid.
+
+## Bulk loads and maintenance_work_mem
+
+When backfilling or migrating data and creating many chunks, raise [`maintenance_work_mem`](https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-MAINTENANCE-WORK-MEM) for faster index builds. A common starting point is around **5%** of RAM; tune for your instance.
+
+More context: [PostgreSQL performance tuning: key parameters](https://www.timescale.com/learn/postgresql-performance-tuning-key-parameters) and [optimizing database indexes](https://www.timescale.com/learn/postgresql-performance-tuning-optimizing-database-indexes).
+
+## Related
+
+- [Hypertable operations](/learn/hypertables/hypertable-operations)
+- [Creating and configuring hypertables](/learn/hypertables/creating-and-configuring-hypertables)

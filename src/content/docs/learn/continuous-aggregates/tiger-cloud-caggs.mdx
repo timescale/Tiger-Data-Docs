@@ -1,0 +1,53 @@
+---
+title: "Continuous aggregates on Tiger Cloud"
+description: "Create CAGGs with WITH NO DATA, refresh policies, real-time aggregates, hierarchical Caggs, indexes, time zones, and operations on Tiger Cloud."
+---
+
+import * as C from "@constants";
+
+[Continuous aggregates](https://docs.timescale.com/use-timescale/latest/continuous-aggregates/about-continuous-aggregates/) pre-aggregate hypertable data so expensive stats queries (`AVG`, `COUNT`, `MAX`, `MIN`, `SUM`, …) read far less raw data. See also [data aggregation in PostgreSQL](https://www.timescale.com/learn/data-aggregation-postgresql) and [aggregation best practices](https://www.timescale.com/learn/postgresql-aggregation-best-practices).
+
+## Create with `WITH NO DATA`
+
+For large backfills, prefer [`WITH NO DATA`](https://docs.timescale.com/use-timescale/latest/continuous-aggregates/create-a-continuous-aggregate/#using-the-with-no-data-option) so the view exists immediately, then [refresh](https://docs.timescale.com/use-timescale/latest/continuous-aggregates/refresh-policies/) incrementally.
+
+After an initial full refresh, tighten **start_offset** / **end_offset** to match how fresh the aggregate must be. Append-only workloads can use a **narrow** refresh window. If **end_offset** is `NULL`, ensure you do not have **future** chunks that skew aggregates.
+
+## Refresh vs retention
+
+If the source hypertable (or parent CAGG) has [retention](https://docs.timescale.com/use-timescale/latest/data-retention/data-retention-with-continuous-aggregates/), align refresh windows so refresh jobs never delete data the CAGG still needs—otherwise you can lose aggregates unexpectedly.
+
+## Manual refresh and user-defined actions
+
+You can [refresh manually](https://docs.timescale.com/api/latest/continuous-aggregates/refresh_continuous_aggregate/) or orchestrate multiple refreshes with [user-defined actions](https://docs.timescale.com/use-timescale/latest/user-defined-actions/about-user-defined-actions/) when many policies compete for `timescaledb.max_background_workers`.
+
+## Real-time aggregates
+
+[Real-time aggregates](https://docs.timescale.com/use-timescale/latest/continuous-aggregates/real-time-aggregates/) join materialized data with the live hypertable so recent rows appear before the next refresh. Toggle with **`materialized_only`**. Ask: how fresh must reporting be, what lag is acceptable, and what is the query cost?
+
+## Hierarchical CAGGs
+
+Build ladders (raw → seconds → minutes → hours → …) with [hierarchical continuous aggregates](https://docs.timescale.com/use-timescale/latest/continuous-aggregates/hierarchical-continuous-aggregates/) and respect the [documented restrictions](https://docs.timescale.com/use-timescale/latest/continuous-aggregates/hierarchical-continuous-aggregates/#restrictions).
+
+## Indexes and time zones
+
+Indexes on CAGGs can be [created automatically](https://docs.timescale.com/use-timescale/latest/continuous-aggregates/create-index/#automatically-created-indexes) or customized—check [limitations](https://docs.timescale.com/use-timescale/latest/continuous-aggregates/create-index/#limitations-on-created-indexes). Use `EXPLAIN` before adding indexes.
+
+Tiger Cloud defaults to **UTC**; you can set timezone per database or role. CAGGs can [declare a timezone](https://docs.timescale.com/use-timescale/latest/continuous-aggregates/time/#declaring-an-explicit-timezone) on buckets; multi-region reporting sometimes uses **one CAGG per region** as a workaround.
+
+## Dropping data
+
+Options include `DROP MATERIALIZED VIEW`, dropping raw chunks + refreshing, or `drop_chunks` on materialized hypertables—see [drop data](https://docs.timescale.com/use-timescale/latest/continuous-aggregates/drop-data/).
+
+## Materialized hypertables and compression
+
+CAGGs use [materialized hypertables](https://docs.timescale.com/use-timescale/latest/continuous-aggregates/materialized-hypertables/). [Compression](/build/continuous-aggregates/compression-on-continuous-aggregates) defaults `segment_by` / `order_by` from the view definition when not set explicitly.
+
+## Troubleshooting
+
+See [continuous aggregate troubleshooting](https://docs.timescale.com/use-timescale/latest/continuous-aggregates/troubleshooting/).
+
+## Related
+
+- [Continuous aggregates overview](/build/continuous-aggregates)
+- [Compression with continuous aggregates and backfill](/learn/compression/caggs-and-backfill)

@@ -1,0 +1,33 @@
+---
+title: "Compression with continuous aggregates and backfill"
+description: "Compress continuous aggregates, backfill into compressed chunks, decompress_backfill, and partially compressed chunks on Tiger Cloud."
+---
+
+import * as C from "@constants";
+
+## Backfill into compressed chunks
+
+Modern Tiger Cloud versions allow `UPDATE`/`DELETE` and inserts into compressed data with care:
+
+- Filter updates using **segmentby** / **orderby** columns to limit decompression.
+- For **bulk inserts**, [decompress](/build/columnar-storage/decompress-chunks) affected chunks first—inserts into compressed chunks cost more CPU.
+- Unique constraints may decompress a small slice of rows for speculative inserts.
+- You may hit [tuple decompression limits](/build/tips-and-tricks/troubleshooting#tuple-decompression-limit-exceeded-by-operation); raise or disable `timescaledb.max_tuples_decompressed_per_dml_transaction` if appropriate.
+
+## Backfill with decompress_backfill
+
+The [timescaledb-extras](https://github.com/timescale/timescaledb-extras) repo includes **decompress_backfill** helpers. Typical flow: create a **staging table** with the same schema as the hypertable, load rows, call the procedure to pause policy, decompress affected chunks, insert, and re-enable compression.
+
+## Partially compressed chunks
+
+Backfill can leave chunks **partially compressed**. The compression policy eventually recompresses them. Chunks in a partially compressed state appear in catalog with status **9** (verify against your TimescaleDB version’s docs).
+
+## Continuous aggregates and compression
+
+Caggs can be large; compression reduces footprint for pre-aggregated data. After enabling on a continuous aggregate, validate refresh windows so compression does not fight active refreshes. See [Compression on continuous aggregates](/build/continuous-aggregates/compression-on-continuous-aggregates).
+
+## Related
+
+- [Tiger Cloud continuous aggregates](/learn/continuous-aggregates/tiger-cloud-caggs)
+- [Compression configuration and testing](/learn/compression/configuration-and-testing)
+- [Refresh policies](/build/continuous-aggregates/refresh-policies)

@@ -3,6 +3,7 @@ import { defineConfig } from "astro/config";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
 import aiChat from "@stainless-api/docs-ai-chat/plugin";
 import rehypeBasePath from "./src/plugins/rehype-base-path";
+import remarkResolveConstantsInHeadings from "./src/plugins/remark-resolve-constants-in-headings";
 
 const require = createRequire(import.meta.url);
 
@@ -122,6 +123,7 @@ export default defineConfig({
   site: 'https://www.tigerdata.com',
   base: BASE,
   markdown: {
+    remarkPlugins: [remarkResolveConstantsInHeadings],
     rehypePlugins: [[rehypeBasePath, { base: BASE }]],
   },
     vite: {
@@ -264,11 +266,13 @@ export default defineConfig({
               },
               {
                 label: "Contribute to the docs",
-                link: "/get-started/contributing",
+                collapsed: true,
+                items: [{ label: "How to contribute", link: "/get-started/contributing" }],
               },
             ],
           },
-          // Learn tab
+          // Learn tab — topic groups link to Learn + Build pages (most how-tos live under Build).
+          // Learn sidebar: groups follow dependency order; within each group, items go surface → in-depth (overview/concept → setup → tuning → advanced/platform guides).
           {
             label: "Learn",
             link: "/learn",
@@ -279,23 +283,118 @@ export default defineConfig({
                 items: [
                   { label: "What is Tiger Data", link: "/learn" },
                   { label: "Tiger Data architecture for real-time analytics", link: "/learn/deep-dive/whitepaper" },
-                  { label: "Understand capabilities", link: "/learn/fundamentals/understand-capabilities" },
-                  { label: "Compare Tiger Data product features", link: "/learn/fundamentals/tiger-cloud-feature-comparison" },
                 ],
               },
               {
-                label: "Concepts",
+                label: "Capabilities and comparison",
                 collapsed: true,
                 items: [
-                  { label: "Understanding chunks", link: "/learn/fundamentals/understanding-chunks" },
-                  { label: "Optimize time-series data in hypertables", link: "/learn/fundamentals/optimize-data-in-hypertables" },
-                  { label: "Querying time-series data", link: "/learn/fundamentals/querying-time-series-data" },
-                  { label: "Design your data model", link: "/learn/fundamentals/design-your-data-model" },
+                  { label: "Understand capabilities", link: "/learn/capabilities-and-comparison/understand-capabilities" },
+                  { label: "Compare the features in Tiger Data products", link: "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison" },
+                ],
+              },
+              {
+                label: "Data model",
+                collapsed: true,
+                items: [
+                  { label: "Wide, narrow, and medium tables", link: "/learn/data-model/wide-narrow-medium-tables" },
+                  {
+                    label: "Primary keys, time columns, and uniqueness",
+                    link: "/learn/data-model/primary-keys-time-and-uniqueness",
+                  },
+                  { label: "Design your data model", link: "/learn/hypertables/design-your-data-model" },
+                ],
+              },
+              {
+                label: "Hypertables",
+                collapsed: true,
+                items: [
+                  { label: "Understand hypertables", link: "/learn/hypertables/understand-hypertables" },
+                  { label: "Creating and configuring hypertables", link: "/learn/hypertables/creating-and-configuring-hypertables" },
+                  { label: "Partitioning hypertables", link: "/learn/hypertables/partitioning-hypertables" },
+                  { label: "Sizing hypertable chunks", link: "/learn/hypertables/sizing-hypertable-chunks" },
+                  { label: "Hypertable indexes", link: "/learn/hypertables/hypertable-indexes" },
+                  { label: "Querying time-series data", link: "/learn/hypertables/querying-time-series-data" },
+                  { label: "Optimize time-series data in hypertables", link: "/learn/hypertables/optimize-data-in-hypertables" },
+                  { label: "Hypertable operations", link: "/learn/hypertables/hypertable-operations" },
+                  { label: "Improve hypertable performance", link: "/build/performance-optimization/improve-hypertable-performance" },
+                  { label: "Hypertables and unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
+                ],
+              },
+              {
+                label: "Chunks",
+                collapsed: true,
+                items: [
+                  { label: "Understanding chunks", link: "/learn/chunks/understanding-chunks" },
+                  { label: "About time buckets", link: "/build/data-management/time-buckets/about-time-buckets" },
+                  { label: "Use time buckets", link: "/build/data-management/time-buckets/use-time-buckets" },
+                  { label: "Manually drop chunks", link: "/build/data-management/data-retention/manually-drop-chunks" },
+                ],
+              },
+              {
+                label: "Hypercore",
+                collapsed: true,
+                items: [
+                  { label: "Columnar storage overview", link: "/build/columnar-storage" },
+                  { label: "Understand Hypercore", link: "/build/columnar-storage/understand-hypercore" },
+                  { label: "Compression methods", link: "/build/columnar-storage/compression-methods" },
+                  { label: "Basic compression", link: "/build/how-to/basic-compression" },
+                  { label: "Set up Hypercore", link: "/build/columnar-storage/setup-hypercore" },
+                  { label: "Compression overview (Tiger Cloud)", link: "/learn/compression/overview" },
+                  { label: "Compression configuration and testing (Tiger Cloud)", link: "/learn/compression/configuration-and-testing" },
+                ],
+              },
+              {
+                label: "CAGGs",
+                collapsed: true,
+                items: [
+                  { label: "Continuous aggregates overview", link: "/build/continuous-aggregates" },
+                  { label: "About continuous aggregates", link: "/build/continuous-aggregates/about-continuous-aggregates" },
+                  { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
+                  { label: "Refresh policies", link: "/build/continuous-aggregates/refresh-policies" },
+                  { label: "Real-time aggregates", link: "/build/continuous-aggregates/real-time-aggregates" },
+                  { label: "Time and continuous aggregates", link: "/build/continuous-aggregates/time-and-continuous-aggregates" },
+                  { label: "Hierarchical continuous aggregates", link: "/build/continuous-aggregates/hierarchical-continuous-aggregates" },
+                  { label: "Materialized hypertables", link: "/build/continuous-aggregates/materialized-hypertables" },
+                  { label: "Continuous aggregates on Tiger Cloud", link: "/learn/continuous-aggregates/tiger-cloud-caggs" },
+                  { label: "Compression with CAGGs and backfill (Tiger Cloud)", link: "/learn/compression/caggs-and-backfill" },
+                ],
+              },
+              {
+                label: "Backfills",
+                collapsed: true,
+                items: [
+                  { label: "Refresh policies and backfill behavior", link: "/build/continuous-aggregates/refresh-policies" },
+                  { label: "Real-time aggregates and historical refresh", link: "/build/continuous-aggregates/real-time-aggregates" },
+                  { label: "TimescaleDB backfill migration tool", link: "/migrate/dual-write-and-backfill/timescaledb-backfill" },
+                ],
+              },
+              {
+                label: "Data retention",
+                collapsed: true,
+                items: [
+                  { label: "Data retention overview", link: "/build/data-management/data-retention" },
+                  { label: "About data retention", link: "/build/data-management/data-retention/about-data-retention" },
+                  { label: "Data retention on Tiger Cloud", link: "/learn/data-lifecycle/data-retention-policies" },
+                  { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
+                  { label: "Data retention with continuous aggregates", link: "/build/data-management/data-retention/data-retention-with-continuous-aggregates" },
+                ],
+              },
+              {
+                label: "Data tiering",
+                collapsed: true,
+                items: [
+                  { label: "Tiered storage overview", link: "/build/data-management/storage" },
+                  { label: "About storage tiers", link: "/build/data-management/storage/about-storage-tiers" },
+                  { label: "Tiered storage on Tiger Cloud", link: "/learn/data-lifecycle/tiered-storage" },
+                  { label: "Manage storage", link: "/build/data-management/storage/manage-storage" },
+                  { label: "Query tiered data", link: "/build/data-management/storage/query-tiered-data" },
                 ],
               },
               {
                 label: "Glossary",
-                link: "/learn/glossary",
+                collapsed: true,
+                items: [{ label: "Browse terms", link: "/learn/glossary" }],
               },
             ],
           },
@@ -306,7 +405,8 @@ export default defineConfig({
             sidebar: [
               {
                 label: "Overview",
-                link: "/build",
+                collapsed: true,
+                items: [{ label: "Overview", link: "/build" }],
               },
               {
                 label: "Tutorials",
@@ -523,7 +623,8 @@ export default defineConfig({
             sidebar: [
               {
                 label: "Overview",
-                link: "/migrate",
+                collapsed: true,
+                items: [{ label: "Overview", link: "/migrate" }],
               },
               {
                 label: "Import & migration methods",
@@ -569,11 +670,13 @@ export default defineConfig({
             sidebar: [
               {
                 label: "Overview",
-                link: "/integrate",
+                collapsed: true,
+                items: [{ label: "Overview", link: "/integrate" }],
               },
               {
                 label: "Find connection details",
-                link: "/integrate/find-connection-details",
+                collapsed: true,
+                items: [{ label: "Find connection details", link: "/integrate/find-connection-details" }],
               },
               // --- Type of Tool (matches integrationCategory) ---
               {
@@ -680,7 +783,8 @@ export default defineConfig({
               },
               {
                 label: "Troubleshooting",
-                link: "/integrate/troubleshooting",
+                collapsed: true,
+                items: [{ label: "Troubleshooting", link: "/integrate/troubleshooting" }],
               },
             ],
           },
@@ -691,7 +795,8 @@ export default defineConfig({
             sidebar: [
               {
                 label: "Overview",
-                link: "/deploy",
+                collapsed: true,
+                items: [{ label: "Overview", link: "/deploy" }],
               },
               {
                 label: "Tiger Cloud",
@@ -845,7 +950,8 @@ export default defineConfig({
             sidebar: [
               {
                 label: "Overview",
-                link: "/reference",
+                collapsed: true,
+                items: [{ label: "Overview", link: "/reference" }],
               },
               {
                 label: "TimescaleDB",
@@ -869,12 +975,16 @@ export default defineConfig({
                       {
                         label: "Chunk management",
                         items: [
+                          "reference/timescaledb/hypertables/create_chunk",
                           "reference/timescaledb/hypertables/show_chunks",
+                          "reference/timescaledb/hypertables/drop_chunk",
                           "reference/timescaledb/hypertables/drop_chunks",
                           "reference/timescaledb/hypertables/move_chunk",
                           "reference/timescaledb/hypertables/reorder_chunk",
                           "reference/timescaledb/hypertables/merge_chunks",
+                          "reference/timescaledb/hypertables/merge_chunks_concurrently",
                           "reference/timescaledb/hypertables/split_chunk",
+                          "reference/timescaledb/hypertables/chunk_rewrite_cleanup",
                           "reference/timescaledb/hypertables/attach_chunk",
                           "reference/timescaledb/hypertables/detach_chunk",
                           "reference/timescaledb/hypertables/set_chunk_time_interval",
@@ -1027,7 +1137,6 @@ export default defineConfig({
                         label: "Hypertable and chunk information",
                         items: [
                           "reference/timescaledb/informational-views/chunks",
-                          "reference/timescaledb/informational-views/data_nodes",
                           "reference/timescaledb/informational-views/dimensions",
                           "reference/timescaledb/informational-views/hypertables",
                           "reference/timescaledb/informational-views/continuous_aggregates",
@@ -1074,7 +1183,7 @@ export default defineConfig({
                   {
                     label: "Approximate count distinct",
                     collapsed: true,
-                    autogenerate: { directory: "reference/toolkit/hyperloglog" },
+                    autogenerate: { directory: "reference/toolkit/approximate-count-distinct" },
                   },
                   {
                     label: "Statistical and regression analysis",
@@ -1263,5 +1372,46 @@ export default defineConfig({
       "/learn/production-patterns/": "/build/production-patterns/",
       "/learn/fundamentals/your-first-hypertable": "/build/how-to/your-first-hypertable",
       "/learn/fundamentals/basic-compression": "/build/how-to/basic-compression",
+      // Learn IA: /learn/hypertables/*, /learn/chunks/*, /learn/capabilities-and-comparison/* — keep legacy URLs working
+      "/learn/fundamentals": "/learn/",
+      "/learn/fundamentals/": "/learn/",
+      "/learn/fundamentals/understand-hypertables": "/learn/hypertables/understand-hypertables",
+      "/learn/fundamentals/understanding-chunks": "/learn/chunks/understanding-chunks",
+      "/learn/fundamentals/understand-capabilities":
+        "/learn/capabilities-and-comparison/understand-capabilities",
+      "/learn/fundamentals/optimize-data-in-hypertables": "/learn/hypertables/optimize-data-in-hypertables",
+      "/learn/fundamentals/design-your-data-model": "/learn/hypertables/design-your-data-model",
+      "/learn/fundamentals/querying-time-series-data": "/learn/hypertables/querying-time-series-data",
+      "/learn/fundamentals/tiger-cloud-feature-comparison":
+        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison",
+      "/learn/concepts": "/learn",
+      "/learn/concepts/": "/learn/",
+      "/learn/topics": "/learn",
+      "/learn/topics/": "/learn/",
+      "/learn/concepts/understand-hypertables": "/learn/hypertables/understand-hypertables",
+      "/learn/concepts/optimize-data-in-hypertables": "/learn/hypertables/optimize-data-in-hypertables",
+      "/learn/concepts/design-your-data-model": "/learn/hypertables/design-your-data-model",
+      "/learn/concepts/querying-time-series-data": "/learn/hypertables/querying-time-series-data",
+      "/learn/concepts/understanding-chunks": "/learn/chunks/understanding-chunks",
+      "/learn/concepts/understand-capabilities":
+        "/learn/capabilities-and-comparison/understand-capabilities",
+      "/learn/concepts/tiger-cloud-feature-comparison":
+        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison",
+      "/learn/overview/understand-capabilities":
+        "/learn/capabilities-and-comparison/understand-capabilities",
+      "/learn/overview/understand-capabilities/":
+        "/learn/capabilities-and-comparison/understand-capabilities/",
+      "/learn/overview/tiger-cloud-feature-comparison":
+        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison",
+      "/learn/overview/tiger-cloud-feature-comparison/":
+        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison/",
+      "/learn/about-tiger-data/understand-capabilities":
+        "/learn/capabilities-and-comparison/understand-capabilities",
+      "/learn/about-tiger-data/understand-capabilities/":
+        "/learn/capabilities-and-comparison/understand-capabilities/",
+      "/learn/about-tiger-data/tiger-cloud-feature-comparison":
+        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison",
+      "/learn/about-tiger-data/tiger-cloud-feature-comparison/":
+        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison/",
     }),
 });
