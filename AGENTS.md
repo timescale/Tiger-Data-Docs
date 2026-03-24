@@ -104,7 +104,11 @@ src/content/docs/
 │   └── news/              # Changelog (new.mdx), release-notes.mdx
 │
 ├── learn/                 # Conceptual learning content (glossary, topics)
-│   ├── hypertables/       # Hypertable concept pages (/learn/hypertables/...)
+│   ├── data-model/        # Table layout, keys & uniqueness (wide/narrow/medium, primary keys, …)
+│   ├── hypertables/       # Hypertable concepts + Tiger Cloud design hub (/learn/hypertables/...)
+│   ├── compression/       # Tiger Cloud compression guides (/learn/compression/...)
+│   ├── continuous-aggregates/  # Tiger Cloud CAGG notes (/learn/continuous-aggregates/...)
+│   ├── data-lifecycle/    # Retention & tiering guides (/learn/data-lifecycle/...)
 │   ├── chunks/            # Chunk concepts (/learn/chunks/...)
 │   ├── capabilities-and-comparison/  # Capabilities & product comparison (/learn/capabilities-and-comparison/...)
 │   ├── deep-dive/         # Advanced architecture topics

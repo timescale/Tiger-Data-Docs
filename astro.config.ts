@@ -248,7 +248,7 @@ export default defineConfig({
             ],
           },
           // Learn tab — topic groups link to Learn + Build pages (most how-tos live under Build).
-          // Sidebar order follows concept dependency: hypertables → chunks → hypercore → CAGGs → backfills → retention → tiering.
+          // Sidebar order: data model → hypertables → chunks → hypercore (incl. Tiger Cloud compression) → CAGGs (incl. Tiger Cloud CAGG + compression/backfill) → backfills → retention → tiering → glossary.
           {
             label: "Learn",
             link: "/learn",
@@ -270,12 +270,28 @@ export default defineConfig({
                 ],
               },
               {
+                label: "Data model",
+                collapsed: true,
+                items: [
+                  { label: "Design your data model", link: "/learn/hypertables/design-your-data-model" },
+                  { label: "Wide, narrow, and medium tables", link: "/learn/data-model/wide-narrow-medium-tables" },
+                  {
+                    label: "Primary keys, time columns, and uniqueness",
+                    link: "/learn/data-model/primary-keys-time-and-uniqueness",
+                  },
+                ],
+              },
+              {
                 label: "Hypertables",
                 collapsed: true,
                 items: [
                   { label: "Understand hypertables", link: "/learn/hypertables/understand-hypertables" },
                   { label: "Optimize time-series data in hypertables", link: "/learn/hypertables/optimize-data-in-hypertables" },
-                  { label: "Design your data model", link: "/learn/hypertables/design-your-data-model" },
+                  { label: "Creating and configuring hypertables", link: "/learn/hypertables/creating-and-configuring-hypertables" },
+                  { label: "Partitioning hypertables", link: "/learn/hypertables/partitioning-hypertables" },
+                  { label: "Sizing hypertable chunks", link: "/learn/hypertables/sizing-hypertable-chunks" },
+                  { label: "Hypertable indexes", link: "/learn/hypertables/hypertable-indexes" },
+                  { label: "Hypertable operations", link: "/learn/hypertables/hypertable-operations" },
                   { label: "Querying time-series data", link: "/learn/hypertables/querying-time-series-data" },
                   { label: "Improve hypertable performance", link: "/build/performance-optimization/improve-hypertable-performance" },
                   { label: "Hypertables and unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
@@ -300,6 +316,8 @@ export default defineConfig({
                   { label: "Set up Hypercore", link: "/build/columnar-storage/setup-hypercore" },
                   { label: "Compression methods", link: "/build/columnar-storage/compression-methods" },
                   { label: "Basic compression", link: "/build/how-to/basic-compression" },
+                  { label: "Compression overview (Tiger Cloud)", link: "/learn/compression/overview" },
+                  { label: "Compression configuration and testing (Tiger Cloud)", link: "/learn/compression/configuration-and-testing" },
                 ],
               },
               {
@@ -314,6 +332,8 @@ export default defineConfig({
                   { label: "Real-time aggregates", link: "/build/continuous-aggregates/real-time-aggregates" },
                   { label: "Time and continuous aggregates", link: "/build/continuous-aggregates/time-and-continuous-aggregates" },
                   { label: "Materialized hypertables", link: "/build/continuous-aggregates/materialized-hypertables" },
+                  { label: "Continuous aggregates on Tiger Cloud", link: "/learn/continuous-aggregates/tiger-cloud-caggs" },
+                  { label: "Compression with CAGGs and backfill (Tiger Cloud)", link: "/learn/compression/caggs-and-backfill" },
                 ],
               },
               {
@@ -333,6 +353,7 @@ export default defineConfig({
                   { label: "About data retention", link: "/build/data-management/data-retention/about-data-retention" },
                   { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
                   { label: "Data retention with continuous aggregates", link: "/build/data-management/data-retention/data-retention-with-continuous-aggregates" },
+                  { label: "Data retention on Tiger Cloud", link: "/learn/data-lifecycle/data-retention-policies" },
                 ],
               },
               {
@@ -343,6 +364,7 @@ export default defineConfig({
                   { label: "About storage tiers", link: "/build/data-management/storage/about-storage-tiers" },
                   { label: "Manage storage", link: "/build/data-management/storage/manage-storage" },
                   { label: "Query tiered data", link: "/build/data-management/storage/query-tiered-data" },
+                  { label: "Tiered storage on Tiger Cloud", link: "/learn/data-lifecycle/tiered-storage" },
                 ],
               },
               {
