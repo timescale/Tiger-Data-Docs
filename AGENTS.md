@@ -59,9 +59,9 @@ pnpm lint:links
 **First-party / hand-authored images** should live under **`src/assets/images/`** (for example `learn/`, `migrate/`, `hero-cloud/`, `hero-local/`) and be referenced via **`import`** in MDX or `.astro` so Astro can optimize them (`astro:assets`, Sharp). See `src/assets/images/README.md`. Do not use `public/` for those unless you need a raw static URL with no processing.
 
 Other scripts in `scripts/`:
-- `lint-heading-case.ts` — enforces sentence case on headings
-- `lint-postgresql-variable.ts` — lints postgresql variable usage
-- `assign-glossary-categories.cjs` — assigns categories to glossary entries
+- `lint-heading-case.ts`: enforces sentence case on headings
+- `lint-postgresql-variable.ts`: lints postgresql variable usage
+- `assign-glossary-categories.cjs`: assigns categories to glossary entries
 
 ### Site Configuration
 
@@ -76,19 +76,19 @@ All navigation, tabs, and sidebar structure is defined in `astro.config.ts` via 
 ### Custom Components
 
 Custom Astro/React components live in `src/components/`:
-- `Header.astro`, `PageTitle.astro` (breadcrumbs + `@stainless-api/docs/components/AIDropdown`), `PageNavigation.astro` — Starlight overrides
-- `Callout.astro` — custom callout with Figma-styled lightbulb icon
-- `AuthorByline.astro` — author attribution for tutorials
-- `ChangelogEntry.astro`, `ChangelogFilter.astro`, `ChangelogTag.astro` — changelog/release notes
-- `Glossary/` — glossary term rendering with category filtering
-- `IntegrateOverview.astro`, `IntegrateToc/` — integration page layouts
-- `NumberedList.astro`, `NumberedList.tsx`, `NumberedItem.astro` — ordered step components
-- `HeaderSearchBar.astro` — site search bar
-- `SinceRelease.astro` — version badge component
+- `Header.astro`, `PageTitle.astro` (breadcrumbs + `@stainless-api/docs/components/AIDropdown`), `PageNavigation.astro`: Starlight overrides
+- `Callout.astro`: custom callout with Figma-styled lightbulb icon
+- `AuthorByline.astro`: author attribution for tutorials
+- `ChangelogEntry.astro`, `ChangelogFilter.astro`, `ChangelogTag.astro`: changelog/release notes
+- `Glossary/`: glossary term rendering with category filtering
+- `IntegrateOverview.astro`, `IntegrateToc/`: integration page layouts
+- `NumberedList.astro`, `NumberedList.tsx`, `NumberedItem.astro`: ordered step components
+- `HeaderSearchBar.astro`: site search bar
+- `SinceRelease.astro`: version badge component
 
 Helper modules in `src/lib/`:
-- `docs-components.ts` — re-exports Stainless components with Callout override
-- `breadcrumb.ts`, `pagination.ts`, `glossary-data.ts` — utility modules
+- `docs-components.ts`: re-exports Stainless components with Callout override
+- `breadcrumb.ts`, `pagination.ts`, `glossary-data.ts`: utility modules
 
 ### Content Structure
 
@@ -174,11 +174,11 @@ src/content/docs/
 ### Legacy Content (deprecated)
 
 The following legacy paths have redirect `.mdx` stubs at the top level of `src/content/docs/`:
-- `agentic-postgres.mdx` — legacy agentic postgres page
-- `deploy-and-operate.mdx` — redirects to `deploy/`
-- `integrations.mdx` — redirects to `integrate/`
-- `manage-data.mdx` — redirects to `build/` and `learn/`
-- `tutorials.mdx` — legacy page with links; prefer **`/build/examples`** for tutorials (`astro.config.ts` redirects old `/learn/examples` URLs)
+- `agentic-postgres.mdx`: legacy agentic postgres page
+- `deploy-and-operate.mdx`: redirects to `deploy/`
+- `integrations.mdx`: redirects to `integrate/`
+- `manage-data.mdx`: redirects to `build/` and `learn/`
+- `tutorials.mdx`: legacy page with links; prefer **`/build/examples`** for tutorials (`astro.config.ts` redirects old `/learn/examples` URLs)
 
 Previous directory reorganization:
 - `getting-started/` → `get-started/`
@@ -186,6 +186,10 @@ Previous directory reorganization:
 - `tutorials/` → `build/examples/` (old `/learn/examples` URLs redirect in `astro.config.ts`)
 - `integrations/` → `integrate/`
 - `deploy-and-operate/` → `deploy/`
+
+### Documentation style (prose)
+
+- Do not use the em dash (Unicode U+2014) in documentation. Prefer commas, semicolons, colons, or parentheses, or split into two sentences. For label-and-description lines, use a colon after the label (for example `**Label**: description`). See [Contribute to the docs: Writing style](/get-started/contributing#writing-style).
 
 ### MDX Components
 
@@ -219,6 +223,6 @@ When not using Stainless hosting, the site can be built with `pnpm build` and de
 
 - **Search**: By default the build uses [Pagefind](https://pagefind.app/) for site search (header search bar and ⌘K). For Algolia-backed search, set the Algolia env vars in `.env.example` before building.
 - **Cache headers**: So the site is performant, set cache headers per [Stainless' recommendation](https://www.stainless.com/docs/docs-platform/hosting-and-deploys/#configuring-cache-headers):
-  - `/_astro/*`: long-lived (e.g. `Cache-Control: public, max-age=604800, immutable`) — versioned assets.
+  - `/_astro/*`: long-lived (e.g. `Cache-Control: public, max-age=604800, immutable`), versioned assets.
   - Other files (HTML, etc.): shorter TTL (e.g. `max-age=3600`).
   - This repo sets these via `public/_headers` (Netlify, Cloudflare Pages) and `vercel.json` (Vercel). For other hosts, configure equivalent headers in the platform's config.

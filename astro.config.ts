@@ -247,7 +247,7 @@ export default defineConfig({
               },
             ],
           },
-          // Learn tab — topic groups link to Learn + Build pages (most how-tos live under Build).
+          // Learn tab, topic groups link to Learn + Build pages (most how-tos live under Build).
           // Learn sidebar: groups follow dependency order; within each group, items go surface → in-depth (overview/concept → setup → tuning → advanced/platform guides).
           {
             label: "Learn",
@@ -374,7 +374,7 @@ export default defineConfig({
               },
             ],
           },
-          // Build tab — sidebar group labels match Build overview cards (“I want to…”)
+          // Build tab, sidebar group labels match Build overview cards (“I want to…”)
           {
             label: "Build",
             link: "/build",
@@ -592,7 +592,7 @@ export default defineConfig({
               },
             ],
           },
-          // Migrate tab — logical order: overview → how to import/migrate → source-specific guides
+          // Migrate tab, logical order: overview → how to import/migrate → source-specific guides
           {
             label: "Migrate",
             link: "/migrate",
@@ -639,7 +639,7 @@ export default defineConfig({
               },
             ],
           },
-          // Integrate tab — mirrors the 5 filter dimensions in IntegrateOverview
+          // Integrate tab, mirrors the 5 filter dimensions in IntegrateOverview
           {
             label: "Integrate",
             link: "/integrate",
@@ -1348,7 +1348,7 @@ export default defineConfig({
       "/learn/production-patterns/": "/build/production-patterns/",
       "/learn/fundamentals/your-first-hypertable": "/build/how-to/your-first-hypertable",
       "/learn/fundamentals/basic-compression": "/build/how-to/basic-compression",
-      // Learn IA: /learn/hypertables/*, /learn/chunks/*, /learn/capabilities-and-comparison/* — keep legacy URLs working
+      // Learn IA: /learn/hypertables/*, /learn/chunks/*, /learn/capabilities-and-comparison/*. Keep legacy URLs working.
       "/learn/fundamentals": "/learn/",
       "/learn/fundamentals/": "/learn/",
       "/learn/fundamentals/understand-hypertables": "/learn/hypertables/understand-hypertables",
