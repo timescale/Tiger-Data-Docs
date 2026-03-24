@@ -391,20 +391,6 @@ export default defineConfig({
                   { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
                   { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
                   { label: "Template tutorial (preview)", link: "/build/examples/00-template-tutorial-render" },
-                  {
-                    label: "Troubleshooting",
-                    collapsed: true,
-                    items: [
-                      { label: "Overview", link: "/build/tips-and-tricks" },
-                      { label: "Troubleshoot continuous aggregates", link: "/build/tips-and-tricks/troubleshoot-continuous-aggregates" },
-                      { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
-                      { label: "Troubleshoot import and ingest", link: "/build/tips-and-tricks/troubleshoot-import-ingest" },
-                      { label: "Troubleshoot hypercore", link: "/build/tips-and-tricks/troubleshoot-hypercore" },
-                      { label: "Troubleshoot schema management", link: "/build/tips-and-tricks/troubleshoot-schema-management" },
-                      { label: "Troubleshoot query data", link: "/build/tips-and-tricks/troubleshoot-query-data" },
-                      { label: "Troubleshoot time buckets", link: "/build/tips-and-tricks/troubleshoot-time-buckets" },
-                    ],
-                  },
                 ],
               },
               {
@@ -588,6 +574,20 @@ export default defineConfig({
                 collapsed: true,
                 items: [
                   { label: "Overview", link: "/build/cost-optimization" },
+                ],
+              },
+              {
+                label: "Tips and tricks",
+                collapsed: true,
+                items: [
+                  { label: "Overview", link: "/build/tips-and-tricks" },
+                  { label: "Troubleshoot continuous aggregates", link: "/build/tips-and-tricks/troubleshoot-continuous-aggregates" },
+                  { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
+                  { label: "Troubleshoot import and ingest", link: "/build/tips-and-tricks/troubleshoot-import-ingest" },
+                  { label: "Troubleshoot hypercore", link: "/build/tips-and-tricks/troubleshoot-hypercore" },
+                  { label: "Troubleshoot schema management", link: "/build/tips-and-tricks/troubleshoot-schema-management" },
+                  { label: "Troubleshoot query data", link: "/build/tips-and-tricks/troubleshoot-query-data" },
+                  { label: "Troubleshoot time buckets", link: "/build/tips-and-tricks/troubleshoot-time-buckets" },
                 ],
               },
             ],
