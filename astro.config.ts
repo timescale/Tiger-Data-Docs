@@ -248,7 +248,7 @@ export default defineConfig({
             ],
           },
           // Learn tab — topic groups link to Learn + Build pages (most how-tos live under Build).
-          // Sidebar order: data model → hypertables → chunks → hypercore (incl. Tiger Cloud compression) → CAGGs (incl. Tiger Cloud CAGG + compression/backfill) → backfills → retention → tiering → glossary.
+          // Learn sidebar: groups follow dependency order; within each group, items go surface → in-depth (overview/concept → setup → tuning → advanced/platform guides).
           {
             label: "Learn",
             link: "/learn",
@@ -273,12 +273,12 @@ export default defineConfig({
                 label: "Data model",
                 collapsed: true,
                 items: [
-                  { label: "Design your data model", link: "/learn/hypertables/design-your-data-model" },
                   { label: "Wide, narrow, and medium tables", link: "/learn/data-model/wide-narrow-medium-tables" },
                   {
                     label: "Primary keys, time columns, and uniqueness",
                     link: "/learn/data-model/primary-keys-time-and-uniqueness",
                   },
+                  { label: "Design your data model", link: "/learn/hypertables/design-your-data-model" },
                 ],
               },
               {
