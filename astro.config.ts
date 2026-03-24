@@ -951,12 +951,16 @@ export default defineConfig({
                       {
                         label: "Chunk management",
                         items: [
+                          "reference/timescaledb/hypertables/create_chunk",
                           "reference/timescaledb/hypertables/show_chunks",
+                          "reference/timescaledb/hypertables/drop_chunk",
                           "reference/timescaledb/hypertables/drop_chunks",
                           "reference/timescaledb/hypertables/move_chunk",
                           "reference/timescaledb/hypertables/reorder_chunk",
                           "reference/timescaledb/hypertables/merge_chunks",
+                          "reference/timescaledb/hypertables/merge_chunks_concurrently",
                           "reference/timescaledb/hypertables/split_chunk",
+                          "reference/timescaledb/hypertables/chunk_rewrite_cleanup",
                           "reference/timescaledb/hypertables/attach_chunk",
                           "reference/timescaledb/hypertables/detach_chunk",
                           "reference/timescaledb/hypertables/set_chunk_time_interval",
@@ -1109,7 +1113,6 @@ export default defineConfig({
                         label: "Hypertable and chunk information",
                         items: [
                           "reference/timescaledb/informational-views/chunks",
-                          "reference/timescaledb/informational-views/data_nodes",
                           "reference/timescaledb/informational-views/dimensions",
                           "reference/timescaledb/informational-views/hypertables",
                           "reference/timescaledb/informational-views/continuous_aggregates",
@@ -1156,7 +1159,7 @@ export default defineConfig({
                   {
                     label: "Approximate count distinct",
                     collapsed: true,
-                    autogenerate: { directory: "reference/toolkit/hyperloglog" },
+                    autogenerate: { directory: "reference/toolkit/approximate-count-distinct" },
                   },
                   {
                     label: "Statistical and regression analysis",
