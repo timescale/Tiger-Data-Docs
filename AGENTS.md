@@ -59,9 +59,9 @@ pnpm lint:links
 **First-party / hand-authored images** should live under **`src/assets/images/`** (for example `learn/`, `migrate/`, `hero-cloud/`, `hero-local/`) and be referenced via **`import`** in MDX or `.astro` so Astro can optimize them (`astro:assets`, Sharp). See `src/assets/images/README.md`. Do not use `public/` for those unless you need a raw static URL with no processing.
 
 Other scripts in `scripts/`:
-- `lint-heading-case.ts` — enforces sentence case on headings
-- `lint-postgresql-variable.ts` — lints postgresql variable usage
-- `assign-glossary-categories.cjs` — assigns categories to glossary entries
+- `lint-heading-case.ts`: enforces sentence case on headings
+- `lint-postgresql-variable.ts`: lints postgresql variable usage
+- `assign-glossary-categories.cjs`: assigns categories to glossary entries
 
 ### Site Configuration
 
@@ -76,19 +76,19 @@ All navigation, tabs, and sidebar structure is defined in `astro.config.ts` via 
 ### Custom Components
 
 Custom Astro/React components live in `src/components/`:
-- `Header.astro`, `PageTitle.astro` (breadcrumbs + `@stainless-api/docs/components/AIDropdown`), `PageNavigation.astro` — Starlight overrides
-- `Callout.astro` — custom callout with Figma-styled lightbulb icon
-- `AuthorByline.astro` — author attribution for tutorials
-- `ChangelogEntry.astro`, `ChangelogFilter.astro`, `ChangelogTag.astro` — changelog/release notes
-- `Glossary/` — glossary term rendering with category filtering
-- `IntegrateOverview.astro`, `IntegrateToc/` — integration page layouts
-- `NumberedList.astro`, `NumberedList.tsx`, `NumberedItem.astro` — ordered step components
-- `HeaderSearchBar.astro` — site search bar
-- `SinceRelease.astro` — version badge component
+- `Header.astro`, `PageTitle.astro` (breadcrumbs + `@stainless-api/docs/components/AIDropdown`), `PageNavigation.astro`: Starlight overrides
+- `Callout.astro`: custom callout with Figma-styled lightbulb icon
+- `AuthorByline.astro`: author attribution for tutorials
+- `ChangelogEntry.astro`, `ChangelogFilter.astro`, `ChangelogTag.astro`: changelog/release notes
+- `Glossary/`: glossary term rendering with category filtering
+- `IntegrateOverview.astro`, `IntegrateToc/`: integration page layouts
+- `NumberedList.astro`, `NumberedList.tsx`, `NumberedItem.astro`: ordered step components
+- `HeaderSearchBar.astro`: site search bar
+- `SinceRelease.astro`: version badge component
 
 Helper modules in `src/lib/`:
-- `docs-components.ts` — re-exports Stainless components with Callout override
-- `breadcrumb.ts`, `pagination.ts`, `glossary-data.ts` — utility modules
+- `docs-components.ts`: re-exports Stainless components with Callout override
+- `breadcrumb.ts`, `pagination.ts`, `glossary-data.ts`: utility modules
 
 ### Content Structure
 
@@ -103,20 +103,27 @@ src/content/docs/
 │   ├── tools/             # CLI/REST API, MCP/CLI, Tiger Cloud essentials
 │   └── news/              # Changelog (new.mdx), release-notes.mdx
 │
-├── learn/                 # Conceptual learning content
-│   ├── fundamentals/      # Core concepts (hypertables, chunks, compression)
+├── learn/                 # Conceptual learning content (glossary, topics)
+│   ├── data-model/        # Table layout, keys & uniqueness (wide/narrow/medium, primary keys, …)
+│   ├── hypertables/       # Hypertable concepts + Tiger Cloud design hub (/learn/hypertables/...)
+│   ├── compression/       # Tiger Cloud compression guides (/learn/compression/...)
+│   ├── continuous-aggregates/  # Tiger Cloud CAGG notes (/learn/continuous-aggregates/...)
+│   ├── data-lifecycle/    # Retention & tiering guides (/learn/data-lifecycle/...)
+│   ├── chunks/            # Chunk concepts (/learn/chunks/...); Learn sidebar nests this group under Hypertables
+│   ├── capabilities-and-comparison/  # Capabilities & product comparison (/learn/capabilities-and-comparison/...)
 │   ├── deep-dive/         # Advanced architecture topics
-│   ├── examples/          # Real-world use case tutorials
-│   ├── production-patterns/  # Best practices for production
 │   └── glossary.mdx       # Glossary with category filtering
 │
-├── build/                 # Task-oriented guides by feature
+├── build/                 # Task-oriented guides, tutorials, examples, production patterns (URLs under /build/...)
+│   ├── how-to/            # Quickstarts (e.g. your first hypertable, basic compression)
+│   ├── examples/          # Real-world tutorials and cookbook (Build sidebar → Examples)
+│   ├── production-patterns/  # Production best practices (Build sidebar → Production patterns)
 │   ├── data-management/   # General data management operations
 │   ├── continuous-aggregates/  # CAGG setup and management
 │   ├── columnar-storage/  # Hypercore and compression
 │   ├── performance-optimization/  # Query and schema optimization
 │   ├── cost-optimization/ # Cost reduction strategies
-│   └── tips-and-tricks/   # Practical tips and recipes
+│   └── tips-and-tricks/   # Practical tips and troubleshooting
 │
 ├── migrate/               # Migration from other databases
 │   ├── index.mdx          # Migration overview
@@ -167,18 +174,23 @@ src/content/docs/
 ### Legacy Content (deprecated)
 
 The following legacy paths have redirect `.mdx` stubs at the top level of `src/content/docs/`:
-- `agentic-postgres.mdx` — legacy agentic postgres page
-- `deploy-and-operate.mdx` — redirects to `deploy/`
-- `integrations.mdx` — redirects to `integrate/`
-- `manage-data.mdx` — redirects to `build/` and `learn/`
-- `tutorials.mdx` — redirects to `learn/examples/`
+- `agentic-postgres.mdx`: legacy agentic postgres page
+- `deploy-and-operate.mdx`: redirects to `deploy/`
+- `integrations.mdx`: redirects to `integrate/`
+- `manage-data.mdx`: redirects to `build/` and `learn/`
+- `tutorials.mdx`: legacy page with links; prefer **`/build/examples`** for tutorials (`astro.config.ts` redirects old `/learn/examples` URLs)
 
 Previous directory reorganization:
 - `getting-started/` → `get-started/`
 - `manage-data/` → `build/` and `learn/`
-- `tutorials/` → `learn/examples/`
+- `tutorials/` → `build/examples/` (old `/learn/examples` URLs redirect in `astro.config.ts`)
 - `integrations/` → `integrate/`
 - `deploy-and-operate/` → `deploy/`
+
+### Documentation style (prose)
+
+- Do not use the em dash (Unicode U+2014) in documentation. Prefer commas, semicolons, colons, or parentheses, or split into two sentences. For label-and-description lines, use a colon after the label (for example `**Label**: description`). See [Contribute to the docs: Writing style](/get-started/contributing#writing-style).
+- Optional frontmatter **`seoDescription`**: SEO/social summary without sidebar subtitles (see [Writing style: SEO summary](/get-started/contributing#seo-summary-in-frontmatter)); implemented in `src/components/Head.astro`. If both `description` and `seoDescription` are set, **`description` is used** for meta and sidebar; `seoDescription` is ignored for injection.
 
 ### MDX Components
 
@@ -212,6 +224,6 @@ When not using Stainless hosting, the site can be built with `pnpm build` and de
 
 - **Search**: By default the build uses [Pagefind](https://pagefind.app/) for site search (header search bar and ⌘K). For Algolia-backed search, set the Algolia env vars in `.env.example` before building.
 - **Cache headers**: So the site is performant, set cache headers per [Stainless' recommendation](https://www.stainless.com/docs/docs-platform/hosting-and-deploys/#configuring-cache-headers):
-  - `/_astro/*`: long-lived (e.g. `Cache-Control: public, max-age=604800, immutable`) — versioned assets.
+  - `/_astro/*`: long-lived (e.g. `Cache-Control: public, max-age=604800, immutable`), versioned assets.
   - Other files (HTML, etc.): shorter TTL (e.g. `max-age=3600`).
   - This repo sets these via `public/_headers` (Netlify, Cloudflare Pages) and `vercel.json` (Vercel). For other hosts, configure equivalent headers in the platform's config.

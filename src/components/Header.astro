@@ -6,6 +6,10 @@
  *
  * Layout and behavior match the default stacked header; only the secondary
  * nav (tabs) is swapped for the dropdown version.
+ *
+ * Search (`HeaderSearchBar`) must render at most once: Starlight/Stainless
+ * Search uses a fixed `#stldocs-search` popover id; duplicate instances
+ * break desktop `popovertarget` behavior.
  */
 import LanguageSelect from "virtual:starlight/components/LanguageSelect";
 import SiteTitle from "virtual:starlight/components/SiteTitle";
@@ -25,33 +29,46 @@ const { shouldRenderSearch = true } = Astro.props;
 const { hasSidebar } = Astro.locals.starlightRoute;
 ---
 
-<div class="header my-header header-single-row">
-  <div class="left-group">
+<div
+  class:list={[
+    "header",
+    "my-header",
+    "header-single-row",
+    !hasSidebar && "header-single-row--splash-menu",
+    !shouldRenderSearch && "header-single-row--no-search",
+  ]}
+>
+  <div class="left-group header-grid__logo">
     <div class="title-wrapper sl-flex">
       <SiteTitle />
     </div>
   </div>
 
-  <div class="header-nav-tabs-wrap">
+  <div class="header-nav-tabs-wrap header-grid__tabs">
     <NavTabsWithDropdown />
   </div>
 
-  <div class="stl-top-container header-spacer">
-    {/* Search bar: visible on mobile only; desktop shows it in right-group below */}
-    {shouldRenderSearch && (
-      <div class="header-search-bar-mobile sl-flex md:sl-hidden">
-        <HeaderSearchBar />
-      </div>
-    )}
-    {!hasSidebar && <SplashMobileMenuToggle />}
-  </div>
+  <div class="header-grid__spacer" aria-hidden="true"></div>
 
-  <div class={`sl-hidden md:sl-flex print:hidden right-group header-right-utilities`}>
-    {shouldRenderSearch && (
-      <div class="header-search-bar-desktop">
+  {
+    shouldRenderSearch && (
+      <div class="header-grid__search">
         <HeaderSearchBar />
       </div>
-    )}
+    )
+  }
+
+  {
+    !hasSidebar && (
+      <div class="header-grid__mobile-menu">
+        <SplashMobileMenuToggle />
+      </div>
+    )
+  }
+
+  <div
+    class={`sl-hidden md:sl-flex print:hidden right-group header-right-utilities header-grid__utilities`}
+  >
     <div class="header-theme-toggle">
       <ThemeSelect />
     </div>
@@ -60,7 +77,10 @@ const { hasSidebar } = Astro.locals.starlightRoute;
         HEADER_LINKS.map((link, index) => (
           <Button
             href={link.link}
-            variant={link.variant || (index === HEADER_LINKS.length - 1 ? "accent" : "outline")}
+            variant={
+              link.variant ||
+              (index === HEADER_LINKS.length - 1 ? "accent" : "outline")
+            }
             {...(link.attrs || {})}
           >
             <Button.Label>{link.label}</Button.Label>
@@ -83,7 +103,6 @@ const { hasSidebar } = Astro.locals.starlightRoute;
     /* Horizontal padding/centering is in theme.css (Figma 3513:11064) so header and main align */
 
     .header {
-      display: flex;
       gap: var(--sl-nav-gap);
       justify-content: space-between;
       align-items: center;
@@ -144,7 +163,7 @@ const { hasSidebar } = Astro.locals.starlightRoute;
       gap: 0;
       padding-inline-end: 8px;
     }
-    .header-right-utilities > .header-search-bar-desktop {
+    .header-grid__search {
       margin-inline-end: 24px;
     }
     .header-right-utilities > .header-theme-toggle {
@@ -159,7 +178,7 @@ const { hasSidebar } = Astro.locals.starlightRoute;
       .right-group.header-right-utilities {
         padding-inline-end: 12px;
       }
-      .header-right-utilities > .header-search-bar-desktop {
+      .header-grid__search {
         margin-inline-end: 28px;
       }
       .header-right-utilities > .header-theme-toggle {
@@ -195,19 +214,66 @@ const { hasSidebar } = Astro.locals.starlightRoute;
 </style>
 
 <style is:inline>
-  .stl-top-container {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: end;
-    gap: 0.5rem;
-    width: 100%;
-  }
   .header-links {
     display: flex;
     align-items: center;
     gap: var(--sl-nav-gap);
   }
+
+  /* Single search instance: CSS Grid places one `.header-grid__search` on mobile and desktop */
+  .header.header-single-row {
+    display: grid;
+    align-items: center;
+    width: 100%;
+    min-height: 38px;
+  }
+
+  @media (max-width: 49.999rem) {
+    .header-single-row {
+      gap: 1rem;
+    }
+
+    .header-nav-tabs-wrap {
+      display: none;
+    }
+
+    .header-single-row--splash-menu {
+      grid-template-columns: auto 1fr auto auto;
+      grid-template-areas: "logo spacer search menu";
+    }
+
+    .header-single-row:not(.header-single-row--splash-menu) {
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas: "logo spacer search";
+    }
+
+    .header-single-row--no-search.header-single-row--splash-menu {
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas: "logo spacer menu";
+    }
+
+    .header-single-row--no-search:not(.header-single-row--splash-menu) {
+      grid-template-columns: auto 1fr;
+      grid-template-areas: "logo spacer";
+    }
+
+    .header-grid__logo {
+      grid-area: logo;
+    }
+    .header-grid__spacer {
+      grid-area: spacer;
+      min-width: 0;
+    }
+    .header-grid__search {
+      grid-area: search;
+      margin-inline-end: 0.25rem;
+      justify-self: end;
+    }
+    .header-grid__mobile-menu {
+      grid-area: menu;
+    }
+  }
+
   @media (min-width: 50rem) {
     :root {
       /* Single row: logo + nav tabs + search/utilities (Figma) */
@@ -221,61 +287,53 @@ const { hasSidebar } = Astro.locals.starlightRoute;
       padding-bottom: 0;
     }
 
-    .header-single-row {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
+    .header.header-single-row {
+      grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+      grid-template-areas: "logo tabs spacer search utilities";
       gap: var(--sl-nav-gap);
-      width: 100%;
       min-height: 38px;
     }
 
-    .header-nav-tabs-wrap {
+    .header-single-row--no-search {
+      grid-template-columns: auto auto minmax(0, 1fr) auto;
+      grid-template-areas: "logo tabs spacer utilities";
+    }
+
+    .header-grid__logo {
+      grid-area: logo;
+    }
+    .header-grid__tabs {
+      grid-area: tabs;
       flex-shrink: 0;
       margin-inline: var(--sl-nav-gap);
     }
 
-    .header-nav-tabs-wrap :global(.stl-secondary-nav-tabs) {
+    .header-grid__tabs :global(.stl-secondary-nav-tabs) {
       display: block;
     }
 
-    .header-spacer {
-      flex: 1;
+    .header-grid__spacer {
+      grid-area: spacer;
       min-width: 0;
-      justify-content: flex-end;
     }
 
-    .stl-top-container {
-      justify-content: center;
+    .header-grid__search {
+      grid-area: search;
+    }
+
+    .header-grid__mobile-menu {
+      display: none;
+    }
+
+    .header-grid__utilities {
+      grid-area: utilities;
     }
 
     /* Slightly narrower search bar on smaller desktop to reduce crowding */
     @media (min-width: 50rem) and (max-width: 90rem) {
-      .header-search-bar-desktop :global(.header-search-bar) {
+      .header-grid__search :global(.header-search-bar) {
         max-width: 220px;
       }
-    }
-  }
-
-  /* Mobile / small screens: more spacing so it doesn’t feel tight */
-  @media (max-width: 49.999rem) {
-    .header-single-row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .header-nav-tabs-wrap {
-      display: none;
-    }
-
-    .stl-top-container {
-      gap: 1rem;
-    }
-
-    .header-search-bar-mobile {
-      margin-inline-end: 0.25rem;
     }
   }
 </style>

@@ -1,5 +1,5 @@
 /**
- * "On this page" sidebar for the Build index: "I want to…" with six sub-items.
+ * "On this page" sidebar for the Build index: "I want to…" with five sub-items.
  * Rendered via BuildTocPortal into the right sidebar; no headings on the page.
  */
 const BUILD_TOC_ITEMS: { label: string; href: string }[] = [
@@ -8,7 +8,6 @@ const BUILD_TOC_ITEMS: { label: string; href: string }[] = [
   { label: "Optimize storage and query speed", href: "#optimize-storage-and-query-speed" },
   { label: "Make queries and schemas faster", href: "#make-queries-and-schemas-faster" },
   { label: "Lower storage and compute costs", href: "#lower-storage-and-compute-costs" },
-  { label: "Fix issues or follow recipes", href: "#fix-issues-or-follow-recipes" },
 ];
 
 export function BuildToc() {

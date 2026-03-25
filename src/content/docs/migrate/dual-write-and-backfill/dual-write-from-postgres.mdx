@@ -1,0 +1,189 @@
+---
+title: Migrate from PostgreSQL using dual-write and backfill
+description: Migrate from a PostgreSQL database to Tiger Cloud using the low-downtime dual-write and backfill method
+products: [cloud]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import GettingHelp from "../../../../partials/_migrate_dual_write_backfill_getting_help.mdx";
+import StepOne from "../../../../partials/_migrate_dual_write_step1.mdx";
+import StepTwo from "../../../../partials/_migrate_dual_write_step2.mdx";
+import StepFour from "../../../../partials/_migrate_dual_write_step4.mdx";
+import StepFive from "../../../../partials/_migrate_dual_write_step5.mdx";
+import SetupSourceTarget from "../../../../partials/_migrate_set_up_source_and_target.mdx";
+import ValidateProductionLoad from "../../../../partials/_migrate_dual_write_validate_production_load.mdx";
+import SwitchProductionWorkload from "../../../../partials/_migrate_dual_write_switch_production_workload.mdx";
+import SourceTargetNote from "../../../../partials/_migrate_source_target_note.mdx";
+import DumpDatabaseRoles from "../../../../partials/_migrate_dual_write_dump_database_roles.mdx";
+import Step6eTurnOnCompressionPolicies from "../../../../partials/_migrate_dual_write_6e_turn_on_compression_policies.mdx";
+import Step6aThroughc from "../../../../partials/_migrate_dual_write_6a_through_c.mdx";
+import ExplainPgDumpFlags from "../../../../partials/_migrate_explain_pg_dump_flags.mdx";
+
+This document provides detailed step-by-step instructions to migrate data using
+the [dual-write and backfill](/migrate/dual-write-and-backfill) migration method from a
+source database which is using {C.PG} to {C.CLOUD_LONG}.
+
+<SourceTargetNote />
+
+In detail, the migration process consists of the following steps:
+1. Set up a target {C.SERVICE_LONG}.
+1. Modify the application to write to the target database.
+1. Migrate schema and relational data from source to target.
+1. Start the application in dual-write mode.
+1. Determine the completion point `T`.
+1. Backfill time-series data from source to target.
+1. Validate that all data is present in target database.
+1. Validate that target database can handle production load.
+1. Switch application to treat target database as primary (potentially
+   continuing to write into source database, as a backup).
+
+<GettingHelp />
+
+<StepOne />
+
+<StepTwo />
+
+## 3. Set up schema and migrate relational data to target database
+
+You would probably like to convert some of your large tables which contain
+time-series data into {C.HYPERTABLE}s. This step consists of identifying those
+tables, excluding their data from the database dump, copying the database
+schema and tables, and setting up the time-series tables as {C.HYPERTABLE}s. The
+data is backfilled into these {C.HYPERTABLE}s in a subsequent step.
+
+<SetupSourceTarget />
+
+### 3a. Dump the database roles from the source database
+
+<DumpDatabaseRoles />
+
+### 3b. Determine which tables to convert to {C.HYPERTABLE}s
+
+Ideal candidates for {C.HYPERTABLE}s are large tables containing
+time-series data.
+This is usually data with some form of timestamp value (`TIMESTAMPTZ`,
+`TIMESTAMP`, `BIGINT`, `INT` etc.) as the primary dimension, and some other
+measurement values.
+
+### 3c. Dump all tables from the source database, excluding data from {C.HYPERTABLE} candidates
+
+```
+pg_dump -d "$SOURCE" \
+  --format=plain \
+  --quote-all-identifiers \
+  --no-tablespaces \
+  --no-owner \
+  --no-privileges \
+  --exclude-table-data=<table name or pattern> \
+  --file=dump.sql
+```
+
+- `--exclude-table-data` is used to exclude all data from {C.HYPERTABLE}
+  candidates. You can either specify a table pattern, or specify
+  `--exclude-table-data` multiple times, once for each table to be converted.
+
+<ExplainPgDumpFlags />
+
+### 3d. Load the roles and schema into the target database
+
+```
+psql -X -d "$TARGET" \
+  -v ON_ERROR_STOP=1 \
+  --echo-errors \
+  -f roles.sql \
+  -f dump.sql
+```
+
+### 3e. Convert the plain tables to {C.HYPERTABLE}s, optionally compress data in the {C.COLUMNSTORE}
+
+For each table which should be converted to a {C.HYPERTABLE} in the target
+database, execute:
+```sql
+SELECT create_hypertable('<table name>', by_range('<time column name>'));
+```
+
+<Callout variant="tip">
+The `by_range` dimension builder is an addition to {C.TIMESCALE_DB}
+2.13. For simpler cases, like this one, you can also create the
+{C.HYPERTABLE} using the old syntax:
+
+```sql
+SELECT create_hypertable('<table name>', '<time column name>');
+```
+</Callout>
+
+For more information about the options which you can pass to
+`create_hypertable`, consult the [create_table API reference](/reference/timescaledb/hypertables/create_hypertable). For
+more information about {C.HYPERTABLE}s in general, consult the
+[{C.HYPERTABLE} documentation](/build/data-management/understand-hypertables).
+
+You may also wish to consider taking advantage of some of {C.CLOUD_LONG}'s killer
+features, such as:
+- [Retention policies](/build/data-management/data-retention) to automatically drop unneeded data
+- [Tiered storage](/build/data-management/storage) to automatically move data to {C.CLOUD_LONG}'s low-cost bottomless object storage tier
+- [{C.HYPERCORE_CAP}](/build/columnar-storage) to reduce the size of your {C.HYPERTABLE}s by compressing data in the {C.COLUMNSTORE}
+- [{C.CAGG_CAP}s](/build/continuous-aggregates) to write blisteringly fast aggregate queries on your data
+
+<StepFour />
+
+<StepFive />
+
+## 6. Backfill data from source to target
+
+<Step6aThroughc />
+
+### 6c. Copy the data with a streaming copy
+
+Execute the following command, replacing `<source table>` and `<hypertable>`
+with the fully qualified names of the source table and target {C.HYPERTABLE}
+respectively:
+
+```bash
+psql $SOURCE -f - <<EOF
+  \copy ( \
+      SELECT * FROM <source table> WHERE time >= <start> AND time < <end> \
+    ) TO stdout WITH (format CSV);" | timescaledb-parallel-copy \
+  --connection $TARGET \
+  --table <hypertable> \
+  --log-batches \
+  --batch-size=1000 \
+  --workers=4
+EOF
+```
+
+The above command is not transactional. If there is a connection issue, or some
+other issue which causes it to stop copying, the partially copied rows must be
+removed from the target (using the instructions in step 6b above), and then the
+copy can be restarted.
+
+<Step6eTurnOnCompressionPolicies />
+
+## 7. Validate that all data is present in target database
+
+Now that all data has been backfilled, and the application is writing data to
+both databases, the contents of both databases should be the same. How exactly
+this should best be validated is dependent on your application.
+
+If you are reading from both databases in parallel for every production query,
+you could consider adding an application-level validation that both databases
+are returning the same data.
+
+Another option is to compare the number of rows in the source and target
+tables, although this reads all data in the table which may have an impact on
+your production workload.
+
+Another option is to run `ANALYZE` on both the source and target tables and
+then look at the `reltuples` column of the `pg_class` table. This is not exact,
+but doesn't require reading all rows from the table. Note: for {C.HYPERTABLE}s, the
+reltuples value belongs to the {C.CHUNK} table, so you must take the sum of
+`reltuples` for all {C.CHUNK}s belonging to the {C.HYPERTABLE}. If the {C.CHUNK} is
+compressed in one database, but not the other, then this check cannot be used.
+
+## 8. Validate that target database can handle production load
+
+<ValidateProductionLoad />
+
+## 9. Switch production workload to target database
+
+<SwitchProductionWorkload />

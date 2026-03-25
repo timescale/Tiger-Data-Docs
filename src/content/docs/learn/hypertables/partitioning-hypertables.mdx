@@ -1,0 +1,28 @@
+---
+title: "Partitioning hypertables"
+description: "Time, date, and integer partitioning, chunk intervals, integer_now_func, and optional space dimensions on Tiger Cloud."
+---
+
+import * as C from "@constants";
+
+You partition a hypertable on one or more columns. The primary dimension is usually **time** (`timestamp`, `date`) or an **integer** (for example Unix time or a sequence-like key).
+
+## Time and integer columns
+
+- **Timestamp / date**: Typical for event data. Set `chunk_time_interval` to control chunk size.
+- **Integer**: For Unix epoch seconds, milliseconds, or other integer timelines, use an integer partition column and a matching chunk interval (for example one day in seconds: `60 * 60 * 24`).
+
+For integer partitions, define [`integer_now_func`](https://docs.timescale.com/api/latest/hypertable/set_integer_now_func/) so policies (compression, refresh, retention, tiering) know how to interpret “now” for chunk age.
+
+- For **Unix time**, you can often define the function once and reuse it across hypertables.
+- For **sequence-style** integer keys, you may need a dedicated function per hypertable.
+
+## Space dimensions
+
+You can add extra partition dimensions with [`add_dimension`](https://docs.timescale.com/api/latest/hypertable/add_dimension/) (for example `device_id` alongside time). That can help I/O on multi-disk **self-hosted** setups. On **Tiger Cloud**, chunks typically live on a single volume, so extra space dimensions rarely help query performance, prefer careful time chunking and indexing instead.
+
+## Related
+
+- [Creating and configuring hypertables](/learn/hypertables/creating-and-configuring-hypertables)
+- [Sizing hypertable chunks](/learn/hypertables/sizing-hypertable-chunks)
+- [Design your data model](/learn/hypertables/design-your-data-model)

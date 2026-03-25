@@ -7,7 +7,7 @@ export interface GlossaryTerm {
 export const glossaryTerms: GlossaryTerm[] = [
   { term: "ACL (Access Control List)", definition: "a table that tells a computer operating system which access rights each user has to a particular system object, such as a file directory or individual file.", category: "Security" },
   { term: "ACID", definition: "a set of properties (atomicity, consistency, isolation, durability) that guarantee database transactions are processed reliably.", category: "PostgreSQL" },
-  { term: "ACID compliance", definition: "a set of database properties—Atomicity, Consistency, Isolation, Durability—ensuring reliable and consistent transactions. Inherited from PostgreSQL.", category: "PostgreSQL" },
+  { term: "ACID compliance", definition: "a set of database properties, Atomicity, Consistency, Isolation, Durability, ensuring reliable and consistent transactions. Inherited from PostgreSQL.", category: "PostgreSQL" },
   { term: "Adaptive query optimization", definition: "dynamic query plan adjustment based on actual execution statistics and data distribution patterns, improving performance over time.", category: "PostgreSQL" },
   { term: "Aggregate (Continuous Aggregate)", definition: "a materialized, precomputed summary of query results over time-series data, providing faster access to analytics.", category: "TimescaleDB" },
   { term: "Alerting", definition: "the process of automatically notifying administrators when predefined conditions or thresholds are met in system monitoring.", category: "Observability" },

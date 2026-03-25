@@ -1,50 +1,49 @@
 ---
 /**
  * Tab hover dropdowns with flyout submenus (chevron → panel to the right).
- * Tree mirrors sidebar nesting; leaf rows show title + one-line description.
+ * Tree mirrors sidebar nesting; leaf rows show titles only (no subtitle lines).
  */
-import { getEntry } from "astro:content";
 import { Button } from "@stainless-api/ui-primitives";
 import { TABS } from "virtual:stl-docs-virtual-module";
 import type { StarlightRouteData } from "@astrojs/starlight/route-data";
 import type { NavTreeNode, GroupNode } from "./nav-dropdown-tree-types";
 import NavDropdownTree from "./NavDropdownTree.astro";
 
+/**
+ * Tab shape from `stainlessDocs({ tabs: [...] })` in `astro.config.ts`.
+ * `virtual:stl-docs-virtual-module` only declares `label`, `link`, and `hidden`; sidebar config is added at runtime.
+ */
+type NavTabConfig = {
+  label: string;
+  link: string;
+  hidden?: boolean;
+  sidebar?: unknown[];
+};
+
+type NavTabWithActive = NavTabConfig & { active: boolean };
+
+const tabsFromConfig = TABS as readonly NavTabConfig[];
+
 const routeData = Astro.locals.starlightRoute as StarlightRouteData & {
   _stlDocs?: { activeTabIndex?: number };
 };
 const activeTabIndex = routeData?._stlDocs?.activeTabIndex ?? -1;
 
-const tabList = TABS.map((item: { hidden?: boolean }, index: number) => ({
-  ...item,
-  active: index === activeTabIndex,
-})).filter((item: { hidden?: boolean }) => !item.hidden);
+const tabList: NavTabWithActive[] = tabsFromConfig
+  .map(
+    (item, index): NavTabWithActive => ({
+      ...item,
+      active: index === activeTabIndex,
+    })
+  )
+  .filter((item) => !item.hidden);
 
-const navItems = [...tabList].sort((a: { label: string }, b: { label: string }) => {
+const navItems: NavTabWithActive[] = [...tabList].sort((a, b) => {
   if (a.label === "Reference" && b.label === "Deploy") return 1;
   if (a.label === "Deploy" && b.label === "Reference") return -1;
   return 0;
 });
 
-function linkToSlug(link: string): string {
-  return link.replace(/^\//, "").replace(/\/$/, "") || "index";
-}
-
-const overviewByLink: Record<string, string | undefined> = {};
-for (const item of navItems) {
-  const slug = linkToSlug((item as { link: string }).link);
-  try {
-    const entry = await getEntry("docs", slug);
-    overviewByLink[(item as { link: string }).link] =
-      entry && "data" in entry && entry.data && typeof (entry.data as { overviewDescription?: string }).overviewDescription === "string"
-        ? (entry.data as { overviewDescription: string }).overviewDescription
-        : undefined;
-  } catch {
-    overviewByLink[(item as { link: string }).link] = undefined;
-  }
-}
-
-const DEFAULT_OVERVIEW_DESC = "Overview and key topics";
 const MAX_DROPDOWN_DEPTH = 3;
 
 interface SidebarEntryLike {
@@ -142,73 +141,43 @@ function filterOverviewDuplicate(nodes: NavTreeNode[], tabLink: string): NavTree
   });
 }
 
-function hrefToDocSlug(href: string): string | null {
-  const path = href.split("#")[0].replace(/^\//, "").replace(/\/$/, "");
-  if (!path || path.includes("..")) return null;
-  return path;
-}
-
-function firstSentence(text: string): string {
-  const t = text.trim();
-  if (!t) return "";
-  const m = t.match(/^(.+?[.!?])(\s|$)/);
-  if (m) return m[1].trim();
-  return t.length > 140 ? `${t.slice(0, 137)}…` : t;
-}
-
-const descriptionCache = new Map<string, string>();
-
-async function describeForHref(href: string): Promise<string> {
-  const slug = hrefToDocSlug(href);
-  if (!slug) return "";
-  if (descriptionCache.has(slug)) return descriptionCache.get(slug)!;
-  try {
-    const entry = await getEntry("docs", slug);
-    const d = entry?.data as { description?: string; overviewDescription?: string; title?: string } | undefined;
-    const raw = (d?.description || d?.overviewDescription || "").trim();
-    let out = raw ? firstSentence(raw) : "";
-    if (!out && d?.title) out = `About ${d.title}.`;
-    descriptionCache.set(slug, out);
-    return out;
-  } catch {
-    descriptionCache.set(slug, "");
-    return "";
-  }
-}
-
-async function enrichTree(nodes: NavTreeNode[]): Promise<void> {
+/** Clear descriptions so dropdowns stay title-only (SEO copy stays in page frontmatter). */
+function clearTreeDescriptions(nodes: NavTreeNode[]): void {
   for (const n of nodes) {
     if (n.kind === "link") {
-      let desc = n.description?.trim() || "";
-      if (!desc && n.href && n.href !== "#") desc = await describeForHref(n.href);
-      n.description = desc || `Open ${n.label}.`;
+      n.description = "";
     } else {
-      if (n.href) {
-        const d = (await describeForHref(n.href)) || "";
-        n.description = d || n.label;
-      } else {
-        n.description = "";
-      }
-      await enrichTree(n.children);
+      n.description = "";
+      clearTreeDescriptions(n.children);
     }
   }
 }
 
-async function getNavTreeForSidebar(sidebar: unknown, tabLink: string): Promise<NavTreeNode[]> {
+const BASE_PREFIX = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+/** Recursively prefix every href in the nav tree with the Astro base path. */
+function prefixNavTreeHrefs(nodes: NavTreeNode[]): void {
+  for (const n of nodes) {
+    if (n.href && n.href !== "#" && n.href.startsWith("/") && !n.href.startsWith(BASE_PREFIX + "/") && n.href !== BASE_PREFIX) {
+      n.href = BASE_PREFIX + n.href;
+    }
+    if (n.kind === "group") prefixNavTreeHrefs(n.children);
+  }
+}
+
+function getNavTreeForSidebar(sidebar: unknown, tabLink: string): NavTreeNode[] {
   const tree = buildNavTree(sidebar as unknown[], 0);
   const filtered = filterOverviewDuplicate(tree, tabLink);
-  await enrichTree(filtered);
+  clearTreeDescriptions(filtered);
+  prefixNavTreeHrefs(filtered);
   return filtered;
 }
 
 const dropdownTreeByTab = new Map<string, NavTreeNode[]>();
 for (const item of navItems) {
-  const sidebar = "sidebar" in item ? (item as { sidebar?: unknown }).sidebar : undefined;
-  if (sidebar && Array.isArray(sidebar)) {
-    dropdownTreeByTab.set(
-      (item as { label: string }).label,
-      await getNavTreeForSidebar(sidebar, (item as { link: string }).link)
-    );
+  const sidebar = item.sidebar;
+  if (Array.isArray(sidebar) && sidebar.length > 0) {
+    dropdownTreeByTab.set(item.label, getNavTreeForSidebar(sidebar, item.link));
   }
 }
 ---
@@ -216,7 +185,7 @@ for (const item of navItems) {
 <div class="stl-secondary-nav-tabs stl-nav-tabs-with-dropdown">
   <ul>
     {
-      navItems.map((item: { label: string; link: string; active?: boolean }) => {
+      navItems.map((item) => {
         const tree = dropdownTreeByTab.get(item.label) ?? [];
         const hasDropdown = tree.length > 0;
 
@@ -241,7 +210,6 @@ for (const item of navItems) {
                 <div class="nav-dropdown nav-dropdown--tree" role="menu">
                   <a href={item.link} class="nav-dropdown-item nav-dropdown-item--overview" role="menuitem">
                     <span class="nav-dropdown-item-title">{item.label}</span>
-                    <span class="nav-dropdown-item-desc">{overviewByLink[item.link] ?? DEFAULT_OVERVIEW_DESC}</span>
                   </a>
                   <div class="nav-dropdown-tree-root">
                     <NavDropdownTree nodes={tree} />
@@ -371,16 +339,6 @@ for (const item of navItems) {
     font-weight: 600;
     font-size: 0.9375rem;
     line-height: 1.35;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-  }
-
-  .nav-dropdown-item-desc {
-    display: block;
-    font-size: 0.8125rem;
-    line-height: 1.45;
-    color: light-dark(var(--tiger-grey-500), var(--tiger-grey-400));
-    margin-top: 4px;
     overflow-wrap: anywhere;
     word-break: break-word;
   }
