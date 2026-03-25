@@ -1,114 +1,124 @@
 ---
-title: "Live import from a database"
-description: "Migrate your PostgreSQL database to Tiger Cloud with zero or near-zero downtime using logical replication"
+title: Live migration
+description: Migrate your entire database to Tiger Cloud with low downtime
+products: [cloud]
 ---
 
-
 import * as C from "@constants";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import MigrationPrerequisites from "../../../partials/_migrate_prerequisites.mdx";
+import DoNotRecommendForLargeMigration from "../../../partials/_migrate_pg_dump_do_not_recommend_for_large_migration.mdx";
+import MigrateSetupEnvironment from "../../../partials/_migrate_live_setup_environment.mdx";
+import MigrateSetupEnvironmentPostgres from "../../../partials/_migrate_live_setup_environment_postgres.mdx";
+import MigrateSetupEnvironmentMST from "../../../partials/_migrate_live_setup_environment_mst.mdx";
+import MigrateSetupEnvironmentAWSRDS from "../../../partials/_migrate_live_setup_environment_awsrds.mdx";
+import MigrateDataToCloud from "../../../partials/_migrate_live_migrate_data.mdx";
+import MigrateDataToCloudTimescaleDB from "../../../partials/_migrate_live_migrate_data_timescaledb.mdx";
+import ValidateDataInCloud from "../../../partials/_migrate_live_validate_data.mdx";
+import MigrateAWSRDSConnectIntermediary from "../../../partials/_migrate_awsrds_connect_intermediary.mdx";
+import Troubleshooting from "../../../partials/_migrate_live_migrate_faq_all.mdx";
 
-## Overview
+Live migration is an end-to-end solution that copies the database schema and data to
+your target {C.SERVICE_LONG}, then replicates the database activity in your source database to the target service in real time. Live migration uses the {C.PG} logical decoding functionality and leverages [pgcopydb](https://pgcopydb.readthedocs.io/).
 
-Learn how to migrate your existing {C.PG} database to Tiger Cloud with minimal or zero downtime. Live migration uses logical replication to keep your source and target databases synchronized while your application continues to serve traffic, then performs a quick cutover when ready.
+You use the live migration Docker image to move 100GB-10TB+ of data to a {C.SERVICE_LONG} seamlessly with only a few minutes downtime.
+
+<DoNotRecommendForLargeMigration />
+
+Best practice is to use live migration when:
+- Modifying your application logic to perform dual writes is a significant effort.
+- The insert workload does not exceed 20,000 rows per second, and inserts are batched.
+- Your source database:
+  - Uses `UPDATE` and `DELETE` statements on uncompressed time-series data.
+
+    Live migration does not support replicating `INSERT`/`UPDATE`/`DELETE` statements on compressed data.
+  - Has large, busy tables with primary keys.
+  - Does not have many `UPDATE` or `DELETE` statements.
+
+This page shows you how to move your data from a {C.SELF_SHORT} database to a {C.SERVICE_LONG} using
+the live-migration Docker image.
 
 ## Prerequisites
 
-- Source database running {C.PG} 10 or later with logical replication enabled
-- A Tiger Cloud service provisioned with sufficient storage for your data
-- Network connectivity between source database and Tiger Cloud
-- Superuser or replication privileges on the source database
-- `wal_level` set to `logical` on the source database
-- Sufficient `max_replication_slots` and `max_wal_senders` configured
+<MigrationPrerequisites />
 
-## When to use live migration
+- [Install Docker](https://docs.docker.com/engine/install/) on your migration machine.
 
-This section helps you determine if live migration is the right approach for your use case.
+  This machine needs sufficient space to store the buffered changes that occur while your data is
+  being copied. This space is proportional to the amount of new uncompressed data being written to
+  the {C.SERVICE_LONG} during migration. A general rule of thumb is between 100GB and 500GB.
+  The CPU specifications of this EC2 instance should match those of your {C.SERVICE_LONG} for optimal performance. For example, if your {C.SERVICE_SHORT} has an 8-CPU configuration, then your EC2 instance should also have 8 CPUs.
 
-### Ideal scenarios
+- Before starting live migration, read the [troubleshooting section](#troubleshooting).
 
-- Production databases that cannot tolerate extended downtime
-- Large databases (100GB+) where dump/restore would take hours
-- Applications requiring continuous availability during migration
-- Databases with high write throughput
+## Migrate to {C.CLOUD_LONG}
 
-### Considerations
+To move your data from a {C.SELF_SHORT} database to a {C.SERVICE_LONG}:
 
-- Logical replication adds some overhead to your source database
-- Requires more setup and monitoring than offline migration
-- Some {C.PG} features may not replicate (large objects, sequences, DDL changes)
+<Tabs>
+<TabItem label="From TimescaleDB">
 
-## Migration strategies
+This section shows you how to move your data from {C.SELF_LONG} to a {C.SERVICE_LONG}
+using live migration from Terminal.
 
-### Logical replication
+<MigrateSetupEnvironment />
 
-Use {C.PG}'s built-in logical replication to stream changes from your source database to Tiger Cloud in real-time.
+<MigrateDataToCloudTimescaleDB />
 
-#### Set up the publication on source
+<ValidateDataInCloud />
 
-Configure which tables and data to replicate from your source database.
+</TabItem>
+<TabItem label="From PostgreSQL">
 
-#### Set up the subscription on Tiger Cloud
+This section shows you how to move your data from {C.SELF_SHORT} {C.PG} to a {C.SERVICE_LONG} using
+live migration from Terminal.
 
-Create a subscription on your Tiger Cloud service to receive replicated data.
+<MigrateSetupEnvironmentPostgres />
 
-#### Monitor replication lag
+<MigrateDataToCloud />
 
-Track the replication lag to determine when the databases are synchronized and ready for cutover.
+<ValidateDataInCloud />
 
-### Using pgcopydb for large databases
+</TabItem>
+<TabItem label="From AWS RDS/Aurora">
 
-For terabyte-scale migrations, use pgcopydb to efficiently copy data while maintaining a live replication stream.
+To migrate your data from an Amazon RDS/Aurora {C.PG} instance to a {C.SERVICE_LONG}, you extract the data to an intermediary
+EC2 Ubuntu instance in the same AWS region as your RDS/Aurora instance. You then upload your data to a {C.SERVICE_LONG}.
+To make this process as painless as possible, ensure that the intermediary machine has enough CPU and disk space to
+rapidly extract and store your data before uploading to {C.CLOUD_LONG}.
 
-### Expand and contract pattern
+Migration from RDS/Aurora gives you the opportunity to create {C.HYPERTABLE}s before copying the data. Once the migration is complete, you can manually enable {C.CLOUD_LONG} features like [data compression](/build/columnar-storage) or [data retention](/build/data-management/data-retention).
 
-Implement a dual-write strategy where your application writes to both databases during the migration window, allowing gradual traffic shifting.
+This section shows you how to move your data from an Amazon RDS/Aurora instance to a {C.SERVICE_LONG}
+using live migration.
 
-## Performing the cutover
+<MigrateAWSRDSConnectIntermediary />
 
-### Pre-cutover checklist
+<MigrateSetupEnvironmentAWSRDS />
 
-Verify replication lag is minimal, application is ready for connection string change, and rollback plan is in place.
+<MigrateDataToCloud />
 
-### Cutover steps
+<ValidateDataInCloud />
 
-1. Freeze writes on the source database (maintenance mode or read-only)
-2. Verify replication is fully caught up
-3. Update application connection strings to Tiger Cloud
-4. Resume normal operations
-5. Monitor for issues
+</TabItem>
+<TabItem label="From MST">
 
-### Rollback considerations
+This section shows you how to move your data from a {C.MST_SHORT} instance to a
+{C.SERVICE_LONG} using live migration from Terminal.
 
-Plan for rollback scenarios in case issues arise during or after cutover.
+<MigrateSetupEnvironmentMST />
 
-## Best practices
+<MigrateDataToCloudTimescaleDB />
 
-- Test the entire migration process in a staging environment first
-- Monitor replication lag continuously during the migration
-- Schedule the cutover during low-traffic periods
-- Prepare application teams for the connection string change
-- Have a clear rollback plan documented and tested
-- Use connection pooling to make connection string changes easier
+<ValidateDataInCloud />
+
+</TabItem>
+</Tabs>
+
+And you are done, your data is now in your {C.SERVICE_LONG}.
 
 ## Troubleshooting
 
-### Replication lag keeps increasing
+This section shows you how to work around frequently seen issues when using live migration.
 
-Check for long-running transactions on the source, network bandwidth limitations, or resource constraints on either database.
-
-### Replication slot not found
-
-Verify the publication exists and the subscription was created with the correct connection details.
-
-### Sequence values not synchronized
-
-Logical replication does not sync sequences automatically. Manually set sequence values on the target after cutover.
-
-### Permission errors during replication
-
-Ensure the replication user has the necessary privileges on all replicated tables.
-
-## Next steps
-
-- [Import from a database with downtime](/migrate/migrate-with-downtime/) - Alternative approach when downtime is acceptable
-- [Import data using Terminal](/migrate/import-terminal/) - Manual import methods
-- [Read and write data](/get-started/timescaledb-read-write-data/) - Start querying your migrated data
+<Troubleshooting />

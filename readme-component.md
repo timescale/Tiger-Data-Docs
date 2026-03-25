@@ -67,12 +67,12 @@ import { Callout } from "@stainless-api/docs/components";
 | `warning`     | Warning              | Cautions, limitations, or caveats    |
 | `callout`     | Callout with button  | Promo/CTA with an action button      |
 
-Optional prop for all variants: **`title`** — overrides the default heading (e.g. "Note", "Tips").
+Optional prop for all variants: **`title`**: overrides the default heading (e.g. "Note", "Tips").
 
 For **`variant="callout"`** only:
 
-- **`buttonLabel`** — text on the button (e.g. `"Try for free"`).
-- **`buttonHref`** — URL for the button. If both `buttonLabel` and `buttonHref` are set, the callout shows a CTA button.
+- **`buttonLabel`**: text on the button (e.g. `"Try for free"`).
+- **`buttonHref`**: URL for the button. If both `buttonLabel` and `buttonHref` are set, the callout shows a CTA button.
 
 ### Examples
 
@@ -118,7 +118,7 @@ For **`variant="callout"`** only:
   buttonLabel="Try for free"
   buttonHref="/signup"
 >
-  Your Timescale Cloud trial is completely free for the first thirty days—enough time
+  Your Timescale Cloud trial is completely free for the first thirty days, enough time
   to complete the tutorials and run test projects.
 </Callout>
 ```
@@ -139,15 +139,15 @@ The **main button** is the primary CTA style: dark background (`#0b0b0f` in ligh
 
 ### When to use
 
-- **One primary action per view** — e.g. “Get started” in the header, or “Try for free” inside a callout. Reserve it for the main conversion or next step you want the user to take.
-- **Header links** — In `astro.config.ts`, `header.links` entries are rendered as buttons; the **last** link is styled as the primary (accent) button. Use that slot for the top-level CTA (e.g. sign up, start trial, get started).
-- **In-content CTAs** — Use **Callout with button** (`variant="callout"` with `buttonLabel` and `buttonHref`) when you want a prominent CTA inside a doc (e.g. trial signup, product signup). That callout’s button uses the same primary style.
+- **One primary action per view**: e.g. “Get started” in the header, or “Try for free” inside a callout. Reserve it for the main conversion or next step you want the user to take.
+- **Header links**: In `astro.config.ts`, `header.links` entries are rendered as buttons; the **last** link is styled as the primary (accent) button. Use that slot for the top-level CTA (e.g. sign up, start trial, get started).
+- **In-content CTAs**: Use **Callout with button** (`variant="callout"` with `buttonLabel` and `buttonHref`) when you want a prominent CTA inside a doc (e.g. trial signup, product signup). That callout’s button uses the same primary style.
 
 ### When not to use
 
-- **Secondary or alternate actions** — Use outline buttons or text links instead so the primary CTA stays visually dominant.
-- **Multiple equal-weight actions** — If two actions are equally important, use outline style or links for both; avoid two primary buttons in the same block.
-- **Low-emphasis or tertiary actions** — Prefer links or outline buttons so the main button doesn’t compete with them.
+- **Secondary or alternate actions**: Use outline buttons or text links instead so the primary CTA stays visually dominant.
+- **Multiple equal-weight actions**: If two actions are equally important, use outline style or links for both; avoid two primary buttons in the same block.
+- **Low-emphasis or tertiary actions**: Prefer links or outline buttons so the main button doesn’t compete with them.
 
 ### Where it appears
 
@@ -196,7 +196,7 @@ These are **layout and chrome** components. You don’t use them directly in MDX
 |------------------|----------------------------------------------------------------------|-------------------------------------------------|
 | **PageNavigation** | Bottom-of-page “Previous” / “Next” links with labels and page titles | `starlightCompat.components.Pagination` → `src/components/PageNavigation.astro` |
 | **Breadcrumbs**  | Breadcrumb trail above the page title                                | Rendered inside `PageTitle`                     |
-| **PageTitle**    | Page heading + optional description + breadcrumbs                   | `starlightCompat.components.PageTitle` → `src/components/PageTitle.astro` |
+| **PageTitle**    | Breadcrumbs, Stainless **AIDropdown** (copy MD / AI apps), H1, labels, description | `starlightCompat.components.PageTitle` → `src/components/PageTitle.astro` |
 | **Header**       | Site header (logo, nav)                                              | `starlightCompat.components.Header` → `src/components/Header.astro` |
 
 - **Breadcrumbs:** Built from the sidebar; group labels (e.g. “pgai”) link to the first page in that group. The current page is the last segment and is not a link.
@@ -228,7 +228,7 @@ The **Integration Prereqs** partials are reusable MDX fragments that tell the re
 
 - **Learn, get-started, or general “follow along” pages** that work on both Tiger Cloud and self-hosted  
   → Use **`_integration-prereqs.mdx`** (more detail: Real-time analytics, connection details) or **`_prereqs-cloud-and-self.mdx`** (shorter, “procedure also works for self-hosted”).  
-  Examples: get-started key-features, learn/fundamentals, learn/examples (e.g. simulate-iot-sensor-data, analyze-energy-consumption).
+  Examples: get-started key-features, learn/fundamentals, build/examples (e.g. simulate-iot-sensor-data, analyze-energy-consumption).
 
 - **Integrate guides** (tools, connectors, BI, observability, etc.) that support both cloud and self-hosted  
   → Use **`_prereqs-cloud-and-self.mdx`**.  
@@ -286,7 +286,7 @@ import IntegrationPrereqsSelfOnly from '@partials/_integration-prereqs-self-only
 <IntegrationPrereqsSelfOnly />
 ```
 
-If `@partials` is not configured in your environment, use a relative path from your doc to `src/partials/`, e.g. from `src/content/docs/learn/examples/`:
+If `@partials` is not configured in your environment, use a relative path from your doc to `src/partials/`, e.g. from `src/content/docs/build/examples/`:
 
 ```mdx
 import IntegrationPrereqs from "../../../../partials/_prereqs-cloud-and-self.mdx";
@@ -330,6 +330,46 @@ import SecondaryButton from "@components/SecondaryButton.astro";
 
 Use the **icon** slot to replace the default Copy icon: put your SVG (or icon component) inside the component with `slot="icon"`.
 
+### AIDropdown (Copy Markdown + Open in Claude / ChatGPT / Gemini / Cursor)
+
+**AIDropdown** is Stainless’s official split-button in the page title row (next to breadcrumbs). This site renders it from **`PageTitle.astro`** via:
+
+```ts
+import { AIDropdown } from "@stainless-api/docs/components/AIDropdown";
+```
+
+It appears only when the page is in the sidebar, has a markdown route (`hasMarkdownRoute`), and Stainless’s **`enableProseMarkdownRendering`** and **`contextMenu`** features are on (defaults keep the dropdown visible). Behavior and styling come from **`@stainless-api/docs`** + **`@stainless-api/ui-primitives`** (including **Gemini** in the menu where configured).
+
+To drop the control into another layout (uncommon), use the same import; options are driven by the docs plugin’s global scripts, not props.
+
+### CopyToClipboard (copy to clipboard) – Stainless-style
+
+The **CopyToClipboard** component is a button that copies a given string to the clipboard on click and shows “Copied!” feedback. It matches the same visual style as SecondaryButton (Figma 3245-9636, 3245-9637) so it fits the Stainless Docs Platform / Tiger Data design system. Use it for connection strings, one-line code snippets, or any text you want users to copy with one click. For full code blocks, rely on Starlight’s Expressive Code copy button.
+
+**Import (MDX; React component, use `client:load`):**
+
+```mdx
+import CopyToClipboard from "@components/CopyToClipboard";
+```
+
+**Usage:**
+
+```mdx
+<CopyToClipboard client:load text="postgres://user:pass@host:5432/mydb" />
+<CopyToClipboard client:load text="SELECT 1;" label="Copy query" copiedLabel="Copied!" variant="subtle" />
+```
+
+| Prop           | Description                                                                                    |
+|----------------|------------------------------------------------------------------------------------------------|
+| `text`         | String to copy to the clipboard (required).                                                    |
+| `label`        | Button label before copy. Default: `"Copy"`.                                                  |
+| `copiedLabel`  | Label shown after a successful copy. Default: `"Copied!"`.                                    |
+| `variant`      | `"default"` (white bg) or `"subtle"` (gray bg). Same as SecondaryButton. Default: `"default"`.  |
+| `aria-label`   | Override accessible name (defaults to `label` or “Copy to clipboard”).                          |
+| `className`    | Optional CSS class(es) for the button.                                                          |
+
+**When to use which:** Use **CopyToClipboard** when the action is “copy this specific text” (e.g. connection string, env var, one-liner). Use **SecondaryButton** for other secondary actions (e.g. “Download”, “View repo”) that navigate or submit.
+
 ### Button (outline + hover, optional icon)
 
 The **Button** component matches Figma 3245-9618 (enabled) and 3245-9617 (hover). Use it for standalone actions: outline style by default, fills to primary on hover; optional down-arrow icon.
@@ -352,11 +392,11 @@ import { Button } from "@stainless-api/docs/components";
 
 See **Main / primary button** above for when to use primary vs outline and how it ties into theme tokens.
 
-- **Glossary** (`Glossary/`) — glossary UI (filters, letter nav, term cards). Used on glossary pages.
-- **NumberedList** / **NumberedItem** — step-by-step or ordered flows in docs.
-- **AuthorByline** — compact author card for tutorials (avatar from GitHub, name, role, GitHub · Email · LinkedIn links). Use in learn/examples or any tutorial. Import: `import AuthorByline from "@components/AuthorByline.astro";` then `<AuthorByline name="..." role="..." githubUsername="..." email="..." linkedinUrl="..." />`. Optional: `avatarUrl` to override the default GitHub avatar.
-- **IntegrateToc** — table of contents for the Integrate section.
-- **Changelog** — changelog entries, tags, filters. Used on changelog pages.
+- **Glossary** (`Glossary/`): glossary UI (filters, letter nav, term cards). Used on glossary pages.
+- **NumberedList** / **NumberedItem**: step-by-step or ordered flows in docs.
+- **AuthorByline**: compact author card for tutorials (avatar from GitHub, name, role, GitHub · Email · LinkedIn links). Use in build/examples or any tutorial. Import: `import AuthorByline from "@components/AuthorByline.astro";` then `<AuthorByline name="..." role="..." githubUsername="..." email="..." linkedinUrl="..." />`. Optional: `avatarUrl` to override the default GitHub avatar.
+- **IntegrateToc**: table of contents for the Integrate section.
+- **Changelog**: changelog entries, tags, filters. Used on changelog pages.
 
 Use them by importing from `@components/...` or `@stainless-api/docs/components` (for Button/Callout) in the relevant Astro/MDX files. See `src/components/` and `astro.config.ts` for exact paths and usage.
 

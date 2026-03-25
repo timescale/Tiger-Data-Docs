@@ -6,6 +6,7 @@ import { GlossaryToc } from "./GlossaryToc";
 /** Selectors for the site's right sidebar (same panel as "On this page" on other docs). */
 const RIGHT_SIDEBAR_SELECTORS = [
   ".right-sidebar-container .right-sidebar",
+  ".right-sidebar-panel",
   ".right-sidebar",
   "aside.right-sidebar-container",
   "[class*='right-sidebar']",
@@ -29,6 +30,7 @@ interface GlossaryTocPortalProps {
  */
 export function GlossaryTocPortal({ terms }: GlossaryTocPortalProps) {
   const [target, setTarget] = useState<HTMLElement | null>(null);
+  const [useFallback, setUseFallback] = useState(false);
 
   useEffect(() => {
     const el = findRightSidebar();
@@ -46,20 +48,36 @@ export function GlossaryTocPortal({ terms }: GlossaryTocPortalProps) {
     observer.observe(document.body, { childList: true, subtree: true });
     const t = setTimeout(() => {
       observer.disconnect();
-      setTarget(findRightSidebar());
-    }, 500);
+      const found = findRightSidebar();
+      if (found) {
+        setTarget(found);
+      } else {
+        setUseFallback(true);
+      }
+    }, 800);
     return () => {
       observer.disconnect();
       clearTimeout(t);
     };
   }, []);
 
-  if (!target) return null;
-
-  return createPortal(
+  const tocContent = (
     <div className="glossary-page-toc-wrapper">
       <GlossaryToc terms={terms} />
-    </div>,
-    target
+    </div>
   );
+
+  if (target) {
+    return createPortal(tocContent, target);
+  }
+
+  if (useFallback) {
+    return (
+      <aside className="glossary-toc-fallback" aria-label="On this page">
+        {tocContent}
+      </aside>
+    );
+  }
+
+  return null;
 }

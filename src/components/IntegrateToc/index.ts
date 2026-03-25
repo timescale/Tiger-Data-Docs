@@ -1,3 +1,3 @@
-export { IntegrateToc, getViewFromHash } from "./IntegrateToc";
-export type { IntegrateView, PlanTocSection } from "./IntegrateToc";
+export { IntegrateToc } from "./IntegrateToc";
+export type { IntegrateTocProps } from "./IntegrateToc";
 export { IntegrateTocPortal } from "./IntegrateTocPortal";

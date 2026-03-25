@@ -5,15 +5,14 @@ import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 <NumberedList>
 
-<NumberedItem title="Connect to your intermediary EC2 instance. For example:">
+<NumberedItem title="Connect to your intermediary EC2 instance">
 
 ```sh
 ssh -i "<key-pair>.pem" ubuntu@<EC2 instance's Public IPv4>
 ```
-
 </NumberedItem>
 
-<NumberedItem title={`On your intermediary EC2 instance, install the ${C.PG} client.`}>
+<NumberedItem title={`Install the ${C.PG} client`}>
 
 ```sh
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
@@ -24,82 +23,78 @@ psql --version && pg_dump --version
 ```
 
 Keep this terminal open, you need it to connect to the RDS instance for migration.
-
 </NumberedItem>
 
 </NumberedList>
 
-## Setup secure connectivity between your RDS and EC2 instances
+## Set up secure connectivity between your RDS and EC2 instances
+
 <NumberedList>
 
-<NumberedItem title="In https://console.aws.amazon.com/rds/home#databases:,">
+<NumberedItem title="Select the RDS instance to migrate">
 
+In [https://console.aws.amazon.com/rds/home#databases:](https://console.aws.amazon.com/rds/home#databases:),
 select the RDS instance to migrate.
-
 </NumberedItem>
 
-<NumberedItem title="Scroll down to `Security group rules (1)` and select the `EC2 Security Group - Inbound` group. The">
+<NumberedItem title="Open the inbound rules for the security group">
 
-`Security Groups (1)` window opens. Click the `Security group ID`, then click `Edit inbound rules`
+Scroll down to `Security group rules (1)` and select the `EC2 Security Group - Inbound` group. The
+`Security Groups (1)` window opens. Click the `Security group ID`, then click `Edit inbound rules`.
 
-<img class="main-content__illustration"
-src="../assets/images/migrate-rds-add-security-rule-to-ec2-instance.svg"
-alt="Create security group rule to enable RDS EC2 connection"/>
-
+![Create security group rule to enable RDS EC2 connection](https://assets.timescale.com/docs/images/migrate/rds-add-security-rule-to-ec2-instance.svg)
 </NumberedItem>
 
-<NumberedItem title="On your intermediary EC2 instance, get your local IP address:">
+<NumberedItem title="On your intermediary EC2 instance, get your local IP address">
 
 ```sh
 ec2metadata --local-ipv4
 ```
-Bear with me on this one, you need this IP address to enable access to your RDS instance,
 
+You need this IP address to enable access to your RDS instance.
 </NumberedItem>
 
-<NumberedItem title="In `Edit inbound rules`, click `Add rule`, then create a `{C.PG}`, `TCP` rule granting access">
+<NumberedItem title="Add inbound rule for your EC2 instance">
 
-to the local IP address for your EC2 instance (told you :-)). Then click `Save rules`. 
+In `Edit inbound rules`, click `Add rule`, then create a {C.PG} `TCP` rule granting access
+to the local IP address for your EC2 instance. Then click `Save rules`.
 
-<img class="main-content__illustration"
-src="../assets/images/migrate-rds-add-inbound-rule-for-ec2-instance.webp"
-alt="Create security rule to enable RDS EC2 connection"/>
-
+![Create security rule to enable RDS EC2 connection](https://assets.timescale.com/docs/images/migrate/rds-add-inbound-rule-for-ec2-instance.png)
 </NumberedItem>
 
 </NumberedList>
 
 ## Test the connection between your RDS and EC2 instances
+
 <NumberedList>
 
-<NumberedItem title="In https://console.aws.amazon.com/rds/home#databases:,">
+<NumberedItem title="Select the RDS instance to migrate">
 
+In [https://console.aws.amazon.com/rds/home#databases:](https://console.aws.amazon.com/rds/home#databases:),
 select the RDS instance to migrate.
-
 </NumberedItem>
 
-<NumberedItem title="On your intermediary EC2 instance, use the values of `Endpoint`, `Port`, `Master username`, and `DB name`">
+<NumberedItem title="Create the source connection string">
 
-to create the postgres connectivity string to the `SOURCE` variable.
+On your intermediary EC2 instance, use the values of `Endpoint`, `Port`, `Master username`, and `DB name`
+to create the {C.PG} connectivity string for the `SOURCE` variable.
 
-<img class="main-content__illustration"
-src="../assets/images/migrate-migrate-source-rds-instance.svg"
-alt="Record endpoint, port, VPC details"/>
+![Record endpoint, port, VPC details](https://assets.timescale.com/docs/images/migrate/migrate-source-rds-instance.svg)
 
 ```sh
 export SOURCE="postgres://<Master username>:<Master password>@<Endpoint>:<Port>/<DB name>"
 ```
-The value of `Master password` was supplied when this {C.PG} RDS instance was created.
 
+The value of `Master password` was supplied when this {C.PG} RDS instance was created.
 </NumberedItem>
 
-<NumberedItem title="Test your connection:">
+<NumberedItem title="Test your connection">
 
 ```sh
-psql -d $SOURCE 
+psql -d $SOURCE
 ```
-You are connected to your RDS instance from your intermediary EC2 instance.
 
+You are connected to your RDS instance from your intermediary EC2 instance.
 </NumberedItem>
 
 </NumberedList>

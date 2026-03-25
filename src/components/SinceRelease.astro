@@ -4,22 +4,26 @@ import { TagIcon, FlaskConicalIcon, CirclePlayIcon, SunsetIcon, ArchiveIcon } fr
 import type { ComponentProps } from 'react';
 
 export type Props = {
-  version: string;
-  product: 'tsdb' | 'toolkit';
-  mode?: 'released' | 'early_access' | 'sunset' | 'deprecated';
+  version?: string;
+  product?: 'tsdb' | 'toolkit' | 'pg_textsearch';
+  mode?: 'released' | 'early_access' | 'tech_preview' | 'sunset' | 'deprecated';
 }
 
 const releasePages = {
   tsdb: 'https://github.com/timescale/timescaledb/releases/tag/',
   toolkit: 'https://github.com/timescale/timescaledb-toolkit/releases/tag/',
-} satisfies Record<Props['product'], `http${string}/releases/tag/`>;
+  pg_textsearch: 'https://github.com/timescale/pg_textsearch/releases/tag/',
+};
 
-const url = new URL(Astro.props.version, releasePages[Astro.props.product]).href;
+const url = Astro.props.version && Astro.props.product
+  ? new URL(Astro.props.version, releasePages[Astro.props.product]).href
+  : undefined;
 
 const mode = Astro.props.mode ?? 'released';
 const intent = ({
   released: 'accent',
   early_access: 'accent',
+  tech_preview: 'note',
   sunset: 'danger',
   deprecated: 'danger',
 } as const)[mode] satisfies ComponentProps<typeof Badge>['intent'];
@@ -28,14 +32,17 @@ const intent = ({
 <Badge intent={intent} size="md">
   {mode === 'released' && <TagIcon slot="icon" />}
   {mode === 'early_access' && <FlaskConicalIcon slot="icon" />}
+  {mode === 'tech_preview' && <FlaskConicalIcon slot="icon" />}
   {mode === 'sunset' && <SunsetIcon slot="icon" />}
   {mode === 'deprecated' && <ArchiveIcon slot="icon" />}
 
   {{
     released: 'Since',
-    early_access: 'Early access since',
+    early_access: 'Early access',
+    tech_preview: 'Tech preview',
     sunset: 'Sunsetted',
     deprecated: 'Deprecated',
-  }[mode]}{' '}
-  <a href={url} target="_blank" rel="noopener noreferrer">{Astro.props.version}</a><slot />
+  }[mode]}
+  {url && <>{' '}<a href={url} target="_blank" rel="noopener noreferrer">{Astro.props.version}</a></>}
+  <slot />
 </Badge>

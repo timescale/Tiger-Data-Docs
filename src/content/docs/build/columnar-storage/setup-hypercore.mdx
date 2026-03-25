@@ -1,177 +1,65 @@
 ---
-title: "Setup hypercore"
-description: "Reduce your chunk size by up to 98% and speed up your queries by automatically converting data between the rowstore and columnstore"
+title: Set up hypercore
+description: Reduce chunk size by up to 98% and speed up queries by converting data between the rowstore and columnstore
+products: [cloud, mst, self_hosted]
 ---
-[Hypercore](/build/columnar-storage/understand-hypercore) is the hybrid row-columnar storage engine in TimescaleDB used by hypertables. Traditional databases force a trade-off between fast inserts (row-based storage) and efficient analytics (columnar storage). Hypercore eliminates this trade-off, allowing real-time analytics without sacrificing transactional capabilities. Hypercore dynamically stores data in the most efficient format for its lifecycle: ![Move from rowstore to columstore in hypercore](https://assets.timescale.com/docs/images/hypercore_intro.svg)
 
--   **Row-based storage for recent data**: the most recent chunk (and possibly more) is always stored in the rowstore, ensuring fast inserts, updates, and low-latency single record queries. Additionally, row-based storage is used as a writethrough for inserts and updates to columnar storage.
--   **Columnar storage for analytical performance**: chunks are automatically compressed into the columnstore, optimizing storage efficiency and accelerating analytical queries.
+import * as C from "@constants";
+import PrereqCloud from "../../../../partials/_prereqs-cloud-only.mdx";
+import HypercoreIntroShort from "../../../../partials/_hypercore-intro-short.mdx";
+import HCConversionOverview from "../../../../partials/_hypercore-conversion-overview.mdx";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import HCPolicyWorkflow from "../../../../partials/_hypercore_policy_workflow.mdx";
 
-Unlike traditional columnar databases, hypercore allows data to be inserted or modified at any stage, making it a flexible solution for both high-ingest transactional workloads and real-time analytics—within a single database. When you convert chunks from the rowstore to the columnstore, multiple records are grouped into a single row. The columns of this row hold an array-like structure that stores all the data. For example, data in the following rowstore chunk:
+<HypercoreIntroShort />
 
-Timestamp
+<HCConversionOverview />
 
-Device ID
+For an in-depth explanation of how {C.HYPERTABLE}s and {C.HYPERCORE} work, see the [Data model](/learn/deep-dive/whitepaper#data-model).
 
-Device Type
+This page shows you how to get the best results when you set a policy to automatically convert {C.CHUNK}s in a {C.HYPERTABLE}
+from the {C.ROWSTORE} to the {C.COLUMNSTORE}.
 
-CPU
+## Prerequisites
 
-Disk IO
+<PrereqCloud />
 
-12:00:01
+The code samples in this page use the [crypto_sample.zip](https://assets.timescale.com/docs/downloads/candlestick/crypto_sample.zip) data from [this key features tutorial](/get-started/quickstart/quickstart-5-minutes#optimize-time-series-data-in-hypertables-with-hypercore).
 
-A
+## Optimize your data with {C.COLUMNSTORE} policies
 
-SSD
+The compression ratio and query performance of data in the {C.COLUMNSTORE} is dependent on the order and structure of your
+data. Rows that change over a dimension should be close to each other. With time-series data, you `orderby` the time
+dimension. For example, `Timestamp`:
 
-70.11
+| Timestamp  | Device ID  |  Device Type |  CPU |Disk IO|
+|---|---|---|---|---|
+|12:00:01|A|SSD|70.11|13.4|
 
-13.4
+This ensures that records are compressed and accessed in the same order. However, you would always have to
+access the data using the time dimension, then filter all the rows using other criteria. To make your queries more
+efficient, you segment your data based on the following:
 
-12:00:01
+- The way you want to access it. For example, to rapidly access data about a
+single device, you `segmentby` the `Device ID` column. This enables you to run much faster analytical queries on
+data in the {C.COLUMNSTORE}.
+- The compression rate you want to achieve. The [lower the cardinality](https://www.tigerdata.com/blog/what-is-high-cardinality) of the `segmentby` column, the better compression results you get.
 
-B
+When {C.TIMESCALE_DB} converts a {C.CHUNK} to the {C.COLUMNSTORE}, it automatically creates a different schema for your
+data. It also creates and uses custom indexes to incorporate the `segmentby` and `orderby` parameters when
+you write to and read from the {C.COLUMNSTORE}.
 
-HDD
+To set up your {C.HYPERCORE} automation:
 
-69.70
+<NumberedList>
 
-20.5
+<HCPolicyWorkflow />
 
-12:00:02
+</NumberedList>
 
-A
+## Reference
 
-SSD
-
-70.12
-
-13.2
-
-12:00:02
-
-B
-
-HDD
-
-69.69
-
-23.4
-
-12:00:03
-
-A
-
-SSD
-
-70.14
-
-13.0
-
-12:00:03
-
-B
-
-HDD
-
-69.70
-
-25.2
-
-Is converted and compressed into arrays in a row in the columnstore:
-
-Timestamp
-
-Device ID
-
-Device Type
-
-CPU
-
-Disk IO
-
-\[12:00:01, 12:00:01, 12:00:02, 12:00:02, 12:00:03, 12:00:03\]
-
-\[A, B, A, B, A, B\]
-
-\[SSD, HDD, SSD, HDD, SSD, HDD\]
-
-\[70.11, 69.70, 70.12, 69.69, 70.14, 69.70\]
-
-\[13.4, 20.5, 13.2, 23.4, 13.0, 25.2\]
-
-Because a single row takes up less disk space, you can reduce your chunk size by up to 98%, and can also speed up your queries. This saves on storage costs, and keeps your queries operating at lightning speed. For an in-depth explanation of how hypertables and hypercore work, see the [Data model](/about/whitepaper#data-model). This page shows you how to get the best results when you set a policy to automatically convert chunks in a hypertable from the rowstore to the columnstore.
-
-Prerequisites
-
-To follow the steps on this page:
-
--   Create a target [Tiger Cloud service](/deploy/tiger-cloud/get-started/create-services) with Real-time analytics enabled.
-
-    You need [your connection details](/integrate/find-connection-details). This procedure also works for [self-hosted TimescaleDB](/deploy/self-hosted/install-and-update/install-self-hosted).
-
-The code samples in this page use the [crypto\_sample.zip](https://assets.timescale.com/docs/downloads/candlestick/crypto_sample.zip) data from [this key features tutorial](/learn/examples/quick-start-with-hypertables#optimize-time-series-data-in-hypertables-with-hypercore).
-
-Optimize your data with columnstore policies
-
-The following figure shows the workflow to follow when you setup hypercore.
-
-The compression ratio and query performance of data in the columnstore is dependent on the order and structure of your data. Rows that change over a dimension should be close to each other. With time-series data, you `orderby` the time dimension. For example, `Timestamp`:
-
-Timestamp
-
-Device ID
-
-Device Type
-
-CPU
-
-Disk IO
-
-12:00:01
-
-A
-
-SSD
-
-70.11
-
-13.4
-
-This ensures that records are compressed and accessed in the same order. However, you would always have to access the data using the time dimension, then filter all the rows using other criteria. To make your queries more efficient, you segment your data based on the following:
-
--   The way you want to access it. For example, to rapidly access data about a single device, you `segmentby` the `Device ID` column. This enables you to run much faster analytical queries on data in the columnstore.
--   The compression rate you want to achieve. The [lower the cardinality](https://www.tigerdata.com/blog/what-is-high-cardinality) of the `segmentby` column, the better compression results you get.
-
-When TimescaleDB converts a chunk to the columnstore, it automatically creates a different schema for your data. It also creates and uses custom indexes to incorporate the `segmentby` and `orderby` parameters when you write to and read from the columnstore. To set up your hypercore automation:
-
-1.  **Connect to your service** In [Tiger Console](https://console.cloud.timescale.com/dashboard/services) open an SQL editor. You can also connect to your service using [psql](/integrate/query-administration/psql).
-2.  **Enable columnstore on a hypertable** For [efficient queries](/build/columnar-storage/secondary-indexes), remember to `segmentby` the column you will use most often to filter your data. For example:
-
-    -   **Hypertables**: [Use `CREATE TABLE` for a hypertable](/api-reference/timescaledb/hypertables/create_table) When you create a hypertable using [`CREATE TABLE ... WITH ...`](/api-reference/timescaledb/hypertables/create_table), the default partitioning column is automatically the first column with a timestamp data type. Also, TimescaleDB creates a [columnstore policy](/api-reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts your data to the columnstore, after an interval equal to the value of the [`chunk_interval`](/api-reference/timescaledb/hypertables/create_table#arguments), defined through `compress_after` in the policy. This columnar format enables fast scanning and aggregation, optimizing performance for analytical workloads while also saving significant storage space. In the columnstore conversion, hypertable chunks are compressed by up to 98%, and organized for efficient, large-scale queries. You can customize this policy later using [`alter_job`](/api-reference/timescaledb/jobs-automation/alter_job#samples). However, to change `after` or `created_before`, the compression settings, or the hypertable the policy is acting on, you must [remove the columnstore policy](/api-reference/timescaledb/hypercore/remove_columnstore_policy) and [add a new one](/api-reference/timescaledb/hypercore/add_columnstore_policy). You can also manually [convert chunks](/api-reference/timescaledb/hypercore/convert_to_columnstore) in a hypertable to the columnstore.
-    -   **Continuous aggregates**
-        1.  [Use `ALTER MATERIALIZED VIEW` for a continuous aggregate](/api-reference/timescaledb/continuous-aggregates/alter_materialized_view): Before you say “huh”, a continuous aggregate is a specialized hypertable.
-        2.  Add a policy to convert chunks to the columnstore at a specific time interval: Create a [columnstore\_policy](/api-reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts chunks in a hypertable to the columnstore at a specific time interval. For example:
-
-    TimescaleDB is optimized for fast updates on compressed data in the columnstore. To modify data in the columnstore, use standard SQL.
-3.  **Check the columnstore policy**
-    1.  View your data space saving: When you convert data to the columnstore, as well as being optimized for analytics, it is compressed by more than 90%. This helps you save on storage costs and keeps your queries operating at lightning speed. To see the amount of space saved: You see something like:
-
-        before
-
-        after
-
-        194 MB
-
-        24 MB
-
-    2.  View the policies that you set or the policies that already exist: See [`timescaledb_information.jobs`](/api-reference/timescaledb/informational-views/jobs).
-4.  **Pause a columnstore policy** See [`alter_job`](/api-reference/timescaledb/jobs/alter_job).
-5.  **Restart a columnstore policy** See [`alter_job`](/api-reference/timescaledb/jobs/alter_job).
-6.  **Remove a columnstore policy** See [`remove_columnstore_policy`](/api-reference/timescaledb/hypercore/remove_columnstore_policy).
-7.  **Disable columnstore** If your table has chunks in the columnstore, you have to [convert the chunks back to the rowstore](/api-reference/timescaledb/hypercore/convert_to_rowstore) before you disable the columnstore. See [`ALTER TABLE`](/api-reference/timescaledb/hypertables/alter_table).
-
-Reference
-
-For integers, timestamps, and other integer-like types, data is compressed using [delta encoding](/build/columnar-storage/compression-methods#delta-encoding), [delta-of-delta](/build/columnar-storage/compression-methods#delta-of-delta-encoding), [simple-8b](/build/columnar-storage/compression-methods#simple-8b), and [run-length encoding](/build/columnar-storage/compression-methods#run-length-encoding). For columns with few repeated values, [XOR-based](/build/columnar-storage/compression-methods#xor-based-compression) and [dictionary compression](/build/columnar-storage/compression-methods#dictionary-compression) is used. For all other types, [dictionary compression](/build/columnar-storage/compression-methods#dictionary-compression) is used.
+For integers, timestamps, and other integer-like types, data is compressed using [delta encoding](../compression-methods#delta-encoding),
+[delta-of-delta](../compression-methods#delta-of-delta-encoding), [simple-8b](../compression-methods#simple-8b), and [run-length encoding](../compression-methods#run-length-encoding). For columns with few
+repeated values, [XOR-based](../compression-methods#xor-based-compression) and [dictionary compression](../compression-methods#dictionary-compression) is used. For all other types,
+[dictionary compression](../compression-methods#dictionary-compression) is used.

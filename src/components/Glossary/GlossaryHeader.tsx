@@ -17,13 +17,6 @@ export function GlossaryHeader({
     <header className="glossary-header">
       <div className="glossary-header__inner">
         <div className="glossary-header__content">
-          <div className="glossary-header__text">
-            <h1 className="glossary-header__title">Glossary</h1>
-            <p className="glossary-header__description">
-              A reference guide to commonly used terms and concepts in software
-              development, infrastructure, and security.
-            </p>
-          </div>
           <div className="glossary-header__search-wrap">
             <Search className="glossary-header__search-icon" aria-hidden />
             <input

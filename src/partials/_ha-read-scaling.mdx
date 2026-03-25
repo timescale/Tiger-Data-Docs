@@ -1,0 +1,146 @@
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+When read-intensive workloads compete with high ingest rates, your primary data instance can become a bottleneck. Spiky query traffic, analytical dashboards, and business intelligence tools risk slowing down ingest performance and disrupting critical write operations.
+
+With {C.READ_REPLICA} sets in {C.CLOUD_LONG}, you can scale reads horizontally and keep your applications responsive. By offloading queries to replicas, your {C.SERVICE_SHORT} maintains high ingest throughput while serving large or unpredictable read traffic with ease. This approach not only protects write performance but also gives you confidence that your read-heavy apps and BI workloads will run smoothly, even under pressure.
+
+![Read scaling in {C.CLOUD_LONG}](https://assets.timescale.com/docs/images/read-scaling-timescale.png)
+
+This page shows you how to create and manage {C.READ_REPLICA} sets in {C.CONSOLE}.
+
+## What is read replication?
+
+A {C.READ_REPLICA} is a read-only copy of your primary database instance. Queries on {C.READ_REPLICA}s have minimal impact on the performance of the primary instance. This enables you to interact with up-to-date production data for analysis, or to scale out reads beyond the limits of your primary instance. {C.READ_REPLICA_CAP}s can be short-lived and deleted when a session of data analysis is complete, or long-running to power an application or a business intelligence tool.
+
+A {C.READ_REPLICA} set in {C.CLOUD_LONG} is a group of one or more {C.READ_REPLICA} nodes that are accessed through the same endpoint. You query each set as a single replica. {C.CLOUD_LONG} balances the load between the nodes in the set for you.
+
+You can create as many {C.READ_REPLICA} sets as you need. For security and resource isolation, each {C.READ_REPLICA} set has unique connection details.
+
+You use {C.READ_REPLICA} sets for horizontal **read** scaling. To limit data loss for your {C.SERVICE_LONG}s, use [{C.HA_REPLICA_SHORT}s](../high-availability).
+
+## Prerequisites
+
+To follow this procedure:
+
+- Create a target {C.SERVICE_LONG}.
+- Create a [read-only user](../../security/read-only-role#create-a-read-only-user) on the primary data instance.
+
+  A user with read-only permissions cannot make changes in the primary database. This user is propagated to the {C.READ_REPLICA} set when you create it.
+
+## Create a {C.READ_REPLICA} set
+
+To create a secure {C.READ_REPLICA} set for your read-intensive apps:
+
+<NumberedList>
+
+<NumberedItem title={`In ${C.CONSOLE}, select your target ${C.SERVICE_SHORT}`}>
+
+</NumberedItem>
+
+<NumberedItem title="Click `Operations` > `Read scaling` > `Add a read replica set`">
+
+</NumberedItem>
+
+<NumberedItem title="Configure your replica set">
+
+Configure the number of nodes, compute size, connection pooling, and the name for your replica, then click `Create read replica set`.
+
+![Create a {C.READ_REPLICA} set in {C.CONSOLE_LONG}](https://assets.timescale.com/docs/images/tiger-cloud-console/create-read-replica-set-tiger-console.png)
+
+</NumberedItem>
+
+<NumberedItem title="Save the connection information">
+
+The username and password of a {C.READ_REPLICA} set are the same as the primary {C.SERVICE_SHORT}. They cannot be changed independently.
+
+The connection information for each {C.READ_REPLICA} set is unique. You can add or remove nodes from an existing set and the connection information of that set will remain the same. To find the connection information for an existing {C.READ_REPLICA} set:
+
+<ol type="a">
+  <li>Select the primary {C.SERVICE_SHORT} in {C.CONSOLE}.</li>
+  <li>Click <code>Operations</code> &gt; <code>Read scaling</code>.</li>
+  <li>Click the link icon next to the replica set in the list.</li>
+</ol>
+
+</NumberedItem>
+
+</NumberedList>
+
+## Edit a {C.READ_REPLICA} set
+
+You can edit an existing {C.READ_REPLICA} set to better handle your reads. This includes changing the number of nodes, compute size, storage, and IOPS, as well as configuring {C.VPC} and other features.
+
+To change the compute and storage configuration of your {C.READ_REPLICA} set:
+
+<NumberedList>
+
+<NumberedItem title={`In ${C.CONSOLE}, expand and click the ${C.READ_REPLICA} set under your primary ${C.SERVICE_SHORT}`}>
+
+![{C.READ_REPLICA_CAP}s in {C.CONSOLE_LONG}](https://assets.timescale.com/docs/images/tiger-on-azure/read-replica-sets-tiger-console.png)
+
+</NumberedItem>
+
+<NumberedItem title="Click `Operations` > `Compute and storage`">
+
+![{C.READ_REPLICA_CAP} compute and storage in {C.CONSOLE_LONG}](https://assets.timescale.com/docs/images/tiger-cloud-console/read-replica-set-config-tiger-console.png)
+
+</NumberedItem>
+
+<NumberedItem title="Change the replica configuration and click `Apply`">
+
+</NumberedItem>
+
+</NumberedList>
+
+## Manage data lag for your {C.READ_REPLICA} sets
+
+{C.READ_REPLICA_CAP} sets use asynchronous replication. This can cause a slight lag in data to the primary database instance. The lag
+is measured in bytes, against the current state of the primary instance. To check the status and lag for your {C.READ_REPLICA} set:
+
+<NumberedList>
+
+<NumberedItem title={`In ${C.CONSOLE}, select your primary ${C.SERVICE_SHORT}`}>
+
+</NumberedItem>
+
+<NumberedItem title="Click `Operations` > `Read scaling`">
+
+You see a list of configured {C.READ_REPLICA} sets for this {C.SERVICE_SHORT}, including their status and lag:
+
+![{C.READ_REPLICA_CAP} sets](https://assets.timescale.com/docs/images/tiger-on-azure/configured-replica-set-tiger-console.png)
+
+</NumberedItem>
+
+<NumberedItem title="Configure the allowable lag">
+
+<ol type="a">
+  <li>Select the replica set in the list.</li>
+  <li>Click <code>Operations</code> &gt; <code>Database parameters</code>.</li>
+  <li>Adjust <code>max_standby_streaming_delay</code> and <code>max_standby_archive_delay</code>. This is not recommended for cases where changes must be immediately represented, for example, for user credentials.</li>
+</ol>
+
+</NumberedItem>
+
+</NumberedList>
+
+## Delete a {C.READ_REPLICA} set
+
+To delete a replica set:
+
+<NumberedList>
+
+<NumberedItem title={`In ${C.CONSOLE}, select your primary ${C.SERVICE_SHORT}`}>
+
+</NumberedItem>
+
+<NumberedItem title="Click `Operations` > `Read scaling`">
+
+</NumberedItem>
+
+<NumberedItem title="Click the trash icon next to a replica set">
+
+Confirm the deletion when prompted.
+
+</NumberedItem>
+
+</NumberedList>

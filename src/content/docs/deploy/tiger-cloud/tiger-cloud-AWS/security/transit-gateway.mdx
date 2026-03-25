@@ -1,0 +1,175 @@
+---
+title: AWS Transit Gateway
+description: Securely connect to your services from AWS, Google Cloud, Azure, or on-premise environments using AWS Transit Gateway
+products: [cloud]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+[AWS Transit Gateway](https://aws.amazon.com/transit-gateway/) enables you to securely connect to your **{C.CLOUD_LONG} on AWS** from Google Cloud, Microsoft Azure, AWS, or any other cloud or on-premise environment.
+
+You use AWS Transit Gateway as a traffic controller for your network. Instead of setting up multiple direct connections to different clouds, on-premise data centers, and other AWS services, you connect everything to AWS Transit Gateway. This simplifies your network and makes it easier to manage and scale.
+
+You can then create a peering connection between your {C.SERVICE_LONG}s and AWS Transit Gateway in {C.CLOUD_LONG}. This means that, no matter how big or complex your infrastructure is, you can connect securely to your {C.SERVICE_LONG}s.
+
+For enhanced security, you can add peering connections to multiple Transit Gateways with overlapping CIDRs, {C.CLOUD_LONG} creates a new isolated connection for every unique Transit Gateway ID. Otherwise, the existing connection is reused for your {C.SERVICE_SHORT}s in the same project and region.
+
+To configure this secure connection, you:
+
+1. Connect your infrastructure to AWS Transit Gateway.
+1. Create a {C.CLOUD_LONG} Peering {C.VPC} with a peering connection to AWS Transit Gateway.
+1. Accept and configure the peering connection on your side.
+1. Attach individual {C.SERVICE_SHORT}s to the Peering {C.VPC}.
+
+AWS Transit Gateway enables you to connect from almost any environment, this page provides examples for the most common use cases.
+
+<Tabs>
+
+<TabItem label="Amazon Web Services">
+
+<NumberedList>
+
+<NumberedItem title={`Create a Peering ${C.VPC} in ${C.CONSOLE}`}>
+
+<ol type="a">
+<li>In <code>Security</code> &gt; <code>VPC</code>, click <code>Create a VPC</code>: <img src="https://assets.timescale.com/docs/images/tiger-cloud-console/add-peering-vpc-tiger-console.png" alt={`${C.CLOUD_LONG} new ${C.VPC}`} /></li>
+<li>Choose your region and IP range, name your VPC, then click <code>Create VPC</code>: <img src="https://assets.timescale.com/docs/images/tiger-cloud-console/configure-peering-vpc-tiger-console.png" alt={`Create a new VPC in ${C.CLOUD_LONG}`} /> Your {C.SERVICE_SHORT} and Peering {C.VPC} must be in the same AWS region. The number of Peering {C.VPC}s you can create in your project depends on your <a href="../../pricing-and-account-management">{C.PRICING_PLAN}</a>. If you need another Peering {C.VPC}, either contact <a href="mailto:support@tigerdata.com">support@tigerdata.com</a> or change your plan in <a href="https://console.cloud.timescale.com/">{C.CONSOLE}</a>.</li>
+<li>In the <code>VPC Peering</code> column, click <code>Add</code>.</li>
+<li>Provide your AWS account ID, Transit Gateway ID, CIDR ranges, and AWS region. {C.CLOUD_LONG} creates a new isolated connection for every unique Transit Gateway ID. <img src="https://assets.timescale.com/docs/images/tiger-cloud-console/add-peering-tiger-console.png" alt="Add peering" /></li>
+<li>Click <code>Add connection</code>.</li>
+</ol>
+
+</NumberedItem>
+
+<NumberedItem title="Accept and configure peering connection in your AWS account">
+
+Once your peering connection appears as `Processing`, you can accept and configure it in AWS:
+
+<ol type="a">
+<li>Accept the peering request coming from {C.CLOUD_LONG}. The request can take up to 5 min to arrive. Within 5 more minutes after accepting, the peering should appear as <code>Connected</code> in {C.CONSOLE}.</li>
+<li>Configure at least the following in your AWS account networking: your subnet route table to route traffic to your Transit Gateway for the Peering VPC CIDRs; your Transit Gateway route table to route traffic to the newly created Transit Gateway peering attachment for the Peering VPC CIDRs; and security groups to allow outbound TCP 5432.</li>
+</ol>
+
+</NumberedItem>
+
+<NumberedItem title={`Attach a ${C.CLOUD_LONG} service to the Peering VPC in ${C.CONSOLE}`}>
+
+<ol type="a">
+<li>Select the {C.SERVICE_SHORT} you want to connect to the Peering VPC.</li>
+<li>Click <code>Operations</code> &gt; <code>Security</code> &gt; <code>VPC</code>.</li>
+<li>Select the VPC, then click <code>Attach VPC</code>.</li>
+</ol>
+
+You cannot attach a {C.SERVICE_LONG} to multiple {C.CLOUD_LONG} {C.VPC}s at the same time.
+
+</NumberedItem>
+
+</NumberedList>
+
+</TabItem>
+
+
+<TabItem label="Google Cloud">
+
+<NumberedList>
+
+<NumberedItem title="Connect your infrastructure to AWS Transit Gateway">
+
+Establish connectivity between Google Cloud and AWS. See [Connect HA VPN to AWS peer gateways](https://cloud.google.com/network-connectivity/docs/vpn/how-to/connect-ha-vpn-aws-peer-gateway).
+
+</NumberedItem>
+
+<NumberedItem title={`Create a Peering ${C.VPC} in ${C.CONSOLE}`}>
+
+<ol type="a">
+<li>In <code>Security</code> &gt; <code>VPC</code>, click <code>Create a VPC</code>: <img src="https://assets.timescale.com/docs/images/tiger-cloud-console/add-peering-vpc-tiger-console.png" alt={`${C.CLOUD_LONG} new ${C.VPC}`} /></li>
+<li>Choose your region and IP range, name your VPC, then click <code>Create VPC</code>: <img src="https://assets.timescale.com/docs/images/tiger-cloud-console/configure-peering-vpc-tiger-console.png" alt={`Create a new VPC in ${C.CLOUD_LONG}`} /> Your {C.SERVICE_SHORT} and Peering {C.VPC} must be in the same AWS region. The number of Peering {C.VPC}s you can create in your project depends on your <a href="../../pricing-and-account-management">{C.PRICING_PLAN}</a>. If you need another Peering {C.VPC}, either contact <a href="mailto:support@tigerdata.com">support@tigerdata.com</a> or change your plan in <a href="https://console.cloud.timescale.com/">{C.CONSOLE}</a>.</li>
+<li>In the <code>VPC Peering</code> column, click <code>Add</code>.</li>
+<li>Provide your AWS account ID, Transit Gateway ID, CIDR ranges, and AWS region. {C.CLOUD_LONG} creates a new isolated connection for every unique Transit Gateway ID. <img src="https://assets.timescale.com/docs/images/tiger-cloud-console/add-peering-tiger-console.png" alt="Add peering" /></li>
+<li>Click <code>Add connection</code>.</li>
+</ol>
+
+</NumberedItem>
+
+<NumberedItem title="Accept and configure peering connection in your AWS account">
+
+Once your peering connection appears as `Processing`, you can accept and configure it in AWS:
+
+<ol type="a">
+<li>Accept the peering request coming from {C.CLOUD_LONG}. The request can take up to 5 min to arrive. Within 5 more minutes after accepting, the peering should appear as <code>Connected</code> in {C.CONSOLE}.</li>
+<li>Configure at least the following in your AWS account networking: your subnet route table to route traffic to your Transit Gateway for the Peering VPC CIDRs; your Transit Gateway route table to route traffic to the newly created Transit Gateway peering attachment for the Peering VPC CIDRs; and security groups to allow outbound TCP 5432.</li>
+</ol>
+
+</NumberedItem>
+
+<NumberedItem title={`Attach a ${C.CLOUD_LONG} service to the Peering VPC in ${C.CONSOLE}`}>
+
+<ol type="a">
+<li>Select the {C.SERVICE_SHORT} you want to connect to the Peering VPC.</li>
+<li>Click <code>Operations</code> &gt; <code>Security</code> &gt; <code>VPC</code>.</li>
+<li>Select the VPC, then click <code>Attach VPC</code>.</li>
+</ol>
+
+You cannot attach a {C.SERVICE_LONG} to multiple {C.CLOUD_LONG} {C.VPC}s at the same time.
+
+</NumberedItem>
+
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="On-premise">
+
+<NumberedList>
+
+<NumberedItem title="Connect your infrastructure to AWS Transit Gateway">
+
+Establish connectivity between your on-premise infrastructure and AWS. See [Centralize network connectivity using AWS Transit Gateway](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/centralize-network-connectivity-using-aws-transit-gateway.html).
+
+</NumberedItem>
+
+<NumberedItem title={`Create a Peering ${C.VPC} in ${C.CONSOLE}`}>
+
+<ol type="a">
+<li>In <code>Security</code> &gt; <code>VPC</code>, click <code>Create a VPC</code>: <img src="https://assets.timescale.com/docs/images/tiger-cloud-console/add-peering-vpc-tiger-console.png" alt={`${C.CLOUD_LONG} new ${C.VPC}`} /></li>
+<li>Choose your region and IP range, name your VPC, then click <code>Create VPC</code>: <img src="https://assets.timescale.com/docs/images/tiger-cloud-console/configure-peering-vpc-tiger-console.png" alt={`Create a new VPC in ${C.CLOUD_LONG}`} /> Your {C.SERVICE_SHORT} and Peering {C.VPC} must be in the same AWS region. The number of Peering {C.VPC}s you can create in your project depends on your <a href="../../pricing-and-account-management">{C.PRICING_PLAN}</a>. If you need another Peering {C.VPC}, either contact <a href="mailto:support@tigerdata.com">support@tigerdata.com</a> or change your plan in <a href="https://console.cloud.timescale.com/">{C.CONSOLE}</a>.</li>
+<li>In the <code>VPC Peering</code> column, click <code>Add</code>.</li>
+<li>Provide your AWS account ID, Transit Gateway ID, CIDR ranges, and AWS region. {C.CLOUD_LONG} creates a new isolated connection for every unique Transit Gateway ID. <img src="https://assets.timescale.com/docs/images/tiger-cloud-console/add-peering-tiger-console.png" alt="Add peering" /></li>
+<li>Click <code>Add connection</code>.</li>
+</ol>
+
+</NumberedItem>
+
+<NumberedItem title="Accept and configure peering connection in your AWS account">
+
+Once your peering connection appears as `Processing`, you can accept and configure it in AWS:
+
+<ol type="a">
+<li>Accept the peering request coming from {C.CLOUD_LONG}. The request can take up to 5 min to arrive. Within 5 more minutes after accepting, the peering should appear as <code>Connected</code> in {C.CONSOLE}.</li>
+<li>Configure at least the following in your AWS account networking: your subnet route table to route traffic to your Transit Gateway for the Peering VPC CIDRs; your Transit Gateway route table to route traffic to the newly created Transit Gateway peering attachment for the Peering VPC CIDRs; and security groups to allow outbound TCP 5432.</li>
+</ol>
+
+</NumberedItem>
+
+<NumberedItem title={`Attach a ${C.CLOUD_LONG} service to the Peering VPC in ${C.CONSOLE}`}>
+
+<ol type="a">
+<li>Select the {C.SERVICE_SHORT} you want to connect to the Peering VPC.</li>
+<li>Click <code>Operations</code> &gt; <code>Security</code> &gt; <code>VPC</code>.</li>
+<li>Select the VPC, then click <code>Attach VPC</code>.</li>
+</ol>
+
+You cannot attach a {C.SERVICE_LONG} to multiple {C.CLOUD_LONG} {C.VPC}s at the same time.
+
+</NumberedItem>
+
+</NumberedList>
+
+</TabItem>
+
+</Tabs>
+
+You can now securely access your {C.SERVICE_SHORT}s in {C.CLOUD_LONG}.

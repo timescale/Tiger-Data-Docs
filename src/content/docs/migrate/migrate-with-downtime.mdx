@@ -1,145 +1,100 @@
 ---
-title: "Import from a database with downtime"
-description: "Migrate your PostgreSQL database to Tiger Cloud using pg_dump and pg_restore for a complete offline migration"
+title: Migrate with downtime
+description: Migrate a hypertable or an entire database to Tiger Cloud with native PostgreSQL commands using pg_dump and pg_restore
+products: [cloud]
 ---
 
 import * as C from "@constants";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import DoNotRecommendForLargeMigration from "../../../partials/_migrate_pg_dump_do_not_recommend_for_large_migration.mdx";
+import MigrationPrerequisites from "../../../partials/_migrate_prerequisites.mdx";
+import MigrateFromTimescaleDB from "../../../partials/_migrate_dump_timescaledb.mdx";
+import MigrateFromPostgres from "../../../partials/_migrate_dump_postgresql.mdx";
+import MigrateFromMST from "../../../partials/_migrate_dump_mst.mdx";
+import MigrateFromAWSRDS from "../../../partials/_migrate_dump_awsrds.mdx";
 
-## Overview
+You use downtime migration to move less than 100GB of data from a {C.SELF_SHORT} database to a {C.SERVICE_LONG}.
 
-Learn how to migrate your existing {C.PG} database to Tiger Cloud using `pg_dump` and `pg_restore`. This offline migration approach requires a maintenance window but provides a straightforward, reliable method for transferring your complete database including schema, data, and permissions.
+Downtime migration uses the native {C.PG} [`pg_dump`](https://www.postgresql.org/docs/current/app-pgdump.html) and [`pg_restore`](https://www.postgresql.org/docs/current/app-pgrestore.html) commands.
+If you are migrating from {C.SELF_LONG}, this method works for {C.HYPERTABLE}s compressed into the {C.COLUMNSTORE} without having
+to convert the data back to the {C.ROWSTORE} before you begin.
+
+<DoNotRecommendForLargeMigration />
+
+However, downtime migration for large amounts of data takes a large amount of time. For more than 100GB of data, best
+practice is to follow [live migration](/migrate/live-migration).
+
+This page shows you how to move your data from a {C.SELF_SHORT} database to a {C.SERVICE_LONG} using
+shell commands.
 
 ## Prerequisites
 
-- Source database running {C.PG} 10 or later
-- A Tiger Cloud service provisioned with sufficient storage
-- `pg_dump` and `pg_restore` utilities installed (use the target {C.PG} version)
-- Network connectivity to both source and target databases
-- Sufficient local disk space for the dump file (or streaming capability)
-- Scheduled maintenance window for your application
+<MigrationPrerequisites />
 
-## When to use offline migration
+- Install the {C.PG} client tools on your migration machine.
 
-This section helps you determine if offline migration is the right approach.
+  This includes `psql`, `pg_dump`, and `pg_dumpall`.
 
-### Ideal scenarios
+- Install the GNU implementation of `sed`.
 
-- Databases smaller than 100GB where dump/restore completes within acceptable downtime
-- Development or staging environments where downtime is not critical
-- Situations where simplicity and reliability are prioritized over zero downtime
-- Initial migrations before going live with Tiger Cloud
+  Run `sed --version` on your migration machine. GNU sed identifies itself
+  as GNU software, BSD sed returns `sed: illegal option -- -`.
 
-### Estimating downtime
+## Migrate to {C.CLOUD_LONG}
 
-Factors that affect migration duration include database size, network bandwidth, table indexes, and server resources.
+To move your data from a {C.SELF_SHORT} database to a {C.SERVICE_LONG}:
 
-## Migration workflow
+<Tabs>
+<TabItem label="From TimescaleDB">
 
-### Step 1: prepare for migration
+This section shows you how to move your data from {C.SELF_LONG} to a {C.SERVICE_LONG}
+using `pg_dump` and `psql` from Terminal.
 
-Plan your maintenance window, notify stakeholders, and verify prerequisites.
+<MigrateFromTimescaleDB />
 
-#### Export roles and users
+And that is it, you have migrated your data from a {C.SELF_SHORT} instance running {C.TIMESCALE_DB} to a {C.SERVICE_LONG}.
 
-{C.PG} roles are global and must be exported separately using `pg_dumpall -g`.
+</TabItem>
+<TabItem label="From PostgreSQL">
 
-#### Vacuum and analyze tables
+This section shows you how to move your data from {C.SELF_SHORT} {C.PG} to a {C.SERVICE_LONG}
+using `pg_dump` and `psql` from Terminal.
 
-Reduce table bloat before dumping to minimize dump size and time.
+Migration from {C.PG} moves the data only. You must manually enable {C.CLOUD_LONG} features like
+[{C.HYPERTABLE}s](/build/data-management/understand-hypertables), [{C.HYPERCORE}](/build/columnar-storage) or [data retention](/build/data-management/data-retention) after the migration is complete. You enable {C.CLOUD_LONG} features while your database is offline.
 
-### Step 2: stop application writes
+<MigrateFromPostgres />
 
-Put your application in maintenance mode or stop services to prevent writes during migration.
+And that is it, you have migrated your data from a {C.SELF_SHORT} instance running {C.PG} to a {C.SERVICE_LONG}.
 
-### Step 3: create the database dump
+</TabItem>
+<TabItem label="From AWS RDS/Aurora">
 
-#### Choose the dump format
+To migrate your data from an Amazon RDS/Aurora {C.PG} instance to a {C.SERVICE_LONG}, you extract the data to an intermediary
+EC2 Ubuntu instance in the same AWS region as your RDS/Aurora {C.PG} instance. You then upload your data to a {C.SERVICE_LONG}.
+To make this process as painless as possible, ensure that the intermediary machine has enough CPU and disk space to
+rapidly extract and store your data before uploading to {C.CLOUD_LONG}.
 
-- **Custom format (-Fc)**: Compressed, supports parallel restore, recommended for most cases
-- **Directory format (-Fd)**: Supports parallel dump and restore, good for very large databases
-- **Plain SQL (-Fp)**: Human-readable, useful for small databases or debugging
+Migration from RDS/Aurora {C.PG} moves the data only. You must manually enable {C.CLOUD_LONG} features like
+[{C.HYPERTABLE}s](/build/data-management/understand-hypertables), [data compression](/build/columnar-storage) or [data retention](/build/data-management/data-retention) after the migration is complete. You enable {C.CLOUD_LONG}
+features while your database is offline.
 
-#### Run pg_dump
+This section shows you how to move your data from a {C.PG} database running in an Amazon RDS/Aurora {C.PG} instance to a
+{C.SERVICE_LONG} using `pg_dump` and `psql` from Terminal.
 
-Execute the dump command with appropriate options for your chosen format.
+<MigrateFromAWSRDS />
 
-### Step 4: transfer the dump file
+And that is it, you have migrated your data from an RDS/Aurora {C.PG} instance to a {C.SERVICE_LONG}.
 
-Move the dump file to a location accessible for restoration. Consider compression for large files.
+</TabItem>
+<TabItem label="From MST">
 
-### Step 5: import roles and users
+This section shows you how to move your data from a {C.MST_LONG} instance to a
+{C.SERVICE_LONG} using `pg_dump` and `psql` from Terminal.
 
-Restore global objects (roles, users) to Tiger Cloud before restoring the database.
+<MigrateFromMST />
 
-### Step 6: restore the database
+And that is it, you have migrated your data from a {C.MST_LONG} instance to a {C.SERVICE_LONG}.
 
-#### Tune restore performance
-
-Adjust server parameters to speed up restoration:
-- Increase `maintenance_work_mem` for faster index creation
-- Set appropriate `max_parallel_maintenance_workers`
-- Consider temporarily disabling fsync (with caution)
-
-#### Run pg_restore
-
-Execute the restore with parallel jobs for faster completion.
-
-### Step 7: verify and validate
-
-Run validation queries to ensure data integrity and completeness.
-
-### Step 8: update application configuration
-
-Point your application to the new Tiger Cloud database and resume operations.
-
-## Best practices
-
-- Use {C.PG} binaries from the target version for both dump and restore
-- Export roles and users before database objects to preserve permissions
-- Use custom or directory format for flexibility and compression
-- Enable parallel processing with the `-j` flag to reduce restore time
-- Place your client machine close to both databases to minimize network latency
-- Test the entire process in a non-production environment first
-- Document the expected duration and have a rollback plan
-
-## Performance optimization
-
-### Parallel dump and restore
-
-Use multiple concurrent jobs to maximize throughput on multi-core systems.
-
-### Network considerations
-
-For remote migrations, consider compressing dumps or using faster network paths.
-
-### Server tuning during restore
-
-Temporarily adjust database parameters to prioritize restore speed.
-
-## Troubleshooting
-
-### Dump takes too long
-
-Vacuum tables before dumping, use parallel dump (directory format), or identify and exclude large unused tables.
-
-### Restore fails with permission errors
-
-Ensure roles were imported before the database restore. Check that the restore user has necessary privileges.
-
-### Out of disk space
-
-Use compressed formats, stream directly between databases, or provision additional temporary storage.
-
-### Foreign key constraint failures
-
-Use `--disable-triggers` option during restore or ensure tables are restored in the correct order.
-
-### Sequence values incorrect
-
-Sequences should be included in the dump. Verify with `pg_dump --section=post-data` if needed.
-
-## Next steps
-
-- [Live import from a database](/migrate/live-migration/) - Alternative approach with zero downtime
-- [Import data using Terminal](/migrate/import-terminal/) - Additional terminal import methods
-- [Read and write data](/get-started/timescaledb-read-write-data/) - Start querying your migrated data
+</TabItem>
+</Tabs>
