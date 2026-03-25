@@ -406,9 +406,9 @@ export default defineConfig({
             link: "/build",
             sidebar: [
               {
-                label: "Build with TimescaleDB",
+                label: "Build with Tiger Data",
                 collapsed: true,
-                items: [{ label: "Build with TimescaleDB", link: "/build" }],
+                items: [{ label: "Build with Tiger Data", link: "/build" }],
               },
               // --- Get hands on: merged Tutorials + How-to + Examples ---
               {
