@@ -278,7 +278,7 @@ export default defineConfig({
             ],
           },
           // Learn tab: conceptual and overview content lives under /learn/. Hands-on how-tos link to /build/.
-          // Learn sidebar: groups follow dependency order. Retention + tiering live in one "Data lifecycle" group (no duplicate top-level sections). Chunks is nested under Hypertables (after partitioning: understanding chunks → sizing → time buckets → drop).
+          // Learn sidebar: groups follow dependency order. Retention + tiering: one "Data lifecycle" group. Chunks + time buckets: one "Chunks and time buckets" group (not nested under Hypertables). CAGGs: one "Continuous aggregates (CAGGs)" group (Tiger Cloud nested; backfill migration tool at end; "About CAGGs" omitted from nav, linked from overview).
           {
             label: "Learn",
             link: "/learn",
@@ -318,23 +318,23 @@ export default defineConfig({
                   { label: "Understand hypertables", link: "/learn/hypertables/understand-hypertables" },
                   { label: "Creating and configuring hypertables", link: "/learn/hypertables/creating-and-configuring-hypertables" },
                   { label: "Partitioning hypertables", link: "/learn/hypertables/partitioning-hypertables" },
-                  {
-                    label: "Chunks",
-                    collapsed: true,
-                    items: [
-                      { label: "Understanding chunks", link: "/learn/chunks/understanding-chunks" },
-                      { label: "Sizing hypertable chunks", link: "/learn/hypertables/sizing-hypertable-chunks" },
-                      { label: "About time buckets", link: "/learn/data-management/time-buckets/about-time-buckets" },
-                      { label: "Use time buckets", link: "/learn/data-management/time-buckets/use-time-buckets" },
-                      { label: "Manually drop chunks", link: "/learn/data-management/data-retention/manually-drop-chunks" },
-                    ],
-                  },
                   { label: "Hypertable indexes", link: "/learn/hypertables/hypertable-indexes" },
                   { label: "Querying time-series data", link: "/learn/hypertables/querying-time-series-data" },
                   { label: "Optimize time-series data in hypertables", link: "/learn/hypertables/optimize-data-in-hypertables" },
                   { label: "Hypertable operations", link: "/learn/hypertables/hypertable-operations" },
                   { label: "Improve hypertable performance", link: "/learn/performance-optimization/improve-hypertable-performance" },
                   { label: "Hypertables and unique indexes", link: "/learn/performance-optimization/hypertables-and-unique-indexes" },
+                ],
+              },
+              {
+                label: "Chunks and time buckets",
+                collapsed: true,
+                items: [
+                  { label: "Understanding chunks", link: "/learn/chunks/understanding-chunks" },
+                  { label: "Sizing hypertable chunks", link: "/learn/hypertables/sizing-hypertable-chunks" },
+                  { label: "About time buckets", link: "/learn/data-management/time-buckets/about-time-buckets" },
+                  { label: "Use time buckets", link: "/learn/data-management/time-buckets/use-time-buckets" },
+                  { label: "Manually drop chunks", link: "/learn/data-management/data-retention/manually-drop-chunks" },
                 ],
               },
               {
@@ -351,25 +351,27 @@ export default defineConfig({
                 ],
               },
               {
-                label: "CAGGs",
+                label: "Continuous aggregates (CAGGs)",
                 collapsed: true,
                 items: [
                   { label: "Continuous aggregates overview", link: "/learn/continuous-aggregates" },
-                  { label: "About continuous aggregates", link: "/learn/continuous-aggregates/about-continuous-aggregates" },
-                  { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
-                  { label: "Refresh policies", link: "/build/continuous-aggregates/refresh-policies" },
-                  { label: "Real-time aggregates", link: "/build/continuous-aggregates/real-time-aggregates" },
                   { label: "Time and continuous aggregates", link: "/learn/continuous-aggregates/time-and-continuous-aggregates" },
                   { label: "Hierarchical continuous aggregates", link: "/learn/continuous-aggregates/hierarchical-continuous-aggregates" },
                   { label: "Materialized hypertables", link: "/learn/continuous-aggregates/materialized-hypertables" },
-                  { label: "Continuous aggregates on Tiger Cloud", link: "/learn/continuous-aggregates/tiger-cloud-caggs" },
-                  { label: "Compression with CAGGs and backfill (Tiger Cloud)", link: "/learn/compression/caggs-and-backfill" },
-                ],
-              },
-              {
-                label: "Backfills",
-                collapsed: true,
-                items: [
+                  { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
+                  { label: "Refresh policies", link: "/build/continuous-aggregates/refresh-policies" },
+                  { label: "Real-time aggregates", link: "/build/continuous-aggregates/real-time-aggregates" },
+                  {
+                    label: "Tiger Cloud",
+                    collapsed: true,
+                    items: [
+                      { label: "Continuous aggregates on Tiger Cloud", link: "/learn/continuous-aggregates/tiger-cloud-caggs" },
+                      {
+                        label: "Compression with CAGGs and backfill (Tiger Cloud)",
+                        link: "/learn/compression/caggs-and-backfill",
+                      },
+                    ],
+                  },
                   {
                     label: "TimescaleDB backfill migration tool",
                     link: "/migrate/dual-write-and-backfill/timescaledb-backfill",
