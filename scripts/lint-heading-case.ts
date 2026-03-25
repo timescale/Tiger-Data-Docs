@@ -50,6 +50,7 @@ const PROPER_NOUNS = new Set(
     "Livesync", "Vectorizer", "Huggingface", "Chrome", "DevTools",
     "Microsoft", "Google", "Grafana", "Alertmanager", "Looker", "Datadog", "OpenTelemetry", "MacPorts", "Compose", "macOS",
     "Telegraf", "Supabase", "Decodable", "Debezium", "Node", "Apache", "Airflow",
+    "Hypercore",
     "SageMaker", "DBeaver", "Fivetran", "Confluent",
   ].map((s) => s.toLowerCase())
 );
