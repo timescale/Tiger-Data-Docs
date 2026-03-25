@@ -406,9 +406,9 @@ export default defineConfig({
             link: "/build",
             sidebar: [
               {
-                label: "Overview",
+                label: "Build with TimescaleDB",
                 collapsed: true,
-                items: [{ label: "Overview", link: "/build" }],
+                items: [{ label: "Build with TimescaleDB", link: "/build" }],
               },
               // --- Get hands on: merged Tutorials + How-to + Examples ---
               {
@@ -436,7 +436,7 @@ export default defineConfig({
                     label: "Guided projects",
                     collapsed: true,
                     items: [
-                      { label: "Guided projects overview", link: "/build/examples" },
+                      { label: "All guided projects", link: "/build/examples" },
                       { label: "Simulate an IoT sensor dataset", link: "/build/examples/simulate-iot-sensor-data" },
                       { label: "Analyze financial tick data", link: "/build/examples/analyze-financial-tick-data" },
                       { label: "Ingest real-time financial data", link: "/build/examples/ingest-real-time-financial-data" },
@@ -454,7 +454,7 @@ export default defineConfig({
                 label: "Write and query data",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/build/data-management" },
+                  { label: "Write and query data", link: "/build/data-management" },
                   { label: "Understand hypertables", link: "/build/data-management/understand-hypertables" },
                   {
                     label: "Time buckets",
@@ -497,7 +497,7 @@ export default defineConfig({
                     label: "Jobs",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/build/data-management/jobs" },
+                      { label: "About jobs", link: "/build/data-management/jobs" },
                       { label: "Create and manage jobs", link: "/build/data-management/jobs/create-and-manage-jobs" },
                       { label: "Downsample and compress chunks", link: "/build/data-management/jobs/example-downsample-and-compress" },
                       { label: "Generic retention policy", link: "/build/data-management/jobs/example-generic-retention" },
@@ -508,7 +508,7 @@ export default defineConfig({
                     label: "Data retention",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/build/data-management/data-retention" },
+                      { label: "Data retention basics", link: "/build/data-management/data-retention" },
                       { label: "About data retention", link: "/build/data-management/data-retention/about-data-retention" },
                       { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
                       { label: "Data retention with continuous aggregates", link: "/build/data-management/data-retention/data-retention-with-continuous-aggregates" },
@@ -522,7 +522,7 @@ export default defineConfig({
                 label: "Spread data across storage tiers",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/build/data-management/storage" },
+                  { label: "Storage tiers", link: "/build/data-management/storage" },
                   { label: "About storage tiers", link: "/build/data-management/storage/about-storage-tiers" },
                   { label: "Manage storage and tiering", link: "/build/data-management/storage/manage-storage" },
                   { label: "Query tiered data", link: "/build/data-management/storage/query-tiered-data" },
@@ -534,7 +534,7 @@ export default defineConfig({
                 label: "Use hyperfunctions for analytics",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/build/data-management/hyperfunctions" },
+                  { label: "Hyperfunctions", link: "/build/data-management/hyperfunctions" },
                   { label: "About hyperfunctions", link: "/build/data-management/hyperfunctions/about-hyperfunctions" },
                   { label: "Counter aggregation", link: "/build/data-management/hyperfunctions/counter-aggregation" },
                   { label: "Function pipelines", link: "/build/data-management/hyperfunctions/function-pipelines" },
@@ -542,7 +542,7 @@ export default defineConfig({
                     label: "Gapfilling and interpolation",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/build/data-management/hyperfunctions/gapfilling-interpolation" },
+                      { label: "Gapfilling and interpolation", link: "/build/data-management/hyperfunctions/gapfilling-interpolation" },
                       { label: "Time bucket gapfill", link: "/build/data-management/hyperfunctions/gapfilling-interpolation/time-bucket-gapfill" },
                       { label: "Last observation carried forward", link: "/build/data-management/hyperfunctions/gapfilling-interpolation/locf" },
                     ],
@@ -553,7 +553,7 @@ export default defineConfig({
                     label: "Percentile approximation",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/build/data-management/hyperfunctions/percentile-approx" },
+                      { label: "Percentile approximation", link: "/build/data-management/hyperfunctions/percentile-approx" },
                       { label: "Approximate percentiles", link: "/build/data-management/hyperfunctions/percentile-approx/approximate-percentile" },
                       { label: "Advanced aggregation methods", link: "/build/data-management/hyperfunctions/percentile-approx/advanced-agg" },
                     ],
@@ -567,7 +567,7 @@ export default defineConfig({
                 label: "Keep pre-computed aggregations up to date",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/build/continuous-aggregates" },
+                  { label: "Continuous aggregates", link: "/build/continuous-aggregates" },
                   { label: "About continuous aggregates", link: "/build/continuous-aggregates/about-continuous-aggregates" },
                   { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
                   { label: "Real-time aggregates", link: "/build/continuous-aggregates/real-time-aggregates" },
@@ -586,7 +586,7 @@ export default defineConfig({
                 label: "Optimize storage and query speed",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/build/columnar-storage" },
+                  { label: "Columnar storage", link: "/build/columnar-storage" },
                   { label: "Understand hypercore", link: "/build/columnar-storage/understand-hypercore" },
                   { label: "Setup hypercore", link: "/build/columnar-storage/setup-hypercore" },
                   { label: "Compression methods in hypercore", link: "/build/columnar-storage/compression-methods" },
@@ -597,7 +597,7 @@ export default defineConfig({
                 label: "Make queries and schemas faster",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/build/performance-optimization" },
+                  { label: "Performance optimization", link: "/build/performance-optimization" },
                   { label: "Understand database schemas", link: "/build/performance-optimization/understand-database-schemas" },
                   { label: "Accelerate queries using indexes", link: "/build/performance-optimization/indexing" },
                   { label: "Alter and update table schemas", link: "/build/performance-optimization/alter-update-table-schema" },
@@ -616,7 +616,7 @@ export default defineConfig({
                 label: "Troubleshooting",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/build/tips-and-tricks" },
+                  { label: "Common issues", link: "/build/tips-and-tricks" },
                   { label: "Troubleshoot continuous aggregates", link: "/build/tips-and-tricks/troubleshoot-continuous-aggregates" },
                   { label: "Troubleshoot hypertables", link: "/build/tips-and-tricks/troubleshoot-hypertables" },
                   { label: "Troubleshoot import and ingest", link: "/build/tips-and-tricks/troubleshoot-import-ingest" },
@@ -634,9 +634,9 @@ export default defineConfig({
             link: "/migrate",
             sidebar: [
               {
-                label: "Overview",
+                label: "Migrate to Tiger Data",
                 collapsed: true,
-                items: [{ label: "Overview", link: "/migrate" }],
+                items: [{ label: "Migrate to Tiger Data", link: "/migrate" }],
               },
               {
                 label: "Import & migration methods",
@@ -653,7 +653,7 @@ export default defineConfig({
                     label: "Dual-write and backfill",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/migrate/dual-write-and-backfill" },
+                      { label: "Dual-write and backfill", link: "/migrate/dual-write-and-backfill" },
                       { label: "From TimescaleDB", link: "/migrate/dual-write-and-backfill/dual-write-from-timescaledb" },
                       { label: "From PostgreSQL", link: "/migrate/dual-write-and-backfill/dual-write-from-postgres" },
                       { label: "From other databases", link: "/migrate/dual-write-and-backfill/dual-write-from-other" },
@@ -667,7 +667,7 @@ export default defineConfig({
                 label: "Migrate from a specific database",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/migrate/migrate-from" },
+                  { label: "Migration sources", link: "/migrate/migrate-from" },
                   { label: "From Postgres", link: "/migrate/migrate-from/postgres" },
                   { label: "From MongoDB", link: "/migrate/migrate-from/mongodb" },
                   { label: "From ClickHouse", link: "/migrate/migrate-from/clickhouse" },
@@ -681,9 +681,9 @@ export default defineConfig({
             link: "/integrate",
             sidebar: [
               {
-                label: "Overview",
+                label: "Integrations",
                 collapsed: true,
-                items: [{ label: "Overview", link: "/integrate" }],
+                items: [{ label: "Integrations", link: "/integrate" }],
               },
               {
                 label: "Find connection details",
@@ -806,9 +806,9 @@ export default defineConfig({
             link: "/deploy",
             sidebar: [
               {
-                label: "Overview",
+                label: "Deploy Tiger Data",
                 collapsed: true,
-                items: [{ label: "Overview", link: "/deploy" }],
+                items: [{ label: "Deploy Tiger Data", link: "/deploy" }],
               },
               {
                 label: "Tiger Cloud",
@@ -835,12 +835,12 @@ export default defineConfig({
                 label: "Self-Hosted",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/deploy/self-hosted" },
+                  { label: "Self-hosted TimescaleDB", link: "/deploy/self-hosted" },
                   {
                     label: "Configuration",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/deploy/self-hosted/configuration" },
+                      { label: "Configuration guide", link: "/deploy/self-hosted/configuration" },
                       { label: "About configuration", link: "/deploy/self-hosted/configuration/about-configuration" },
                       { label: "Using timescaledb-tune", link: "/deploy/self-hosted/configuration/timescaledb-tune" },
                       { label: "Manual PostgreSQL configuration", link: "/deploy/self-hosted/configuration/postgres-config" },
@@ -853,7 +853,7 @@ export default defineConfig({
                     label: "Backup and restore",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/deploy/self-hosted/backup-and-restore" },
+                      { label: "Backup and restore", link: "/deploy/self-hosted/backup-and-restore" },
                       { label: "Logical backup", link: "/deploy/self-hosted/backup-and-restore/logical-backup" },
                       { label: "Physical backups", link: "/deploy/self-hosted/backup-and-restore/physical" },
                     ],
@@ -862,7 +862,7 @@ export default defineConfig({
                     label: "Migrate to self-hosted TimescaleDB",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/deploy/self-hosted/migration" },
+                      { label: "Migration guide", link: "/deploy/self-hosted/migration" },
                       { label: "Migrate entire database", link: "/deploy/self-hosted/migration/entire-database" },
                       { label: "Migrate schema then data", link: "/deploy/self-hosted/migration/schema-then-data" },
                       { label: "Migrate tables from the same database", link: "/deploy/self-hosted/migration/same-db" },
@@ -874,7 +874,7 @@ export default defineConfig({
                     label: "Replication and High Availability",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/deploy/self-hosted/replication-and-ha" },
+                      { label: "Replication and HA", link: "/deploy/self-hosted/replication-and-ha" },
                       { label: "About high availability", link: "/deploy/self-hosted/replication-and-ha/about-ha" },
                       { label: "Configure replication", link: "/deploy/self-hosted/replication-and-ha/configure-replication" },
                     ],
@@ -883,7 +883,7 @@ export default defineConfig({
                     label: "Additional tooling",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/deploy/self-hosted/tooling" },
+                      { label: "Available tools", link: "/deploy/self-hosted/tooling" },
                       { label: "TimescaleDB Tune", link: "/deploy/self-hosted/tooling/about-timescaledb-tune" },
                       { label: "Install and update TimescaleDB Toolkit", link: "/deploy/self-hosted/tooling/install-toolkit" },
                     ],
@@ -892,7 +892,7 @@ export default defineConfig({
                     label: "Upgrade self-hosted TimescaleDB",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/deploy/self-hosted/upgrades" },
+                      { label: "Upgrade guide", link: "/deploy/self-hosted/upgrades" },
                       { label: "Upgrade to a minor version", link: "/deploy/self-hosted/upgrades/minor-upgrade" },
                       { label: "Upgrade to a major version", link: "/deploy/self-hosted/upgrades/major-upgrade" },
                       { label: "Upgrade TimescaleDB in Docker", link: "/deploy/self-hosted/upgrades/upgrade-docker" },
@@ -908,7 +908,7 @@ export default defineConfig({
                 label: "Managed Service (MST)",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/deploy/mst" },
+                  { label: "Managed Service for TimescaleDB", link: "/deploy/mst" },
                   { label: "About MST", link: "/deploy/mst/about-mst" },
                   { label: "Ingest data", link: "/deploy/mst/ingest-data" },
                   { label: "User management", link: "/deploy/mst/user-management" },
@@ -919,7 +919,7 @@ export default defineConfig({
                     label: "VPC peering",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/deploy/mst/vpc-peering" },
+                      { label: "VPC peering", link: "/deploy/mst/vpc-peering" },
                       { label: "Configure VPC peering", link: "/deploy/mst/vpc-peering/vpc-peering" },
                       { label: "VPC peering on AWS", link: "/deploy/mst/vpc-peering/vpc-peering-aws" },
                       { label: "VPC peering on GCP", link: "/deploy/mst/vpc-peering/vpc-peering-gcp" },
@@ -931,7 +931,7 @@ export default defineConfig({
                     label: "Integrations",
                     collapsed: true,
                     items: [
-                      { label: "Overview", link: "/deploy/mst/integrations" },
+                      { label: "MST integrations", link: "/deploy/mst/integrations" },
                       { label: "Google Data Studio", link: "/deploy/mst/integrations/google-data-studio-mst" },
                       { label: "Grafana", link: "/deploy/mst/integrations/grafana-mst" },
                       { label: "Logging", link: "/deploy/mst/integrations/logging" },
@@ -961,15 +961,15 @@ export default defineConfig({
             link: "/reference",
             sidebar: [
               {
-                label: "Overview",
+                label: "API and CLI reference",
                 collapsed: true,
-                items: [{ label: "Overview", link: "/reference" }],
+                items: [{ label: "API and CLI reference", link: "/reference" }],
               },
               {
                 label: "TimescaleDB",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/reference/timescaledb" },
+                  { label: "TimescaleDB reference", link: "/reference/timescaledb" },
                   {
                     label: "Hypertables and chunks",
                     collapsed: true,
@@ -1191,7 +1191,7 @@ export default defineConfig({
                 label: "TimescaleDB Toolkit",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/reference/toolkit" },
+                  { label: "Toolkit reference", link: "/reference/toolkit" },
                   {
                     label: "Approximate count distinct",
                     collapsed: true,
