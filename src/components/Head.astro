@@ -1,0 +1,33 @@
+---
+/**
+ * Wraps Stainless/Starlight Head and injects `<meta name="description">` / `og:description`
+ * from `seoDescription` when set. Use `seoDescription` for copy that should appear in search
+ * and social previews but not in the sidebar (the sidebar uses `description` from frontmatter).
+ *
+ * If both `description` and `seoDescription` are set, Starlight keeps using `description` for
+ * default meta/sidebar; we do not inject from `seoDescription` (description wins).
+ */
+import DefaultHead from "@stainless-api/docs/components/Head";
+
+type DocsEntryData = {
+  description?: string;
+  seoDescription?: string;
+};
+
+const data = Astro.locals.starlightRoute?.entry?.data as DocsEntryData | undefined;
+const seo = data?.seoDescription?.trim();
+const hasDescription = Boolean(data?.description?.trim());
+/** SEO-only meta when there is no `description`; otherwise Starlight + sidebar use `description`. */
+const showSeoMeta = Boolean(seo) && !hasDescription;
+---
+
+<DefaultHead />
+{
+  showSeoMeta ? (
+    <>
+      <meta name="description" content={seo} />
+      <meta property="og:description" content={seo} />
+    </>
+  ) : null
+}
+

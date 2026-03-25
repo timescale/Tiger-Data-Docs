@@ -1,0 +1,32 @@
+---
+title: "Hypertable operations"
+description: "Drop hypertables and chunks, change chunk intervals, ALTER limitations with compression, vacuum, and retention on Tiger Cloud."
+---
+
+import * as C from "@constants";
+
+## Drop and chunk management
+
+- Use [`DROP TABLE`](https://docs.timescale.com/use-timescale/latest/hypertables/drop/) to remove a hypertable. Very large drops may need memory; if they time out, [`drop_chunks()`](https://docs.timescale.com/api/latest/hypertable/drop_chunks/) first, then drop the table.
+- You can [change chunk time intervals](https://docs.timescale.com/use-timescale/latest/hypertables/change-chunk-intervals/) for new chunks; existing chunks keep their interval until reorganized.
+
+## Schema changes
+
+[`ALTER`](https://docs.timescale.com/use-timescale/latest/hypertables/alter/) on a hypertable works like a normal {C.PG} table. If **compression** is enabled, adding columns with **defaults or constraints** may require decompressing affected data first.
+
+## Vacuum and bloat
+
+Heavy `INSERT`/`UPDATE`/`DELETE` causes bloat. [Autovacuum](https://www.timescale.com/learn/how-to-reduce-bloat-in-large-postgresql-tables) runs by default; tune it for your write rate. See also this [EDB article on VACUUM and ANALYZE](https://www.enterprisedb.com/blog/postgresql-vacuum-and-analyze-best-practice-tips-0). Use [`VACUUM ANALYZE`](https://www.postgresql.org/docs/current/sql-vacuum.html) when you need to refresh statistics or clean up bloat.
+
+## Deleting data
+
+Prefer [`drop_chunks()`](https://docs.timescale.com/api/latest/hypertable/drop_chunks/) to remove whole time ranges instead of massive `DELETE` when possible. For policy-driven deletion, use [data retention](https://docs.timescale.com/api/latest/data-retention/).
+
+## Observability
+
+Use the service explorer and [informational views](https://docs.timescale.com/api/latest/informational-views/) to inspect hypertables from SQL.
+
+## Related
+
+- [Data retention policies](/learn/data-lifecycle/data-retention-policies)
+- [Hypertable indexes](/learn/hypertables/hypertable-indexes)

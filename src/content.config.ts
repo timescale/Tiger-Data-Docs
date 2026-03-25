@@ -9,6 +9,16 @@ const overviewDescriptionSchema = z.object({
 });
 
 /**
+ * SEO/social summary only: injected into `<meta name="description">` and `og:description` via
+ * `src/components/Head.astro`. Does not appear in the sidebar (unlike `description`).
+ * If both `description` and `seoDescription` are set, `description` is used for meta and sidebar;
+ * `seoDescription` is ignored for injection.
+ */
+const seoDescriptionSchema = z.object({
+  seoDescription: z.string().optional(),
+});
+
+/**
  * Page labels – tags at the top of the page to define/categorize content (Figma 3387-1829, 1817, 1833, 1845, 1850).
  * Each string is one tag; variant is inferred: "Experimental" → error, "Popular feature" | "Optional" → highlight, else neutral.
  */
@@ -39,7 +49,10 @@ export const collections = {
   docs: defineCollection({
     loader: docsLoader(),
     schema: docsSchema({
-      extend: overviewDescriptionSchema.merge(integrationSchema).merge(pageLabelsSchema),
+      extend: overviewDescriptionSchema
+        .merge(seoDescriptionSchema)
+        .merge(integrationSchema)
+        .merge(pageLabelsSchema),
     }),
   }),
 };

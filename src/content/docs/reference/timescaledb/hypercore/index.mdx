@@ -22,12 +22,12 @@ Best practice for using {C.HYPERCORE} is to:
 
 1. **Enable {C.COLUMNSTORE} on a {C.HYPERTABLE}**
 
-   For [efficient queries][secondary-indexes], remember to `segmentby` the column you will
+   For [efficient queries](/build/performance-optimization/secondary-indexes), remember to `segmentby` the column you will
    use most often to filter your data. For example:
 
    - **{C.HYPERTABLE_CAP}s**:
 
-     Use [`CREATE TABLE`][hypertable-create-table]:
+     Use [`CREATE TABLE`](/reference/timescaledb/hypertables/create_table):
 
      ```sql
      CREATE TABLE crypto_ticks (
@@ -45,14 +45,14 @@ Best practice for using {C.HYPERCORE} is to:
      <OldCreateHypertable />
    - **{C.CAGG_CAP}s**:
 
-   1. [Use `ALTER MATERIALIZED VIEW` for a {C.CAGG}][compression_continuous-aggregate]:
+   1. [Use `ALTER MATERIALIZED VIEW` for a {C.CAGG}](/reference/timescaledb/continuous-aggregates/alter_materialized_view):
       ```sql
       ALTER MATERIALIZED VIEW assets_candlestick_daily set (
          timescaledb.enable_columnstore = true,
          timescaledb.segmentby = 'symbol');
       ```
 
-   2. Create a [columnstore\_policy][add_columnstore_policy] that automatically converts {C.CHUNK}s in a {C.HYPERTABLE}
+   2. Create a [columnstore\_policy](/reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts {C.CHUNK}s in a {C.HYPERTABLE}
       to the {C.COLUMNSTORE} at a specific time interval. For example:
       ```sql
       CALL add_columnstore_policy('assets_candlestick_daily', after => INTERVAL '1d');
@@ -68,9 +68,9 @@ Best practice for using {C.HYPERCORE} is to:
    WHERE proc_name='policy_compression';
    ```
 
-   See [timescaledb\_information.jobs][informational-views].
+   See [timescaledb\_information.jobs](/reference/timescaledb/informational-views/jobs).
 
-You can also [convert\_to\_columnstore][convert_to_columnstore] and [convert\_to\_rowstore][convert_to_rowstore] manually
+You can also [convert\_to\_columnstore](/reference/timescaledb/hypercore/convert_to_columnstore) and [convert\_to\_rowstore](/reference/timescaledb/hypercore/convert_to_rowstore) manually
 for more fine-grained control over your data.
 
 ## Limitations
@@ -83,61 +83,27 @@ for more fine-grained control over your data.
 
 ### Policies
 
-- [`add_columnstore_policy()`][add_columnstore_policy]: set a policy to automatically move {C.CHUNK}s in a {C.HYPERTABLE}
+- [`add_columnstore_policy()`](/reference/timescaledb/hypercore/add_columnstore_policy): set a policy to automatically move {C.CHUNK}s in a {C.HYPERTABLE}
   to the {C.COLUMNSTORE} when they reach a given age
-- [`remove_columnstore_policy()`][remove_columnstore_policy]: remove a {C.COLUMNSTORE} policy from a {C.HYPERTABLE}
+- [`remove_columnstore_policy()`](/reference/timescaledb/hypercore/remove_columnstore_policy): remove a {C.COLUMNSTORE} policy from a {C.HYPERTABLE}
 
 ### Configuration
 
-- [`ALTER TABLE (hypercore)`][alter_table_hypercore]: enable the {C.COLUMNSTORE} for a {C.HYPERTABLE}
+- [`ALTER TABLE (hypercore)`](/reference/timescaledb/hypercore/alter_table): enable the {C.COLUMNSTORE} for a {C.HYPERTABLE}
 
 ### Manual conversion
 
-- [`convert_to_columnstore()`][convert_to_columnstore]: manually add a {C.CHUNK} to the {C.COLUMNSTORE}
-- [`convert_to_rowstore()`][convert_to_rowstore]: move a {C.CHUNK} from the {C.COLUMNSTORE} to the {C.ROWSTORE}
+- [`convert_to_columnstore()`](/reference/timescaledb/hypercore/convert_to_columnstore): manually add a {C.CHUNK} to the {C.COLUMNSTORE}
+- [`convert_to_rowstore()`](/reference/timescaledb/hypercore/convert_to_rowstore): move a {C.CHUNK} from the {C.COLUMNSTORE} to the {C.ROWSTORE}
 
 ### Statistics and information
 
-- [`chunk_columnstore_stats()`][chunk_columnstore_stats]: get statistics about {C.CHUNK}s in the {C.COLUMNSTORE}
-- [`hypertable_columnstore_stats()`][hypertable_columnstore_stats]: get {C.COLUMNSTORE} statistics related to the
+- [`chunk_columnstore_stats()`](/reference/timescaledb/hypercore/chunk_columnstore_stats): get statistics about {C.CHUNK}s in the {C.COLUMNSTORE}
+- [`hypertable_columnstore_stats()`](/reference/timescaledb/hypercore/hypertable_columnstore_stats): get {C.COLUMNSTORE} statistics related to the
 
 {C.COLUMNSTORE}
 
-- [`timescaledb_information.chunk_columnstore_settings`][chunk_columnstore_settings]: get information about settings on
+- [`timescaledb_information.chunk_columnstore_settings`](/reference/timescaledb/hypercore/chunk_columnstore_settings): get information about settings on
   each {C.CHUNK} in the {C.COLUMNSTORE}
-- [`timescaledb_information.hypertable_columnstore_settings`][hypertable_columnstore_settings]: get information about
+- [`timescaledb_information.hypertable_columnstore_settings`](/reference/timescaledb/hypercore/hypertable_columnstore_settings): get information about
   {C.COLUMNSTORE} settings for all {C.HYPERTABLE}s
-
-[add_columnstore_policy]: /reference/timescaledb/hypercore/add_columnstore_policy
-
-[alter_job]: /reference/timescaledb/jobs-automation/alter_job
-
-[alter_table_hypercore]: /reference/timescaledb/hypercore/alter_table
-
-[chunk_columnstore_settings]: /reference/timescaledb/hypercore/chunk_columnstore_settings
-
-[chunk_columnstore_stats]: /reference/timescaledb/hypercore/chunk_columnstore_stats
-
-[compression_continuous-aggregate]: /reference/timescaledb/continuous-aggregates/alter_materialized_view
-
-[convert_to_columnstore]: /reference/timescaledb/hypercore/convert_to_columnstore
-
-[convert_to_rowstore]: /reference/timescaledb/hypercore/convert_to_rowstore
-
-[hypercore]: /manage-data/capabilities/hypercore/hypercore
-
-[hypertable-create-table]: /reference/timescaledb/hypertables/create_table
-
-[hypertable_columnstore_settings]: /reference/timescaledb/hypercore/hypertable_columnstore_settings
-
-[hypertable_columnstore_stats]: /reference/timescaledb/hypercore/hypertable_columnstore_stats
-
-[hypertables-section]: /manage-data/capabilities/hypertables
-
-[informational-views]: /reference/timescaledb/informational-views/jobs
-
-[remove_columnstore_policy]: /reference/timescaledb/hypercore/remove_columnstore_policy
-
-[secondary-indexes]: /manage-data/capabilities/hypercore/secondary-indexes
-
-[tsdb-2.18.0]: https://github.com/timescale/timescaledb/releases/tag/2.18.0

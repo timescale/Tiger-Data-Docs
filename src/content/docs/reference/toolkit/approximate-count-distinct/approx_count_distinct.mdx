@@ -1,0 +1,65 @@
+---
+title: approx_count_distinct()
+description: Aggregate data into a hyperloglog for approximate counting without specifying the number of buckets
+topics: [hyperfunctions]
+license: community
+type: function
+toolkit: true
+hyperfunction:
+  family: approximate count distinct
+  type: alternate aggregate
+  aggregates:
+    - hyperloglog()
+products: [cloud, mst, self_hosted]
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.16.0" product="toolkit" />
+
+This is an alternate first step for approximating the number of distinct
+values. It provides some added convenience by using some sensible default
+parameters to create a `hyperloglog`.
+
+Use `approx_count_distinct` to create an intermediate aggregate from your raw data.
+This intermediate form can then be used by one or more accessors in this
+group to compute final results.
+
+Optionally, multiple such intermediate aggregate objects can be combined
+using [`rollup()`](/reference/toolkit/approximate-count-distinct/rollup) before an accessor is applied.
+
+## Samples
+
+Given a table called `samples`, with a column called `weights`, return
+a `hyperloglog` over the `weights` column:
+
+```sql
+SELECT approx_count_distinct(weights) FROM samples;
+```
+
+Using the same data, build a view from the aggregate that you can pass
+to other `hyperloglog` functions.
+
+```sql
+CREATE VIEW hll AS SELECT approx_count_distinct(data) FROM samples;
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+approx_count_distinct(
+    value AnyElement
+) RETURNS Hyperloglog
+```
+
+| Name | Type | Default | Required | Description |
+|--|--|--|--|--|
+| `value` | AnyElement | - | ✔ | The column containing the elements to count. The type must have an extended, 64-bit, hash function. |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| hyperloglog | Hyperloglog | A `hyperloglog` object which can be passed to other hyperloglog APIs for rollups and final calculation |

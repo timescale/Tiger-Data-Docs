@@ -84,7 +84,7 @@ This project uses the `@stainless-api/docs` integration which provides:
 - MDX components (`Callout`, `Tabs`, `TabItem`, `Cards`, etc.)
 - Theme customization via `theme.css`
 
-**→ [Component usage guide (readme-component.md)](./readme-component.md)** — How to use callouts (Tip, Note, Important, Warning, Callout with button) and other custom components. Instructions are in collapsible sections so you can expand only what you need.
+**→ [Component usage guide (readme-component.md)](./readme-component.md)**: How to use callouts (Tip, Note, Important, Warning, Callout with button) and other custom components. Instructions are in collapsible sections so you can expand only what you need.
 
 ## Environment
 
