@@ -278,7 +278,7 @@ export default defineConfig({
             ],
           },
           // Learn tab: conceptual and overview content lives under /learn/. Hands-on how-tos link to /build/.
-          // Learn sidebar: groups follow dependency order; within each group, items go surface → in-depth (overview/concept → setup → tuning → advanced/platform guides). Chunks is nested under Hypertables (after partitioning: understanding chunks → sizing → time buckets → drop).
+          // Learn sidebar: groups follow dependency order. Retention + tiering live in one "Data lifecycle" group (no duplicate top-level sections). Chunks is nested under Hypertables (after partitioning: understanding chunks → sizing → time buckets → drop).
           {
             label: "Learn",
             link: "/learn",
@@ -370,26 +370,21 @@ export default defineConfig({
                 label: "Backfills",
                 collapsed: true,
                 items: [
-                  { label: "Refresh policies and backfill behavior", link: "/build/continuous-aggregates/refresh-policies" },
-                  { label: "Real-time aggregates and historical refresh", link: "/build/continuous-aggregates/real-time-aggregates" },
-                  { label: "TimescaleDB backfill migration tool", link: "/migrate/dual-write-and-backfill/timescaledb-backfill" },
+                  {
+                    label: "TimescaleDB backfill migration tool",
+                    link: "/migrate/dual-write-and-backfill/timescaledb-backfill",
+                  },
                 ],
               },
               {
-                label: "Data retention",
+                label: "Data lifecycle",
                 collapsed: true,
                 items: [
                   { label: "Data retention overview", link: "/learn/data-management/data-retention" },
                   { label: "About data retention", link: "/learn/data-management/data-retention/about-data-retention" },
                   { label: "Data retention on Tiger Cloud", link: "/learn/data-lifecycle/data-retention-policies" },
-                  { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
                   { label: "Data retention with continuous aggregates", link: "/learn/data-management/data-retention/data-retention-with-continuous-aggregates" },
-                ],
-              },
-              {
-                label: "Data tiering",
-                collapsed: true,
-                items: [
+                  { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
                   { label: "Tiered storage overview", link: "/learn/data-management/storage" },
                   { label: "About storage tiers", link: "/learn/data-management/storage/about-storage-tiers" },
                   { label: "Tiered storage on Tiger Cloud", link: "/learn/data-lifecycle/tiered-storage" },
