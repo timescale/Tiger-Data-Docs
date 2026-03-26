@@ -1043,6 +1043,7 @@ export default defineConfig({
                 collapsed: true,
                 items: [
                   { label: "Managed Service for TimescaleDB", link: "/deploy/mst" },
+                  { label: "Create an MST service", link: "/deploy/mst/create-mst-service" },
                   { label: "About MST", link: "/deploy/mst/about-mst" },
                   { label: "Ingest data", link: "/deploy/mst/ingest-data" },
                   { label: "User management", link: "/deploy/mst/user-management" },
@@ -1723,7 +1724,7 @@ export default defineConfig({
       "/get-started/create-service": "/get-started/quickstart/create-service",
       "/get-started/connect-your-app": "/get-started/quickstart/connect-your-app",
       "/get-started/next-steps": "/get-started/quickstart/next-steps",
-      "/get-started/create-mst-service": "/get-started/choose-your-path/create-mst-service",
+      "/get-started/create-mst-service": "/deploy/mst/create-mst-service",
       "/get-started/install-timescaledb": "/get-started/choose-your-path/install-timescaledb",
       "/get-started/supported-platforms": "/get-started/choose-your-path/supported-platforms",
       "/get-started/timescaledb-editions": "/get-started/choose-your-path/timescaledb-editions",
