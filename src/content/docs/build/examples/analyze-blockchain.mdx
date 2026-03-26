@@ -1,0 +1,758 @@
+---
+title: Analyze Bitcoin blockchain
+description: Query and analyze blockchain transactions to discover insights about fees, mining revenue, and market trends
+products: [cloud, self_hosted]
+keywords: [beginner, intermediate, crypto, blockchain, Bitcoin, finance, analytics, hyperfunctions, continuous aggregates, time-series analysis]
+---
+
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import CreateHypertableBlockchain from "../../../../partials/_create-hypertable-blockchain.mdx";
+import AddDataBlockchain from "../../../../partials/_add-data-blockchain.mdx";
+import FinancialIndustry from "../../../../partials/_financial-industry-data-analysis.mdx";
+import GrafanaConnect from "../../../../partials/_grafana-connect.mdx";
+import IntegrationPrereqs from "../../../../partials/_prereqs-cloud-and-self.mdx";
+import { Prerequisites } from "@components/Prerequisites";
+
+<FinancialIndustry />
+
+In this tutorial, you use {C.CLOUD_LONG} to ingest, store, and analyze transactions
+on the Bitcoin blockchain.
+
+[Blockchains](https://www.pcmag.com/encyclopedia/term/blockchain) are, at their essence, a distributed database. The
+[transactions](https://www.pcmag.com/encyclopedia/term/bitcoin-transaction) in a blockchain are an example of time-series data. You can use
+{C.TIMESCALE_DB} to query transactions on a blockchain, in exactly the same way as you
+might query time-series transactions in any other database.
+
+This tutorial uses a sample Bitcoin dataset and covers:
+
+1.  **Ingest data**: set up and connect to a {C.SERVICE_LONG}, create tables and {C.HYPERTABLE}s, and ingest data.
+1.  **Query the data**: obtain information about recent transactions and blocks using basic SQL queries.
+1.  **Analyze the data**: create {C.CAGG}s and use {C.TIMESCALE_DB} hyperfunctions to discover insights about transaction fees, mining revenue, and market correlations.
+1.  **Visualize results**: graph your analytical queries in Grafana dashboards.
+
+<Prerequisites intro={false}>
+<IntegrationPrereqs />
+
+* Install and run [self-managed Grafana](https://grafana.com/get/?tab=self-managed), or sign up for [Grafana Cloud](https://grafana.com/get/).
+</Prerequisites>
+
+This tutorial uses a dataset that contains Bitcoin blockchain data for
+the past five days, in a {C.HYPERTABLE} named `transactions`.
+
+<CreateHypertableBlockchain />
+
+<AddDataBlockchain />
+
+<GrafanaConnect />
+
+## Query the data
+
+When you have your dataset loaded, you can start constructing some queries to
+discover what your data tells you. In this section, you learn how to write
+queries that answer these questions:
+
+*   [What are the five most recent coinbase transactions?](#what-are-the-five-most-recent-coinbase-transactions)
+*   [What are the five most recent transactions?](#what-are-the-five-most-recent-transactions)
+*   [What are the five most recent blocks?](#what-are-the-five-most-recent-blocks)
+
+### What are the five most recent coinbase transactions?
+
+[Coinbase](https://www.pcmag.com/encyclopedia/term/coinbase-transaction) transactions are the first transaction in a block, and
+they include the reward a coin miner receives for mining the coin. To find the
+most recent coinbase transactions, you can query for transactions where
+`is_coinbase` is TRUE. You'll notice that the `fee_usd` is $0 for each coinbase
+transaction because the miner receives the block reward directly without paying
+a transaction fee.
+
+<NumberedList>
+<NumberedItem title={`Connect to the ${C.SERVICE_LONG} that contains the Bitcoin dataset`}>
+</NumberedItem>
+<NumberedItem title="Select the five most recent coinbase transactions">
+
+At the psql prompt, use this query:
+
+```sql
+SELECT time, hash, block_id, fee_usd  FROM transactions
+WHERE is_coinbase IS TRUE
+ORDER BY time DESC
+LIMIT 5;
+```
+
+</NumberedItem>
+<NumberedItem title="Check the results">
+
+The data you get back looks a bit like this:
+
+```sql
+             time          |                               hash                               | block_id | fee_usd
+------------------------+------------------------------------------------------------------+----------+---------
+ 2023-06-12 23:54:18+00 | 22e4610bc12d482bc49b7a1c5b27ad18df1a6f34256c16ee7e499b511e02d71e |   794111 |       0
+ 2023-06-12 23:53:08+00 | dde958bb96a302fd956ced32d7b98dd9860ff82d569163968ecfe29de457fedb |   794110 |       0
+ 2023-06-12 23:44:50+00 | 75ac1fa7febe1233ee57ca11180124c5ceb61b230cdbcbcba99aecc6a3e2a868 |   794109 |       0
+ 2023-06-12 23:44:14+00 | 1e941d66b92bf0384514ecb83231854246a94c86ff26270fbdd9bc396dbcdb7b |   794108 |       0
+ 2023-06-12 23:41:08+00 | 60ae50447254d5f4561e1c297ee8171bb999b6310d519a0d228786b36c9ffacf |   794107 |       0
+(5 rows)
+```
+
+</NumberedItem>
+</NumberedList>
+
+### What are the five most recent transactions?
+
+This dataset contains Bitcoin transactions for the last five days. To find out
+the most recent transactions in the dataset, you can use a `SELECT` statement.
+In this case, you want to find transactions that are not coinbase transactions,
+sort them by time in descending order, and take the top five results. You also
+want to see the block ID, and the value of the transaction in US Dollars.
+
+<NumberedList>
+<NumberedItem title={`Connect to the ${C.SERVICE_LONG} that contains the Bitcoin dataset`}>
+</NumberedItem>
+<NumberedItem title="Select the five most recent non-coinbase transactions">
+
+At the psql prompt, use this query:
+
+```sql
+SELECT time, hash, block_id, fee_usd  FROM transactions
+WHERE is_coinbase IS NOT TRUE
+ORDER BY time DESC
+LIMIT 5;
+```
+
+</NumberedItem>
+<NumberedItem title="Check the results">
+
+The data you get back looks a bit like this:
+
+```sql
+          time          |                               hash                               | block_id | fee_usd
+------------------------+------------------------------------------------------------------+----------+---------
+ 2023-06-12 23:54:18+00 | 6f709d52e9aa7b2569a7f8c40e7686026ede6190d0532220a73fdac09deff973 |   794111 |   7.614
+ 2023-06-12 23:54:18+00 | ece5429f4a76b1603aecbee31bf3d05f74142a260e4023316250849fe49115ae |   794111 |   9.306
+ 2023-06-12 23:54:18+00 | 54a196398880a7e2e38312d4285fa66b9c7129f7d14dc68c715d783322544942 |   794111 | 13.1928
+ 2023-06-12 23:54:18+00 | 3e83e68735af556d9385427183e8160516fafe2f30f30405711c4d64bf0778a6 |   794111 |  3.5416
+ 2023-06-12 23:54:18+00 | ca20d073b1082d7700b3706fe2c20bc488d2fc4a9bb006eb4449efe3c3fc6b2b |   794111 |  8.6842
+(5 rows)
+```
+
+</NumberedItem>
+</NumberedList>
+
+### What are the five most recent blocks?
+
+In this procedure, you use a more complicated query to return the five most
+recent blocks, and show some additional information about each, including the
+block weight, number of transactions in each block, and the total block value in
+US Dollars.
+
+<NumberedList>
+<NumberedItem title={`Connect to the ${C.SERVICE_LONG} that contains the Bitcoin dataset`}>
+</NumberedItem>
+<NumberedItem title="Select the five most recent blocks">
+
+At the psql prompt, use this query:
+
+```sql
+WITH recent_blocks AS (
+ SELECT block_id FROM transactions
+ WHERE is_coinbase IS TRUE
+ ORDER BY time DESC
+ LIMIT 5
+)
+SELECT
+ t.block_id, count(*) AS transaction_count,
+ SUM(weight) AS block_weight,
+ SUM(output_total_usd) AS block_value_usd
+FROM transactions t
+INNER JOIN recent_blocks b ON b.block_id = t.block_id
+WHERE is_coinbase IS NOT TRUE
+GROUP BY t.block_id;
+```
+
+</NumberedItem>
+<NumberedItem title="Check the results">
+
+The data you get back looks a bit like this:
+
+```sql
+ block_id | transaction_count | block_weight |  block_value_usd
+----------+-------------------+--------------+--------------------
+   794108 |              5625 |      3991408 |  65222453.36381342
+   794111 |              5039 |      3991748 |  5966031.481099684
+   794109 |              6325 |      3991923 |  5406755.801599815
+   794110 |              2525 |      3995553 |  177249139.6457974
+   794107 |              4464 |      3991838 | 107348519.36559173
+(5 rows)
+```
+
+</NumberedItem>
+</NumberedList>
+
+## Analyze the data
+
+In this section, you use [{C.TIMESCALE_DB} hyperfunctions](/reference/hyperfunctions) to construct
+analytical queries that are not possible in standard {C.PG}. You create {C.CAGG}s
+to simplify and speed up your queries, then use them to answer these questions:
+
+*   Is there any connection between the number of transactions and the transaction fees?
+*   Does the transaction volume affect the BTC-USD rate?
+*   Do more transactions in a block mean the block is more expensive to mine?
+*   What percentage of the average miner's revenue comes from fees compared to block rewards?
+*   How does block weight affect miner fees?
+*   What's the average miner revenue per block?
+
+### Create {C.CAGG}s
+
+You can use [{C.CAGG}s](/learn/continuous-aggregates/about-continuous-aggregates) to simplify and speed up your
+queries. For this analysis, you need three {C.CAGG}s focusing on
+three aspects of the dataset: Bitcoin transactions, blocks, and coinbase
+transactions. In each {C.CAGG} definition, the `time_bucket()`
+function controls how large the time buckets are. The examples all use 1-hour
+time buckets.
+
+<NumberedList>
+<NumberedItem title={`Connect to the ${C.SERVICE_LONG} that contains the Bitcoin dataset`}>
+</NumberedItem>
+<NumberedItem title={`Create a ${C.CAGG} called one_hour_transactions`}>
+
+This view holds aggregated data about each hour of transactions:
+
+```sql
+CREATE MATERIALIZED VIEW one_hour_transactions
+WITH (timescaledb.continuous) AS
+SELECT time_bucket('1 hour', time) AS bucket,
+   count(*) AS tx_count,
+   sum(fee) AS total_fee_sat,
+   sum(fee_usd) AS total_fee_usd,
+   stats_agg(fee) AS stats_fee_sat,
+   avg(size) AS avg_tx_size,
+   avg(weight) AS avg_tx_weight,
+   count(
+         CASE
+            WHEN (fee > output_total) THEN hash
+            ELSE NULL
+         END) AS high_fee_count
+  FROM transactions
+  WHERE (is_coinbase IS NOT TRUE)
+GROUP BY bucket;
+```
+
+</NumberedItem>
+<NumberedItem title={`Add a refresh policy to keep the ${C.CAGG} up-to-date`}>
+
+```sql
+SELECT add_continuous_aggregate_policy('one_hour_transactions',
+   start_offset => INTERVAL '3 hours',
+   end_offset => INTERVAL '1 hour',
+   schedule_interval => INTERVAL '1 hour');
+```
+
+</NumberedItem>
+<NumberedItem title={`Create a ${C.CAGG} called one_hour_blocks`}>
+
+This view holds aggregated data about all the blocks that were mined each hour:
+
+```sql
+CREATE MATERIALIZED VIEW one_hour_blocks
+WITH (timescaledb.continuous) AS
+SELECT time_bucket('1 hour', time) AS bucket,
+   block_id,
+   count(*) AS tx_count,
+   sum(fee) AS block_fee_sat,
+   sum(fee_usd) AS block_fee_usd,
+   stats_agg(fee) AS stats_tx_fee_sat,
+   avg(size) AS avg_tx_size,
+   avg(weight) AS avg_tx_weight,
+   sum(size) AS block_size,
+   sum(weight) AS block_weight,
+   max(size) AS max_tx_size,
+   max(weight) AS max_tx_weight,
+   min(size) AS min_tx_size,
+   min(weight) AS min_tx_weight
+FROM transactions
+WHERE is_coinbase IS NOT TRUE
+GROUP BY bucket, block_id;
+```
+
+</NumberedItem>
+<NumberedItem title={`Add a refresh policy to keep the ${C.CAGG} up to date`}>
+
+```sql
+SELECT add_continuous_aggregate_policy('one_hour_blocks',
+   start_offset => INTERVAL '3 hours',
+   end_offset => INTERVAL '1 hour',
+   schedule_interval => INTERVAL '1 hour');
+```
+
+</NumberedItem>
+<NumberedItem title={`Create a ${C.CAGG} called one_hour_coinbase`}>
+
+This view holds aggregated data about all the transactions that miners received as rewards
+each hour:
+
+```sql
+CREATE MATERIALIZED VIEW one_hour_coinbase
+WITH (timescaledb.continuous) AS
+SELECT time_bucket('1 hour', time) AS bucket,
+   count(*) AS tx_count,
+   stats_agg(output_total, output_total_usd) AS stats_miner_revenue,
+   min(output_total) AS min_miner_revenue,
+   max(output_total) AS max_miner_revenue
+FROM transactions
+WHERE is_coinbase IS TRUE
+GROUP BY bucket;
+```
+
+</NumberedItem>
+<NumberedItem title={`Add a refresh policy to keep the ${C.CAGG} up to date`}>
+
+```sql
+SELECT add_continuous_aggregate_policy('one_hour_coinbase',
+   start_offset => INTERVAL '3 hours',
+   end_offset => INTERVAL '1 hour',
+   schedule_interval => INTERVAL '1 hour');
+```
+
+</NumberedItem>
+</NumberedList>
+
+### Is there any connection between the number of transactions and the transaction fees?
+
+Transaction fees are a major concern for blockchain users. If a blockchain is
+too expensive, you might not want to use it. This query shows you whether
+there's any correlation between the number of Bitcoin transactions and the fees.
+The time range for this analysis is the last 2 days.
+
+If you choose to visualize the query in Grafana, you can see the average
+transaction volume and the average fee per transaction, over time. These trends
+might help you decide whether to submit a transaction now or wait a few days for
+fees to decrease.
+
+<NumberedList>
+<NumberedItem title={`Connect to the ${C.SERVICE_LONG} that contains the Bitcoin dataset`}>
+</NumberedItem>
+<NumberedItem title={`Query average transaction volume and fees from the one_hour_transactions ${C.CAGG}`}>
+
+At the psql prompt, use this query:
+
+```sql
+SELECT
+ bucket AS "time",
+ tx_count as "tx volume",
+ average(stats_fee_sat) as fees
+FROM one_hour_transactions
+WHERE bucket > date_add('2023-11-22 00:00:00+00', INTERVAL '-2 days')
+ORDER BY 1;
+```
+
+The data you get back looks a bit like this:
+
+```sql
+        time          | tx volume |        fees
+------------------------+-----------+--------------------
+2023-11-20 01:00:00+00 |      2602 | 105963.45810914681
+2023-11-20 02:00:00+00 |     33037 | 26686.814117504615
+2023-11-20 03:00:00+00 |     42077 | 22875.286546094067
+2023-11-20 04:00:00+00 |     46021 | 20280.843180287262
+2023-11-20 05:00:00+00 |     20828 | 24694.472969080085
+...
+```
+
+</NumberedItem>
+<NumberedItem title="Visualize this in Grafana">
+
+<ol type="a">
+<li>From the `Dashboards` page, click `New` and select `New dashboard`.</li>
+<li>Click `Add visualization`, then select the data source that connects to your {C.SERVICE_LONG}.</li>
+<li>In the `Queries` section, change the `Format` to `Time series` and select `Code`.</li>
+<li>
+
+Type the query from the previous step and click `Run query`.
+
+![Visualizing number of transactions and fees](https://assets.timescale.com/docs/images/grafana-transactions-fees.webp)
+
+</li>
+</ol>
+
+</NumberedItem>
+</NumberedList>
+
+### Does the transaction volume affect the BTC-USD rate?
+
+In cryptocurrency trading, there's a lot of speculation. You can adopt a
+data-based trading strategy by looking at correlations between blockchain
+metrics, such as transaction volume and the current exchange rate between
+Bitcoin and US Dollars.
+
+If you choose to visualize the query in Grafana, you can see the average
+transaction volume, along with the BTC to US Dollar conversion rate.
+
+<NumberedList>
+<NumberedItem title={`Connect to the ${C.SERVICE_LONG} that contains the Bitcoin dataset`}>
+</NumberedItem>
+<NumberedItem title="Query the trading volume and the BTC to US Dollar exchange rate">
+
+At the psql prompt, use this query:
+
+```sql
+SELECT
+ bucket AS "time",
+ tx_count as "tx volume",
+ total_fee_usd / (total_fee_sat*0.00000001) AS "btc-usd rate"
+FROM one_hour_transactions
+WHERE bucket > date_add('2023-11-22 00:00:00+00', INTERVAL '-2 days')
+ORDER BY 1;
+```
+
+The data you get back looks a bit like this:
+
+```sql
+          time          | tx volume |    btc-usd rate
+------------------------+-----------+--------------------
+ 2023-06-13 08:00:00+00 |     20063 | 25975.888587931426
+ 2023-06-13 09:00:00+00 |     16984 |  25976.00446352126
+ 2023-06-13 10:00:00+00 |     15856 | 25975.988587014584
+ 2023-06-13 11:00:00+00 |     24967 |  25975.89166787936
+ 2023-06-13 12:00:00+00 |      8575 | 25976.004209699528
+ ...
+```
+
+</NumberedItem>
+<NumberedItem title="Visualize this in Grafana">
+
+<ol type="a">
+<li>From the `Dashboards` page, click `New` and select `New dashboard`.</li>
+<li>Click `Add visualization`, then select the data source that connects to your {C.SERVICE_LONG}.</li>
+<li>In the `Queries` section, change the `Format` to `Time series` and select `Code`.</li>
+<li>Type the query from the previous step and click `Run query`.</li>
+<li>Under the panel options on the right, click `Add field override` > `Fields with name`, then choose `btc-usd rate` in the dropdown.</li>
+<li>
+
+Click `Add override property`, then select `Axis > Placement` and click `Right`.
+
+![Visualizing transaction volume and BTC-USD conversion rate](https://assets.timescale.com/docs/images/grafana-volume-rate.webp)
+
+</li>
+</ol>
+
+</NumberedItem>
+</NumberedList>
+
+### Do more transactions in a block mean the block is more expensive to mine?
+
+The number of transactions in a block can influence the overall block mining
+fee. For this analysis, a larger time frame is required, so increase the
+analyzed time range to 5 days.
+
+If you choose to visualize the query in Grafana, you can see that the more
+transactions in a block, the higher the mining fee becomes.
+
+<NumberedList>
+<NumberedItem title={`Connect to the ${C.SERVICE_LONG} that contains the Bitcoin dataset`}>
+</NumberedItem>
+<NumberedItem title="Query the number of transactions in a block, compared to the mining fee">
+
+At the psql prompt, use this query:
+
+```sql
+SELECT
+ bucket as "time",
+ avg(tx_count) AS transactions,
+ avg(block_fee_sat)*0.00000001 AS "mining fee"
+FROM one_hour_blocks
+WHERE bucket > date_add('2023-11-22 00:00:00+00', INTERVAL '-5 days')
+GROUP BY bucket
+ORDER BY 1;
+```
+
+The data you get back looks a bit like this:
+
+```sql
+          time          |     transactions      |       mining fee
+------------------------+-----------------------+------------------------
+ 2023-06-10 08:00:00+00 | 2322.2500000000000000 | 0.29221418750000000000
+ 2023-06-10 09:00:00+00 | 3305.0000000000000000 | 0.50512649666666666667
+ 2023-06-10 10:00:00+00 | 3011.7500000000000000 | 0.44783255750000000000
+ 2023-06-10 11:00:00+00 | 2874.7500000000000000 | 0.39303009500000000000
+ 2023-06-10 12:00:00+00 | 2339.5714285714285714 | 0.25590717142857142857
+```
+
+</NumberedItem>
+<NumberedItem title="Visualize this in Grafana">
+
+<ol type="a">
+<li>From the `Dashboards` page, click `New` and select `New dashboard`.</li>
+<li>Click `Add visualization`, then select the data source that connects to your {C.SERVICE_LONG}.</li>
+<li>In the `Queries` section, change the `Format` to `Time series` and select `Code`.</li>
+<li>Type the query from the previous step and click `Run query`.</li>
+<li>Under the panel options on the right, click `Add field override` > `Fields with name`, then choose `mining fee` in the dropdown.</li>
+<li>
+
+Click `Add override property`, then select `Axis > Placement` and click `Right`.
+
+![Visualizing transactions in a block and the mining fee](https://assets.timescale.com/docs/images/grafana-transactions-miningfee.webp)
+
+</li>
+</ol>
+
+</NumberedItem>
+</NumberedList>
+
+You can extend this analysis to find if there is the same correlation between
+block weight and mining fee. More transactions should increase the block weight,
+and boost the miner fee as well.
+
+If you choose to visualize the query in Grafana, you can see the same kind of
+high correlation between block weight and mining fee. The relationship weakens
+when the block weight gets close to its maximum value, which is 4 million weight
+units, in which case it's impossible for a block to include more transactions.
+
+<NumberedList>
+<NumberedItem title={`Connect to the ${C.SERVICE_LONG} that contains the Bitcoin dataset`}>
+</NumberedItem>
+<NumberedItem title="Query block weight compared to the mining fee">
+
+At the psql prompt, use this query:
+
+```sql
+SELECT
+ bucket as "time",
+ avg(block_weight) as "block weight",
+ avg(block_fee_sat*0.00000001) as "mining fee"
+FROM one_hour_blocks
+WHERE bucket > date_add('2023-11-22 00:00:00+00', INTERVAL '-5 days')
+group by bucket
+ORDER BY 1;
+```
+
+The data you get back looks a bit like this:
+
+```sql
+          time          |     block weight     |       mining fee
+------------------------+----------------------+------------------------
+ 2023-06-10 08:00:00+00 | 3992809.250000000000 | 0.29221418750000000000
+ 2023-06-10 09:00:00+00 | 3991766.333333333333 | 0.50512649666666666667
+ 2023-06-10 10:00:00+00 | 3992918.250000000000 | 0.44783255750000000000
+ 2023-06-10 11:00:00+00 | 3991873.000000000000 | 0.39303009500000000000
+ 2023-06-10 12:00:00+00 | 3992934.000000000000 | 0.25590717142857142857
+...
+```
+
+</NumberedItem>
+<NumberedItem title="Visualize this in Grafana">
+
+<ol type="a">
+<li>From the `Dashboards` page, click `New` and select `New dashboard`.</li>
+<li>Click `Add visualization`, then select the data source that connects to your {C.SERVICE_LONG}.</li>
+<li>In the `Queries` section, change the `Format` to `Time series` and select `Code`.</li>
+<li>Type the query from the previous step and click `Run query`.</li>
+<li>Under the panel options on the right, click `Add field override` > `Fields with name`, then choose `mining fee` in the dropdown.</li>
+<li>
+
+Click `Add override property`, then select `Axis > Placement` and click `Right`.
+
+![Visualizing blockweight and the mining fee](https://assets.timescale.com/docs/images/grafana-blockweight-miningfee.webp)
+
+</li>
+</ol>
+
+</NumberedItem>
+</NumberedList>
+
+### What percentage of the average miner's revenue comes from fees compared to block rewards?
+
+In the previous queries, you saw that mining fees are higher when block weights
+and transaction volumes are higher. This query analyzes the data from a
+different perspective. Miner revenue is not only made up of miner fees, it also
+includes block rewards for mining a new block. This reward is currently 6.25
+BTC, and it gets halved every four years. This query looks at how much of a
+miner's revenue comes from fees, compares to block rewards.
+
+If you choose to visualize the query in Grafana, you can see that most miner
+revenue actually comes from block rewards. Fees never account for more than a
+few percentage points of overall revenue.
+
+<NumberedList>
+<NumberedItem title={`Connect to the ${C.SERVICE_LONG} that contains the Bitcoin dataset`}>
+</NumberedItem>
+<NumberedItem title="Query coinbase transactions with block fees and rewards">
+
+At the psql prompt, use this query:
+
+```sql
+WITH coinbase AS (
+   SELECT block_id, output_total AS coinbase_tx FROM transactions
+   WHERE is_coinbase IS TRUE and time > date_add('2023-11-22 00:00:00+00', INTERVAL '-5 days')
+)
+SELECT
+   bucket as "time",
+   avg(block_fee_sat)*0.00000001 AS "fees",
+   FIRST((c.coinbase_tx - block_fee_sat), bucket)*0.00000001 AS "reward"
+FROM one_hour_blocks b
+INNER JOIN coinbase c ON c.block_id = b.block_id
+GROUP BY bucket
+ORDER BY 1;
+```
+
+The data you get back looks a bit like this:
+
+```sql
+          time          |          fees          |   reward
+------------------------+------------------------+------------
+ 2023-06-10 08:00:00+00 | 0.28247062857142857143 | 6.25000000
+ 2023-06-10 09:00:00+00 | 0.50512649666666666667 | 6.25000000
+ 2023-06-10 10:00:00+00 | 0.44783255750000000000 | 6.25000000
+ 2023-06-10 11:00:00+00 | 0.39303009500000000000 | 6.25000000
+ 2023-06-10 12:00:00+00 | 0.25590717142857142857 | 6.25000000
+...
+```
+
+</NumberedItem>
+<NumberedItem title="Visualize this in Grafana">
+
+<ol type="a">
+<li>From the `Dashboards` page, click `New` and select `New dashboard`.</li>
+<li>Click `Add visualization`, then select the data source that connects to your {C.SERVICE_LONG}.</li>
+<li>In the `Queries` section, change the `Format` to `Time series` and select `Code`.</li>
+<li>Type the query from the previous step and click `Run query`.</li>
+<li>
+
+In the options panel, in the `Graph styles` section, for `Stack series` select `100%`.
+
+![Visualizing coinbase revenue sources](https://assets.timescale.com/docs/images/grafana-coinbase-revenue.webp)
+
+</li>
+</ol>
+
+</NumberedItem>
+</NumberedList>
+
+### How does block weight affect miner fees?
+
+You've already found that more transactions in a block mean it's more expensive
+to mine. In this query, you ask if the same is true for block weights? The more
+transactions a block has, the larger its weight, so the block weight and mining
+fee should be tightly correlated. This query uses a 12-hour moving average to
+calculate the block weight and block mining fee over time.
+
+If you choose to visualize the query in Grafana, you can see that the block
+weight and block mining fee are tightly connected. In practice, you can also see
+the four million weight units size limit. This means that there's still room to
+grow for individual blocks, and they could include even more transactions.
+
+<NumberedList>
+<NumberedItem title={`Connect to the ${C.SERVICE_LONG} that contains the Bitcoin dataset`}>
+</NumberedItem>
+<NumberedItem title="Query block weight with block fees and rewards">
+
+At the psql prompt, use this query:
+
+```sql
+WITH stats AS (
+   SELECT
+       bucket,
+       stats_agg(block_weight, block_fee_sat) AS block_stats
+   FROM one_hour_blocks
+   WHERE bucket > date_add('2023-11-22 00:00:00+00', INTERVAL '-5 days')
+   GROUP BY bucket
+)
+SELECT
+   bucket as "time",
+   average_y(rolling(block_stats) OVER (ORDER BY bucket RANGE '12 hours' PRECEDING)) AS "block weight",
+   average_x(rolling(block_stats) OVER (ORDER BY bucket RANGE '12 hours' PRECEDING))*0.00000001 AS "mining fee"
+FROM stats
+ORDER BY 1;
+```
+
+The data you get back looks a bit like this:
+
+```sql
+          time          |    block weight    |     mining fee
+------------------------+--------------------+---------------------
+ 2023-06-10 09:00:00+00 | 3991766.3333333335 |  0.5051264966666666
+ 2023-06-10 10:00:00+00 | 3992424.5714285714 | 0.47238710285714286
+ 2023-06-10 11:00:00+00 |            3992224 | 0.44353000909090906
+ 2023-06-10 12:00:00+00 |  3992500.111111111 | 0.37056557222222225
+ 2023-06-10 13:00:00+00 |         3992446.65 | 0.39728022799999996
+...
+```
+
+</NumberedItem>
+<NumberedItem title="Visualize this in Grafana">
+
+<ol type="a">
+<li>From the `Dashboards` page, click `New` and select `New dashboard`.</li>
+<li>Click `Add visualization`, then select the data source that connects to your {C.SERVICE_LONG}.</li>
+<li>In the `Queries` section, change the `Format` to `Time series` and select `Code`.</li>
+<li>Type the query from the previous step and click `Run query`.</li>
+<li>Under the panel options on the right, click `Add field override` > `Fields with name`, then choose `mining fee` in the dropdown.</li>
+<li>
+
+Click `Add override property`, then select `Axis > Placement` and click `Right`.
+
+![Visualizing block weight and mining fees](https://assets.timescale.com/docs/images/grafana-blockweight-rewards.webp)
+
+</li>
+</ol>
+
+</NumberedItem>
+</NumberedList>
+
+### What's the average miner revenue per block?
+
+In this final query, you analyze how much revenue miners actually generate by
+mining a new block on the blockchain, including fees and block rewards. To make
+the analysis more interesting, add the Bitcoin to US Dollar exchange rate, and
+increase the time range.
+
+<NumberedList>
+<NumberedItem title={`Connect to the ${C.SERVICE_LONG} that contains the Bitcoin dataset`}>
+</NumberedItem>
+<NumberedItem title="Query average miner revenue per block with a 12-hour moving average">
+
+At the psql prompt, use this query:
+
+```sql
+SELECT
+   bucket as "time",
+   average_y(rolling(stats_miner_revenue) OVER (ORDER BY bucket RANGE '12 hours' PRECEDING))*0.00000001 AS "revenue in BTC",
+    average_x(rolling(stats_miner_revenue) OVER (ORDER BY bucket RANGE '12 hours' PRECEDING)) AS "revenue in USD"
+FROM one_hour_coinbase
+WHERE bucket > date_add('2023-11-22 00:00:00+00', INTERVAL '-5 days')
+ORDER BY 1;
+```
+
+The data you get back looks a bit like this:
+
+```sql
+          time          |   revenue in BTC   |   revenue in USD
+------------------------+--------------------+--------------------
+ 2023-06-09 14:00:00+00 |       6.6732841925 |        176922.1133
+ 2023-06-09 15:00:00+00 |  6.785046736363636 |  179885.1576818182
+ 2023-06-09 16:00:00+00 |       6.7252952905 | 178301.02735000002
+ 2023-06-09 17:00:00+00 |  6.716377454814815 |  178064.5978074074
+ 2023-06-09 18:00:00+00 |    6.7784206471875 |   179709.487309375
+...
+```
+
+</NumberedItem>
+<NumberedItem title="Visualize this in Grafana">
+
+<ol type="a">
+<li>From the `Dashboards` page, click `New` and select `New dashboard`.</li>
+<li>Click `Add visualization`, then select the data source that connects to your {C.SERVICE_LONG}.</li>
+<li>In the `Queries` section, change the `Format` to `Time series` and select `Code`.</li>
+<li>Type the query from the previous step and click `Run query`.</li>
+<li>Under the panel options on the right, click `Add field override` > `Fields with name`, then choose `revenue in USD` in the dropdown.</li>
+<li>
+
+Click `Add override property`, then select `Axis > Placement` and click `Right`.
+
+![Visualizing block revenue over time](https://assets.timescale.com/docs/images/grafana-blockweight-revenue.webp)
+
+</li>
+</ol>
+
+</NumberedItem>
+</NumberedList>

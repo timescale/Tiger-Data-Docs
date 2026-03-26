@@ -70,7 +70,7 @@ TODO:add more advanced topics here
 │
 ├── columnar-storage / hypercore (Storage optimization)
 	**NOTE: Columnar storage NOT compression storage**
-	when people thought compression, save storage but slower — column store is LESS storage but faster. Capability is column store (aka hypercore)
+	when people thought compression, save storage but slower: column store is LESS storage but faster. Capability is column store (aka hypercore)
 │   ├── enable-compression.mdx
 │   ├── choose-segmentby-columns.mdx
 │   ├── recompress-chunks.mdx
@@ -111,7 +111,7 @@ TIERED STORAGE v. TIGER LAKE
     └── handle-failover.mdx
 │
 └── Tips and Tricks 
-	**TODO: reference clickhouse: data analysis how this is connected together — is this better suited under BUILD?**
+	**TODO: reference clickhouse: data analysis how this is connected together: is this better suited under BUILD?**
     ├── primary 
     
 │
@@ -203,13 +203,13 @@ Operate
 │
 │
 ├── pg_textsearch/ 
-	** Maybe — TBD : TJ**
+	** Maybe: TBD : TJ**
 │   ├── TODO
 │   ├── TODO
 │   └── TODO
 │
 ├── pgvectorscale/ (Vector search)
-	** Maybe — TBD : Maintenace Mode**
+	** Maybe: TBD : Maintenace Mode**
 │   ├── create_index.mdx
 │   ├── index_parameters.mdx
 │   └── query_parameters.mdx

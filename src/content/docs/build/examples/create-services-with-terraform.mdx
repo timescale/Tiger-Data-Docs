@@ -1,0 +1,362 @@
+---
+title: Create Tiger Cloud services with the Terraform provider
+description: Use the Tiger Data Terraform provider to deploy, manage, and destroy Tiger Cloud services using infrastructure as code.
+products: [cloud]
+keywords: [tutorials, terraform, infrastructure as code, iac, provisioning, devops, deploy]
+---
+
+{/* markdownlint-disable MD033 */}
+
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+import AuthorByline from "@components/AuthorByline.astro";
+import { Prerequisites } from "@components/Prerequisites";
+import * as C from "@constants";
+
+<AuthorByline
+  name="Mathis Van Eetvelde"
+  role="Software Engineer"
+  githubUsername="mathisve"
+/>
+
+## Overview
+
+In this tutorial, you learn how to use the [Tiger Data Terraform provider][terraform-provider] to create and manage {C.SERVICE_LONG}s using infrastructure as code (IaC). This tutorial is for developers and DevOps engineers who want to automate their {C.CLOUD_LONG} deployments. It assumes you have basic knowledge of:
+
+- Terraform concepts (providers, resources, outputs)
+- Command-line interfaces
+- {C.CLOUD_LONG} services
+
+By the end, you'll be able to:
+
+- Configure the Tiger Data Terraform provider with credentials
+- Deploy a {C.SERVICE_LONG} using a Terraform configuration
+- Retrieve service connection details, including the password, using Terraform outputs
+
+## Background
+
+Terraform is an infrastructure-as-code tool that lets you declaratively configure cloud resources. Your cloud infrastructure becomes a one-to-one representation of your configuration files, which improves security, auditability, and accountability. One of the biggest practical benefits is deployment speed, instead of manually clicking through a console, you can deploy, reuse, and recycle configurations in seconds.
+
+Terraform's idempotent nature also makes recovery straightforward. If something goes wrong during a deployment, re-running `terraform apply` brings your infrastructure back to the desired state without manual intervention.
+
+The Tiger Data Terraform provider brings these benefits to {C.CLOUD_LONG}, letting you create, configure, and destroy services entirely from code, no UI required.
+
+<Callout variant="tip">
+  As of the Terraform provider v1.2.0, you can also create {C.READ_REPLICA}s
+  with Terraform. This means you can automatically provision or remove
+  {C.READ_REPLICA}s, for example, to spin up a replica for a business analyst
+  to run BI queries against.
+</Callout>
+
+## What is the tech stack we're working with?
+
+**Terraform:** An open-source infrastructure-as-code tool by HashiCorp that lets you define and provision cloud infrastructure using declarative configuration files. Terraform's idempotent nature means you can re-run deployments safely: if something goes wrong, re-running `terraform apply` brings your infrastructure back to the desired state.
+
+- **Tiger Data Terraform provider:** The [official provider][terraform-provider] in the Terraform Registry (`timescale/timescale`) that lets you manage {C.SERVICE_LONG}s, VPC connections, and {C.READ_REPLICA}s.
+
+<Prerequisites>
+- A [{C.ACCOUNT_LONG}](/get-started/create-service)
+- [Terraform installed][terraform-install] on your local machine
+- Your {C.CLOUD_LONG} Project ID and client credentials ([how to create credentials][generate-credentials])
+
+Store your credentials securely. Never commit them to version control. For production use, consider HashiCorp Vault, Terraform environment variables, or a cloud KMS solution.
+</Prerequisites>
+
+## Configure the Terraform provider
+
+Set up the Tiger Data Terraform provider and authenticate with your {C.CLOUD_LONG} project.
+
+<NumberedList>
+  <NumberedItem title="Declare the provider">
+
+Create a `main.tf` file and add the provider declaration. Set the source to `timescale/timescale` to use the official provider from the Terraform Registry:
+
+```hcl
+terraform {
+  required_providers {
+    timescale = {
+      source  = "timescale/timescale"
+      version = "~> 1.0"
+    }
+  }
+}
+```
+
+Using the `~>` operator pins to the latest compatible minor version. You can also omit the `version` argument entirely to always use the latest release.
+
+  </NumberedItem>
+
+  <NumberedItem title="Configure provider credentials">
+
+Add the provider configuration block to `main.tf`:
+
+```hcl
+provider "timescale" {
+  project_id = var.ts_project_id
+  access_key = var.ts_access_key
+  secret_key = var.ts_secret_key
+}
+```
+
+  </NumberedItem>
+
+  <NumberedItem title="Define the credential variables">
+
+Create a `variables.tf` file to declare the input variables:
+
+```hcl
+variable "ts_project_id" {
+  type        = string
+  description = "Tiger Cloud project ID"
+}
+
+variable "ts_access_key" {
+  type        = string
+  description = "Tiger Cloud access key"
+}
+
+variable "ts_secret_key" {
+  type        = string
+  sensitive   = true
+  description = "Tiger Cloud secret key"
+}
+```
+
+Then create a `terraform.tfvars` file or export environment variables to supply the values:
+
+```bash
+export TF_VAR_ts_project_id="<your-project-id>"
+export TF_VAR_ts_access_key="<your-access-key>"
+export TF_VAR_ts_secret_key="<your-secret-key>"
+```
+
+<Callout variant="tip">
+  To find your Project ID, go to the Services tab in {C.CONSOLE} and click the
+  kebab menu (⋮) in the top-right corner. To create credentials, go to **Project
+  Settings** and click **Create credentials**. Copy both the public and private
+  keys to a secure location (such as a password manager): this is the only time
+  you can retrieve them.
+</Callout>
+
+<Callout variant="warning">
+  Never share your secret key with anyone. It grants full ability to create and
+  delete {C.SERVICE_LONG}s in your project until the credentials are revoked.
+</Callout>
+
+  </NumberedItem>
+</NumberedList>
+
+## Create a service
+
+Define and deploy a {C.SERVICE_LONG} using your Terraform configuration.
+
+<NumberedList>
+  <NumberedItem title="Add the service resource">
+
+Add a `timescale_service` resource to your `main.tf` file. Configuring a service through Terraform is similar to the advanced configuration menu in the {C.CLOUD_LONG} UI:
+
+```hcl
+resource "timescale_service" "my_service" {
+  name        = "my-service"
+  milli_cpu   = 1000
+  memory_gb   = 4
+  region_code = "us-east-1"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+```
+
+Here's what each field does:
+
+- **`name`**: The display name for your service. This doesn't need to match the Terraform resource name (`my_service` in this example).
+- **`milli_cpu`** and **`memory_gb`**: CPU and memory allocation. This example uses 1 CPU (1000 milli-CPU) and 4 GB of memory. Only specific combinations are supported: consult the [provider documentation][terraform-provider] for valid options.
+- **`region_code`**: The cloud region for your service. This example uses `us-east-1`, but you can choose any [supported region][terraform-provider].
+
+{C.CLOUD_LONG} automatically allocates and charges only for the storage you use, so you don't need to pre-provision a specific storage size.
+
+<Callout variant="warning">
+  The `prevent_destroy` lifecycle rule is highly recommended. If a
+  {C.SERVICE_LONG} is destroyed, the data it stores is destroyed too. Remove or
+  comment out the lifecycle block only when you intentionally want to delete the
+  service and its data.
+</Callout>
+
+  </NumberedItem>
+
+  <NumberedItem title="Initialize and deploy">
+
+Run the following commands in order:
+
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+Terraform shows you the planned changes, including the resource attributes that will be created. Enter `yes` when prompted to confirm:
+
+```
+Terraform will perform the following actions:
+
+  # timescale_service.my_service will be created
+  + resource "timescale_service" "my_service" {
+      + enable_ha_replica = false
+      + hostname          = (known after apply)
+      + id                = (known after apply)
+      + memory_gb         = 4
+      + milli_cpu         = 1000
+      + name              = "my-service"
+      + password          = (sensitive value)
+      + port              = (known after apply)
+      + region_code       = "us-east-1"
+      + username          = (known after apply)
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+
+Do you want to perform these actions?
+  Terraform will perform the actions described above.
+  Only 'yes' will be accepted to approve.
+
+  Enter a value: yes
+
+timescale_service.my_service: Creating...
+timescale_service.my_service: Creation complete after 38s
+
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+```
+
+Notice that values like `hostname`, `port`, `username`, and `password` are marked as `(known after apply)`, these are only available after the service is created. You retrieve them using Terraform outputs in the next section.
+
+  </NumberedItem>
+</NumberedList>
+
+## Retrieve service connection details
+
+After deploying the service, your first instinct might be to go to the {C.CLOUD_LONG} console and copy the connection string. However, the console connection string doesn't include the password. The only way to retrieve the password for a Terraform-managed service is through Terraform outputs.
+
+<NumberedList>
+  <NumberedItem title="Define the outputs">
+
+Create an `outputs.tf` file:
+
+```hcl
+output "service_hostname" {
+  value = timescale_service.my_service.hostname
+}
+
+output "service_port" {
+  value = timescale_service.my_service.port
+}
+
+output "service_username" {
+  value = timescale_service.my_service.username
+}
+
+output "service_password" {
+  value     = timescale_service.my_service.password
+  sensitive = true
+}
+```
+
+  </NumberedItem>
+
+  <NumberedItem title="Apply and retrieve the outputs">
+
+Re-apply and then view the outputs:
+
+```bash
+terraform apply
+terraform output
+```
+
+Terraform shows the hostname, port, and username in plain text, but keeps the password hidden:
+
+```
+service_hostname = "abc123.tsdb.cloud.tigerdata.com"
+service_password = <sensitive>
+service_port = "30211"
+service_username = "tsdbadmin"
+```
+
+This is because the password is marked `sensitive`, Terraform avoids printing it to the terminal since you never know where your logs might end up. To retrieve the password, use the `-json` flag to output all values in JSON format:
+
+```bash
+terraform output -json
+```
+
+This prints all outputs including sensitive values. To extract just the password, pipe the output through `jq`:
+
+```bash
+terraform output -json | jq -r ".service_password.value"
+```
+
+  </NumberedItem>
+
+  <NumberedItem title="(Optional) Synthesize a full connection string">
+
+You can compose the full connection string as a Terraform output. This is useful when other Terraform resources need to connect to your {C.SERVICE_LONG}:
+
+```hcl
+output "service_url" {
+  value = format(
+    "postgres://%s:%s@%s:%s/tsdb?sslmode=require",
+    timescale_service.my_service.username,
+    timescale_service.my_service.password,
+    timescale_service.my_service.hostname,
+    timescale_service.my_service.port
+  )
+  sensitive = true
+}
+```
+
+  </NumberedItem>
+</NumberedList>
+
+## Summary
+
+In this tutorial, you learned how to:
+
+- Configure the Tiger Data Terraform provider with project credentials
+- Deploy a {C.SERVICE_LONG} with CPU, memory, and region settings
+- Use `prevent_destroy` to protect against accidental data loss
+- Retrieve connection details and passwords using Terraform outputs
+
+## Next steps
+
+### Learn more
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Integrate Terraform with Tiger Cloud"
+    description="Full reference for configuring Terraform with Tiger Cloud and self-hosted deployments."
+    href="/integrate/configuration-deployment/terraform"
+  />
+  <RelatedContentCard
+    title="Create a Tiger Cloud service"
+    description="Create your first service using the Tiger Cloud console."
+    href="/get-started/create-service"
+  />
+</RelatedContentCards>
+
+### Other examples
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Simulate an IoT sensor dataset"
+    description="Generate sample IoT time-series data for testing and development."
+    href="/build/examples/simulate-iot-sensor-data"
+  />
+  <RelatedContentCard
+    title="Ingest real-time financial data"
+    description="Stream live cryptocurrency data into Tiger Cloud."
+    href="/build/examples/ingest-real-time-financial-data"
+  />
+</RelatedContentCards>
+
+[terraform-provider]: https://registry.terraform.io/providers/timescale/timescale/latest/docs
+[terraform-install]: https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli
+[generate-credentials]: /integrate/find-connection-details#create-client-credentials

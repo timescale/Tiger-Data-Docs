@@ -1,11 +1,7 @@
 ---
 title: create_hypertable()
 description: Create a hypertable
-topics: [hypertables]
 keywords: [hypertables, create]
-license: apache
-type: function
-products: [cloud, mst, self_hosted]
 ---
 
 import * as C from "@constants";
@@ -20,23 +16,23 @@ import DimensionInfo from '@partials/_dimensions_info.mdx';
 
 <SinceRelease version="0.1.0" product="tsdb" />
 
-Replace a standard {C.PG} relational table with a [{C.HYPERTABLE}][hypertable-docs] that is partitioned on a single
+Replace a standard {C.PG} relational table with a [{C.HYPERTABLE}](/build/data-management/understand-hypertables) that is partitioned on a single
 dimension. To create a new {C.HYPERTABLE}, best practice is to call <a href="https://docs.tigerdata.com/api/latest/hypertable/create_table/">CREATE TABLE</a>.
 
 A {C.HYPERTABLE} is a {C.PG} table that automatically partitions your data by time. A dimension defines the way your
 data is partitioned.  All actions work on the resulting {C.HYPERTABLE}. For example, `ALTER TABLE`, and `SELECT`.
 
-If the table to convert already contains data, set [migrate\_data][migrate-data] to `TRUE`.
+If the table to convert already contains data, set [migrate\_data](/reference/timescaledb/hypertables/create_hypertable/#arguments) to `TRUE`.
 However, this may take a long time and there are limitations when the table contains foreign
 key constraints.
 
 You cannot run `create_hypertable()` on a table that is already partitioned using
-[declarative partitioning][declarative-partitioning] or [inheritance][inheritance]. The time column must be defined
+[declarative partitioning](https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-DECLARATIVE) or [inheritance](https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-USING-INHERITANCE). The time column must be defined
 as `NOT NULL`. If this is not already specified on table creation, `create_hypertable` automatically adds
 this constraint on the table when it is executed.
 
 This page describes the generalized {C.HYPERTABLE} API introduced in {C.TIMESCALE_DB} v2.13.
-The [old interface for `create_hypertable` is also available][create-hypertable-old].
+The [old interface for `create_hypertable` is also available](/reference/timescaledb/hypertables/create_hypertable_old).
 
 ## Samples
 
@@ -52,10 +48,10 @@ CREATE TABLE conditions (
 
 The following examples show you how to create a hypertable from an existing table or a function:
 
-- [Time partition a hypertable by time range][sample-time-range]
-- [Time partition a hypertable using composite columns and immutable functions][sample-composite-columns]
-- [Time partition a hypertable using ISO formatting][sample-iso-formatting]
-- [Time partition a hypertable using UUIDv7][sample-uuidv7]
+- [Time partition a hypertable by time range](/reference/timescaledb/hypertables/create_hypertable/#time-partition-a-hypertable-by-time-range)
+- [Time partition a hypertable using composite columns and immutable functions](/reference/timescaledb/hypertables/create_hypertable/#time-partition-a-hypertable-using-composite-columns-and-immutable-functions)
+- [Time partition a hypertable using ISO formatting](/reference/timescaledb/hypertables/create_hypertable/#time-partition-a-hypertable-using-iso-formatting)
+- [Time partition a hypertable using UUIDv7](/reference/timescaledb/hypertables/create_hypertable/#time-partition-a-hypertable-using-uuidv7)
 
 ### Time partition a hypertable by time range
 
@@ -67,7 +63,7 @@ The following examples show different ways to create a hypertable:
   SELECT create_hypertable('conditions', by_range('time'));
   ```
 
-- Convert with a [set\_chunk\_time\_interval][set_chunk_time_interval] of 24 hours:
+- Convert with a [set\_chunk\_time\_interval](/reference/timescaledb/hypertables/set_chunk_time_interval) of 24 hours:
   Either:
   ```sql
   SELECT create_hypertable('conditions', by_range('time', 86400000000));
@@ -176,9 +172,9 @@ SELECT create_hypertable(
 | Name        | Type             | Default | Required | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 |-------------|------------------|---------|-|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |`create_default_indexes`| `BOOLEAN`        | `TRUE`  | ✖ | Create default indexes on time/partitioning columns.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-|`dimension`| [DIMENSION\_INFO][dimension-info] | -       | ✔ | To create a `_timescaledb_internal.dimension_info` instance to partition a hypertable, you call  [`by_range`][by-range] and [`by_hash`][by-hash].                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+|`dimension`| [DIMENSION\_INFO](/reference/timescaledb/hypertables/create_hypertable/#dimension-info) | -       | ✔ | To create a `_timescaledb_internal.dimension_info` instance to partition a hypertable, you call  [`by_range`](/reference/timescaledb/hypertables/create_hypertable/#by_range) and [`by_hash`](/reference/timescaledb/hypertables/create_hypertable/#by_hash).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 |`if_not_exists` | `BOOLEAN`        | `FALSE` | ✖ | Set to `TRUE` to print a warning if `relation` is already a hypertable. By default, an exception is raised.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-|`migrate_data`| `BOOLEAN`        | `FALSE` | ✖ | Set to `TRUE` to migrate any existing data in `relation` in to chunks in the new hypertable. Depending on the amount of data to be migrated, setting `migrate_data` can lock the table for a significant amount of time. If there are [foreign key constraints][foreign-key-constraints] to other tables in the data to be migrated, `create_hypertable()` can run into deadlock. A hypertable can only contain foreign keys to another hypertable. `UNIQUE` and `PRIMARY` constraints must include the partitioning key. <br /> Deadlock may happen when concurrent transactions simultaneously try to insert data into tables that are referenced in the foreign key constraints, and into the converting table itself. To avoid deadlock, manually obtain a [SHARE ROW EXCLUSIVE][share-row-exclusive] lock on the referenced tables before you call `create_hypertable` in the same transaction. <br /> If you leave `migrate_data` set to the default, non-empty tables generate an error when you call `create_hypertable`. |
+|`migrate_data`| `BOOLEAN`        | `FALSE` | ✖ | Set to `TRUE` to migrate any existing data in `relation` in to chunks in the new hypertable. Depending on the amount of data to be migrated, setting `migrate_data` can lock the table for a significant amount of time. If there are [foreign key constraints](https://docs.tigerdata.com/use-timescale/latest/schema-management/about-constraints/) to other tables in the data to be migrated, `create_hypertable()` can run into deadlock. A hypertable can only contain foreign keys to another hypertable. `UNIQUE` and `PRIMARY` constraints must include the partitioning key. <br /> Deadlock may happen when concurrent transactions simultaneously try to insert data into tables that are referenced in the foreign key constraints, and into the converting table itself. To avoid deadlock, manually obtain a [SHARE ROW EXCLUSIVE](https://www.postgresql.org/docs/current/sql-lock.html) lock on the referenced tables before you call `create_hypertable` in the same transaction. <br /> If you leave `migrate_data` set to the default, non-empty tables generate an error when you call `create_hypertable`. |
 |`relation`| REGCLASS         | -       | ✔ | Identifier of the table to convert to a hypertable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 <DimensionInfo />
@@ -204,41 +200,3 @@ On failure, an error is returned:
 | `cannot specify both the number of partitions and an interval` | When using `by_hash`, specify either the number of partitions or an interval, not both. |
 | `invalid interval type for <type> dimension` | The chunk interval type does not match the partitioning column type. |
 | `must be owner of hypertable "<name>"` | Only the table owner can convert it to a {C.HYPERTABLE}. |
-
-[about-constraints]: /use-timescale/schema-management/about-constraints
-
-[by-hash]: /reference/timescaledb/hypertables/create_hypertable/#by_hash
-
-[by-range]: /reference/timescaledb/hypertables/create_hypertable/#by_range
-
-[create-hypertable-old]: /reference/timescaledb/hypertables/create_hypertable_old
-
-[create_distributed_hypertable]: /reference/timescaledb/distributed-hypertables/create_distributed_hypertable
-
-[declarative-partitioning]: https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-DECLARATIVE
-
-[dimension-info]: /reference/timescaledb/hypertables/create_hypertable/#dimension-info
-
-[foreign-key-constraints]: https://docs.tigerdata.com/use-timescale/latest/schema-management/about-constraints/
-
-[hash-partitions]: /use-timescale/hypertables/#hypertable-partitioning
-
-[hypertable-docs]: /use-timescale/hypertables/
-
-[inheritance]: https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-USING-INHERITANCE
-
-[migrate-data]: /reference/timescaledb/hypertables/create_hypertable/#arguments
-
-[sample-composite-columns]: /reference/timescaledb/hypertables/create_hypertable/#time-partition-a-hypertable-using-composite-columns-and-immutable-functions
-
-[sample-iso-formatting]: /reference/timescaledb/hypertables/create_hypertable/#time-partition-a-hypertable-using-iso-formatting
-
-[sample-uuidv7]: /reference/timescaledb/hypertables/create_hypertable/#time-partition-a-hypertable-using-uuidv7
-
-[sample-time-range]: /reference/timescaledb/hypertables/create_hypertable/#time-partition-a-hypertable-by-time-range
-
-[set_chunk_time_interval]: /reference/timescaledb/hypertables/set_chunk_time_interval
-
-[share-row-exclusive]: https://www.postgresql.org/docs/current/sql-lock.html
-
-[uuidv7_functions]: /reference/timescaledb/uuid-functions

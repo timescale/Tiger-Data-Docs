@@ -1,12 +1,7 @@
 ---
 title: add_continuous_aggregate_policy()
 description: Add policy to schedule automatic refresh of a continuous aggregate
-topics: [continuous aggregates, jobs]
 keywords: [continuous aggregates, policies]
-tags: [scheduled jobs, refresh]
-license: community
-type: function
-products: [cloud, self_hosted, mst]
 ---
 
 import * as C from "@constants";
@@ -19,7 +14,7 @@ import { Callout } from '@stainless-api/docs/components';
 
 Create a policy that automatically refreshes a {C.CAGG}. To view the
 policies that you set or the policies that already exist, see
-[informational views][informational-views].
+[informational views](/reference/timescaledb/informational-views/jobs).
 
 ## Samples
 
@@ -62,7 +57,7 @@ SELECT add_continuous_aggregate_policy(
 | `schedule_interval` | INTERVAL | 24 hours | ✔ | Interval between refresh executions in wall-clock time. |
 | `initial_start` | TIMESTAMPTZ | NULL | - | Time the policy is first run. Defaults to NULL. If omitted, then the schedule interval is the interval between the finish time of the last execution and the next start. If provided, it serves as the origin with respect to which the next\_start is calculated |
 | `if_not_exists` | BOOLEAN | false | - | Set to `true` to issue a notice instead of an error if the job already exists. |
-| `timezone` | TEXT | NULL | - | A valid time zone. If you specify `initial_start`, subsequent executions of the refresh policy are aligned on `initial_start`. However, daylight savings time (DST) changes may shift this alignment. If this is an issue you want to mitigate, set `timezone` to a valid time zone. Default is `NULL`, [UTC bucketing][utc-bucketing] is performed. |
+| `timezone` | TEXT | NULL | - | A valid time zone. If you specify `initial_start`, subsequent executions of the refresh policy are aligned on `initial_start`. However, daylight savings time (DST) changes may shift this alignment. If this is an issue you want to mitigate, set `timezone` to a valid time zone. Default is `NULL`, [UTC bucketing](https://docs.tigerdata.com/use-timescale/latest/time-buckets/about-time-buckets/) is performed. |
 | `include_tiered_data` | BOOLEAN | NULL | - | Enable/disable reading tiered data. This setting helps override the current settings for the`timescaledb.enable_tiered_reads` GUC. The default is NULL i.e we use the current setting for `timescaledb.enable_tiered_reads` GUC |
 | `buckets_per_batch` | INTEGER | 10 | - | Number of buckets to be refreshed by a batch. This value is multiplied by the {C.CAGG} bucket width to determine the size of the batch range. Default value is `10`. Values of less than `0` are not allowed. |
 | `max_batches_per_execution` | INTEGER | 0 | - | Limit the maximum number of batches to run when a policy executes. If some batches remain, they are processed the next time the policy runs. Default value is `0`, for an unlimted number of batches. Values of less than `0` are not allowed. |
@@ -80,10 +75,10 @@ depending on the type of the time column of the {C.HYPERTABLE}:
 
 <Callout variant="info">
   While setting `end_offset` to `NULL` is possible, it is not recommended. To include the data between `end_offset` and
-  the current time in queries, enable [real-time aggregation][real-time-aggregates].
+  the current time in queries, enable [real-time aggregation](/build/continuous-aggregates/real-time-aggregates).
 </Callout>
 
-You can add [concurrent refresh policies][refresh-policies] on each {C.CAGG}, as long as the `start_offset` and `end_offset` does not overlap with another policy on the same {C.CAGG}.
+You can add [concurrent refresh policies](/build/continuous-aggregates/refresh-policies) on each {C.CAGG}, as long as the `start_offset` and `end_offset` does not overlap with another policy on the same {C.CAGG}.
 
 <Callout variant="info">
   Setting `buckets_per_batch` greater than zero means that the refresh window is split in batches of `bucket width` \*
@@ -98,11 +93,3 @@ You can add [concurrent refresh policies][refresh-policies] on each {C.CAGG}, as
 | Column | Type | Description |
 |-|-|-|
 | `job_id` | INTEGER | {C.TIMESCALE_DB} background job ID created to implement this policy |
-
-[informational-views]: /reference/timescaledb/informational-views/jobs
-
-[real-time-aggregates]: /use-timescale/latest/continuous-aggregates/real-time-aggregates/
-
-[refresh-policies]: /use-timescale/latest/continuous-aggregates/refresh-policies/
-
-[utc-bucketing]: https://docs.tigerdata.com/use-timescale/latest/time-buckets/about-time-buckets/

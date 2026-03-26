@@ -1,0 +1,126 @@
+---
+title: "Analyze energy consumption"
+description: "Get insights from energy consumption data with Grafana and Tiger Cloud"
+products: [cloud, self_hosted]
+keywords: [simulate, real-time analytics, energy consumption, Grafana, columnstore, continuous aggregates, visualization, time-series]
+---
+
+import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import CreateHypertableEnergy from "../../../../partials/_create-hypertable-energy.mdx";
+import CreateCaggsOnIOTData from "../../../../partials/_use-case-iot-create-cagg.mdx";
+import GrafanaConnect from "../../../../partials/_grafana-connect.mdx";
+import IntegrationPrereqs from "../../../../partials/_prereqs-cloud-and-self.mdx";
+import { Prerequisites } from "@components/Prerequisites";
+
+Energy providers understand that customers tend to lose patience when there is not enough power for them
+to complete day-to-day activities. Task one is keeping the lights on. If you are transitioning to renewable energy,
+it helps to know when you need to produce energy so you can choose a suitable energy source.
+
+Real-time analytics refers to the process of collecting, analyzing, and interpreting data instantly as it is generated.
+This approach enables you to track and monitor activity, make the decisions based on real-time insights on data stored in
+a {C.SERVICE_LONG} and keep those lights on.
+
+[Grafana](https://grafana.com/docs/) is a popular data visualization tool that enables you to create customizable dashboards
+and effectively monitor your systems and applications.
+
+![Grafana real-time analytics](https://assets.timescale.com/docs/images/use-case-rta-grafana-timescale-energy-cagg.png)
+
+This page shows you how to integrate Grafana with a {C.SERVICE_LONG} and make insights based on visualization of
+data optimized for size and speed in the {C.COLUMNSTORE}.
+
+<Prerequisites intro={false}>
+<IntegrationPrereqs />
+
+* Install and run [self-managed Grafana](https://grafana.com/get/?tab=self-managed), or sign up for [Grafana Cloud](https://grafana.com/get/).
+</Prerequisites>
+
+<CreateHypertableEnergy />
+
+## Write fast analytical queries
+
+Aggregation is a way of combining data to get insights from it. Average, sum, and count are all examples of simple
+aggregates. However, with large amounts of data aggregation slows things down, quickly. {C.CAGG_CAP}s
+are a kind of {C.HYPERTABLE} that is refreshed automatically in the background as new data is added, or old data is
+modified. Changes to your dataset are tracked, and the {C.HYPERTABLE} behind the {C.CAGG} is automatically
+updated in the background.
+
+By default, querying {C.CAGG}s provides you with real-time data. Pre-aggregated data from the materialized
+view is combined with recent data that hasn't been aggregated yet. This gives you up-to-date results on every query.
+
+You create {C.CAGG}s on uncompressed data in high-performance storage. They continue to work
+on [data in the {C.COLUMNSTORE}](/get-started/key-features-timescale)
+and [rarely accessed data in tiered storage](/deploy/tiger-cloud/storage/query-tiered-data). You can even
+create [{C.CAGG}s on top of your {C.CAGG}s](/learn/continuous-aggregates/hierarchical-continuous-aggregates).
+
+<CreateCaggsOnIOTData />
+
+<GrafanaConnect />
+
+## Visualize energy consumption
+
+A Grafana dashboard represents a view into the performance of a system, and each dashboard consists of one or
+more panels, which represent information about a specific metric related to that system.
+
+To visually monitor the volume of energy consumption over time:
+
+<NumberedList>
+<NumberedItem title="Create the dashboard">
+
+<ol type="a">
+<li>On the `Dashboards` page, click `New` and select `New dashboard`.</li>
+<li>
+
+Click `Add visualization`, then select the data source that connects to your {C.SERVICE_LONG} and the `Bar chart`
+visualization type in the top right.
+
+![Grafana create dashboard](https://assets.timescale.com/docs/images/use-case-rta-grafana-timescale-configure-dashboard.png)
+
+</li>
+<li>
+
+In the `Queries` section, select `Code` on the right, then run the following query based on your {C.CAGG}:
+
+```sql
+WITH per_hour AS (
+SELECT
+time,
+value
+FROM kwh_hour_by_hour
+WHERE "time" at time zone 'Europe/Berlin' > date_trunc('month', time) - interval '1 year'
+ORDER BY 1
+), hourly AS (
+ SELECT
+      extract(HOUR FROM time) * interval '1 hour' as hour,
+      value
+ FROM per_hour
+)
+SELECT
+    hour,
+    approx_percentile(0.50, percentile_agg(value)) as median,
+    max(value) as maximum
+FROM hourly
+GROUP BY 1
+ORDER BY 1;
+```
+
+This query averages the results for households in a specific time zone by hour and orders them by time.
+Because you use a {C.CAGG}, this data is always correct in real time.
+
+![Grafana real-time analytics](https://assets.timescale.com/docs/images/use-case-rta-grafana-timescale-energy-cagg.png)
+
+You see that energy consumption is highest in the evening and at breakfast time. You also know that the wind
+drops off in the evening. This data proves that you need to supply a supplementary power source for peak times,
+or plan to store energy during the day for peak times.
+
+</li>
+</ol>
+
+</NumberedItem>
+
+<NumberedItem title="Click `Save dashboard`">
+</NumberedItem>
+
+</NumberedList>
+
+You have integrated Grafana with a {C.SERVICE_LONG} and made insights based on visualization of your data.

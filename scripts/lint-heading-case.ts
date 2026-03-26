@@ -50,6 +50,7 @@ const PROPER_NOUNS = new Set(
     "Livesync", "Vectorizer", "Huggingface", "Chrome", "DevTools",
     "Microsoft", "Google", "Grafana", "Alertmanager", "Looker", "Datadog", "OpenTelemetry", "MacPorts", "Compose", "macOS",
     "Telegraf", "Supabase", "Decodable", "Debezium", "Node", "Apache", "Airflow",
+    "Hypercore",
     "SageMaker", "DBeaver", "Fivetran", "Confluent",
   ].map((s) => s.toLowerCase())
 );
@@ -176,7 +177,7 @@ function checkSentenceCase(text: string): string | null {
     // Subsequent words: should be lowercase unless allowed
     if (isCapitalized && rest !== rest.toUpperCase()) {
       if (allowedCapitalized(core)) continue;
-      return `Use sentence case: "${word}" should be "${core.charAt(0).toLowerCase() + rest}" (unless it's a proper noun — add to allowlist if so)`;
+      return `Use sentence case: "${word}" should be "${core.charAt(0).toLowerCase() + rest}" (unless it's a proper noun; add to the allowlist if so)`;
     }
   }
 

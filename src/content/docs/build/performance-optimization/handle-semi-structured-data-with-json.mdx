@@ -7,10 +7,7 @@ products: [cloud, mst, self_hosted]
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 
-You can use JSON and JSONB to provide semi-structured data. This is most useful
-for data that contains user-defined fields, such as field names that are defined
-by individual users and vary from user to user. We recommend using this in a
-semi-structured way, for example:
+JSON and JSONB fit payloads where the shape changes per tenant or device. Keep identifiers and timestamps as typed columns, and tuck the long tail of optional fields into JSON so you can index what matters.
 
 ```sql
 CREATE TABLE metrics (
@@ -21,10 +18,7 @@ CREATE TABLE metrics (
 );
 ```
 
-When you are defining a schema using JSON, ensure that common fields, such as
-`time`, `user_id`, and `device_id`, are pulled outside of the JSONB structure
-and stored as columns. This is because field accesses are more efficient on
-table columns than inside JSONB structures. Storage is also more efficient.
+That example keeps `time`, `user_id`, and `device_id` as real columns because predicates and joins hit them far more often than rarely used JSON keys.
 
 You should also use the JSONB data type, that is, JSON stored in a binary
 format, rather than JSON data type. JSONB data types are more efficient in both

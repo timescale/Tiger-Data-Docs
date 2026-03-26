@@ -1,16 +1,7 @@
 ---
 title: interpolated_integral()
 description: Calculate the integral over an interval, while interpolating the interval bounds
-topics: [hyperfunctions]
-license: community
-type: function
-toolkit: true
-products: [cloud, mst, self_hosted]
-hyperfunction:
-  family: time-weighted calculations
-  type: accessor
-  aggregates:
-    - time_weight()
+keywords: [interpolated_integral, time weight, timescaledb toolkit]
 ---
 
 import SinceRelease from '@components/SinceRelease.astro';
@@ -21,14 +12,14 @@ import * as C from "@constants";
 
 Calculate the integral over an interval, while interpolating the interval bounds.
 
-Similar to [`integral`][integral], but allows an accurate calculation across interval bounds when data has been bucketed
+Similar to [`integral`](/reference/toolkit/time_weight/integral), but allows an accurate calculation across interval bounds when data has been bucketed
 into separate time intervals, and there is no data point precisely at the interval bound. For example, this is useful in
 a window function.
 
 Values from the previous and next buckets are used to interpolate the values at the bounds, using the same interpolation
 method used within the TimeWeightSummary itself.
 
-Equal to [`interpolated_average`][interpolated_average] multiplied by the elapsed time.
+Equal to [`interpolated_average`](/reference/toolkit/time_weight/interpolated_average) multiplied by the elapsed time.
 
 ## Samples
 
@@ -44,7 +35,6 @@ INSERT INTO user_storage_usage(ts, storage_bytes) VALUES
     ('01-03-2022 03:05', 300),
     ('01-04-2022 12:13', 1000),
     ('01-05-2022 07:26', 817);
-
 
 -- Get the total byte-hours used between Jan. 1 and Jan. 6
 SELECT
@@ -80,8 +70,8 @@ interpolated_integral(
 | tws | TimeWeightSummary | - | ✔ | The input TimeWeightSummary from a time\_weight() call |
 | start | TIMESTAMPTZ | - | ✔ | The start of the interval which the time-weighted integral should cover (if there is a preceding point) |
 | interval | INTERVAL | - | ✔ | The length of the interval which the time-weighted integral should cover |
-| prev | TimeWeightSummary | NULL | | The TimeWeightSummary from the prior interval, used to interpolate the value at `start`. If NULL, the first timestamp in `tws` is used for the starting value. The prior interval can be determined from the {C.PG} [`lag()`][pg-window-functions] function |
-| next | TimeWeightSummary | NULL | | The TimeWeightSummary from the next interval, used to interpolate the value at `start` + `interval`. If NULL, the last timestamp in `tws` is used for the starting value. The next interval can be determined from the {C.PG} [`lead()`][pg-window-functions] function |
+| prev | TimeWeightSummary | NULL | | The TimeWeightSummary from the prior interval, used to interpolate the value at `start`. If NULL, the first timestamp in `tws` is used for the starting value. The prior interval can be determined from the {C.PG} [`lag()`](https://www.postgresql.org/docs/current/functions-window.html#FUNCTIONS-WINDOW-TABLE) function |
+| next | TimeWeightSummary | NULL | | The TimeWeightSummary from the next interval, used to interpolate the value at `start` + `interval`. If NULL, the last timestamp in `tws` is used for the starting value. The next interval can be determined from the {C.PG} [`lead()`](https://www.postgresql.org/docs/current/functions-window.html#FUNCTIONS-WINDOW-TABLE) function |
 | unit | TEXT | second | | The unit of time to express the integral in. Can be `microsecond`, `millisecond`, `second`, `minute`, `hour`, or any alias for those units supported by {C.PG} |
 
 ## Returns
@@ -89,9 +79,3 @@ interpolated_integral(
 | Column | Type | Description |
 |--------|------|-------------|
 | integral | DOUBLE PRECISION | The time-weighted integral for the interval (`start`, `start` + `interval`), computed from the `TimeWeightSummary` plus end points interpolated from `prev` and `next` |
-
-[integral]: /reference/toolkit/time_weight/integral
-
-[interpolated_average]: /reference/toolkit/time_weight/interpolated_average
-
-[pg-window-functions]: https://www.postgresql.org/docs/current/functions-window.html#FUNCTIONS-WINDOW-TABLE
