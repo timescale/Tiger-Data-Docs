@@ -2,12 +2,27 @@
 
 Documentation site for Tiger Data, built on Astro + Starlight using the Stainless Docs Platform (`@stainless-api/docs`).
 
+## Prerequisites
+
+- **Node.js** (v18 or later): [nodejs.org](https://nodejs.org/)
+- **pnpm** (package manager): install with `npm install -g pnpm` or see [pnpm.io/installation](https://pnpm.io/installation)
+- **Stainless API key**: required for API reference generation
+  1. Sign in at [app.stainless.com](https://app.stainless.com)
+  2. Go to **Org Settings → API keys** and copy your key (starts with `stl_sk...`)
+  3. Create a `.env` file in the project root (use `.env.example` as a template):
+     ```
+     STAINLESS_API_KEY="stl_sk..."
+     ```
+- **Stainless CLI** (optional but recommended): [CLI quickstart](https://www.stainless.com/docs/getting-started/quickstart-cli)
+
 ## Development Quickstart
 
-1. Authenticate with the [Stainless CLI](https://www.stainless.com/docs/getting-started/quickstart-cli): `stl auth login`
-2. Install dependencies: `pnpm install`
-3. Run the dev server: `pnpm dev`
-4. Visit [localhost:4321](http://localhost:4321/)
+1. Clone the repo and `cd` into it
+2. Copy the env file: `cp .env.example .env` and add your Stainless API key
+3. Install dependencies: `pnpm install`
+4. (Optional) Authenticate with the Stainless CLI: `stl auth login`
+5. Start the dev server: `pnpm dev`
+6. Visit [localhost:4321](http://localhost:4321/)
 
 ### Other Commands
 
