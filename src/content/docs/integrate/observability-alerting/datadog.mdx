@@ -13,16 +13,15 @@ import * as C from "@constants";
 import DataDogExporter from '@partials/_datadog-data-exporter.mdx';
 import IntegrationPrereqsCloud from '@partials/_integration-prereqs-cloud-only.mdx';
 import ManageDataExporter from '@partials/_manage-a-data-exporter.mdx';
-import NotSupportedAzure from '@partials/_not-supported-for-azure.mdx';
 
-[Datadog][datadog] is a cloud-based monitoring and analytics platform that provides comprehensive visibility into
+[Datadog](https://www.datadoghq.com/) is a cloud-based monitoring and analytics platform that provides comprehensive visibility into
 applications, infrastructure, and systems through real-time monitoring, logging, and analytics.
 
 This page explains how to:
 
-- [Monitor {C.SERVICE_LONG} metrics with Datadog][datadog-monitor-cloud]
+- [Monitor {C.SERVICE_LONG} metrics with Datadog](#monitor-tiger-cloud-service-metrics-with-datadog)
 
-  This integration is available for [{C.SCALE} and {C.ENTERPRISE}][pricing-plan-features] {C.PRICING_PLAN}s.
+  This integration is available for [Scale and Enterprise](/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management#features-included-in-each-pricing-plan) {C.PRICING_PLAN}s.
 
 - Configure Datadog Agent to collect metrics for your {C.SERVICE_LONG}
 
@@ -32,36 +31,55 @@ This page explains how to:
 
 <IntegrationPrereqsCloud />
 
-- Sign up for [Datadog][datadog].
+- Sign up for [Datadog](https://www.datadoghq.com/).
 
-  You need your [Datadog API key][datadog-api-key] to follow this procedure.
+  You need your [Datadog API key](https://docs.datadoghq.com/account_management/api-app-keys/#add-an-api-key-or-client-token) to follow this procedure.
 
-- Install [Datadog Agent][datadog-agent-install].
-
-<NotSupportedAzure />
+- Install [Datadog Agent](https://docs.datadoghq.com/getting_started/agent/#installation).
 
 ## Monitor {C.SERVICE_LONG} metrics with Datadog
 
 Export telemetry data from your {C.SERVICE_LONG}s with the time-series and analytics capability enabled to
-Datadog using a {C.CLOUD_LONG} data exporter. The available metrics include CPU usage, RAM usage, and storage.
+Datadog using a {C.CLOUD_LONG} data exporter. See [Exported metrics](/integrate/observability-alerting/exported-metrics) for the full list of default and additional metrics you can export.
 
 ### Create a data exporter
 
 A {C.CLOUD_LONG} data exporter sends telemetry data from a {C.SERVICE_LONG} to a third-party monitoring
-tool. You create an exporter on the [{C.PROJECT_LONG} level][projects], in the same AWS region as your {C.SERVICE_SHORT}:
+tool. You create an exporter on the [project level](/deploy/tiger-cloud/tiger-cloud-aws/security/members), in the same AWS region as your {C.SERVICE_SHORT}:
 
 <DataDogExporter />
 
+This section shows you how to attach, edit, and delete a data exporter.
+
 <ManageDataExporter />
+
+## Reference
+
+When you create the IAM OIDC provider, the URL must match the region you create the exporter in.
+It must be one of the following:
+
+| Region           | Zone          | Location       | URL |
+|------------------|---------------|----------------|-----|
+| `ap-southeast-1` | Asia Pacific  | Singapore      | `irsa-oidc-discovery-prod-ap-southeast-1.s3.ap-southeast-1.amazonaws.com` |
+| `ap-southeast-2` | Asia Pacific  | Sydney         | `irsa-oidc-discovery-prod-ap-southeast-2.s3.ap-southeast-2.amazonaws.com` |
+| `ap-northeast-1` | Asia Pacific  | Tokyo          | `irsa-oidc-discovery-prod-ap-northeast-1.s3.ap-northeast-1.amazonaws.com` |
+| `ca-central-1`   | Canada        | Central        | `irsa-oidc-discovery-prod-ca-central-1.s3.ca-central-1.amazonaws.com` |
+| `eu-central-1`   | Europe        | Frankfurt      | `irsa-oidc-discovery-prod-eu-central-1.s3.eu-central-1.amazonaws.com` |
+| `eu-west-1`      | Europe        | Ireland        | `irsa-oidc-discovery-prod-eu-west-1.s3.eu-west-1.amazonaws.com` |
+| `eu-west-2`      | Europe        | London         | `irsa-oidc-discovery-prod-eu-west-2.s3.eu-west-2.amazonaws.com` |
+| `sa-east-1`      | South America | São Paulo      | `irsa-oidc-discovery-prod-sa-east-1.s3.sa-east-1.amazonaws.com` |
+| `us-east-1`      | United States | North Virginia | `irsa-oidc-discovery-prod.s3.us-east-1.amazonaws.com` |
+| `us-east-2`      | United States | Ohio           | `irsa-oidc-discovery-prod-us-east-2.s3.us-east-2.amazonaws.com` |
+| `us-west-2`      | United States | Oregon         | `irsa-oidc-discovery-prod-us-west-2.s3.us-west-2.amazonaws.com` |
 
 ## Configure Datadog Agent to collect metrics for your services
 
-Datadog Agent includes a [{C.PG} integration][datadog-install] that you use to collect detailed {C.PG} database
+Datadog Agent includes a [{C.PG} integration](https://docs.datadoghq.com/integrate/postgres/) that you use to collect detailed {C.PG} database
 metrics about your {C.SERVICE_LONG}s.
 
 1. **Connect to your {C.SERVICE_LONG}**
 
-   For {C.CLOUD_LONG}, open an [SQL editor][in-console-editors] in [{C.CONSOLE}][services-portal]. For {C.SELF_LONG}, use [`psql`][psql].
+   For {C.CLOUD_LONG}, open an SQL editor in [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services). For {C.SELF_LONG}, use [`psql`](/integrate/query-administration/psql).
 
 2. **Add the `datadog` user to your {C.SERVICE_LONG}**
 
@@ -79,7 +97,7 @@ metrics about your {C.SERVICE_LONG}s.
 
 3. **Test the connection and rights for the datadog user**
 
-   Update the following command with your [connection details][connection-info], then run it from the command line:
+   Update the following command with your [connection details](/integrate/find-connection-details), then run it from the command line:
 
    ```bash
     psql "postgres://datadog:<datadog password>@<host>:<port>/tsdb?sslmode=require" -c \
@@ -91,14 +109,14 @@ metrics about your {C.SERVICE_LONG}s.
 
 4. **Connect Datadog to your {C.SERVICE_LONG}**
 
-   1. Configure the [Datadog Agent {C.PG} configuration file][datadog-config]; it is usually located on the Datadog Agent host at:
+   1. Configure the [Datadog Agent {C.PG} configuration file](https://docs.datadoghq.com/database_monitoring/setup_postgres/selfhosted?tab=postgres15); it is usually located on the Datadog Agent host at:
       - **Linux**: `/etc/datadog-agent/conf.d/postgres.d/conf.yaml`
       - **MacOS**: `/opt/datadog-agent/etc/conf.d/postgres.d/conf.yaml`
       - **Windows**: `C:\ProgramData\Datadog\conf.d\postgres.d\conf.yaml`
 
    2. Integrate Datadog Agent with your {C.SERVICE_LONG}:
 
-      Use your [connection details][connection-info] to update the following and add it to the Datadog Agent {C.PG}
+      Use your [connection details](/integrate/find-connection-details) to update the following and add it to the Datadog Agent {C.PG}
       configuration file:
 
       ```yaml
@@ -116,7 +134,7 @@ metrics about your {C.SERVICE_LONG}s.
 5. **Add {C.CLOUD_LONG} metrics**
 
    Tags to make it easier for build Datadog dashboards that combine metrics from the {C.CLOUD_LONG} data exporter and
-   Datadog Agent. Use your [connection details][connection-info] to update the following and add it to
+   Datadog Agent. Use your [connection details](/integrate/find-connection-details) to update the following and add it to
    `<datadog_home>/datadog.yaml`:
 
    ```yaml
@@ -128,35 +146,7 @@ metrics about your {C.SERVICE_LONG}s.
 
 6. **Restart Datadog Agent**
 
-   See how to [Start, stop, and restart Datadog Agent][datadog-agent-restart].
+   See how to [Start, stop, and restart Datadog Agent](https://docs.datadoghq.com/agent/configuration/agent-commands/#start-stop-and-restart-the-agent).
 
 Metrics for your {C.SERVICE_LONG} are now visible in Datadog. Check the Datadog {C.PG} integration documentation for a
-comprehensive list of [metrics][datadog-postgres-metrics] collected.
-
-[connection-info]: /integrate/find-connection-details
-
-[datadog]: https://www.datadoghq.com/
-
-[datadog-agent-install]: https://docs.datadoghq.com/getting_started/agent/#installation
-
-[datadog-agent-restart]: https://docs.datadoghq.com/agent/configuration/agent-commands/#start-stop-and-restart-the-agent
-
-[datadog-api-key]: https://docs.datadoghq.com/account_management/api-app-keys/#add-an-api-key-or-client-token
-
-[datadog-config]: https://docs.datadoghq.com/database_monitoring/setup_postgres/selfhosted?tab=postgres15
-
-[datadog-install]: https://docs.datadoghq.com/integrate/postgres/
-
-[datadog-monitor-cloud]: #monitor-tiger-cloud-service-metrics-with-datadog
-
-[datadog-postgres-metrics]: https://docs.datadoghq.com/integrate/postgres/?tab=host#metrics
-
-[in-console-editors]: /deploy-and-operate/tiger-cloud/get-started/run-queries-from-console
-
-[pricing-plan-features]: /deploy-and-operate/tiger-cloud/understand/pricing-and-account-management#features-included-in-each-pricing-plan
-
-[projects]: /deploy-and-operate/tiger-cloud/secure-access/configure-role-based-access
-
-[psql]: /integrate/query-administration/psql
-
-[services-portal]: https://console.cloud.timescale.com/dashboard/services
+comprehensive list of [metrics](https://docs.datadoghq.com/integrate/postgres/?tab=host#metrics) collected.

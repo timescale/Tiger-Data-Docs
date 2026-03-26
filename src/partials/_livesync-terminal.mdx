@@ -195,36 +195,37 @@ instance to a {C.SERVICE_LONG}:
 As you run the {C.PG_CONNECTOR} continuously, best practice is to run it as a Docker daemon.
 
 ```shell
-docker run -d --rm --name livesync timescale/live-sync:v0.11.2 run \
+docker run -d --rm --name livesync timescale/live-sync:<version-tag> run \
    --publication <publication_name> --subscription <subscription_name> \
    --source $SOURCE --target $TARGET --table-map <table_map_as_json>
 ```
 
-`--publication`: The name of the publication as you created in the previous step. To use multiple publications, repeat the `--publication` flag.
+- `version-tag`: The latest available version tag of the live-sync image. See [Docker Hub](https://hub.docker.com/r/timescale/live-sync).
 
-`--subscription`: The name that identifies the subscription on the target {C.SERVICE_LONG}.
+- `--publication`: The name of the publication as you created in the previous step. To use multiple publications, repeat the `--publication` flag.
 
-`--source`: The connection string to the source {C.PG} database.
+- `--subscription`: The name that identifies the subscription on the target {C.SERVICE_LONG}.
 
-`--target`: The connection string to the target {C.SERVICE_LONG}.
+- `--source`: The connection string to the source {C.PG} database.
 
-`--table-map`: (Optional) A JSON string that maps source tables to target tables. If not provided, the source and target table names are assumed to be the same.
-For example, to map the source table `metrics` to the target table `metrics_data`:
+- `--target`: The connection string to the target {C.SERVICE_LONG}.
 
-`--table-sync-workers`: (Optional) The number of parallel workers to use for initial table sync. Default is 4.
+- `--table-map`: (Optional) A JSON string that maps source tables to target tables. If not provided, the source and target table names are assumed to be the same. For example, to map the source table `metrics` to the target table `metrics_data`.
 
-`--copy-data`: (Optional) By default, the initial table data is copied from source to target before starting logical replication. Set to `false` so only changes made after replication slot creation are replicated.
+    ```
+    --table-map '{"source": {"schema": "public", "table": "metrics"}, "target": {"schema": "public", "table": "metrics_data"}}'
+    ```
+    To map only the schema, use:
+
+    ```
+    --table-map '{"source": {"schema": "public"}, "target": {"schema": "analytics"}}'
+    ```
+    This flag can be repeated for multiple table mappings.
+
+- `--table-sync-workers`: (Optional) The number of parallel workers to use for initial table sync. Default is 4.
+
+- `--copy-data`: (Optional) By default, the initial table data is copied from source to target before starting logical replication. Set to `false` so only changes made after replication slot creation are replicated.
 Best practice is to set to `false` during dry-run livesync so you do not copy table data.
-
-```
---table-map '{"source": {"schema": "public", "table": "metrics"}, "target": {"schema": "public", "table": "metrics_data"}}'
-```
-To map only the schema, use:
-
-```
---table-map '{"source": {"schema": "public"}, "target": {"schema": "analytics"}}'
-```
-This flag can be repeated for multiple table mappings.
 
 </NumberedItem>
 
@@ -247,9 +248,11 @@ psql $TARGET -c "SELECT * FROM _ts_live_sync.subscription_rel"
 
 You see something like the following:
 
-| subname  | pubname | schemaname | tablename | rrelid | state |    lsn     |          updated_at           |                                  last_error                                   |          created_at           | rows_copied | approximate_rows | bytes_copied | approximate_size | target_schema | target_table |
-|----------|---------|-------------|-----------|--------|-------|------------|-------------------------------|-------------------------------------------------------------------------------|-------------------------------|-------------|------------------|--------------|------------------|---------------|-------------|
-|livesync | analytics | public     | metrics   |  20856 | r     | 6/1A8CBA48 | 2025-06-24 06:16:21.434898+00 |                                                                               | 2025-06-24 06:03:58.172946+00 |    18225440 |         18225440 |   1387359359 |       1387359359 | public        | metrics  |
+```txt
+ subname  | pubname   | schemaname | tablename | rrelid | state |    lsn     |          updated_at           | last_error |          created_at           | rows_copied | approximate_rows | bytes_copied | approximate_size | target_schema | target_table
+----------+-----------+------------+-----------+--------+-------+------------+-------------------------------+------------+-------------------------------+-------------+------------------+--------------+------------------+---------------+-------------
+ livesync | analytics | public     | metrics   |  20856 | r     | 6/1A8CBA48 | 2025-06-24 06:16:21.434898+00 |            | 2025-06-24 06:03:58.172946+00 |    18225440 |         18225440 |   1387359359 |       1387359359 | public        | metrics
+```
 
 The `state` column indicates the current state of the table synchronization.
 Possible values for `state` are:
@@ -365,7 +368,7 @@ EOF
 Use the `--drop` flag to remove the replication slots created by the {C.PG_CONNECTOR} on the source database.
 
 ```shell
-docker run -it --rm --name livesync timescale/live-sync:v0.11.2 run \
+docker run -it --rm --name livesync timescale/live-sync:<version-tag> run \
    --publication <publication_name> --subscription <subscription_name> \
    --source $SOURCE --target $TARGET \
    --drop
