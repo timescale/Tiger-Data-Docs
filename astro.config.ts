@@ -1725,7 +1725,6 @@ export default defineConfig({
       "/get-started/connect-your-app": "/get-started/quickstart/connect-your-app",
       "/get-started/next-steps": "/get-started/quickstart/next-steps",
       "/get-started/create-mst-service": "/deploy/mst/create-mst-service",
-      "/get-started/choose-your-path/create-mst-service": "/deploy/mst/create-mst-service",
       "/get-started/install-timescaledb": "/get-started/choose-your-path/install-timescaledb",
       "/get-started/supported-platforms": "/get-started/choose-your-path/supported-platforms",
       "/get-started/timescaledb-editions": "/get-started/choose-your-path/timescaledb-editions",
