@@ -1,9 +1,8 @@
 ---
 /**
- * Recursive flyout rows for nav tab dropdowns (submenus open to the right on hover).
+ * Renders tab dropdown nodes. Nested `children` are only used if the tree includes them (header nav uses top-level sections only).
  */
 import type { NavTreeNode } from "./nav-dropdown-tree-types";
-/** Self-reference under alias avoids TS “conflicts with local declaration”. */
 import NavDropdownSubtree from "./NavDropdownTree.astro";
 
 interface Props {
@@ -17,49 +16,95 @@ const { nodes, depth = 0 } = Astro.props as Props;
 {
   nodes.map((node) =>
     node.kind === "link" ? (
-      <a href={node.href} class="nav-dropdown-item nav-dropdown-item--leaf" role="menuitem">
+      <a
+        href={node.href}
+        class:list={["nav-dropdown-item", "nav-dropdown-item--leaf", depth > 0 && "nav-dropdown-item--nested"]}
+        role="menuitem"
+        style={`--nav-depth: ${depth}`}
+      >
         <span class="nav-dropdown-item-title">{node.label}</span>
       </a>
     ) : (
-      <div class:list={["nav-dropdown-has-sub", depth > 0 && "nav-dropdown-has-sub--nested"]}>
-        <div
-          class="nav-dropdown-sub-trigger"
-          role="menuitem"
-          aria-haspopup="true"
-          aria-expanded="false"
-          tabindex={depth === 0 ? 0 : -1}
-        >
-          <span class="nav-dropdown-sub-trigger-text">
-            {node.href ? (
-              <a href={node.href} class="nav-dropdown-sub-trigger-link" onclick="event.stopPropagation()">
-                {node.label}
-              </a>
-            ) : (
-              <span class="nav-dropdown-sub-trigger-label">{node.label}</span>
-            )}
-          </span>
-          <svg class="nav-dropdown-sub-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </div>
-        <div class="nav-dropdown-flyout" role="menu">
-          <div class="nav-dropdown-flyout-inner">
+      <div
+        class:list={["nav-dropdown-section", depth > 0 && "nav-dropdown-section--nested"]}
+        role="none"
+        style={`--nav-depth: ${depth}`}
+      >
+        {node.href ? (
+          <a href={node.href} class="nav-dropdown-section-heading nav-dropdown-section-heading--link" role="menuitem">
+            {node.label}
+          </a>
+        ) : (
+          <span class="nav-dropdown-section-heading">{node.label}</span>
+        )}
+        {node.children.length > 0 ? (
+          <div class="nav-dropdown-section-children">
             <NavDropdownSubtree nodes={node.children} depth={depth + 1} />
           </div>
-        </div>
+        ) : null}
       </div>
     )
   )
 }
 
 <style>
-  .nav-dropdown-item--leaf {
+  .nav-dropdown-section {
+    --nav-depth: 0;
+    padding-top: 4px;
+    padding-bottom: 2px;
+  }
+
+  .nav-dropdown-section--nested {
+    padding-left: calc(10px + min(var(--nav-depth, 1), 6) * 10px);
+    border-left: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
+    margin-left: 10px;
+    margin-bottom: 2px;
+  }
+
+  .nav-dropdown-section-heading {
     display: block;
-    padding: 10px 14px;
+    padding: 8px 14px 6px;
+    font-weight: 700;
+    font-size: 0.875rem;
+    line-height: 1.35;
+    letter-spacing: 0.01em;
+    color: light-dark(var(--tiger-grey-700), var(--tiger-grey-200));
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .nav-dropdown-section-heading--link {
+    color: inherit;
+    text-decoration: none;
+    border-radius: var(--tiger-radius-sm, 6px);
+    transition: background 0.12s ease;
+  }
+
+  .nav-dropdown-section-heading--link:hover {
+    background: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
+    color: var(--stl-color-accent, var(--tiger-vivid-purple));
+  }
+
+  .nav-dropdown-section-children {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .nav-dropdown-item--leaf {
+    --nav-depth: 0;
+    display: block;
+    padding: 8px 14px;
+    padding-left: calc(14px + min(var(--nav-depth, 1), 8) * 12px);
     color: inherit;
     text-decoration: none;
     transition: background 0.12s ease;
     overflow: visible;
+  }
+
+  .nav-dropdown-item--nested {
+    padding-top: 6px;
+    padding-bottom: 6px;
   }
 
   .nav-dropdown-item--leaf .nav-dropdown-item-title {
@@ -73,135 +118,5 @@ const { nodes, depth = 0 } = Astro.props as Props;
 
   .nav-dropdown-item--leaf:hover {
     background: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
-  }
-
-  .nav-dropdown-has-sub {
-    position: relative;
-    list-style: none;
-  }
-
-  .nav-dropdown-sub-trigger {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 10px 14px;
-    cursor: default;
-    transition: background 0.12s ease;
-    border: none;
-    width: 100%;
-    text-align: start;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-  }
-
-  .nav-dropdown-sub-trigger:hover,
-  .nav-dropdown-has-sub:hover > .nav-dropdown-sub-trigger,
-  .nav-dropdown-has-sub:focus-within > .nav-dropdown-sub-trigger {
-    background: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
-  }
-
-  .nav-dropdown-sub-trigger-text {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-    flex: 1;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-  }
-
-  .nav-dropdown-sub-trigger-label,
-  .nav-dropdown-sub-trigger-link {
-    font-weight: 600;
-    font-size: 0.9375rem;
-    line-height: 1.3;
-  }
-
-  .nav-dropdown-sub-trigger-link {
-    color: inherit;
-    text-decoration: none;
-  }
-
-  .nav-dropdown-sub-trigger-link:hover {
-    color: var(--stl-color-accent, var(--tiger-vivid-purple));
-  }
-
-  .nav-dropdown-sub-chevron {
-    flex-shrink: 0;
-    margin-top: 2px;
-    opacity: 0.55;
-  }
-
-  .nav-dropdown-has-sub:hover .nav-dropdown-sub-chevron,
-  .nav-dropdown-has-sub:focus-within .nav-dropdown-sub-chevron {
-    opacity: 0.9;
-  }
-
-  /* Invisible bridge so pointer can move into flyout */
-  .nav-dropdown-flyout::before {
-    content: "";
-    position: absolute;
-    right: 100%;
-    top: 0;
-    width: 10px;
-    height: 100%;
-    min-height: 44px;
-  }
-
-  .nav-dropdown-flyout {
-    position: absolute;
-    left: calc(100% - 2px);
-    top: -4px;
-    padding-left: 6px;
-    min-width: 280px;
-    max-width: min(400px, calc(100vw - 2rem));
-    overflow: visible;
-    z-index: 10;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transform: translateX(-4px);
-    transition:
-      opacity 0.15s ease,
-      visibility 0.15s ease,
-      transform 0.15s ease;
-  }
-
-  .nav-dropdown-flyout-inner {
-    background: light-dark(var(--tiger-white), var(--tiger-grey-900));
-    border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
-    border-radius: var(--tiger-radius-md, 8px);
-    box-shadow: 0 12px 28px -8px rgb(0 0 0 / 0.18), 0 4px 8px -4px rgb(0 0 0 / 0.12);
-    padding: 6px 0;
-    overflow: visible;
-  }
-
-  .nav-dropdown-has-sub:hover > .nav-dropdown-flyout,
-  .nav-dropdown-has-sub:focus-within > .nav-dropdown-flyout {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    transform: translateX(0);
-  }
-
-  /* Nested flyouts stack to the right */
-  .nav-dropdown-has-sub--nested .nav-dropdown-flyout {
-    top: -6px;
-    z-index: 20;
-  }
-
-  @media (max-width: 70rem) {
-    .nav-dropdown-flyout {
-      left: auto;
-      right: calc(100% - 2px);
-      padding-left: 0;
-      padding-right: 6px;
-    }
-    .nav-dropdown-flyout::before {
-      right: auto;
-      left: 100%;
-    }
   }
 </style>
