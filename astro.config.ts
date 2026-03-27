@@ -264,7 +264,7 @@ export default defineConfig({
                 collapsed: true,
                 items: [
                   { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-                  { label: "Basic compression", link: "/build/how-to/basic-compression" },
+                  { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
                 ],
               },
               {
@@ -354,8 +354,6 @@ export default defineConfig({
                   { label: "Columnar storage overview", link: "/learn/columnar-storage" },
                   { label: "Understand Hypercore", link: "/learn/columnar-storage/understand-hypercore" },
                   { label: "Compression methods", link: "/learn/columnar-storage/compression-methods" },
-                  { label: "Compression overview (Tiger Cloud)", link: "/learn/compression/overview" },
-                  { label: "Compression configuration and testing (Tiger Cloud)", link: "/learn/compression/configuration-and-testing" },
                 ],
               },
               {
@@ -367,17 +365,6 @@ export default defineConfig({
                   { label: "Hierarchical continuous aggregates", link: "/learn/continuous-aggregates/hierarchical-continuous-aggregates" },
                   { label: "Real-time aggregates", link: "/learn/continuous-aggregates/real-time-aggregates" },
                   { label: "Materialized hypertables", link: "/learn/continuous-aggregates/materialized-hypertables" },
-                  {
-                    label: "Tiger Cloud",
-                    collapsed: true,
-                    items: [
-                      { label: "Continuous aggregates on Tiger Cloud", link: "/learn/continuous-aggregates/tiger-cloud-caggs" },
-                      {
-                        label: "Compression with CAGGs and backfill (Tiger Cloud)",
-                        link: "/learn/compression/caggs-and-backfill",
-                      },
-                    ],
-                  },
                 ],
               },
               {
@@ -386,11 +373,9 @@ export default defineConfig({
                 items: [
                   { label: "Data retention overview", link: "/learn/data-management/data-retention" },
                   { label: "About data retention", link: "/learn/data-management/data-retention/about-data-retention" },
-                  { label: "Data retention on Tiger Cloud", link: "/learn/data-lifecycle/data-retention-policies" },
                   { label: "Data retention with continuous aggregates", link: "/learn/data-management/data-retention/data-retention-with-continuous-aggregates" },
                   { label: "Tiered storage overview", link: "/learn/data-management/storage" },
                   { label: "About storage tiers", link: "/learn/data-management/storage/about-storage-tiers" },
-                  { label: "Tiered storage on Tiger Cloud", link: "/learn/data-lifecycle/tiered-storage" },
                 ],
               },
               {
@@ -421,7 +406,7 @@ export default defineConfig({
                     collapsed: true,
                     items: [
                       { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-                      { label: "Basic compression", link: "/build/how-to/basic-compression" },
+                      { label: "Basic compression with Hypercore", link: "/build/how-to/basic-compression" },
                     ],
                   },
                   {
