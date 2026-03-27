@@ -601,7 +601,7 @@ export default defineConfig({
           },
           // Migrate tab, logical order: overview → how to import/migrate → source-specific guides
           {
-            label: "Migrate and Sync",
+            label: "Migrate",
             link: "/migrate",
             sidebar: [
               {
@@ -782,7 +782,7 @@ export default defineConfig({
           },
           // Deploy tab
           {
-            label: "Deploy and Configure",
+            label: "Deploy",
             link: "/deploy",
             sidebar: [
               {
@@ -791,14 +791,9 @@ export default defineConfig({
                 items: [{ label: "Deploy Tiger Data", link: "/deploy" }],
               },
               {
-                label: "Tiger Cloud",
+                label: "Tiger Cloud on AWS",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/deploy/tiger-cloud" },
-                  {
-                    label: "Tiger Cloud on AWS",
-                    collapsed: true,
-                    items: [
                       {
                         label: "Configuration",
                         collapsed: true,
@@ -861,12 +856,12 @@ export default defineConfig({
                       },
                       { label: "Maintenance and upgrades", link: "/deploy/tiger-cloud/tiger-cloud-aws/upgrades" },
                       { label: "Billing and account management", link: "/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management" },
-                    ],
-                  },
-                  {
-                    label: "Tiger Cloud on Azure",
-                    collapsed: true,
-                    items: [
+                ],
+              },
+              {
+                label: "Tiger Cloud on Azure",
+                collapsed: true,
+                items: [
                       {
                         label: "Configuration",
                         collapsed: true,
@@ -928,11 +923,17 @@ export default defineConfig({
                       },
                       { label: "Maintenance and upgrades", link: "/deploy/tiger-cloud/tiger-cloud-azure/upgrades" },
                       { label: "Billing and account management", link: "/deploy/tiger-cloud/tiger-cloud-azure/pricing-and-account-management" },
-                    ],
-                  },
-                  { label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" },
-                  { label: "Limitations", link: "/deploy/tiger-cloud/limitations" },
                 ],
+              },
+              {
+                label: "Tiger Cloud troubleshooting",
+                collapsed: true,
+                items: [{ label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" }],
+              },
+              {
+                label: "Limitations",
+                collapsed: true,
+                items: [{ label: "Limitations", link: "/deploy/tiger-cloud/limitations" }],
               },
               {
                 label: "Self-Hosted",
@@ -1829,5 +1830,8 @@ export default defineConfig({
         "/learn/performance-optimization/hypertables-and-unique-indexes",
       "/build/performance-optimization/hypertables-and-unique-indexes/":
         "/learn/performance-optimization/hypertables-and-unique-indexes/",
+      // Tiger Cloud overview removed; send old URL to AWS service management entry
+      "/deploy/tiger-cloud": "/deploy/tiger-cloud/tiger-cloud-aws/service-management",
+      "/deploy/tiger-cloud/": "/deploy/tiger-cloud/tiger-cloud-aws/service-management/",
     }),
 });
