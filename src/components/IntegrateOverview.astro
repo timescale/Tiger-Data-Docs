@@ -179,9 +179,25 @@ const uniqueTechnologies = TECHNOLOGY_ORDER.filter((tech) =>
 function slugToHref(slug: string): string {
   return "/" + slug + "/";
 }
+
+/** Splash template hides the default Starlight title; show title + description in this panel. */
+const routeEntry = Astro.locals.starlightRoute?.entry;
+const headerTitle = routeEntry?.data?.title ?? "Integrate";
+const headerDescription = routeEntry?.data?.description;
 ---
 
 <div class="integrate-overview" id="integrate-overview-root">
+  <header class="integrate-header" aria-labelledby="integrate-overview-heading">
+    <h1 class="integrate-header__title" id="integrate-overview-heading">
+      {headerTitle}
+    </h1>
+    {
+      headerDescription ? (
+        <p class="integrate-header__description">{headerDescription}</p>
+      ) : null
+    }
+  </header>
+
   <!-- Search bar -->
   <div class="integrate-search-wrapper">
     <svg class="integrate-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
@@ -331,150 +347,161 @@ function slugToHref(slug: string): string {
 </div>
 
 <script>
-  // --- Integrate overview: search + dropdown filter logic ---
-  const searchInput = document.getElementById("integrate-search") as HTMLInputElement | null;
-  const clearBtn = document.getElementById("integrate-clear-filters") as HTMLButtonElement | null;
-  const noResults = document.getElementById("integrate-no-results") as HTMLElement | null;
-  const cards = document.querySelectorAll<HTMLElement>("#integrate-cards-grid .integrate-card");
-  const filterGroups = document.querySelectorAll<HTMLElement>(".integrate-filter-group");
-  const allCheckboxes = document.querySelectorAll<HTMLInputElement>("[data-filter-check]");
+  /**
+   * Search + filters must bind on `astro:page-load`: the bundled module runs once on first load,
+   * so client navigations to /integrate never ran the old top-level code (empty NodeLists).
+   */
+  const FILTER_KEYS = ["category", "industry", "platform", "party", "technology"];
 
-  // Toggle dropdown panels
-  filterGroups.forEach((group) => {
-    const btn = group.querySelector<HTMLButtonElement>(".integrate-filter-btn");
-    const panel = group.querySelector<HTMLElement>(".integrate-filter-panel");
-    if (!btn || !panel) return;
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const isOpen = btn.getAttribute("aria-expanded") === "true";
-      // Close all other panels
-      filterGroups.forEach((g) => {
-        const b = g.querySelector<HTMLButtonElement>(".integrate-filter-btn");
-        const p = g.querySelector<HTMLElement>(".integrate-filter-panel");
-        if (b) b.setAttribute("aria-expanded", "false");
-        if (p) p.hidden = true;
-      });
-      if (!isOpen) {
-        btn.setAttribute("aria-expanded", "true");
-        panel.hidden = false;
-      }
+  let integrateOutsideClickBound = false;
+
+  function closeAllIntegrateFilterPanels() {
+    document.querySelectorAll("#integrate-overview-root .integrate-filter-group").forEach((g) => {
+      const b = g.querySelector(".integrate-filter-btn");
+      const p = g.querySelector(".integrate-filter-panel");
+      if (b) b.setAttribute("aria-expanded", "false");
+      if (p) p.hidden = true;
     });
-  });
+  }
 
-  // Close panels on outside click
-  document.addEventListener("click", (e) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest(".integrate-filter-group")) {
-      filterGroups.forEach((g) => {
-        const b = g.querySelector<HTMLButtonElement>(".integrate-filter-btn");
-        const p = g.querySelector<HTMLElement>(".integrate-filter-panel");
-        if (b) b.setAttribute("aria-expanded", "false");
-        if (p) p.hidden = true;
+  function initIntegrateOverview() {
+    const root = document.getElementById("integrate-overview-root");
+    if (!root || root.dataset.integrateBound === "1") return;
+    root.dataset.integrateBound = "1";
+
+    const searchInput = root.querySelector("#integrate-search");
+    const clearBtn = root.querySelector("#integrate-clear-filters");
+    const noResults = root.querySelector("#integrate-no-results");
+    const cards = root.querySelectorAll("#integrate-cards-grid .integrate-card");
+    const filterGroups = root.querySelectorAll(".integrate-filter-group");
+    const allCheckboxes = root.querySelectorAll("[data-filter-check]");
+
+    if (!searchInput || filterGroups.length === 0) {
+      delete root.dataset.integrateBound;
+      return;
+    }
+
+    function getActiveFilters() {
+      /** @type {Record<string, string[]>} */
+      const filters = {};
+      allCheckboxes.forEach((cb) => {
+        if (cb.checked) {
+          const key = cb.getAttribute("data-filter-check") ?? "";
+          if (!filters[key]) filters[key] = [];
+          filters[key].push(cb.value);
+        }
+      });
+      return filters;
+    }
+
+    function applyFilters() {
+      const filters = getActiveFilters();
+      const query = (searchInput.value ?? "").trim().toLowerCase();
+      const hasFilters = Object.keys(filters).length > 0 || query.length > 0;
+      if (clearBtn) clearBtn.hidden = !hasFilters;
+
+      filterGroups.forEach((group) => {
+        const key = group.getAttribute("data-filter-key") ?? "";
+        const btn = group.querySelector(".integrate-filter-btn");
+        const count = (filters[key] ?? []).length;
+        if (btn) btn.classList.toggle("integrate-filter-btn--active", count > 0);
+      });
+
+      let visibleCount = 0;
+      cards.forEach((card) => {
+        let show = true;
+
+        if (query) {
+          const text = card.getAttribute("data-search-text") ?? "";
+          if (!text.includes(query)) show = false;
+        }
+
+        if (show && filters["category"]?.length) {
+          const cat = card.getAttribute("data-category") ?? "";
+          if (!filters["category"].includes(cat)) show = false;
+        }
+
+        if (show && filters["industry"]?.length) {
+          const industries = (card.getAttribute("data-industries") ?? "").split(",").filter(Boolean);
+          if (!filters["industry"].some((f) => industries.includes(f))) show = false;
+        }
+
+        if (show && filters["platform"]?.length) {
+          const platforms = (card.getAttribute("data-platforms") ?? "").split(",").filter(Boolean);
+          if (!filters["platform"].some((f) => platforms.includes(f))) show = false;
+        }
+
+        if (show && filters["party"]?.length) {
+          const party = card.getAttribute("data-party") ?? "";
+          if (!filters["party"].includes(party)) show = false;
+        }
+
+        if (show && filters["technology"]?.length) {
+          const techs = (card.getAttribute("data-technologies") ?? "").split(",").filter(Boolean);
+          if (!filters["technology"].some((f) => techs.includes(f))) show = false;
+        }
+
+        /* Use a class, not [hidden], so scoped .integrate-card { display: flex } cannot override hiding */
+        card.classList.toggle("integrate-card--filtered-out", !show);
+        if (show) visibleCount++;
+      });
+
+      if (noResults) noResults.hidden = visibleCount > 0;
+    }
+
+    filterGroups.forEach((group) => {
+      const btn = group.querySelector(".integrate-filter-btn");
+      const panel = group.querySelector(".integrate-filter-panel");
+      if (!btn || !panel) return;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = btn.getAttribute("aria-expanded") === "true";
+        filterGroups.forEach((g) => {
+          const b = g.querySelector(".integrate-filter-btn");
+          const p = g.querySelector(".integrate-filter-panel");
+          if (b) b.setAttribute("aria-expanded", "false");
+          if (p) p.hidden = true;
+        });
+        if (!isOpen) {
+          btn.setAttribute("aria-expanded", "true");
+          panel.hidden = false;
+        }
+      });
+    });
+
+    if (!integrateOutsideClickBound) {
+      integrateOutsideClickBound = true;
+      document.addEventListener("click", (e) => {
+        const t = e.target;
+        if (!(t instanceof HTMLElement)) return;
+        if (t.closest(".integrate-filter-group")) return;
+        closeAllIntegrateFilterPanels();
       });
     }
-  });
 
-  // Get active filter values per dimension
-  function getActiveFilters(): Record<string, string[]> {
-    const filters: Record<string, string[]> = {};
-    allCheckboxes.forEach((cb) => {
-      if (cb.checked) {
-        const key = cb.getAttribute("data-filter-check") ?? "";
-        if (!filters[key]) filters[key] = [];
-        filters[key].push(cb.value);
-      }
-    });
-    return filters;
-  }
-
-  function applyFilters() {
-    const filters = getActiveFilters();
-    const query = (searchInput?.value ?? "").trim().toLowerCase();
-    const hasFilters = Object.keys(filters).length > 0 || query.length > 0;
-    if (clearBtn) clearBtn.hidden = !hasFilters;
-
-    // Update button labels with count
-    filterGroups.forEach((group) => {
-      const key = group.getAttribute("data-filter-key") ?? "";
-      const btn = group.querySelector<HTMLButtonElement>(".integrate-filter-btn");
-      const count = (filters[key] ?? []).length;
-      if (btn) {
-        btn.classList.toggle("integrate-filter-btn--active", count > 0);
-      }
+    searchInput.addEventListener("input", applyFilters);
+    /* Delegated: checkbox change inside filter panels always runs applyFilters */
+    root.addEventListener("change", (e) => {
+      const t = e.target;
+      if (t instanceof HTMLInputElement && t.hasAttribute("data-filter-check")) applyFilters();
     });
 
-    let visibleCount = 0;
-    cards.forEach((card) => {
-      let show = true;
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        allCheckboxes.forEach((cb) => {
+          cb.checked = false;
+        });
+        searchInput.value = "";
+        window.history.replaceState({}, "", window.location.pathname);
+        applyFilters();
+      });
+    }
 
-      // Search filter
-      if (query) {
-        const text = card.getAttribute("data-search-text") ?? "";
-        if (!text.includes(query)) show = false;
-      }
-
-      // Category filter
-      if (show && filters["category"]?.length) {
-        const cat = card.getAttribute("data-category") ?? "";
-        if (!filters["category"].includes(cat)) show = false;
-      }
-
-      // Industry filter (card matches if it has ANY of the selected industries)
-      if (show && filters["industry"]?.length) {
-        const industries = (card.getAttribute("data-industries") ?? "").split(",").filter(Boolean);
-        if (!filters["industry"].some((f) => industries.includes(f))) show = false;
-      }
-
-      // Platform filter
-      if (show && filters["platform"]?.length) {
-        const platforms = (card.getAttribute("data-platforms") ?? "").split(",").filter(Boolean);
-        if (!filters["platform"].some((f) => platforms.includes(f))) show = false;
-      }
-
-      // Party filter
-      if (show && filters["party"]?.length) {
-        const party = card.getAttribute("data-party") ?? "";
-        if (!filters["party"].includes(party)) show = false;
-      }
-
-      // Technology filter
-      if (show && filters["technology"]?.length) {
-        const techs = (card.getAttribute("data-technologies") ?? "").split(",").filter(Boolean);
-        if (!filters["technology"].some((f) => techs.includes(f))) show = false;
-      }
-
-      card.hidden = !show;
-      if (show) visibleCount++;
-    });
-
-    if (noResults) noResults.hidden = visibleCount > 0;
-  }
-
-  // Wire up search
-  searchInput?.addEventListener("input", applyFilters);
-
-  // Wire up checkboxes
-  allCheckboxes.forEach((cb) => cb.addEventListener("change", applyFilters));
-
-  // Wire up clear
-  clearBtn?.addEventListener("click", () => {
-    allCheckboxes.forEach((cb) => { cb.checked = false; });
-    if (searchInput) searchInput.value = "";
-    // Remove query params from URL
-    window.history.replaceState({}, "", window.location.pathname);
-    applyFilters();
-  });
-
-  // Apply filters from URL query params (e.g. ?industry=energy&platform=aws)
-  // This allows sidebar links like /integrate/?industry=energy to pre-activate filters.
-  const FILTER_KEYS = ["category", "industry", "platform", "party", "technology"];
-  function applyFromURL() {
     const params = new URLSearchParams(window.location.search);
     let anyApplied = false;
     for (const key of FILTER_KEYS) {
       const val = params.get(key);
       if (!val) continue;
-      // Find matching checkbox and check it
       allCheckboxes.forEach((cb) => {
         if (cb.getAttribute("data-filter-check") === key && cb.value === val) {
           cb.checked = true;
@@ -484,12 +511,41 @@ function slugToHref(slug: string): string {
     }
     if (anyApplied) applyFilters();
   }
-  applyFromURL();
+
+  document.addEventListener("astro:page-load", initIntegrateOverview);
+  initIntegrateOverview();
 </script>
 
 <style>
   .integrate-overview {
     margin: 1.5rem 0;
+  }
+
+  /* ---- Page intro (splash template skips default PageTitle; no box, flows with the page) ---- */
+  /* Reset global `header { border-bottom; display: flex; ... }` from layout CSS so this in-page header is not styled like the site chrome */
+  .integrate-header {
+    display: block;
+    margin: 0 auto 1.75rem;
+    padding: 0;
+    max-width: 42rem;
+    text-align: center;
+    border-bottom: none;
+  }
+  .integrate-header__title {
+    margin: 0 0 0.5rem;
+    font-family: var(--stl-font-family, inherit);
+    font-size: clamp(1.625rem, 2.8vw, 2.125rem);
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    line-height: 1.2;
+    color: light-dark(var(--tiger-bg-default, #15151e), var(--tiger-grey-50));
+  }
+  .integrate-header__description {
+    margin: 0;
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    letter-spacing: -0.01em;
+    color: light-dark(var(--tiger-fg-emphasized, #555570), rgba(220, 220, 230, 0.88));
   }
 
   /* ---- Search bar ---- */
@@ -688,6 +744,10 @@ function slugToHref(slug: string): string {
     text-decoration: none;
     color: inherit;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  /* Filter script toggles this; [hidden] can lose to display:flex from prose or layout */
+  .integrate-card.integrate-card--filtered-out {
+    display: none !important;
   }
   .integrate-card:hover {
     border-color: light-dark(#8f93f9, var(--tiger-vivid-purple));
