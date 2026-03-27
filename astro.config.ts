@@ -163,7 +163,7 @@ export default defineConfig({
           replacesTitle: true,
         },
         favicon: "favicon.ico",
-        customCss: ["./theme.css", "./osano.css"],
+        customCss: ["./theme.css", "./osano.css", "./src/styles/layout-root.css"],
         lastUpdated: true,
         head: [
           {

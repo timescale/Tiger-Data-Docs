@@ -1,0 +1,46 @@
+---
+title: Understand pg_textsearch and BM25 search
+description: "Learn why BM25 full-text search matters, how pg_textsearch ranks results, and when to open the Tiger Cloud extension guide for setup and tuning."
+---
+
+import * as C from "@constants";
+
+**`pg_textsearch`** brings **BM25** full-text search into {C.PG} so you can rank documents by relevance with SQL, close to how many web search engines score results. **v1.0.0** (March 2026) is **production-ready** on {C.CLOUD_LONG}; the extension targets **{C.PG} 17 and 18** (see [compatibility](https://github.com/timescale/pg_textsearch#postgresql-version-compatibility) in the open source repo).
+
+Start here if you want the **ideas** behind the extension. When you need **steps** (install the extension, create indexes, run queries, tune settings), open the Deploy guide linked at the end of this page.
+
+## When built-in search stops being enough
+
+{C.PG} ships a capable full-text stack (`tsvector`, `tsquery`, `ts_rank`, and related types). For many apps, that stack works well.
+
+As your corpus grows, you may hit limits: ranking can diverge from what users expect, and **top-k** queries (return the *k* best matches) can get costly to compute fairly. **`pg_textsearch`** targets that gap with a dedicated BM25 index and query operators designed for **ranked retrieval at scale**.
+
+## What BM25 does for you
+
+**BM25** is a standard relevance function from information retrieval. **`pg_textsearch`** exposes BM25 scores as **negative** floats: **a lower (more negative) score means a better match**, which fits natural `ORDER BY ... ASC` ranking.
+
+BM25 encodes a few behaviors people usually want from keyword search:
+
+- **Rare terms count more**: the less often a term appears across your corpus, the more it boosts a match (inverse document frequency).
+- **Repetition levels off**: a document cannot dominate results only by repeating the same word.
+- **Length stays fair**: long documents do not automatically win only because they contain more words.
+
+You still write ordinary SQL; you trade some of the manual tuning of `ts_rank` for a ranking model that behaves more like familiar search products.
+
+## What you get from the extension
+
+In practice, **`pg_textsearch`** lets you:
+
+- **Index one text column per BM25 index** with a **`text_config`** (for example `english`) so stemming and tokenization match your language.
+- **Score queries with `<@>`**, typically with `ORDER BY` and `LIMIT` for top-k results, and with explicit index naming when you filter in `WHERE` or need planner-friendly forms (see the Deploy guide).
+- **Operate the index** alongside the rest of your stack: parallel index builds on large tables, optional **hybrid** workflows with vector extensions (for example pgvector or pgvectorscale), and settings that control memory, segments, and top-k performance.
+
+Constraints matter too: phrase-only queries, certain compressed data paths, PL/pgSQL caveats, and other limits are **documented as product behavior**, not as tutorials on this page. Read the extension guide or the [upstream README](https://github.com/timescale/pg_textsearch/blob/main/README.md) for the full list.
+
+## Next steps
+
+| Goal | Where to read |
+|------|----------------|
+| Install `pg_textsearch`, create BM25 indexes, query examples, configuration, limitations, self-hosted `shared_preload_libraries` | **[Optimize full text search with BM25](/deploy/tiger-cloud/tiger-cloud-aws/tiger-cloud-extensions/pg-textsearch)** ([AWS](/deploy/tiger-cloud/tiger-cloud-aws/tiger-cloud-extensions/pg-textsearch) and [Azure](/deploy/tiger-cloud/tiger-cloud-azure/tiger-cloud-extensions/pg-textsearch) use the same article) |
+| Releases, source, and deep reference | **[pg_textsearch on GitHub](https://github.com/timescale/pg_textsearch)** |
+| Same story on the public site | **[Tiger Data: Optimize full text search with BM25](https://www.tigerdata.com/docs/use-timescale/latest/extensions/pg-textsearch)** |
