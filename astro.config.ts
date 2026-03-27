@@ -296,7 +296,7 @@ export default defineConfig({
                 collapsed: true,
                 items: [
                   { label: "Understand capabilities", link: "/learn/capabilities-and-comparison/understand-capabilities" },
-                  { label: "Compare the features in Tiger Data products", link: "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison" },
+                  { label: "Compare the features in Tiger Data products", link: "/get-started/feature-comparison" },
                 ],
               },
               {
@@ -735,7 +735,16 @@ export default defineConfig({
                   {
                     label: "Observability & Alerting",
                     collapsed: true,
-                    autogenerate: { directory: "integrate/observability-alerting" },
+                    items: [
+                      { label: "Overview", link: "/integrate/observability-alerting" },
+                      { label: "Amazon CloudWatch", link: "/integrate/observability-alerting/cloudwatch" },
+                      { label: "Azure Monitor", link: "/integrate/observability-alerting/azure-monitor" },
+                      { label: "Datadog", link: "/integrate/observability-alerting/datadog" },
+                      { label: "Grafana", link: "/integrate/observability-alerting/grafana" },
+                      { label: "Prometheus", link: "/integrate/observability-alerting/prometheus" },
+                      { label: "Telegraf", link: "/integrate/observability-alerting/telegraf" },
+                      { label: "Exported metrics", link: "/integrate/observability-alerting/exported-metrics" },
+                    ],
                   },
                   {
                     label: "Configuration & Deployment",
@@ -1034,6 +1043,7 @@ export default defineConfig({
                 collapsed: true,
                 items: [
                   { label: "Managed Service for TimescaleDB", link: "/deploy/mst" },
+                  { label: "Create an MST service", link: "/deploy/mst/create-mst-service" },
                   { label: "About MST", link: "/deploy/mst/about-mst" },
                   { label: "Ingest data", link: "/deploy/mst/ingest-data" },
                   { label: "User management", link: "/deploy/mst/user-management" },
@@ -1714,7 +1724,7 @@ export default defineConfig({
       "/get-started/create-service": "/get-started/quickstart/create-service",
       "/get-started/connect-your-app": "/get-started/quickstart/connect-your-app",
       "/get-started/next-steps": "/get-started/quickstart/next-steps",
-      "/get-started/create-mst-service": "/get-started/choose-your-path/create-mst-service",
+      "/get-started/create-mst-service": "/deploy/mst/create-mst-service",
       "/get-started/install-timescaledb": "/get-started/choose-your-path/install-timescaledb",
       "/get-started/supported-platforms": "/get-started/choose-your-path/supported-platforms",
       "/get-started/timescaledb-editions": "/get-started/choose-your-path/timescaledb-editions",
@@ -1759,7 +1769,7 @@ export default defineConfig({
       "/learn/fundamentals/design-your-data-model": "/learn/hypertables/design-your-data-model",
       "/learn/fundamentals/querying-time-series-data": "/learn/hypertables/querying-time-series-data",
       "/learn/fundamentals/tiger-cloud-feature-comparison":
-        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison",
+        "/get-started/feature-comparison",
       "/learn/concepts": "/learn",
       "/learn/concepts/": "/learn/",
       "/learn/topics": "/learn",
@@ -1772,13 +1782,13 @@ export default defineConfig({
       "/learn/concepts/understand-capabilities":
         "/learn/capabilities-and-comparison/understand-capabilities",
       "/learn/concepts/tiger-cloud-feature-comparison":
-        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison",
+        "/get-started/feature-comparison",
       "/learn/overview/understand-capabilities":
         "/learn/capabilities-and-comparison/understand-capabilities",
       "/learn/overview/understand-capabilities/":
         "/learn/capabilities-and-comparison/understand-capabilities/",
       "/learn/overview/tiger-cloud-feature-comparison":
-        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison",
+        "/get-started/feature-comparison",
       "/learn/overview/tiger-cloud-feature-comparison/":
         "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison/",
       "/learn/about-tiger-data/understand-capabilities":
@@ -1786,7 +1796,7 @@ export default defineConfig({
       "/learn/about-tiger-data/understand-capabilities/":
         "/learn/capabilities-and-comparison/understand-capabilities/",
       "/learn/about-tiger-data/tiger-cloud-feature-comparison":
-        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison",
+        "/get-started/feature-comparison",
       "/learn/about-tiger-data/tiger-cloud-feature-comparison/":
         "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison/",
       // Conceptual docs canonical under /learn/; old /build/ URLs redirect (bookmarks, external links)
