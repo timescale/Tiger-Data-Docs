@@ -1,38 +1,70 @@
 ---
-title: Basic compression
-description: Reduce storage while maintaining query performance
+title: Basic compression with hypercore
+description: Compress data into the columnstore for up to 98% storage savings and faster analytical queries
 ---
 
 import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
 
-{/* TODO: Finish migrating this how-to from the legacy outline, verify SQL snippets, links (e.g. compression policies), and align with current Hypercore/compression IA. */}
+{C.HYPERCORE} is {C.TIMESCALE_DB}'s hybrid row-columnar storage engine. It automatically compresses {C.CHUNK}s from the {C.ROWSTORE} into the {C.COLUMNSTORE}, typically reducing storage by 90–98% while making analytical queries significantly faster.
 
-Native compression in {C.TIMESCALE_DB} often cuts storage by 90% or more while keeping analytical queries fast.
+## How it works
 
-## How compression works
+When you create a {C.HYPERTABLE} with `segmentby` and `orderby` options, {C.TIMESCALE_DB} automatically creates a [columnstore policy](/reference/timescaledb/hypercore/add_columnstore_policy) that converts older {C.CHUNK}s into columnar format. Recent data stays in the {C.ROWSTORE} for fast inserts, while older data is compressed in the {C.COLUMNSTORE} for efficient scans.
 
-{C.TIMESCALE_DB} compresses data at the chunk level, converting row-oriented data into a columnar format optimized for analytics queries.
+## Enable {C.HYPERCORE}
 
-## Enabling compression
+Create a {C.HYPERTABLE} with {C.HYPERCORE} enabled using `CREATE TABLE`:
 
-```sql path=null start=null
--- Enable compression on a hypertable
-ALTER TABLE conditions SET (
-  timescaledb.compress,
-  timescaledb.compress_segmentby = 'location'
+```sql
+CREATE TABLE conditions (
+  time        TIMESTAMPTZ       NOT NULL,
+  location    TEXT              NOT NULL,
+  device      TEXT              NOT NULL,
+  temperature DOUBLE PRECISION  NULL,
+  humidity    DOUBLE PRECISION  NULL
+) WITH (
+  tsdb.hypertable,
+  tsdb.segmentby = 'device',
+  tsdb.orderby = 'time DESC'
 );
+```
 
--- Add a compression policy
-SELECT add_compression_policy('conditions', INTERVAL '7 days');
+This automatically:
+- Creates a {C.HYPERTABLE} partitioned by `time`
+- Sets `device` as the segment column for efficient filtering
+- Orders data by `time DESC` for optimal compression and scan performance
+- Creates a columnstore policy that compresses {C.CHUNK}s after one {C.CHUNK} interval
+
+<Callout variant="tip">
+Choose `segmentby` based on how you filter data (for example, by device, location, or user). Choose `orderby` based on your most common sort order (usually time descending). Lower cardinality `segmentby` columns give better compression.
+</Callout>
+
+## Check compression results
+
+After the columnstore policy runs, check how much space you've saved:
+
+```sql
+SELECT
+  hypertable_size('conditions') AS total_size,
+  pg_size_pretty(hypertable_size('conditions')) AS pretty_size;
+```
+
+For detailed per-chunk information:
+
+```sql
+SELECT * FROM chunks_detailed_size('conditions');
 ```
 
 ## Benefits
 
-- **Storage Savings**: 90%+ compression ratios are common
-- **Query Performance**: Analytical queries often run faster on compressed data
-- **Cost Reduction**: Less storage = lower cloud costs
+- **Storage savings**: 90–98% compression ratios are common
+- **Query performance**: analytical queries run faster on columnar data thanks to vectorized execution
+- **Cost reduction**: less storage means lower cloud costs
+- **Transparent**: queries work the same on both {C.ROWSTORE} and {C.COLUMNSTORE} data
 
 ## Next steps
 
-- [Columnar Storage (Hypercore)](/learn/columnar-storage)
-- [Compression Policies](/build/columnar-storage/setup-hypercore)
+- [Understand {C.HYPERCORE}](/learn/columnar-storage/understand-hypercore) — how the hybrid storage engine works
+- [Set up {C.HYPERCORE}](/build/columnar-storage/setup-hypercore) — optimize `segmentby`, `orderby`, and policies
+- [Compression methods](/learn/columnar-storage/compression-methods) — algorithms used for each data type
