@@ -1,108 +1,249 @@
 ---
 title: Upload a file using Tiger Console
-description: Upload CSV, Parquet, and text files into your Tiger Cloud service using Tiger Console (from your machine or S3)
+description: Upload CSV, Parquet, and text files into your Tiger Cloud service using Tiger Console. Drag and drop from your local machine, or provide a path to the file in S3
 ---
 
 import * as C from "@constants";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 import ImportPrerequisitesCloudNoConnection from "../../../partials/_prereqs-cloud-no-connection.mdx";
+import EarlyAccessGeneral from "../../../partials/_early_access.mdx";
+import NotSupportedAzure from "../../../partials/_not-supported-for-azure.mdx";
 
-This guide walks you through uploading CSV, Parquet, and text files into your {C.SERVICE_LONG} using [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services). The {C.CONSOLE_SHORT} has **three upload formats**: **From CSV**, **From Parquet**, and **From a text file**. Pick the one that matches your file type, then follow the steps, you can upload from your local machine or from an S3 bucket, with no command-line tools required. You’ll map columns to your table schema, set format options (for example, delimiter, headers), and monitor import progress in the same interface.
+You can upload files into your {C.SERVICE_SHORT} using {C.CONSOLE_LONG}. This page explains how to upload CSV, Parquet, and text files, from your local machine and from an S3 bucket.
 
-## Before you start
+<Tabs>
 
-### Prerequisites
+<TabItem label="From a local machine">
 
-To follow the steps on this page:
+{C.CONSOLE_LONG} enables you to drag and drop files to upload from your local machine.
 
-- Create a [{C.SERVICE_LONG}](/get-started/quickstart/create-service/).
-- Prepare data files in a supported format (CSV, TSV, Parquet, or text).
-- Prepare a target table with the right schema, or plan to create one during the import.
+<EarlyAccessGeneral />
 
-### File types in {C.CONSOLE_SHORT}
+## Prerequisites
 
-In the upload flow, {C.CONSOLE} accepts three formats:
+<ImportPrerequisitesCloudNoConnection />
 
-- **From CSV**: For comma- or delimiter-separated files (CSV, TSV). You can set delimiter, header row, and null handling.
-- **From Parquet**: For Parquet files. The {C.CONSOLE_SHORT} infers schema and lets you map columns to your table.
-- **From a text file**: For other text-based formats. Configure delimiter and parsing options as needed.
+<NotSupportedAzure />
 
-### Supported file formats and limits
+<Tabs>
 
-- **CSV / TSV:** UTF-8 encoding recommended. Use a consistent delimiter; the first row can be headers. Fields with commas or special characters should be in double quotes. Files must be within the {C.CONSOLE_SHORT} upload size limits, for very large files, use [import via terminal](/migrate/import-terminal) or [sync from S3](/migrate/livesync-for-s3).
-- **Parquet:** Supported for upload; follow the same mapping and validation steps. Schema is inferred from the file.
-- **Text file:** Supported for other text formats; set delimiter and options in the {C.CONSOLE_SHORT}.
+<TabItem label="From CSV">
 
-<Callout variant="tip">
-
-Validate your file (encoding, headers, delimiter) before uploading. Test with a small sample to confirm column mapping, then run the full import.
-
-</Callout>
-
-## How to upload a file
-
-Follow these steps in {C.CONSOLE} to import a file into your {C.SERVICE_SHORT}.
+To upload a CSV file to your {C.SERVICE_SHORT}:
 
 <NumberedList>
 
-<NumberedItem title={`Open your ${C.SERVICE_SHORT} and go to import`}>
-In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select the {C.SERVICE_SHORT} you want to load data into, then click `Actions` > `Import data`.
+<NumberedItem title={`Select your ${C.SERVICE_SHORT} in ${C.CONSOLE_SHORT}, then click \`Actions\` > \`Import data\` > \`Upload your files\` > \`Upload CSV file\``}>
+
+![Import from CSV into Tiger](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-console-import-csv-file.png)
+
 </NumberedItem>
 
-<NumberedItem title="Choose the file type">
-Click `Upload your files` and select `CSV`, `Parquet`, or `Text`. The steps that follow depend on this choice (for example, CSV and text let you set delimiter and header; Parquet infers schema from the file).
+<NumberedItem title="Click to browse, or drag the file to import">
 </NumberedItem>
 
-<NumberedItem title="Choose where the file comes from">
-Select **Upload from your computer** for a local file, or **Import from S3** if the file is in an S3 bucket. If using S3, provide bucket and path (and credentials if required).
+<NumberedItem title="Configure the import">
+
+![Configure the CSV import in Tiger](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-console-configure-csv-file-import.png)
+
+- Set a delimiter.
+- Toggle to skip or keep the header.
+- Select to ingest the data into an existing table or create a new one.
+- Provide the new or existing table name.
+- (Optional) For a new table with a time column, toggle the time column to create a hypertable instead of a regular table.
+
 </NumberedItem>
 
-<NumberedItem title="Select or create the target table">
-Choose an existing table to receive the data, or create a new table. If you create a new table, define column names and types to match your file or let the {C.CONSOLE_SHORT} suggest a schema from the file.
-</NumberedItem>
+<NumberedItem title="Click `Process CSV file`">
 
-<NumberedItem title="Upload the file and set import options">
-Upload your file (or confirm the S3 path), then set:
-- **Delimiter** (for example, comma, tab) if using CSV/TSV.
-- **Header row:** whether the first row is column headers.
-- **Null value handling** (how empty or placeholder values are stored).
-</NumberedItem>
+When the processing is completed, to find the data your imported, click `Explorer`.
 
-<NumberedItem title="Map columns">
-Review the mapping between file columns and table columns. The {C.CONSOLE_SHORT} tries to match by name; adjust or override as needed and ensure data types are compatible.
-</NumberedItem>
-
-<NumberedItem title="Preview and run the import">
-Preview a sample of the data to catch formatting or mapping issues, then start the import. Monitor progress in the {C.CONSOLE_SHORT} until it completes.
 </NumberedItem>
 
 </NumberedList>
 
-Your data is now imported into your {C.SERVICE_LONG}.
+</TabItem>
 
-## Column mapping tips
+<TabItem label="From Parquet">
 
-- **Automatic mapping:** The {C.CONSOLE_SHORT} matches file headers to table columns by name. Always review before importing.
-- **Manual adjustments:** Change mappings when names differ or when you want to skip columns.
-- **Data types:** If the {C.CONSOLE_SHORT} warns about type mismatches, fix the file (for example, date format, numbers as text) or adjust the target column type.
+To upload a Parquet file to your {C.SERVICE_SHORT}:
 
-## Troubleshooting
+<NumberedList>
 
-- **Upload fails or times out:** Use a smaller file or split the data; for large or automated loads, [import via terminal](/migrate/import-terminal).
-- **Column mapping errors:** Ensure headers match the expected table columns (including case).
-- **Data type or null errors:** Check that values fit the column types and that NOT NULL columns have no empty values, or adjust null handling in the import settings.
-- **Encoding issues:** Save the file as UTF-8 to avoid corrupted characters.
+<NumberedItem title={`Select your ${C.SERVICE_SHORT} in ${C.CONSOLE_SHORT}, then click \`Actions\` > \`Import data\` > \`Upload your files\` > \`Upload Parquet file\``}>
 
-## Summary
+![Import from Parquet into Tiger](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-console-import-parquet-file.png)
 
-You can upload CSV, Parquet, and text files into your {C.SERVICE_LONG} from your local machine or from S3 using {C.CONSOLE}. After mapping columns and setting options, the import runs in the UI, no CLI needed. For continuous sync from S3 or bulk/scripted imports, use [Sync data from S3](/migrate/livesync-for-s3) or [Upload a file using the terminal](/migrate/import-terminal).
+</NumberedItem>
 
-## Related
+<NumberedItem title="Click to browse, or drag the file to import">
+</NumberedItem>
 
-- [Upload a file using the terminal](/migrate/import-terminal): Use `psql`, `COPY`, or `pg_restore` for large or automated imports.
-- [Sync from S3](/migrate/livesync-for-s3): Continuously sync CSV and Parquet from an S3 bucket.
-- [Sync data from {C.PG}](/migrate/livesync-for-postgresql): Continuously replicate from a {C.PG} database.
-- [Live import from a database](/migrate/live-migration): Migrate with minimal or no downtime.
-- [Migrate overview](/migrate): All import and migration options.
+<NumberedItem title="Configure the import">
+
+![Configure the Parquet import in Tiger](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-console-configure-parquet-file-import.png)
+
+- Select to ingest the data into an existing table or create a new one.
+- Provide the new or existing table name.
+- (Optional) For a new table with a time column, toggle the time column to create a hypertable instead of a regular table.
+
+</NumberedItem>
+
+<NumberedItem title="Click `Process Parquet file`">
+
+When the processing is completed, to find the data your imported, click `Explorer`.
+
+</NumberedItem>
+
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="From a text file">
+
+To upload a TXT or MD file to your {C.SERVICE_SHORT}:
+
+<NumberedList>
+
+<NumberedItem title={`Select your ${C.SERVICE_SHORT} in ${C.CONSOLE_SHORT}, then click \`Actions\` > \`Import data\` > \`Upload your files\` > \`Upload Text file\``}>
+
+![Import from a text file into Tiger](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-console-import-txt-file.png)
+
+</NumberedItem>
+
+<NumberedItem title="Click to browse, or drag and drop the file to import">
+</NumberedItem>
+
+<NumberedItem title="Configure the import">
+
+Provide a name to create a new table, or select an existing table to add data to.
+
+![Configure the text file import in Tiger](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-console-configure-txt-file-import.png)
+
+</NumberedItem>
+
+<NumberedItem title="Click `Upload files`">
+
+When the upload is finished, find your data imported to a new or existing table in `Explorer`.
+
+</NumberedItem>
+
+</NumberedList>
+
+</TabItem>
+
+</Tabs>
+
+</TabItem>
+
+<TabItem label="From S3">
+
+{C.CONSOLE_LONG} enables you to upload CSV and Parquet files, including archives compressed using GZIP and ZIP, by connecting to an S3 bucket.
+
+## Prerequisites
+
+<ImportPrerequisitesCloudNoConnection />
+
+- Ensure access to a standard Amazon S3 bucket containing your data files.
+- Configure access credentials for the S3 bucket. The following credentials are supported:
+   - [IAM Role](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user.html#roles-creatingrole-user-console).
+   - [Public anonymous user](https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html#example-bucket-policies-anonymous-user).
+
+<NotSupportedAzure />
+
+<Tabs>
+
+<TabItem label="From CSV">
+
+To import a CSV file from an S3 bucket:
+
+<NumberedList>
+
+<NumberedItem title={`Select your ${C.SERVICE_SHORT} in ${C.CONSOLE_SHORT}, then click \`Actions\` > \`Import data\` > \`Explore import options\` > \`Import from S3\``}>
+</NumberedItem>
+
+<NumberedItem title="Select your file in the S3 bucket">
+
+![Import CSV from S3 in Tiger](https://assets.timescale.com/docs/images/tiger-cloud-console/import-csv-file-from-s3.png)
+
+1. Provide your file path.
+1. Select `CSV` in the file type dropdown.
+1. Select the authentication method:
+   - `IAM role` and provide the role.
+   - `Public`.
+1. Click `Continue`.
+
+</NumberedItem>
+
+<NumberedItem title="Configure the import">
+
+![Configure CSV import from S3 in Tiger](https://assets.timescale.com/docs/images/tiger-cloud-console/configure-csv-file-import-from-s3.png)
+
+- Set a delimiter.
+- Toggle to skip or keep the header.
+- Select to ingest the data into an existing table or create a new one.
+- Provide the new or existing table name.
+- (Optional) For a new table with a time column, toggle the time column to create a hypertable instead of a regular table.
+
+</NumberedItem>
+
+<NumberedItem title="Click `Process CSV file`">
+
+When the processing is completed, to find the data your imported, click `Explorer`.
+
+</NumberedItem>
+
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="From Parquet">
+
+To import a Parquet file from an S3 bucket:
+
+<NumberedList>
+
+<NumberedItem title={`Select your ${C.SERVICE_SHORT} in ${C.CONSOLE_SHORT}, then click \`Actions\` > \`Import from S3\``}>
+</NumberedItem>
+
+<NumberedItem title="Select your file in the S3 bucket">
+
+![Import Parquet from S3 in Tiger](https://assets.timescale.com/docs/images/tiger-cloud-console/tiger-cloud-import-parquet-file-from-s3.png)
+
+1. Provide your file path.
+1. Select `Parquet` in the file type dropdown.
+1. Select the authentication method:
+   - `IAM role` and provide the role.
+   - `Public`.
+1. Click `Continue`.
+
+</NumberedItem>
+
+<NumberedItem title="Configure the import">
+
+- Select `Create a new table for your data` or `Ingest data to an existing table`.
+- Provide the new or existing table name.
+- (Optional) For a new table with a time column, toggle the time column to create a hypertable instead of a regular table.
+
+</NumberedItem>
+
+<NumberedItem title="Click `Process Parquet file`">
+
+When the processing is completed, to find the data your imported, click `Explorer`.
+
+</NumberedItem>
+
+</NumberedList>
+
+</TabItem>
+
+</Tabs>
+
+</TabItem>
+
+</Tabs>
+
+And that is it, you have imported your data to your {C.SERVICE_LONG}.
