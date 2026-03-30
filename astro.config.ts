@@ -619,16 +619,6 @@ export default defineConfig({
                   { label: "FAQ and troubleshooting", link: "/migrate/troubleshooting" },
                 ],
               },
-              {
-                label: "Migrate from a specific database",
-                collapsed: true,
-                items: [
-                  { label: "Migration sources", link: "/migrate/migrate-from" },
-                  { label: "From Postgres", link: "/migrate/migrate-from/postgres" },
-                  { label: "From MongoDB", link: "/migrate/migrate-from/mongodb" },
-                  { label: "From ClickHouse", link: "/migrate/migrate-from/clickhouse" },
-                ],
-              },
             ],
           },
           // Integrate tab, mirrors the 5 filter dimensions in IntegrateOverview
