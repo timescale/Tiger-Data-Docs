@@ -356,6 +356,15 @@ export default defineConfig({
                 ],
               },
               {
+                label: "Tiger Cloud",
+                collapsed: true,
+                items: [
+                  { label: "Tiger Cloud overview", link: "/learn/tiger-cloud" },
+                  { label: "Supported regions", link: "/learn/tiger-cloud/regions" },
+                  { label: "Cloud-exclusive features", link: "/learn/tiger-cloud/cloud-exclusive-features" },
+                ],
+              },
+              {
                 label: "Capabilities and comparison",
                 collapsed: true,
                 items: [
