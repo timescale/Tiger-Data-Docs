@@ -1,12 +1,12 @@
 ---
 /**
- * Tab hover dropdowns with flyout submenus (chevron → panel to the right).
- * Tree mirrors sidebar nesting; leaf rows show titles only (no subtitle lines).
+ * Tab hover dropdowns: one panel, top-level sidebar sections only (no nested page links).
+ * Each section row uses sectionIndexHref so the heading goes to that area’s hub when defined.
  */
 import { Button } from "@stainless-api/ui-primitives";
 import { TABS } from "virtual:stl-docs-virtual-module";
 import type { StarlightRouteData } from "@astrojs/starlight/route-data";
-import type { NavTreeNode, GroupNode } from "./nav-dropdown-tree-types";
+import type { NavTreeNode } from "./nav-dropdown-tree-types";
 import NavDropdownTree from "./NavDropdownTree.astro";
 
 /**
@@ -44,8 +44,6 @@ const navItems: NavTabWithActive[] = [...tabList].sort((a, b) => {
   return 0;
 });
 
-const MAX_DROPDOWN_DEPTH = 3;
-
 interface SidebarEntryLike {
   label: string;
   link?: string;
@@ -54,24 +52,85 @@ interface SidebarEntryLike {
   dropdownDescription?: string;
 }
 
-function findFirstHref(entry: SidebarEntryLike): string {
-  if (typeof entry.link === "string") return entry.link;
-  if (entry.autogenerate?.directory) {
-    const dir = entry.autogenerate.directory.replace(/\/$/, "");
-    return `/${dir}/`;
-  }
-  const items = Array.isArray(entry.items) ? entry.items : [];
-  for (const c of items) {
-    const child = c as SidebarEntryLike;
-    if (child && typeof child === "object" && typeof child.label === "string") {
-      const h = findFirstHref(child);
-      if (h !== "#") return h;
-    }
-  }
-  return "#";
+function normalizePath(h: string): string {
+  return h.split("#")[0].replace(/\/$/, "") || "/";
 }
 
-function buildNavTree(entries: unknown[] | undefined, depth: number): NavTreeNode[] {
+/**
+ * Best URL for the "top" of a sidebar section: explicit link, generated directory index,
+ * Overview page, first direct link, or (if there is only one subgroup) that subgroup's index.
+ * If there are multiple subgroups and no hub (e.g. "Tiger Cloud on AWS"), returns undefined.
+ */
+function sectionIndexHref(e: SidebarEntryLike): string | undefined {
+  if (typeof e.link === "string") return e.link;
+
+  const items = Array.isArray(e.items) ? e.items : [];
+  if (e.autogenerate?.directory && items.length === 0) {
+    const dir = e.autogenerate.directory.replace(/\/$/, "");
+    return `/${dir}/`;
+  }
+
+  for (const raw of items) {
+    if (typeof raw === "string") continue;
+    const c = raw as SidebarEntryLike;
+    if (!c?.label) continue;
+    if (/^overview$/i.test(c.label.trim()) && typeof c.link === "string") return c.link;
+  }
+
+  const hasNestedGroups = items.some((raw) => {
+    if (typeof raw === "string") return false;
+    const c = raw as SidebarEntryLike;
+    return Array.isArray(c.items) && c.items.length > 0;
+  });
+  const hasDirectLeafLink = items.some((raw) => {
+    if (typeof raw === "string") return false;
+    const c = raw as SidebarEntryLike;
+    return typeof c.link === "string" && (!Array.isArray(c.items) || c.items.length === 0);
+  });
+  /** e.g. "Tiger Cloud on AWS" has subfolders and standalone pages; no single parent landing URL. */
+  if (hasNestedGroups && hasDirectLeafLink) {
+    return undefined;
+  }
+
+  for (const raw of items) {
+    if (typeof raw === "string") continue;
+    const c = raw as SidebarEntryLike;
+    if (typeof c.link === "string") return c.link;
+    const cItems = Array.isArray(c.items) ? c.items : [];
+    if (c.autogenerate?.directory && cItems.length === 0) {
+      const dir = c.autogenerate.directory.replace(/\/$/, "");
+      return `/${dir}/`;
+    }
+  }
+
+  const subgroups = items.filter((raw) => {
+    if (typeof raw === "string") return false;
+    const c = raw as SidebarEntryLike;
+    return Array.isArray(c.items) && c.items.length > 0;
+  }) as SidebarEntryLike[];
+
+  const hasDirectLink = items.some((raw) => {
+    if (typeof raw === "string") return false;
+    const c = raw as SidebarEntryLike;
+    return typeof c.link === "string";
+  });
+
+  if (!hasDirectLink && subgroups.length >= 2) {
+    return undefined;
+  }
+
+  if (!hasDirectLink && subgroups.length === 1) {
+    return sectionIndexHref(subgroups[0]);
+  }
+
+  return undefined;
+}
+
+/**
+ * Only the tab sidebar’s **root** entries appear in the dropdown (same as top-level sidebar groups).
+ * Nested pages are omitted; use the section heading link (sectionIndexHref) or the left sidebar for drill-down.
+ */
+function buildNavTree(entries: unknown[] | undefined): NavTreeNode[] {
   const out: NavTreeNode[] = [];
   if (!Array.isArray(entries)) return out;
 
@@ -83,27 +142,14 @@ function buildNavTree(entries: unknown[] | undefined, depth: number): NavTreeNod
     const items = Array.isArray(e.items) ? e.items : [];
     const hasItems = items.length > 0;
 
-    if (hasItems && depth < MAX_DROPDOWN_DEPTH) {
-      const children = buildNavTree(items, depth + 1);
-      if (children.length > 0) {
-        const group: GroupNode = {
-          kind: "group",
-          label: e.label,
-          description: "",
-          href: typeof e.link === "string" ? e.link : undefined,
-          children,
-        };
-        out.push(group);
-        continue;
-      }
-    }
-
-    if (hasItems && depth >= MAX_DROPDOWN_DEPTH) {
+    if (hasItems) {
+      const href = sectionIndexHref(e);
       out.push({
-        kind: "link",
+        kind: "group",
         label: e.label,
-        href: findFirstHref(e),
-        description: e.dropdownDescription ?? "",
+        description: "",
+        href,
+        children: [],
       });
       continue;
     }
@@ -127,10 +173,6 @@ function buildNavTree(entries: unknown[] | undefined, depth: number): NavTreeNod
     }
   }
   return out;
-}
-
-function normalizePath(h: string): string {
-  return h.split("#")[0].replace(/\/$/, "") || "/";
 }
 
 function filterOverviewDuplicate(nodes: NavTreeNode[], tabLink: string): NavTreeNode[] {
@@ -166,7 +208,7 @@ function prefixNavTreeHrefs(nodes: NavTreeNode[]): void {
 }
 
 function getNavTreeForSidebar(sidebar: unknown, tabLink: string): NavTreeNode[] {
-  const tree = buildNavTree(sidebar as unknown[], 0);
+  const tree = buildNavTree(sidebar as unknown[]);
   const filtered = filterOverviewDuplicate(tree, tabLink);
   clearTreeDescriptions(filtered);
   prefixNavTreeHrefs(filtered);
@@ -300,11 +342,14 @@ for (const item of navItems) {
       opacity 0.15s ease,
       visibility 0.15s ease,
       transform 0.15s ease;
-    z-index: 50;
+    /* Above in-page overlays (e.g. integrate filter panels at z-index 100); header uses z-index: 100 in theme.css */
+    z-index: 200;
   }
 
   .nav-dropdown-tree-root {
-    overflow: visible;
+    max-height: min(70vh, 560px);
+    overflow-x: hidden;
+    overflow-y: auto;
     padding-bottom: 4px;
   }
 

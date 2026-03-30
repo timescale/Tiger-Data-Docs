@@ -277,6 +277,8 @@ export default defineConfig({
               Callout: "./src/components/Callout.astro",
               Footer: "./src/components/Footer.astro",
             } as Record<string, string>,
+            /** Single-link sidebar groups become one clickable row (see `src/starlight-route-middleware.ts`). */
+            routeMiddleware: ["./src/starlight-route-middleware.ts"],
             plugins: starlightLinksValidator ? [starlightLinksValidator()] : [],
           },
         },
@@ -323,7 +325,7 @@ export default defineConfig({
                 collapsed: true,
                 items: [
                   { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-                  { label: "Basic compression", link: "/build/how-to/basic-compression" },
+                  { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
                 ],
               },
               {
@@ -370,6 +372,7 @@ export default defineConfig({
                     link: "/learn/data-model/primary-keys-time-and-uniqueness",
                   },
                   { label: "Design your data model", link: "/learn/hypertables/design-your-data-model" },
+                  { label: "Understand database schemas", link: "/learn/data-model/understand-database-schemas" },
                 ],
               },
               {
@@ -385,6 +388,13 @@ export default defineConfig({
                   { label: "Hypertable operations", link: "/learn/hypertables/hypertable-operations" },
                   { label: "Improve hypertable performance", link: "/learn/performance-optimization/improve-hypertable-performance" },
                   { label: "Hypertables and unique indexes", link: "/learn/performance-optimization/hypertables-and-unique-indexes" },
+                ],
+              },
+              {
+                label: "Hyperfunctions",
+                collapsed: true,
+                items: [
+                  { label: "About hyperfunctions", link: "/learn/hyperfunctions/about-hyperfunctions" },
                 ],
               },
               {
@@ -405,10 +415,6 @@ export default defineConfig({
                   { label: "Columnar storage overview", link: "/learn/columnar-storage" },
                   { label: "Understand Hypercore", link: "/learn/columnar-storage/understand-hypercore" },
                   { label: "Compression methods", link: "/learn/columnar-storage/compression-methods" },
-                  { label: "Basic compression", link: "/build/how-to/basic-compression" },
-                  { label: "Set up Hypercore", link: "/build/columnar-storage/setup-hypercore" },
-                  { label: "Compression overview (Tiger Cloud)", link: "/learn/compression/overview" },
-                  { label: "Compression configuration and testing (Tiger Cloud)", link: "/learn/compression/configuration-and-testing" },
                 ],
               },
               {
@@ -418,25 +424,8 @@ export default defineConfig({
                   { label: "Continuous aggregates overview", link: "/learn/continuous-aggregates" },
                   { label: "Time and continuous aggregates", link: "/learn/continuous-aggregates/time-and-continuous-aggregates" },
                   { label: "Hierarchical continuous aggregates", link: "/learn/continuous-aggregates/hierarchical-continuous-aggregates" },
+                  { label: "Real-time aggregates", link: "/learn/continuous-aggregates/real-time-aggregates" },
                   { label: "Materialized hypertables", link: "/learn/continuous-aggregates/materialized-hypertables" },
-                  { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
-                  { label: "Refresh policies", link: "/build/continuous-aggregates/refresh-policies" },
-                  { label: "Real-time aggregates", link: "/build/continuous-aggregates/real-time-aggregates" },
-                  {
-                    label: "Tiger Cloud",
-                    collapsed: true,
-                    items: [
-                      { label: "Continuous aggregates on Tiger Cloud", link: "/learn/continuous-aggregates/tiger-cloud-caggs" },
-                      {
-                        label: "Compression with CAGGs and backfill (Tiger Cloud)",
-                        link: "/learn/compression/caggs-and-backfill",
-                      },
-                    ],
-                  },
-                  {
-                    label: "TimescaleDB backfill migration tool",
-                    link: "/migrate/dual-write-and-backfill/timescaledb-backfill",
-                  },
                 ],
               },
               {
@@ -445,14 +434,9 @@ export default defineConfig({
                 items: [
                   { label: "Data retention overview", link: "/learn/data-management/data-retention" },
                   { label: "About data retention", link: "/learn/data-management/data-retention/about-data-retention" },
-                  { label: "Data retention on Tiger Cloud", link: "/learn/data-lifecycle/data-retention-policies" },
                   { label: "Data retention with continuous aggregates", link: "/learn/data-management/data-retention/data-retention-with-continuous-aggregates" },
-                  { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
                   { label: "Tiered storage overview", link: "/learn/data-management/storage" },
                   { label: "About storage tiers", link: "/learn/data-management/storage/about-storage-tiers" },
-                  { label: "Tiered storage on Tiger Cloud", link: "/learn/data-lifecycle/tiered-storage" },
-                  { label: "Manage storage", link: "/build/data-management/storage/manage-storage" },
-                  { label: "Query tiered data", link: "/build/data-management/storage/query-tiered-data" },
                 ],
               },
               {
@@ -483,7 +467,7 @@ export default defineConfig({
                     collapsed: true,
                     items: [
                       { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-                      { label: "Basic compression", link: "/build/how-to/basic-compression" },
+                      { label: "Basic compression with Hypercore", link: "/build/how-to/basic-compression" },
                     ],
                   },
                   {
@@ -518,20 +502,10 @@ export default defineConfig({
                 collapsed: true,
                 items: [
                   { label: "Write and query data", link: "/build/data-management" },
-                  { label: "Understand hypertables", link: "/build/data-management/understand-hypertables" },
-                  {
-                    label: "Time buckets",
-                    collapsed: true,
-                    items: [
-                      { label: "About time buckets", link: "/learn/data-management/time-buckets/about-time-buckets" },
-                      { label: "Use time buckets", link: "/learn/data-management/time-buckets/use-time-buckets" },
-                    ],
-                  },
                   {
                     label: "Write data",
                     collapsed: true,
                     items: [
-                      { label: "About writing data", link: "/build/data-management/write-data/about-writing-data" },
                       { label: "Insert data", link: "/build/data-management/write-data/insert" },
                       { label: "Update data", link: "/build/data-management/write-data/update" },
                       { label: "Upsert data", link: "/build/data-management/write-data/upsert" },
@@ -543,7 +517,6 @@ export default defineConfig({
                     label: "Query data",
                     collapsed: true,
                     items: [
-                      { label: "About querying data", link: "/build/data-management/query-data/about-query-data" },
                       { label: "SELECT data", link: "/build/data-management/query-data/select" },
                       { label: "SkipScan for DISTINCT queries", link: "/build/data-management/query-data/skipscan" },
                       { label: "Advanced analytic queries", link: "/build/data-management/query-data/advanced-analytic-queries" },
@@ -571,11 +544,7 @@ export default defineConfig({
                     label: "Data retention",
                     collapsed: true,
                     items: [
-                      { label: "Data retention basics", link: "/learn/data-management/data-retention" },
-                      { label: "About data retention", link: "/learn/data-management/data-retention/about-data-retention" },
                       { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
-                      { label: "Data retention with continuous aggregates", link: "/learn/data-management/data-retention/data-retention-with-continuous-aggregates" },
-                      { label: "Manually drop chunks", link: "/learn/data-management/data-retention/manually-drop-chunks" },
                     ],
                   },
                 ],
@@ -585,8 +554,6 @@ export default defineConfig({
                 label: "Spread data across storage tiers",
                 collapsed: true,
                 items: [
-                  { label: "Storage tiers", link: "/learn/data-management/storage" },
-                  { label: "About storage tiers", link: "/learn/data-management/storage/about-storage-tiers" },
                   { label: "Manage storage and tiering", link: "/build/data-management/storage/manage-storage" },
                   { label: "Query tiered data", link: "/build/data-management/storage/query-tiered-data" },
                   { label: "Replicas and forks with tiered data", link: "/build/data-management/storage/tiered-data-replicas-forks" },
@@ -598,7 +565,6 @@ export default defineConfig({
                 collapsed: true,
                 items: [
                   { label: "Hyperfunctions", link: "/build/data-management/hyperfunctions" },
-                  { label: "About hyperfunctions", link: "/build/data-management/hyperfunctions/about-hyperfunctions" },
                   { label: "Counter aggregation", link: "/build/data-management/hyperfunctions/counter-aggregation" },
                   { label: "Function pipelines", link: "/build/data-management/hyperfunctions/function-pipelines" },
                   {
@@ -630,16 +596,10 @@ export default defineConfig({
                 label: "Keep pre-computed aggregations up to date",
                 collapsed: true,
                 items: [
-                  { label: "Continuous aggregates", link: "/learn/continuous-aggregates" },
-                  { label: "About continuous aggregates", link: "/learn/continuous-aggregates/about-continuous-aggregates" },
                   { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
-                  { label: "Real-time aggregates", link: "/build/continuous-aggregates/real-time-aggregates" },
-                  { label: "Hierarchical continuous aggregates", link: "/learn/continuous-aggregates/hierarchical-continuous-aggregates" },
                   { label: "Refresh continuous aggregates", link: "/build/continuous-aggregates/refresh-policies" },
-                  { label: "Time and continuous aggregates", link: "/learn/continuous-aggregates/time-and-continuous-aggregates" },
                   { label: "Create an index on a continuous aggregate", link: "/build/continuous-aggregates/create-index" },
                   { label: "Convert continuous aggregates to the columnstore", link: "/build/continuous-aggregates/compression-on-continuous-aggregates" },
-                  { label: "Materialized hypertables", link: "/learn/continuous-aggregates/materialized-hypertables" },
                   { label: "Drop data from continuous aggregates", link: "/build/continuous-aggregates/drop-data" },
                   { label: "Migrate a continuous aggregate to the new form", link: "/build/continuous-aggregates/migrate-to-new-form" },
                 ],
@@ -649,10 +609,7 @@ export default defineConfig({
                 label: "Optimize storage and query speed",
                 collapsed: true,
                 items: [
-                  { label: "Columnar storage", link: "/learn/columnar-storage" },
-                  { label: "Understand hypercore", link: "/learn/columnar-storage/understand-hypercore" },
                   { label: "Setup hypercore", link: "/build/columnar-storage/setup-hypercore" },
-                  { label: "Compression methods in hypercore", link: "/learn/columnar-storage/compression-methods" },
                 ],
               },
               // --- Make queries and schemas faster (performance optimization) ---
@@ -661,15 +618,12 @@ export default defineConfig({
                 collapsed: true,
                 items: [
                   { label: "Performance optimization", link: "/build/performance-optimization" },
-                  { label: "Understand database schemas", link: "/build/performance-optimization/understand-database-schemas" },
                   { label: "Accelerate queries using indexes", link: "/build/performance-optimization/indexing" },
                   { label: "Alter and update table schemas", link: "/build/performance-optimization/alter-update-table-schema" },
                   { label: "Improve storage performance using tablespaces", link: "/build/performance-optimization/manage-tablespaces" },
                   { label: "Ensure data integrity with constraints", link: "/build/performance-optimization/ensure-data-integrity-with-constraints" },
                   { label: "Handle semi-structured data with JSON", link: "/build/performance-optimization/handle-semi-structured-data-with-json" },
                   { label: "Automate tasks with triggers", link: "/build/performance-optimization/automate-tasks-with-triggers" },
-                  { label: "Improve hypertable and query performance", link: "/learn/performance-optimization/improve-hypertable-performance" },
-                  { label: "Enforce constraints with unique indexes", link: "/learn/performance-optimization/hypertables-and-unique-indexes" },
                   { label: "Query external data sources with FDW", link: "/build/performance-optimization/query-external-data-sources-with-fdw" },
                   { label: "Improve query and upsert performance", link: "/build/performance-optimization/secondary-indexes" },
                 ],
@@ -883,14 +837,9 @@ export default defineConfig({
                 items: [{ label: "Deploy Tiger Data", link: "/deploy" }],
               },
               {
-                label: "Tiger Cloud",
+                label: "Tiger Cloud on AWS",
                 collapsed: true,
                 items: [
-                  { label: "Overview", link: "/deploy/tiger-cloud" },
-                  {
-                    label: "Tiger Cloud on AWS",
-                    collapsed: true,
-                    items: [
                       {
                         label: "Configuration",
                         collapsed: true,
@@ -953,12 +902,12 @@ export default defineConfig({
                       },
                       { label: "Maintenance and upgrades", link: "/deploy/tiger-cloud/tiger-cloud-aws/upgrades" },
                       { label: "Billing and account management", link: "/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management" },
-                    ],
-                  },
-                  {
-                    label: "Tiger Cloud on Azure",
-                    collapsed: true,
-                    items: [
+                ],
+              },
+              {
+                label: "Tiger Cloud on Azure",
+                collapsed: true,
+                items: [
                       {
                         label: "Configuration",
                         collapsed: true,
@@ -1020,11 +969,17 @@ export default defineConfig({
                       },
                       { label: "Maintenance and upgrades", link: "/deploy/tiger-cloud/tiger-cloud-azure/upgrades" },
                       { label: "Billing and account management", link: "/deploy/tiger-cloud/tiger-cloud-azure/pricing-and-account-management" },
-                    ],
-                  },
-                  { label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" },
-                  { label: "Limitations", link: "/deploy/tiger-cloud/limitations" },
                 ],
+              },
+              {
+                label: "Tiger Cloud troubleshooting",
+                collapsed: true,
+                items: [{ label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" }],
+              },
+              {
+                label: "Limitations",
+                collapsed: true,
+                items: [{ label: "Limitations", link: "/deploy/tiger-cloud/limitations" }],
               },
               {
                 label: "Self-Hosted",
@@ -1158,17 +1113,17 @@ export default defineConfig({
             sidebar: [
               {
                 label: "API and CLI reference",
-                collapsed: true,
+                collapsed: false,
                 items: [{ label: "API and CLI reference", link: "/reference" }],
               },
               {
                 label: "TimescaleDB",
-                collapsed: true,
+                collapsed: false,
                 items: [
                   { label: "TimescaleDB reference", link: "/reference/timescaledb" },
                   {
                     label: "Hypertables and chunks",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/timescaledb/hypertables" },
                       {
@@ -1239,7 +1194,7 @@ export default defineConfig({
                   },
                   {
                     label: "Hypercore",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/timescaledb/hypercore" },
                       {
@@ -1270,7 +1225,7 @@ export default defineConfig({
                   },
                   {
                     label: "Continuous aggregates",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/timescaledb/continuous-aggregates" },
                       {
@@ -1304,7 +1259,7 @@ export default defineConfig({
                   },
                   {
                     label: "Hyperfunctions",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/timescaledb/hyperfunctions" },
                       {
@@ -1337,7 +1292,7 @@ export default defineConfig({
                   },
                   {
                     label: "Data retention",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/timescaledb/data-retention" },
                       { label: "add_retention_policy()", link: "/reference/timescaledb/data-retention/add_retention_policy" },
@@ -1346,7 +1301,7 @@ export default defineConfig({
                   },
                   {
                     label: "Jobs and automation",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/timescaledb/jobs-automation" },
                       { label: "add_job()", link: "/reference/timescaledb/jobs-automation/add_job" },
@@ -1357,7 +1312,7 @@ export default defineConfig({
                   },
                   {
                     label: "UUIDv7 functions",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/timescaledb/uuid-functions" },
                       { label: "generate_uuidv7()", link: "/reference/timescaledb/uuid-functions/generate_uuidv7" },
@@ -1370,7 +1325,7 @@ export default defineConfig({
                   },
                   {
                     label: "Informational views",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/timescaledb/informational-views" },
                       {
@@ -1403,7 +1358,7 @@ export default defineConfig({
                   },
                   {
                     label: "Configuration",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/timescaledb/configuration" },
                       { label: "GUC parameters", link: "/reference/timescaledb/configuration/gucs" },
@@ -1412,7 +1367,7 @@ export default defineConfig({
                   },
                   {
                     label: "Administration",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/timescaledb/administration" },
                       { label: "get_telemetry_report()", link: "/reference/timescaledb/administration/get_telemetry_report" },
@@ -1425,12 +1380,12 @@ export default defineConfig({
               },
               {
                 label: "TimescaleDB Toolkit",
-                collapsed: true,
+                collapsed: false,
                 items: [
                   { label: "Toolkit reference", link: "/reference/toolkit" },
                   {
                     label: "Approximate count distinct",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "approx_count_distinct()", link: "/reference/toolkit/approximate-count-distinct/approx_count_distinct" },
                       { label: "distinct_count()", link: "/reference/toolkit/approximate-count-distinct/distinct_count" },
@@ -1441,7 +1396,7 @@ export default defineConfig({
                   },
                   {
                     label: "Statistical and regression analysis",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/toolkit/statistical-and-regression-analysis" },
                       {
@@ -1484,7 +1439,7 @@ export default defineConfig({
                   },
                   {
                     label: "Minimum and maximum",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/toolkit/minimum-and-maximum" },
                       {
@@ -1525,7 +1480,7 @@ export default defineConfig({
                   },
                   {
                     label: "Financial analysis",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "candlestick()", link: "/reference/toolkit/candlestick_agg/candlestick" },
                       { label: "candlestick_agg()", link: "/reference/toolkit/candlestick_agg/candlestick_agg" },
@@ -1544,7 +1499,7 @@ export default defineConfig({
                   },
                   {
                     label: "Percentile approximation",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/toolkit/percentile-approximation" },
                       {
@@ -1578,7 +1533,7 @@ export default defineConfig({
                   },
                   {
                     label: "Counters and gauges",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/toolkit/counters-and-gauges" },
                       {
@@ -1640,7 +1595,7 @@ export default defineConfig({
                   },
                   {
                     label: "Time-weighted calculations",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "average()", link: "/reference/toolkit/time_weight/average" },
                       { label: "first_time()", link: "/reference/toolkit/time_weight/first_time" },
@@ -1656,7 +1611,7 @@ export default defineConfig({
                   },
                   {
                     label: "Downsampling",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "asap_smooth()", link: "/reference/toolkit/downsampling/asap_smooth" },
                       { label: "gp_lttb()", link: "/reference/toolkit/downsampling/gp_lttb" },
@@ -1665,7 +1620,7 @@ export default defineConfig({
                   },
                   {
                     label: "Timevector",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "rollup()", link: "/reference/toolkit/timevector/rollup" },
                       { label: "timevector()", link: "/reference/toolkit/timevector/timevector" },
@@ -1674,7 +1629,7 @@ export default defineConfig({
                   },
                   {
                     label: "Frequency analysis",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/toolkit/frequency-analysis" },
                       {
@@ -1700,7 +1655,7 @@ export default defineConfig({
                   },
                   {
                     label: "State tracking",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "Overview", link: "/reference/toolkit/state-tracking" },
                       {
@@ -1750,7 +1705,7 @@ export default defineConfig({
                   },
                   {
                     label: "Saturating math",
-                    collapsed: true,
+                    collapsed: false,
                     items: [
                       { label: "saturating_add()", link: "/reference/toolkit/saturating-math/saturating_add" },
                       { label: "saturating_add_pos()", link: "/reference/toolkit/saturating-math/saturating_add_pos" },
@@ -1763,7 +1718,7 @@ export default defineConfig({
               },
               {
                 label: "Tiger Cloud REST API",
-                collapsed: true,
+                collapsed: false,
                 items: generateAPIReferenceItems({
                   excludeResourceOverviewPages: true,
                 }),
@@ -1921,5 +1876,8 @@ export default defineConfig({
         "/learn/performance-optimization/hypertables-and-unique-indexes",
       "/build/performance-optimization/hypertables-and-unique-indexes/":
         "/learn/performance-optimization/hypertables-and-unique-indexes/",
+      // Tiger Cloud overview removed; send old URL to AWS service management entry
+      "/deploy/tiger-cloud": "/deploy/tiger-cloud/tiger-cloud-aws/service-management",
+      "/deploy/tiger-cloud/": "/deploy/tiger-cloud/tiger-cloud-aws/service-management/",
     }),
 });
