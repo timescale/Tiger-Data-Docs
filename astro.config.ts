@@ -1,5 +1,8 @@
 import { createRequire } from "node:module";
+import { readdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { defineConfig } from "astro/config";
+import type { AstroIntegration } from "astro";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
 import aiChat from "@stainless-api/docs-ai-chat/plugin";
 import rehypeBasePath from "./src/plugins/rehype-base-path";
@@ -101,6 +104,63 @@ function vite7CompatPlugin(): {
   };
 }
 
+/**
+ * Post-build safety net: walks every generated .html file and prefixes
+ * root-relative hrefs on <a>, <area>, and <link> elements with the base path.
+ * No-op when BASE is "/".
+ */
+function basePathPostProcessor(base: string): AstroIntegration {
+  const prefix = base.replace(/\/$/, "");
+  return {
+    name: "base-path-post-processor",
+    hooks: prefix
+      ? {
+          "astro:build:done": async ({ dir }) => {
+            const outDir = dir.pathname;
+            const htmlFiles = await collectHtmlFiles(outDir);
+            let totalReplaced = 0;
+            for (const file of htmlFiles) {
+              const html = await readFile(file, "utf-8");
+              let count = 0;
+              const updated = html.replace(
+                /(<(?:a|area|link)\b[^>]*?\bhref=")(\/)([^"]*")/gi,
+                (_match, before, _slash, rest) => {
+                  const href = "/" + rest.slice(0, -1); // reconstruct full href (without trailing quote)
+                  if (href.startsWith(prefix + "/") || href === prefix) {
+                    return _match; // already prefixed
+                  }
+                  count++;
+                  return before + prefix + "/" + rest;
+                }
+              );
+              if (count > 0) {
+                await writeFile(file, updated, "utf-8");
+                totalReplaced += count;
+              }
+            }
+            console.log(
+              `[base-path-post-processor] Prefixed ${totalReplaced} href(s) across ${htmlFiles.length} HTML file(s).`
+            );
+          },
+        }
+      : {},
+  };
+}
+
+async function collectHtmlFiles(dir: string): Promise<string[]> {
+  const results: string[] = [];
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...(await collectHtmlFiles(fullPath)));
+    } else if (entry.name.endsWith(".html")) {
+      results.push(fullPath);
+    }
+  }
+  return results;
+}
+
 // Base path from env var (e.g. BASE_PATH="/docs"). Falls back to "/" (no subpath).
 const BASE = process.env.BASE_PATH || "/";
 
@@ -146,6 +206,7 @@ export default defineConfig({
       },
     },
     integrations: [
+      basePathPostProcessor(BASE),
       stainlessDocs({
         apiReference: {
           stainlessProject: "tiger-cloud",
