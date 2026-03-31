@@ -33,6 +33,7 @@ pnpm sync       # Sync docs from source repos (timescaledb, pgai, pgvectorscale)
 pnpm format     # Format code
 ```
 
+
 ## Site Structure
 
 All documentation content lives under `src/content/docs/`. The structure follows the new Information Architecture with categorical sections, each containing subcategories and individual pages.
