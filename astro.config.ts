@@ -14,14 +14,16 @@ const require = createRequire(import.meta.url);
 const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/components/scripts");
 
 /**
- * Vite 7 compat: some plugins (e.g. from @stainless-api/docs built for Vite 6)
- * declare a `transform` (or other hook) as an object with a `filter` but no
- * `handler`, which crashes EnvironmentPluginContainer when it calls handler.call().
+ * Vite 7 compat:
  *
- * We (1) mutate plugins in the sync `config` hook and (2) in `configResolved` replace
- * config.plugins with a new array of proxy-wrapped plugins. Any code that reads
- * plugin.transform/load/resolveId from that array gets a hook object with a
- * callable handler, even if the underlying config was cloned or used in a worker.
+ * 1) Some plugins declare `transform`/`load`/`resolveId` as `{ filter }` without a
+ *    `handler`, which crashes EnvironmentPluginContainer when it calls handler.call().
+ *    We patch hooks in `config` + `configResolved` (below).
+ *
+ * 2) Plugins such as `@vitejs/plugin-react` may delete `transform` in `configResolved`
+ *    after Vite has cached which plugins expose `transform`, so `getHookHandler` returns
+ *    undefined and handler.call() throws (upstream: vitejs/vite#21162). We ship a pnpm
+ *    patch for `vite@7.3.1` (`patches/vite@7.3.1.patch`) that skips when `!handler`.
  */
 const HOOK_NAMES = ["transform", "load", "resolveId"] as const;
 const noopHandlers: Record<(typeof HOOK_NAMES)[number], () => null> = {
@@ -353,6 +355,15 @@ export default defineConfig({
                 items: [
                   { label: "What is Tiger Data", link: "/learn" },
                   { label: "Tiger Data architecture for real-time analytics", link: "/learn/deep-dive/whitepaper" },
+                ],
+              },
+              {
+                label: "Tiger Cloud",
+                collapsed: true,
+                items: [
+                  { label: "Tiger Cloud", link: "/learn/tiger-cloud" },
+                  { label: "Supported regions", link: "/learn/tiger-cloud/regions" },
+                  { label: "Cloud-exclusive features", link: "/learn/tiger-cloud/cloud-exclusive-features" },
                 ],
               },
               {
