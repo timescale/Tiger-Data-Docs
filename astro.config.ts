@@ -166,6 +166,15 @@ async function collectHtmlFiles(dir: string): Promise<string[]> {
 // Base path from env var (e.g. BASE_PATH="/docs"). Falls back to "/" (no subpath).
 const BASE = process.env.BASE_PATH || "/";
 
+/**
+ * Set `DOCS_LOCAL_WITHOUT_STAINLESS=1` to run `pnpm dev` / `pnpm build` without a
+ * Stainless API key or `stl auth login`. Tiger Cloud REST API pages are omitted;
+ * use a stub page and redirects instead (see README).
+ */
+const DOCS_LOCAL_WITHOUT_STAINLESS =
+  process.env.DOCS_LOCAL_WITHOUT_STAINLESS === "1" ||
+  process.env.DOCS_LOCAL_WITHOUT_STAINLESS === "true";
+
 /** Astro doesn't auto-prepend `base` to redirect destinations. This helper does. */
 function withBase(redirects: Record<string, string>): Record<string, string> {
   if (BASE === "/") return redirects;
@@ -211,14 +220,16 @@ export default defineConfig({
     integrations: [
       basePathPostProcessor(BASE),
       stainlessDocs({
-        apiReference: {
-          stainlessProject: "tiger-cloud",
-          basePath: "/reference/tiger-cloud-rest",
-          propertySettings: {
-            collapseDescription: false,
-            expandDepth: 2,
-          },
-        },
+        apiReference: DOCS_LOCAL_WITHOUT_STAINLESS
+          ? null
+          : {
+              stainlessProject: "tiger-cloud",
+              basePath: "/reference/tiger-cloud-rest",
+              propertySettings: {
+                collapseDescription: false,
+                expandDepth: 2,
+              },
+            },
         title: "Tiger Data Docs",
         logo: {
           light: "./src/assets/logo-light.svg",
@@ -274,6 +285,7 @@ export default defineConfig({
         //   { icon: "github", label: "GitHub", href: "https://github.com/timescale/timescaledb" },
         // ],
         experimental: {
+          ...(DOCS_LOCAL_WITHOUT_STAINLESS ? { disableStainlessProseIndexing: true } : {}),
           aiChat: aiChat(),
             starlightCompat: {
             components: {
@@ -1723,13 +1735,24 @@ export default defineConfig({
                   },
                 ],
               },
-              {
-                label: "Tiger Cloud REST API",
-                collapsed: false,
-                items: generateAPIReferenceItems({
-                  excludeResourceOverviewPages: true,
-                }),
-              },
+              DOCS_LOCAL_WITHOUT_STAINLESS
+                ? {
+                    label: "Tiger Cloud REST API",
+                    collapsed: false,
+                    items: [
+                      {
+                        label: "Local preview (generated API disabled)",
+                        link: "/reference/tiger-cloud-rest-local-preview",
+                      },
+                    ],
+                  }
+                : {
+                    label: "Tiger Cloud REST API",
+                    collapsed: false,
+                    items: generateAPIReferenceItems({
+                      excludeResourceOverviewPages: true,
+                    }),
+                  },
             ],
           },
         ],
@@ -1737,6 +1760,12 @@ export default defineConfig({
     ],
 
     redirects: withBase({
+      ...(DOCS_LOCAL_WITHOUT_STAINLESS
+        ? {
+            "/reference/tiger-cloud-rest": "/reference/tiger-cloud-rest-local-preview",
+            "/reference/tiger-cloud-rest/": "/reference/tiger-cloud-rest-local-preview",
+          }
+        : {}),
       "/api": "/reference/tiger-cloud-rest",
       "/api/api-reference": "/reference/tiger-cloud-rest",
       "/api-reference/timescaledb-toolkit": "/reference/toolkit",
