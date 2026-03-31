@@ -1984,19 +1984,31 @@ tr:hover td {
 }
 
 /*
- * Mobile: Starlight’s hamburger lives in `.page > .sidebar` with z-index 11 (page.css), while this theme
- * raises the header above in-page UI (z-index 100), which painted over the menu control. Lift the
- * control above the header. Also grow the shared nav-height vars when the header adds the mobile tab strip
- * so sidebar overlays and the page grid align with the real header height.
+ * Mobile: The real menu control is rendered in the custom header next to search (`MobileMenuToggle` /
+ * `SplashMobileMenuToggle`). PageFrame still outputs `starlight-menu-button` inside `nav.sidebar` for grid
+ * layout; hide it so there is a single hamburger and no duplicate `aria-controls` target confusion.
+ *
+ * `@stainless-api/docs/styles/overrides.css` sets `starlight-menu-button { display: none }` and only
+ * `.sidebar starlight-menu-button` is shown in `page.css`. Toggles moved into the header must be shown
+ * explicitly or they stay invisible.
+ *
+ * Nav height: primary row + tab strip + borders; ~5.75rem tracks the stacked header better than 7rem.
  */
 @media not (min-width: 50rem) {
-  .page > .sidebar starlight-menu-button {
-    z-index: 110;
+  .page > nav.sidebar > starlight-menu-button {
+    display: none !important;
+  }
+
+  .header .header-grid__mobile-menu starlight-menu-button,
+  .stl-splash-mobile-menu-toggle starlight-menu-button {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
   }
 
   :root:has(.header--mobile-secondary-nav) {
-    --stl-nav-height: 7rem;
-    --sl-nav-height: 7rem;
+    --stl-nav-height: 5.75rem;
+    --sl-nav-height: 5.75rem;
   }
 }
 
