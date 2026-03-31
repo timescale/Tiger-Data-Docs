@@ -79,3 +79,23 @@ const showSeoMeta = Boolean(seo) && !hasDescription;
   })();
 </script>
 
+<script is:inline>
+  /**
+   * Back/forward cache (bfcache): the document can be restored without re-running scripts or
+   * reconnecting custom elements, leaving body[data-mobile-menu-expanded] out of sync with the UI.
+   */
+  (function () {
+    function resetMobileDrawerState() {
+      if (window.matchMedia("(min-width: 50rem)").matches) return;
+      document.body.removeAttribute("data-mobile-menu-expanded");
+      document.querySelectorAll("starlight-menu-button").forEach(function (el) {
+        el.setAttribute("aria-expanded", "false");
+      });
+    }
+    window.addEventListener("pageshow", function (e) {
+      if (e.persisted) resetMobileDrawerState();
+    });
+    document.addEventListener("astro:page-load", resetMobileDrawerState);
+  })();
+</script>
+

@@ -271,10 +271,11 @@ export default defineConfig({
         // ],
         experimental: {
           aiChat: aiChat(),
-          starlightCompat: {
+            starlightCompat: {
             components: {
               Head: "./src/components/Head.astro",
               Header: "./src/components/Header.astro",
+              MobileMenuToggle: "./src/components/MobileMenuToggle.astro",
               PageTitle: "./src/components/PageTitle.astro",
               Pagination: "./src/components/PageNavigation.astro",
               Callout: "./src/components/Callout.astro",
