@@ -16,6 +16,7 @@ import SiteTitle from "virtual:starlight/components/SiteTitle";
 import ThemeSelect from "virtual:starlight/components/ThemeSelect";
 import { HEADER_LINKS, TABS } from "virtual:stl-docs-virtual-module";
 import { Button } from "@stainless-api/ui-primitives";
+import MobileNavTabLinks from "./MobileNavTabLinks.astro";
 import NavTabsWithDropdown from "./NavTabsWithDropdown.astro";
 import SplashMobileMenuToggle from "./SplashMobileMenuToggle.astro";
 import HeaderSearchBar from "./HeaderSearchBar.astro";
@@ -27,6 +28,8 @@ interface Props {
 
 const { shouldRenderSearch = true } = Astro.props;
 const { hasSidebar } = Astro.locals.starlightRoute;
+
+const showMobileTabStrip = TABS.length > 0;
 ---
 
 <div
@@ -34,62 +37,73 @@ const { hasSidebar } = Astro.locals.starlightRoute;
     "header",
     "my-header",
     "header-single-row",
+    showMobileTabStrip && "header--mobile-secondary-nav",
     !hasSidebar && "header-single-row--splash-menu",
     !shouldRenderSearch && "header-single-row--no-search",
   ]}
 >
-  <div class="left-group header-grid__logo">
-    <div class="title-wrapper sl-flex">
-      <SiteTitle />
+  <div class="header-primary-row">
+    <div class="left-group header-grid__logo">
+      <div class="title-wrapper sl-flex">
+        <SiteTitle />
+      </div>
+    </div>
+
+    <div class="header-nav-tabs-wrap header-grid__tabs">
+      <NavTabsWithDropdown />
+    </div>
+
+    <div class="header-grid__spacer" aria-hidden="true"></div>
+
+    {
+      shouldRenderSearch && (
+        <div class="header-grid__search">
+          <HeaderSearchBar />
+        </div>
+      )
+    }
+
+    {
+      !hasSidebar && (
+        <div class="header-grid__mobile-menu">
+          <SplashMobileMenuToggle />
+        </div>
+      )
+    }
+
+    <div
+      class={`sl-hidden md:sl-flex print:hidden right-group header-right-utilities header-grid__utilities`}
+    >
+      <div class="header-theme-toggle">
+        <ThemeSelect />
+      </div>
+      <div class="header-links">
+        {
+          HEADER_LINKS.map((link, index) => (
+            <Button
+              href={link.link}
+              variant={
+                link.variant ||
+                (index === HEADER_LINKS.length - 1 ? "accent" : "outline")
+              }
+              {...(link.attrs || {})}
+            >
+              <Button.Label>{link.label}</Button.Label>
+            </Button>
+          ))
+        }
+      </div>
+      <LanguageSelect />
     </div>
   </div>
 
-  <div class="header-nav-tabs-wrap header-grid__tabs">
-    <NavTabsWithDropdown />
-  </div>
-
-  <div class="header-grid__spacer" aria-hidden="true"></div>
-
   {
-    shouldRenderSearch && (
-      <div class="header-grid__search">
-        <HeaderSearchBar />
+    showMobileTabStrip && (
+      <div class="header-mobile-tab-strip">
+        <MobileNavTabLinks />
       </div>
     )
   }
-
-  {
-    !hasSidebar && (
-      <div class="header-grid__mobile-menu">
-        <SplashMobileMenuToggle />
-      </div>
-    )
-  }
-
-  <div
-    class={`sl-hidden md:sl-flex print:hidden right-group header-right-utilities header-grid__utilities`}
-  >
-    <div class="header-theme-toggle">
-      <ThemeSelect />
-    </div>
-    <div class="header-links">
-      {
-        HEADER_LINKS.map((link, index) => (
-          <Button
-            href={link.link}
-            variant={
-              link.variant ||
-              (index === HEADER_LINKS.length - 1 ? "accent" : "outline")
-            }
-            {...(link.attrs || {})}
-          >
-            <Button.Label>{link.label}</Button.Label>
-          </Button>
-        ))
-      }
-    </div>
-    <LanguageSelect />
-  </div>
 </div>
 
 <!-- Global header layout: same as default Stainless Header.astro so alignment is preserved -->
@@ -282,32 +296,51 @@ const { hasSidebar } = Astro.locals.starlightRoute;
   }
 
   @media (max-width: 49.999rem) {
-    .header-single-row {
+    .header.header-single-row {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+    }
+
+    .header-primary-row {
+      display: grid;
+      align-items: center;
       gap: 1rem;
+      width: 100%;
+      min-height: 38px;
     }
 
     .header-nav-tabs-wrap {
       display: none;
     }
 
-    .header-single-row--splash-menu {
+    .header-single-row--splash-menu .header-primary-row {
       grid-template-columns: auto 1fr auto auto;
       grid-template-areas: "logo spacer search menu";
     }
 
-    .header-single-row:not(.header-single-row--splash-menu) {
+    .header-single-row:not(.header-single-row--splash-menu) .header-primary-row {
       grid-template-columns: auto 1fr auto;
       grid-template-areas: "logo spacer search";
     }
 
-    .header-single-row--no-search.header-single-row--splash-menu {
+    .header-single-row--no-search.header-single-row--splash-menu .header-primary-row {
       grid-template-columns: auto 1fr auto;
       grid-template-areas: "logo spacer menu";
     }
 
-    .header-single-row--no-search:not(.header-single-row--splash-menu) {
+    .header-single-row--no-search:not(.header-single-row--splash-menu) .header-primary-row {
       grid-template-columns: auto 1fr;
       grid-template-areas: "logo spacer";
+    }
+
+    .header-mobile-tab-strip {
+      width: 100%;
+      min-width: 0;
+      padding-top: 0.375rem;
+      margin-top: 0.25rem;
+      border-top: 1px solid var(--stl-color-border-faint);
     }
 
     .header-grid__logo {
@@ -338,6 +371,15 @@ const { hasSidebar } = Astro.locals.starlightRoute;
       flex-direction: row;
       align-items: center;
       padding-bottom: 0;
+    }
+
+    /* Flatten so the outer header grid matches the previous single-level structure */
+    .header-primary-row {
+      display: contents;
+    }
+
+    .header-mobile-tab-strip {
+      display: none;
     }
 
     .header.header-single-row {
