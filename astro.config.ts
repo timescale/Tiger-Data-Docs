@@ -353,13 +353,7 @@ export default defineConfig({
                 items: [
                   { label: "What is Tiger Data", link: "/learn" },
                   { label: "Tiger Data architecture for real-time analytics", link: "/learn/deep-dive/whitepaper" },
-                ],
-              },
-              {
-                label: "Tiger Cloud",
-                collapsed: true,
-                items: [
-                  { label: "Tiger Cloud overview", link: "/learn/tiger-cloud" },
+                  { label: "Tiger Cloud", link: "/learn/tiger-cloud" },
                   { label: "Supported regions", link: "/learn/tiger-cloud/regions" },
                   { label: "Cloud-exclusive features", link: "/learn/tiger-cloud/cloud-exclusive-features" },
                 ],
