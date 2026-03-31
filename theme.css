@@ -1470,6 +1470,79 @@ nav.sidebar .sidebar-content ul ul a[aria-current="page"],
   background-color: var(--sidebar-nav-bg-active);
 }
 
+/*
+ * Drawer / mobile-only CTA row (e.g. “Get started”): `#starlight__sidebar a` uses ID
+ * specificity and forces nav-link layout (space-between, nav text color, 40px min-height).
+ * That overrides `.stl-ui-button--accent` and looks wrong in light and dark themes.
+ */
+#starlight__sidebar .stl-sidebar-header-links a.stl-ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: unset;
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  border-radius: var(--tiger-radius-sm);
+  color: var(--stl-button-primary-fg);
+  background-color: var(--stl-button-primary-bg);
+  border: none;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+#starlight__sidebar .stl-sidebar-header-links a.stl-ui-button:hover {
+  color: var(--stl-button-primary-fg);
+  background-color: var(--stl-button-primary-bg);
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: var(--tiger-shadow-sm);
+}
+
+#starlight__sidebar .stl-sidebar-header-links a.stl-ui-button:focus-visible {
+  outline: 2px solid var(--stl-color-accent);
+  outline-offset: 2px;
+}
+
+/*
+ * Mobile drawer hierarchy: `@stainless-api/docs` `tabsMiddleware` prepends every top-level tab
+ * (`stl-mobile-only-sidebar-item`) to the active tab’s sidebar with `unshift`, so the list order is
+ * [all tabs…][Overview / section groups…]. That reads backwards: users expect the current tab’s IA
+ * first, then a way to switch tabs. Reorder with flex `order` (DOM stays the same for a11y/SSR).
+ */
+@media not (min-width: 50rem) {
+  #starlight__sidebar .stldocs-root > .stldocs-sidebar-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #starlight__sidebar .stldocs-root > .stldocs-sidebar-list > li:has(> a.stl-mobile-only-sidebar-item) {
+    order: 2;
+  }
+
+  #starlight__sidebar .stldocs-root > .stldocs-sidebar-list > li:not(:has(> a.stl-mobile-only-sidebar-item)) {
+    order: 1;
+  }
+
+  /* Visual break before the tab strip (first mobile row is still :first-child in the DOM) */
+  #starlight__sidebar
+    .stldocs-root
+    > .stldocs-sidebar-list
+    > li:has(> a.stl-mobile-only-sidebar-item):first-child {
+    margin-block-start: 0.75rem;
+    padding-block-start: 0.75rem;
+    border-block-start: 1px solid var(--sidebar-nav-border-divider);
+  }
+}
+
 /* Group header (details summary) – base styles for all expander summaries */
 .sidebar-content details summary,
 nav.sidebar .sidebar-content details summary,
@@ -2007,14 +2080,18 @@ tr:hover td {
   }
 
   /*
-   * Drawer visibility: default Starlight uses `[aria-expanded="true"] ~ .sidebar-pane` inside
-   * `nav.sidebar`, but the visible hamburger lives in the custom header (see comment above).
-   * The same web component sets `document.body[data-mobile-menu-expanded]` when toggled; use
-   * that so the off-canvas sidebar actually opens on docs pages.
+   * Drawer visibility: Starlight’s PageFrame uses `--sl-sidebar-visibility` on `.sidebar-pane`.
+   * Stainless `page.css` (mobile) instead sets `visibility: hidden` on
+   * `.page > .sidebar > .sidebar-pane` and only reveals it when the *in-nav* sibling
+   * `starlight-menu-button[aria-expanded="true"]` precedes `.sidebar-pane`. Our hamburger is
+   * in the header, so that sibling selector never matches; we must open the drawer via
+   * `body[data-mobile-menu-expanded]` from `MobileMenuToggle` and set `visibility` directly
+   * (the variable alone does not override Stainless’s `visibility: hidden`).
    */
   body[data-mobile-menu-expanded] .page > nav.sidebar .sidebar-pane,
   body[data-mobile-menu-expanded] #starlight__sidebar.sidebar-pane {
     --sl-sidebar-visibility: visible !important;
+    visibility: visible !important;
   }
 
   :root:has(.header--mobile-secondary-nav) {
