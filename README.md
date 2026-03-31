@@ -6,7 +6,7 @@ Documentation site for Tiger Data, built on Astro + Starlight using the Stainles
 
 - **Node.js** (v18 or later): [nodejs.org](https://nodejs.org/)
 - **pnpm** (package manager): install with `npm install -g pnpm` or see [pnpm.io/installation](https://pnpm.io/installation)
-- **Stainless API key**: required for API reference generation
+- **Stainless API key**: required only if you need the generated **Tiger Cloud REST API** reference locally. To run without any Stainless credentials, use **`pnpm dev:local`** (see below).
   1. Sign in at [app.stainless.com](https://app.stainless.com)
   2. Go to **Org Settings → API keys** and copy your key (starts with `stl_sk...`)
   3. Create a `.env` file in the project root (use `.env.example` as a template):
@@ -24,13 +24,28 @@ Documentation site for Tiger Data, built on Astro + Starlight using the Stainles
 5. Start the dev server: `pnpm dev`
 6. Visit [localhost:4321](http://localhost:4321/)
 
+### Run without a Stainless API key
+
+If you do not have `STAINLESS_API_KEY` or `stl auth login`, use the local preset so the site skips downloading the Tiger Cloud OpenAPI spec from Stainless:
+
+```bash
+pnpm install
+pnpm dev:local
+```
+
+`dev:local` sets `DOCS_LOCAL_WITHOUT_STAINLESS=1`, which disables generated REST API pages and points the Reference sidebar to a stub page (`/reference/tiger-cloud-rest-local-preview` in the running site). All other docs (TimescaleDB reference, Toolkit, guides, and so on) work normally.
+
+For a production build without Stainless (for example, CI that cannot reach the API), use `pnpm build:local`. To restore the full REST reference, unset `DOCS_LOCAL_WITHOUT_STAINLESS`, add a key or CLI auth, and run `pnpm dev` or `pnpm build` again.
+
 ### Other Commands
 
 ```bash
-pnpm build      # Build for production (runs sync first via prebuild)
-pnpm preview    # Preview production build
-pnpm sync       # Sync docs from source repos (timescaledb, pgai, pgvectorscale)
-pnpm format     # Format code
+pnpm build         # Build for production
+pnpm build:local   # Build with DOCS_LOCAL_WITHOUT_STAINLESS (no Stainless API for REST reference)
+pnpm dev:local     # Dev server without Stainless API (same as DOCS_LOCAL_WITHOUT_STAINLESS=1)
+pnpm preview       # Preview production build
+pnpm sync          # Sync docs from source repos (timescaledb, pgai, pgvectorscale)
+pnpm format        # Format code
 ```
 
 ## Site Structure
@@ -53,7 +68,7 @@ All documentation content lives under `src/content/docs/`. The structure follows
 
 Each main section follows a three-level hierarchy:
 
-```
+``` md
 src/content/docs/
 └── {section}/              # Main section (e.g., build, learn, deploy)
     ├── index.mdx           # Landing page for the section
@@ -103,7 +118,7 @@ This project uses the `@stainless-api/docs` integration which provides:
 
 ## Environment
 
-Requires `STAINLESS_API_KEY` for API reference generation. See `.env.example`.
+`STAINLESS_API_KEY` (or `stl auth login`) is required for **generated** Tiger Cloud REST API reference unless you set **`DOCS_LOCAL_WITHOUT_STAINLESS=1`** or use **`pnpm dev:local`** / **`pnpm build:local`**. See `.env.example`.
 
 ### Optional: Algolia instead of Pagefind
 
