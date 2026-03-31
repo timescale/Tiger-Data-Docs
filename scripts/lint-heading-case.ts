@@ -27,7 +27,7 @@ const CONTENT_DIR = path.join(ROOT_DIR, "src/content");
 const ACRONYMS = new Set(
   [
     "API", "APIs", "AWS", "AI", "CIDR", "CIDRs", "CLI", "CPU", "CSV", "EV", "GA", "I/O",
-    "IOPS", "MCP", "RBAC", "SQL", "TB", "UUID", "UUIDv7", "VPC", "2FA", "HIPAA",
+    "IOPS", "LLMs", "MCP", "RBAC", "SQL", "TB", "UUID", "UUIDv7", "VPC", "VPCs", "2FA", "HIPAA",
     "PG", "CI", "CD", "ETL", "FDW", "HA", "JSON", "NYC", "UI", "UX", "VM", "IDE", "SaaS", "DBM",
   ].map((s) => s.toLowerCase())
 );
@@ -52,6 +52,7 @@ const PROPER_NOUNS = new Set(
     "Telegraf", "Supabase", "Decodable", "Debezium", "Node", "Apache", "Airflow",
     "Hypercore",
     "SageMaker", "DBeaver", "Fivetran", "Confluent",
+    "PgBouncer", "Aiven", "GitLab", "Slack", "Outflux", "TimeWeightSummary", "Lambda",
   ].map((s) => s.toLowerCase())
 );
 
@@ -78,7 +79,18 @@ const PROPER_NOUN_PHRASES = [
   "Azure Data Studio",
   "Power BI",
   "Confluent Cloud",
-  "Confluent Cloud Schema Registry"
+  "Confluent Cloud Schema Registry",
+  "Azure Monitor",
+  "Metrics and Insights",
+  "Timescale Cloud",
+  "Azure Private Link",
+  "Virtual Private Cloud",
+  "AWS Marketplace",
+  "VPC Peering",
+  "Peering VPC",
+  "Aiven Client",
+  "Aiven CLI",
+  "GitLab authentication",
 ];
 
 /**

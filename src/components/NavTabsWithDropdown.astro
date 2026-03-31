@@ -57,9 +57,34 @@ function normalizePath(h: string): string {
 }
 
 /**
+ * First page URL in sidebar order (depth-first). Used when a section has nested groups
+ * but no single configured hub (header dropdown still needs a real link).
+ */
+function firstDescendantLeafLink(items: unknown[] | undefined): string | undefined {
+  if (!Array.isArray(items)) return undefined;
+  for (const raw of items) {
+    if (typeof raw === "string") continue;
+    const c = raw as SidebarEntryLike;
+    if (!c || typeof c !== "object" || typeof c.label !== "string") continue;
+    const childItems = Array.isArray(c.items) ? c.items : [];
+    if (typeof c.link === "string" && childItems.length === 0) {
+      return c.link;
+    }
+    if (childItems.length > 0) {
+      const nested = firstDescendantLeafLink(childItems);
+      if (nested) return nested;
+    }
+    if (c.autogenerate?.directory && childItems.length === 0) {
+      const dir = c.autogenerate.directory.replace(/\/$/, "");
+      return `/${dir}`;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Best URL for the "top" of a sidebar section: explicit link, generated directory index,
- * Overview page, first direct link, or (if there is only one subgroup) that subgroup's index.
- * If there are multiple subgroups and no hub (e.g. "Tiger Cloud on AWS"), returns undefined.
+ * Overview page, first matching link in the sidebar config, or first descendant page.
  */
 function sectionIndexHref(e: SidebarEntryLike): string | undefined {
   if (typeof e.link === "string") return e.link;
@@ -67,7 +92,7 @@ function sectionIndexHref(e: SidebarEntryLike): string | undefined {
   const items = Array.isArray(e.items) ? e.items : [];
   if (e.autogenerate?.directory && items.length === 0) {
     const dir = e.autogenerate.directory.replace(/\/$/, "");
-    return `/${dir}/`;
+    return `/${dir}`;
   }
 
   for (const raw of items) {
@@ -77,21 +102,6 @@ function sectionIndexHref(e: SidebarEntryLike): string | undefined {
     if (/^overview$/i.test(c.label.trim()) && typeof c.link === "string") return c.link;
   }
 
-  const hasNestedGroups = items.some((raw) => {
-    if (typeof raw === "string") return false;
-    const c = raw as SidebarEntryLike;
-    return Array.isArray(c.items) && c.items.length > 0;
-  });
-  const hasDirectLeafLink = items.some((raw) => {
-    if (typeof raw === "string") return false;
-    const c = raw as SidebarEntryLike;
-    return typeof c.link === "string" && (!Array.isArray(c.items) || c.items.length === 0);
-  });
-  /** e.g. "Tiger Cloud on AWS" has subfolders and standalone pages; no single parent landing URL. */
-  if (hasNestedGroups && hasDirectLeafLink) {
-    return undefined;
-  }
-
   for (const raw of items) {
     if (typeof raw === "string") continue;
     const c = raw as SidebarEntryLike;
@@ -99,7 +109,7 @@ function sectionIndexHref(e: SidebarEntryLike): string | undefined {
     const cItems = Array.isArray(c.items) ? c.items : [];
     if (c.autogenerate?.directory && cItems.length === 0) {
       const dir = c.autogenerate.directory.replace(/\/$/, "");
-      return `/${dir}/`;
+      return `/${dir}`;
     }
   }
 
@@ -116,14 +126,14 @@ function sectionIndexHref(e: SidebarEntryLike): string | undefined {
   });
 
   if (!hasDirectLink && subgroups.length >= 2) {
-    return undefined;
+    return firstDescendantLeafLink(items);
   }
 
   if (!hasDirectLink && subgroups.length === 1) {
     return sectionIndexHref(subgroups[0]);
   }
 
-  return undefined;
+  return firstDescendantLeafLink(items);
 }
 
 /**
@@ -161,13 +171,12 @@ function buildNavTree(entries: unknown[] | undefined): NavTreeNode[] {
         href: e.link,
         description: e.dropdownDescription ?? "",
       });
-    }
-    if (e.autogenerate?.directory && !hasItems) {
+    } else if (e.autogenerate?.directory && !hasItems) {
       const dir = e.autogenerate.directory.replace(/\/$/, "");
       out.push({
         kind: "link",
         label: e.label,
-        href: `/${dir}/`,
+        href: `/${dir}`,
         description: e.dropdownDescription ?? "",
       });
     }
