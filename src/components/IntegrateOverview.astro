@@ -524,7 +524,10 @@ const headerDescription = routeEntry?.data?.description;
         const party = getPartyType(data);
         const technologies = getTechnologies(data);
         const title = cardTitle(data);
-        const logoMeta = resolveCardLogo(data.integrationCardLogo);
+        const logoLight = resolveCardLogo(data.integrationCardLogo);
+        const logoDark = resolveCardLogo(data.integrationCardLogoDark);
+        const hasLogo = !!logoLight;
+        const hasDualLogo = !!logoLight && !!logoDark;
         const initials = cardInitials(data, title);
         const badgeColors = badgeColorsForSlug(slug);
         const logoAlt =
@@ -546,17 +549,28 @@ const headerDescription = routeEntry?.data?.description;
           >
             <div class="integrate-card-body">
               <div class="integrate-card-media">
-                {logoMeta ? (
-                  <span class="integrate-card-logo-wrap">
+                {hasLogo ? (
+                  <span class="integrate-card-logo-wrap" role="img" aria-label={logoAlt}>
                     <img
-                      src={logoMeta.src}
-                      alt={logoAlt}
+                      src={logoLight!.src}
+                      alt=""
                       width={48}
                       height={48}
-                      class="integrate-card-logo-img"
+                      class:list={["integrate-card-logo-img", { "integrate-card-logo-light-only": hasDualLogo }]}
                       loading="lazy"
                       decoding="async"
                     />
+                    {hasDualLogo && (
+                      <img
+                        src={logoDark!.src}
+                        alt=""
+                        width={48}
+                        height={48}
+                        class="integrate-card-logo-img integrate-card-logo-dark-only"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    )}
                   </span>
                 ) : (
                   <span
@@ -1055,6 +1069,31 @@ const headerDescription = routeEntry?.data?.description;
     height: 100%;
     object-fit: contain;
     display: block;
+  }
+  /* Dark/light logo swap via prefers-color-scheme */
+  .integrate-card-logo-dark-only {
+    display: none;
+  }
+  @media (prefers-color-scheme: dark) {
+    .integrate-card-logo-light-only {
+      display: none;
+    }
+    .integrate-card-logo-dark-only {
+      display: block;
+    }
+  }
+  /* Also respect Starlight's data-theme attribute for manual theme toggles */
+  :global([data-theme="dark"]) .integrate-card-logo-light-only {
+    display: none;
+  }
+  :global([data-theme="dark"]) .integrate-card-logo-dark-only {
+    display: block;
+  }
+  :global([data-theme="light"]) .integrate-card-logo-light-only {
+    display: block;
+  }
+  :global([data-theme="light"]) .integrate-card-logo-dark-only {
+    display: none;
   }
   .integrate-card-initials {
     display: flex;
