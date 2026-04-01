@@ -6,6 +6,26 @@
  */
 import { getEntry } from "astro:content";
 
+/** Static image import shape from Vite/Astro. */
+type CardLogoImport = { src: string; width: number; height: number };
+
+/** Eagerly import all raster logos so we can resolve them by filename. */
+const cardLogoModules = import.meta.glob<{ default: CardLogoImport }>(
+  "../assets/images/integrate/card-logos/**/*.{png,jpg,jpeg,webp}",
+  { eager: true }
+);
+
+function resolveCardLogo(
+  filename: string | undefined
+): CardLogoImport | undefined {
+  if (!filename?.trim()) return undefined;
+  const normalized = filename.trim().replace(/^\.?\//, "");
+  for (const path of Object.keys(cardLogoModules)) {
+    if (path.endsWith(normalized)) return cardLogoModules[path].default;
+  }
+  return undefined;
+}
+
 const pathMap = import.meta.glob("../content/docs/integrate/**/*.mdx");
 const indexSlug = "integrate/index";
 const findConnectionSlug = "integrate/find-connection-details";
@@ -45,6 +65,9 @@ type DocData = {
   integrationCardTitle?: string;
   integrationPlatforms?: PlatformSlug[];
   keywords?: string[];
+  integrationCardLogo?: string;
+  integrationCardLogoDark?: string;
+  integrationCardLogoAlt?: string;
 };
 
 function cardTitle(data: DocData): string {
@@ -83,7 +106,10 @@ for (const slug of allSlugs) {
           sortOrder: d.sortOrder,
           integrationCardTitle: d.integrationCardTitle,
           integrationPlatforms: d.integrationPlatforms ?? ["aws"],
-          keywords: (d as any).keywords ?? []
+          keywords: (d as any).keywords ?? [],
+          integrationCardLogo: (d as any).integrationCardLogo,
+          integrationCardLogoDark: (d as any).integrationCardLogoDark,
+          integrationCardLogoAlt: (d as any).integrationCardLogoAlt
         }
       });
     }
