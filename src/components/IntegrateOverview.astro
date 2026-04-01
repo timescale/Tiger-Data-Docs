@@ -30,7 +30,7 @@ const allSlugs = Object.keys(pathMap)
 const PLATFORM_LABELS: Record<string, string> = {
   aws: "Tiger Cloud on AWS",
   azure: "Tiger Cloud on Azure",
-  "self-hosted": "Self-Hosted",
+  "self-hosted": "Self-Hosted"
 };
 const PLATFORM_ORDER = ["aws", "azure", "self-hosted"] as const;
 type PlatformSlug = (typeof PLATFORM_ORDER)[number];
@@ -52,11 +52,15 @@ function cardTitle(data: DocData): string {
     return `${data.integrationCardTitle} and Tiger Data`;
   }
   const t = data.title ?? "";
-  const withMatch = t.match(/^Integrate (.+?) (?:with|and) Tiger (?:Cloud|Data)$/i);
+  const withMatch = t.match(
+    /^Integrate (.+?) (?:with|and) Tiger (?:Cloud|Data)$/i
+  );
   if (withMatch) return `${withMatch[1]} and Tiger Data`;
   const connectMatch = t.match(/^Connect (.+?) to Tiger (?:Cloud|Data)$/i);
   if (connectMatch) return `${connectMatch[1]} and Tiger Data`;
-  const connectWithMatch = t.match(/^Connect to Tiger (?:Cloud|Data) with (.+)$/i);
+  const connectWithMatch = t.match(
+    /^Connect to Tiger (?:Cloud|Data) with (.+)$/i
+  );
   if (connectWithMatch) return `${connectWithMatch[1]} and Tiger Data`;
   if (t && !/Tiger (?:Cloud|Data)/i.test(t)) return `${t} and Tiger Data`;
   return (t || "Integration").replace(/Tiger Cloud/gi, "Tiger Data");
@@ -79,8 +83,8 @@ for (const slug of allSlugs) {
           sortOrder: d.sortOrder,
           integrationCardTitle: d.integrationCardTitle,
           integrationPlatforms: d.integrationPlatforms ?? ["aws"],
-          keywords: (d as any).keywords ?? [],
-        },
+          keywords: (d as any).keywords ?? []
+        }
       });
     }
   } catch {
@@ -101,15 +105,27 @@ const CATEGORY_LABELS: Record<string, string> = {
   "query-administration": "Query & Administration",
   "secure-connectivity": "Secure Connectivity",
   "observability-alerting": "Observability & Alerting",
-  "configuration-deployment": "Configuration & Deployment",
+  "configuration-deployment": "Configuration & Deployment"
 };
 const CATEGORY_ORDER = [
-  "data-engineering-etl", "bi-vizualization", "data-ingestion-streaming",
-  "connectors", "code", "query-administration", "secure-connectivity",
-  "observability-alerting", "configuration-deployment",
+  "data-engineering-etl",
+  "bi-vizualization",
+  "data-ingestion-streaming",
+  "connectors",
+  "code",
+  "query-administration",
+  "secure-connectivity",
+  "observability-alerting",
+  "configuration-deployment"
 ];
 function getCategoryLabel(slug: string): string {
-  return CATEGORY_LABELS[slug] ?? slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  return (
+    CATEGORY_LABELS[slug] ??
+    slug
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ")
+  );
 }
 const uniqueCategories = CATEGORY_ORDER.filter((cat) =>
   entries.some((e) => e.data.integrationCategory === cat)
@@ -122,16 +138,25 @@ const INDUSTRY_LABELS: Record<string, string> = {
   energy: "Energy",
   crypto: "Crypto",
   healthcare: "Healthcare",
-  manufacturing: "Manufacturing",
+  manufacturing: "Manufacturing"
 };
 function normalizeIndustryKey(raw: string): string {
   const k = raw.trim().toLowerCase().replace(/\s+/g, "-");
   if (k === "oilandgas") return "oil-and-gas";
   return k;
 }
-const INDUSTRY_ORDER = ["oil-and-gas", "iot", "energy", "crypto", "healthcare", "manufacturing"];
+const INDUSTRY_ORDER = [
+  "oil-and-gas",
+  "iot",
+  "energy",
+  "crypto",
+  "healthcare",
+  "manufacturing"
+];
 const uniqueIndustries = INDUSTRY_ORDER.filter((ind) =>
-  entries.some((e) => (e.data.integrationIndustry ?? []).map(normalizeIndustryKey).includes(ind))
+  entries.some((e) =>
+    (e.data.integrationIndustry ?? []).map(normalizeIndustryKey).includes(ind)
+  )
 );
 
 // --- Filter: Platform ---
@@ -148,18 +173,25 @@ function getPartyType(data: DocData): string {
 
 // --- Filter: Technology ---
 const TECHNOLOGY_MAP: Record<string, string[]> = {
-  "PostgreSQL": ["postgres", "psql", "pgadmin", "fdw", "foreign data wrappers", "postgresql"],
-  "Python": ["python", "psycopg2", "sdk"],
-  "SQL": ["sql editor", "sql shell", "query tool", "interactive queries"],
-  "Kafka": ["kafka", "confluent", "event streaming"],
-  "AWS": ["aws", "lambda", "sagemaker", "cloudwatch", "s3"],
-  "Azure": ["azure"],
-  "GCP": ["google cloud", "gcp"],
-  "Terraform": ["terraform", "iac", "infrastructure as code"],
-  "Kubernetes": ["kubernetes", "k8s", "container orchestration"],
-  "Grafana": ["grafana"],
-  "Prometheus": ["prometheus"],
-  "REST API": ["api integration", "rest"],
+  PostgreSQL: [
+    "postgres",
+    "psql",
+    "pgadmin",
+    "fdw",
+    "foreign data wrappers",
+    "postgresql"
+  ],
+  Python: ["python", "psycopg2", "sdk"],
+  SQL: ["sql editor", "sql shell", "query tool", "interactive queries"],
+  Kafka: ["kafka", "confluent", "event streaming"],
+  AWS: ["aws", "lambda", "sagemaker", "cloudwatch", "s3"],
+  Azure: ["azure"],
+  GCP: ["google cloud", "gcp"],
+  Terraform: ["terraform", "iac", "infrastructure as code"],
+  Kubernetes: ["kubernetes", "k8s", "container orchestration"],
+  Grafana: ["grafana"],
+  Prometheus: ["prometheus"],
+  "REST API": ["api integration", "rest"]
 };
 function getTechnologies(data: DocData): string[] {
   const kw = (data.keywords ?? []).map((k: string) => k.toLowerCase());
@@ -177,7 +209,7 @@ const uniqueTechnologies = TECHNOLOGY_ORDER.filter((tech) =>
 );
 
 function slugToHref(slug: string): string {
-  return "/" + slug + "/";
+  return "/" + slug;
 }
 
 /** Splash template hides the default Starlight title; show title + description in this panel. */
@@ -200,11 +232,28 @@ const headerDescription = routeEntry?.data?.description;
 
   <!-- Search bar -->
   <div class="integrate-search-wrapper">
-    <svg class="integrate-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+    <svg
+      class="integrate-search-icon"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      width="18"
+      height="18"
+    >
       <circle cx="11" cy="11" r="8"></circle>
       <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
     </svg>
-    <input type="text" class="integrate-search-input" id="integrate-search" placeholder="Search by tool or keyword..." autocomplete="off" />
+    <input
+      type="text"
+      class="integrate-search-input"
+      id="integrate-search"
+      placeholder="Search by tool or keyword..."
+      autocomplete="off"
+    />
   </div>
 
   <!-- Filter dropdowns -->
@@ -213,17 +262,31 @@ const headerDescription = routeEntry?.data?.description;
     <div class="integrate-filter-group" data-filter-key="category">
       <button type="button" class="integrate-filter-btn" aria-expanded="false">
         <span>Type of Tool</span>
-        <svg class="integrate-filter-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg
+          class="integrate-filter-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
         </svg>
       </button>
       <div class="integrate-filter-panel" hidden>
-        {uniqueCategories.map((cat) => (
-          <label class="integrate-filter-option">
-            <input type="checkbox" value={cat} data-filter-check="category" />
-            <span>{getCategoryLabel(cat)}</span>
-          </label>
-        ))}
+        {
+          uniqueCategories.map((cat) => (
+            <label class="integrate-filter-option">
+              <input type="checkbox" value={cat} data-filter-check="category" />
+              <span>{getCategoryLabel(cat)}</span>
+            </label>
+          ))
+        }
       </div>
     </div>
 
@@ -231,17 +294,31 @@ const headerDescription = routeEntry?.data?.description;
     <div class="integrate-filter-group" data-filter-key="industry">
       <button type="button" class="integrate-filter-btn" aria-expanded="false">
         <span>Industry</span>
-        <svg class="integrate-filter-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg
+          class="integrate-filter-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
         </svg>
       </button>
       <div class="integrate-filter-panel" hidden>
-        {uniqueIndustries.map((ind) => (
-          <label class="integrate-filter-option">
-            <input type="checkbox" value={ind} data-filter-check="industry" />
-            <span>{INDUSTRY_LABELS[ind] ?? ind}</span>
-          </label>
-        ))}
+        {
+          uniqueIndustries.map((ind) => (
+            <label class="integrate-filter-option">
+              <input type="checkbox" value={ind} data-filter-check="industry" />
+              <span>{INDUSTRY_LABELS[ind] ?? ind}</span>
+            </label>
+          ))
+        }
       </div>
     </div>
 
@@ -249,17 +326,31 @@ const headerDescription = routeEntry?.data?.description;
     <div class="integrate-filter-group" data-filter-key="platform">
       <button type="button" class="integrate-filter-btn" aria-expanded="false">
         <span>Platform</span>
-        <svg class="integrate-filter-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg
+          class="integrate-filter-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
         </svg>
       </button>
       <div class="integrate-filter-panel" hidden>
-        {PLATFORM_ORDER.map((key) => (
-          <label class="integrate-filter-option">
-            <input type="checkbox" value={key} data-filter-check="platform" />
-            <span>{PLATFORM_LABELS[key]}</span>
-          </label>
-        ))}
+        {
+          PLATFORM_ORDER.map((key) => (
+            <label class="integrate-filter-option">
+              <input type="checkbox" value={key} data-filter-check="platform" />
+              <span>{PLATFORM_LABELS[key]}</span>
+            </label>
+          ))
+        }
       </div>
     </div>
 
@@ -267,17 +358,37 @@ const headerDescription = routeEntry?.data?.description;
     <div class="integrate-filter-group" data-filter-key="party">
       <button type="button" class="integrate-filter-btn" aria-expanded="false">
         <span>First Party/Third Party</span>
-        <svg class="integrate-filter-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg
+          class="integrate-filter-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
         </svg>
       </button>
       <div class="integrate-filter-panel" hidden>
         <label class="integrate-filter-option">
-          <input type="checkbox" value="first-party" data-filter-check="party" />
+          <input
+            type="checkbox"
+            value="first-party"
+            data-filter-check="party"
+          />
           <span>First Party</span>
         </label>
         <label class="integrate-filter-option">
-          <input type="checkbox" value="third-party" data-filter-check="party" />
+          <input
+            type="checkbox"
+            value="third-party"
+            data-filter-check="party"
+          />
           <span>Third Party</span>
         </label>
       </div>
@@ -287,26 +398,60 @@ const headerDescription = routeEntry?.data?.description;
     <div class="integrate-filter-group" data-filter-key="technology">
       <button type="button" class="integrate-filter-btn" aria-expanded="false">
         <span>Technology</span>
-        <svg class="integrate-filter-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg
+          class="integrate-filter-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
         </svg>
       </button>
       <div class="integrate-filter-panel" hidden>
-        {uniqueTechnologies.map((tech) => (
-          <label class="integrate-filter-option">
-            <input type="checkbox" value={tech} data-filter-check="technology" />
-            <span>{tech}</span>
-          </label>
-        ))}
+        {
+          uniqueTechnologies.map((tech) => (
+            <label class="integrate-filter-option">
+              <input
+                type="checkbox"
+                value={tech}
+                data-filter-check="technology"
+              />
+              <span>{tech}</span>
+            </label>
+          ))
+        }
       </div>
     </div>
 
     <!-- Clear filters -->
-    <button type="button" class="integrate-clear-filters" id="integrate-clear-filters" hidden>
+    <button
+      type="button"
+      class="integrate-clear-filters"
+      id="integrate-clear-filters"
+      hidden
+    >
       Clear filters
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M9 5L5 9M5 5L9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 14 14"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.5"
+        ></circle>
+        <path
+          d="M9 5L5 9M5 5L9 9"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"></path>
       </svg>
     </button>
   </div>
@@ -318,31 +463,39 @@ const headerDescription = routeEntry?.data?.description;
 
   <!-- Cards grid -->
   <div class="integrate-cards-grid" id="integrate-cards-grid">
-    {entries.map(({ slug, data }) => {
-      const platforms = getPlatforms(data);
-      const party = getPartyType(data);
-      const technologies = getTechnologies(data);
-      const title = cardTitle(data);
-      return (
-        <a
-          href={slugToHref(slug)}
-          class="integrate-card"
-          data-category={data.integrationCategory ?? ""}
-          data-industries={(data.integrationIndustry ?? []).map(normalizeIndustryKey).join(",")}
-          data-platforms={platforms.join(",")}
-          data-party={party}
-          data-technologies={technologies.join(",")}
-          data-search-text={`${title} ${data.description ?? ""} ${(data.keywords ?? []).join(" ")}`.toLowerCase()}
-        >
-          <div class="integrate-card-accent"></div>
-          <div class="integrate-card-body">
-            <span class="integrate-card-tag">{getCategoryLabel(data.integrationCategory ?? "")}</span>
-            <h3 class="integrate-card-title">{title}</h3>
-            {data.description && <p class="integrate-card-desc">{data.description}</p>}
-          </div>
-        </a>
-      );
-    })}
+    {
+      entries.map(({ slug, data }) => {
+        const platforms = getPlatforms(data);
+        const party = getPartyType(data);
+        const technologies = getTechnologies(data);
+        const title = cardTitle(data);
+        return (
+          <a
+            href={slugToHref(slug)}
+            class="integrate-card"
+            data-category={data.integrationCategory ?? ""}
+            data-industries={(data.integrationIndustry ?? [])
+              .map(normalizeIndustryKey)
+              .join(",")}
+            data-platforms={platforms.join(",")}
+            data-party={party}
+            data-technologies={technologies.join(",")}
+            data-search-text={`${title} ${data.description ?? ""} ${(data.keywords ?? []).join(" ")}`.toLowerCase()}
+          >
+            <div class="integrate-card-accent" />
+            <div class="integrate-card-body">
+              <span class="integrate-card-tag">
+                {getCategoryLabel(data.integrationCategory ?? "")}
+              </span>
+              <h3 class="integrate-card-title">{title}</h3>
+              {data.description && (
+                <p class="integrate-card-desc">{data.description}</p>
+              )}
+            </div>
+          </a>
+        );
+      })
+    }
   </div>
 </div>
 
@@ -351,17 +504,25 @@ const headerDescription = routeEntry?.data?.description;
    * Search + filters must bind on `astro:page-load`: the bundled module runs once on first load,
    * so client navigations to /integrate never ran the old top-level code (empty NodeLists).
    */
-  const FILTER_KEYS = ["category", "industry", "platform", "party", "technology"];
+  const FILTER_KEYS = [
+    "category",
+    "industry",
+    "platform",
+    "party",
+    "technology"
+  ];
 
   let integrateOutsideClickBound = false;
 
   function closeAllIntegrateFilterPanels() {
-    document.querySelectorAll("#integrate-overview-root .integrate-filter-group").forEach((g) => {
-      const b = g.querySelector(".integrate-filter-btn");
-      const p = g.querySelector(".integrate-filter-panel");
-      if (b) b.setAttribute("aria-expanded", "false");
-      if (p) p.hidden = true;
-    });
+    document
+      .querySelectorAll("#integrate-overview-root .integrate-filter-group")
+      .forEach((g) => {
+        const b = g.querySelector(".integrate-filter-btn");
+        const p = g.querySelector(".integrate-filter-panel");
+        if (b) b.setAttribute("aria-expanded", "false");
+        if (p) p.hidden = true;
+      });
   }
 
   function initIntegrateOverview() {
@@ -372,7 +533,9 @@ const headerDescription = routeEntry?.data?.description;
     const searchInput = root.querySelector("#integrate-search");
     const clearBtn = root.querySelector("#integrate-clear-filters");
     const noResults = root.querySelector("#integrate-no-results");
-    const cards = root.querySelectorAll("#integrate-cards-grid .integrate-card");
+    const cards = root.querySelectorAll(
+      "#integrate-cards-grid .integrate-card"
+    );
     const filterGroups = root.querySelectorAll(".integrate-filter-group");
     const allCheckboxes = root.querySelectorAll("[data-filter-check]");
 
@@ -404,7 +567,8 @@ const headerDescription = routeEntry?.data?.description;
         const key = group.getAttribute("data-filter-key") ?? "";
         const btn = group.querySelector(".integrate-filter-btn");
         const count = (filters[key] ?? []).length;
-        if (btn) btn.classList.toggle("integrate-filter-btn--active", count > 0);
+        if (btn)
+          btn.classList.toggle("integrate-filter-btn--active", count > 0);
       });
 
       let visibleCount = 0;
@@ -422,13 +586,19 @@ const headerDescription = routeEntry?.data?.description;
         }
 
         if (show && filters["industry"]?.length) {
-          const industries = (card.getAttribute("data-industries") ?? "").split(",").filter(Boolean);
-          if (!filters["industry"].some((f) => industries.includes(f))) show = false;
+          const industries = (card.getAttribute("data-industries") ?? "")
+            .split(",")
+            .filter(Boolean);
+          if (!filters["industry"].some((f) => industries.includes(f)))
+            show = false;
         }
 
         if (show && filters["platform"]?.length) {
-          const platforms = (card.getAttribute("data-platforms") ?? "").split(",").filter(Boolean);
-          if (!filters["platform"].some((f) => platforms.includes(f))) show = false;
+          const platforms = (card.getAttribute("data-platforms") ?? "")
+            .split(",")
+            .filter(Boolean);
+          if (!filters["platform"].some((f) => platforms.includes(f)))
+            show = false;
         }
 
         if (show && filters["party"]?.length) {
@@ -437,8 +607,11 @@ const headerDescription = routeEntry?.data?.description;
         }
 
         if (show && filters["technology"]?.length) {
-          const techs = (card.getAttribute("data-technologies") ?? "").split(",").filter(Boolean);
-          if (!filters["technology"].some((f) => techs.includes(f))) show = false;
+          const techs = (card.getAttribute("data-technologies") ?? "")
+            .split(",")
+            .filter(Boolean);
+          if (!filters["technology"].some((f) => techs.includes(f)))
+            show = false;
         }
 
         /* Use a class, not [hidden], so scoped .integrate-card { display: flex } cannot override hiding */
@@ -483,7 +656,8 @@ const headerDescription = routeEntry?.data?.description;
     /* Delegated: checkbox change inside filter panels always runs applyFilters */
     root.addEventListener("change", (e) => {
       const t = e.target;
-      if (t instanceof HTMLInputElement && t.hasAttribute("data-filter-check")) applyFilters();
+      if (t instanceof HTMLInputElement && t.hasAttribute("data-filter-check"))
+        applyFilters();
     });
 
     if (clearBtn) {
@@ -545,7 +719,10 @@ const headerDescription = routeEntry?.data?.description;
     font-size: 1.0625rem;
     line-height: 1.55;
     letter-spacing: -0.01em;
-    color: light-dark(var(--tiger-fg-emphasized, #555570), rgba(220, 220, 230, 0.88));
+    color: light-dark(
+      var(--tiger-fg-emphasized, #555570),
+      rgba(220, 220, 230, 0.88)
+    );
   }
 
   /* ---- Search bar ---- */
@@ -572,7 +749,9 @@ const headerDescription = routeEntry?.data?.description;
     border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
     border-radius: 9999px;
     outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
   }
   .integrate-search-input::placeholder {
     color: light-dark(var(--tiger-grey-400), var(--tiger-grey-500));
@@ -625,7 +804,9 @@ const headerDescription = routeEntry?.data?.description;
     border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
     border-radius: 9999px;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
     white-space: nowrap;
     box-sizing: border-box;
   }
@@ -743,19 +924,25 @@ const headerDescription = routeEntry?.data?.description;
     overflow: hidden;
     text-decoration: none;
     color: inherit;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
   /* Filter script toggles this; [hidden] can lose to display:flex from prose or layout */
   .integrate-card.integrate-card--filtered-out {
     display: none !important;
   }
   .integrate-card:hover {
-    border-color: light-dark(#8f93f9, var(--tiger-vivid-purple));
+    border-color: light-dark(var(--tiger-grey-400), var(--tiger-vivid-purple));
     box-shadow: var(--tiger-shadow-md);
   }
   .integrate-card-accent {
     height: 6px;
-    background: linear-gradient(90deg, var(--tiger-electric-yellow) 0%, var(--tiger-pure-teal) 100%);
+    background: linear-gradient(
+      90deg,
+      var(--tiger-electric-yellow) 0%,
+      var(--tiger-pure-teal) 100%
+    );
   }
   .integrate-card-body {
     display: flex;
