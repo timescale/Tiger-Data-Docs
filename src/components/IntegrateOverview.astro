@@ -2,9 +2,16 @@
 /**
  * Integrate overview: search bar + dropdown filters + flat card grid.
  * Filter dimensions: Type of Tool, Industry, Platform, First Party/Third Party, Technology.
- * Relies on frontmatter: integrationCategory, integrationIndustry[], integrationPlatforms[], connectorType, keywords[].
+ * Relies on frontmatter: integrationCategory, integrationIndustry[], integrationPlatforms[], connectorType, keywords[],
+ * integrationHideFromOverviewCards (omit from card grid only; sidebar unchanged).
  */
 import { getEntry } from "astro:content";
+
+import {
+  INTEGRATION_TECHNOLOGY_KEYS,
+  resolveIntegrationTechnologies,
+  type IntegrationTechnologyKey
+} from "../lib/integration-technologies";
 
 /** Static image import shape from Vite/Astro (`import logo from '...'`). */
 type CardLogoImport = {
@@ -90,8 +97,11 @@ type DocData = {
   integrationPlatforms?: PlatformSlug[];
   keywords?: string[];
   integrationCardLogo?: string;
+  integrationCardLogoDark?: string;
   integrationCardLogoAlt?: string;
   integrationCardInitials?: string;
+  integrationHideFromOverviewCards?: boolean;
+  integrationTechnologies?: IntegrationTechnologyKey[];
 };
 
 function cardInitials(data: DocData, displayTitle: string): string {
@@ -145,10 +155,13 @@ for (const slug of allSlugs) {
           sortOrder: d.sortOrder,
           integrationCardTitle: d.integrationCardTitle,
           integrationPlatforms: d.integrationPlatforms ?? ["aws"],
-          keywords: (d as any).keywords ?? [],
+          keywords: d.keywords ?? [],
+          integrationTechnologies: d.integrationTechnologies,
           integrationCardLogo: d.integrationCardLogo,
+          integrationCardLogoDark: d.integrationCardLogoDark,
           integrationCardLogoAlt: d.integrationCardLogoAlt,
-          integrationCardInitials: d.integrationCardInitials
+          integrationCardInitials: d.integrationCardInitials,
+          integrationHideFromOverviewCards: d.integrationHideFromOverviewCards === true
         }
       });
     }
@@ -159,6 +172,9 @@ for (const slug of allSlugs) {
 
 // Sort entries alphabetically by display title
 entries.sort((a, b) => cardTitle(a.data).localeCompare(cardTitle(b.data)));
+
+/** Pages shown as cards on /integrate (sidebar and direct URLs still list all integrate pages). */
+const cardEntries = entries.filter((e) => !e.data.integrationHideFromOverviewCards);
 
 // --- Filter: Type of Tool (integrationCategory) ---
 const CATEGORY_LABELS: Record<string, string> = {
@@ -193,7 +209,7 @@ function getCategoryLabel(slug: string): string {
   );
 }
 const uniqueCategories = CATEGORY_ORDER.filter((cat) =>
-  entries.some((e) => e.data.integrationCategory === cat)
+  cardEntries.some((e) => e.data.integrationCategory === cat)
 );
 
 // --- Filter: Industry ---
@@ -219,7 +235,7 @@ const INDUSTRY_ORDER = [
   "manufacturing"
 ];
 const uniqueIndustries = INDUSTRY_ORDER.filter((ind) =>
-  entries.some((e) =>
+  cardEntries.some((e) =>
     (e.data.integrationIndustry ?? []).map(normalizeIndustryKey).includes(ind)
   )
 );
@@ -236,41 +252,15 @@ function getPartyType(data: DocData): string {
   return "third-party";
 }
 
-// --- Filter: Technology ---
-const TECHNOLOGY_MAP: Record<string, string[]> = {
-  PostgreSQL: [
-    "postgres",
-    "psql",
-    "pgadmin",
-    "fdw",
-    "foreign data wrappers",
-    "postgresql"
-  ],
-  Python: ["python", "psycopg2", "sdk"],
-  SQL: ["sql editor", "sql shell", "query tool", "interactive queries"],
-  Kafka: ["kafka", "confluent", "event streaming"],
-  AWS: ["aws", "lambda", "sagemaker", "cloudwatch", "s3"],
-  Azure: ["azure"],
-  GCP: ["google cloud", "gcp"],
-  Terraform: ["terraform", "iac", "infrastructure as code"],
-  Kubernetes: ["kubernetes", "k8s", "container orchestration"],
-  Grafana: ["grafana"],
-  Prometheus: ["prometheus"],
-  "REST API": ["api integration", "rest"]
-};
+// --- Filter: Technology (keywords + optional integrationTechnologies; see src/lib/integration-technologies.ts) ---
 function getTechnologies(data: DocData): string[] {
-  const kw = (data.keywords ?? []).map((k: string) => k.toLowerCase());
-  const techs: string[] = [];
-  for (const [tech, patterns] of Object.entries(TECHNOLOGY_MAP)) {
-    if (patterns.some((p) => kw.some((k) => k.includes(p)))) {
-      techs.push(tech);
-    }
-  }
-  return techs;
+  return resolveIntegrationTechnologies(
+    data.integrationTechnologies,
+    data.keywords
+  );
 }
-const TECHNOLOGY_ORDER = Object.keys(TECHNOLOGY_MAP);
-const uniqueTechnologies = TECHNOLOGY_ORDER.filter((tech) =>
-  entries.some((e) => getTechnologies(e.data).includes(tech))
+const uniqueTechnologies = INTEGRATION_TECHNOLOGY_KEYS.filter((tech) =>
+  cardEntries.some((e) => getTechnologies(e.data).includes(tech))
 );
 
 function slugToHref(slug: string): string {
@@ -529,7 +519,7 @@ const headerDescription = routeEntry?.data?.description;
   <!-- Cards grid -->
   <div class="integrate-cards-grid" id="integrate-cards-grid">
     {
-      entries.map(({ slug, data }) => {
+      cardEntries.map(({ slug, data }) => {
         const platforms = getPlatforms(data);
         const party = getPartyType(data);
         const technologies = getTechnologies(data);

@@ -105,6 +105,35 @@ build/
 - Content was drafted/migrated from existing docs during the IA restructure
 - Each subcategory should have sub-pages built out and prepped for migration
 
+### Integrate section: hide a page from the `/integrate` card grid
+
+The [Integrate overview](/integrate) page (`src/content/docs/integrate/index.mdx`) shows a searchable card grid of integrations. Some pages (for example [Troubleshoot](/integrate/troubleshooting)) should stay in the **sidebar** and remain reachable by URL, but should **not** appear as a card on that overview.
+
+In the page’s frontmatter, set:
+
+```yaml
+integrationHideFromOverviewCards: true
+```
+
+This only removes the page from the **card grid** (and from the overview’s filter options that are derived from visible cards). It does **not** remove the page from the Starlight sidebar or from search indexing.
+
+### Integrate overview: Technology filter and frontmatter
+
+The **Technology** dropdown on `/integrate` tags each card with one or more technology labels so readers can filter (for example AWS, Kafka, PostgreSQL). Labels must be declared in the content schema or Astro strips them:
+
+1. **`keywords`** (optional array of strings) — Used for search and, when `integrationTechnologies` is omitted, to **infer** technologies by matching substrings (see `src/lib/integration-technologies.ts`). Example: a keyword containing `kafka` maps to the **Kafka** filter.
+
+2. **`integrationTechnologies`** (optional array) — **Explicit** tags. Use when inference is wrong or too broad. Allowed values are exactly: `PostgreSQL`, `Python`, `SQL`, `Kafka`, `AWS`, `Azure`, `GCP`, `Terraform`, `Kubernetes`, `Grafana`, `Prometheus`, `REST API`.
+
+Example:
+
+```yaml
+keywords: ["kafka integration", "event streaming"]
+integrationTechnologies: ["Kafka", "AWS"]
+```
+
+If you set `integrationTechnologies`, it **replaces** inference from `keywords` for that page (the explicit list wins).
+
 ## About Stainless Docs
 
 The Stainless Docs Platform is built on top of [Astro](https://astro.build) and [Starlight](https://starlight.astro.build). Starlight is a powerful documentation framework designed for speed, accessibility, and customizability.
