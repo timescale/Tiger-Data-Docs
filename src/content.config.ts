@@ -43,6 +43,15 @@ const integrationSchema = z.object({
   integrationCardTitle: z.string().optional(),
   /** Platforms this integration is available on; shown as chips and used for filtering. */
   integrationPlatforms: z.array(z.enum(["aws", "azure", "self-hosted"])).optional(),
+  /**
+   * Optional raster logo file under `src/assets/images/integrate/card-logos/` (for example `kafka.png`).
+   * When omitted, the overview shows initials in a colored badge.
+   */
+  integrationCardLogo: z.string().optional(),
+  /** Accessible label for the logo; defaults to the card title. */
+  integrationCardLogoAlt: z.string().optional(),
+  /** Override initials in the placeholder badge (for example `λ` for AWS Lambda). */
+  integrationCardInitials: z.string().optional(),
 });
 
 export const collections = {
