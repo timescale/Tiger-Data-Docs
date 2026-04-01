@@ -43,6 +43,19 @@ const integrationSchema = z.object({
   integrationCardTitle: z.string().optional(),
   /** Platforms this integration is available on; shown as chips and used for filtering. */
   integrationPlatforms: z.array(z.enum(["aws", "azure", "self-hosted"])).optional(),
+  /**
+   * Optional raster logo file under `src/assets/images/integrate/card-logos/` (e.g. `kafka.png`).
+   * Used in light mode (or as the sole logo when `integrationCardLogoDark` is absent).
+   * When omitted, the card shows no logo media area.
+   */
+  integrationCardLogo: z.string().optional(),
+  /**
+   * Dark-mode variant of the card logo (e.g. `kafka-dark.png`).
+   * When omitted but `integrationCardLogo` is set, the light logo is used for both themes.
+   */
+  integrationCardLogoDark: z.string().optional(),
+  /** Accessible alt text for the logo; defaults to the card title. */
+  integrationCardLogoAlt: z.string().optional(),
 });
 
 export const collections = {
