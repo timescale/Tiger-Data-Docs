@@ -110,11 +110,11 @@ and subselects to achieve this. This example uses diffs to filter rows where
 values have not changed and only transmits rows where values have changed:
 
 ```sql
-SELECT time, value FROM (
+SELECT time, data_value FROM (
   SELECT time,
-    value,
-    value - LAG(value) OVER (ORDER BY time) AS diff
-  FROM hypertable) ht
+    data_value,
+    data_value - LAG(data_value) OVER (ORDER BY time) AS diff
+  FROM my_hypertable) ht
 WHERE diff IS NULL OR diff != 0;
 ```
 
@@ -134,7 +134,7 @@ FROM (
   FROM weather_metrics_daily
 ) AS temp_change
 WHERE temp_delta IS NOT NULL
-ORDER BY bucket;
+ORDER BY ts;
 ```
 
 ## Group data into time buckets
@@ -312,14 +312,14 @@ value to fill the gap. For example:
 
 ```sql
 SELECT
-  time_bucket_gapfill(INTERVAL '5 min', time, now() - INTERVAL '2 weeks', now()) as 5min,
+  time_bucket_gapfill(INTERVAL '5 min', time, now() - INTERVAL '2 weeks', now()) as "5min",
   meter_id,
   locf(avg(data_value)) AS data_value
 FROM my_hypertable
 WHERE
   time > now() - INTERVAL '2 weeks'
   AND meter_id IN (1,2,3,4)
-GROUP BY 5min, meter_id
+GROUP BY "5min", meter_id
 ```
 
 ## Find the last point for each unique item
@@ -343,18 +343,20 @@ CREATE TABLE vehicles (
   vin_number CHAR(17),
   last_checkup TIMESTAMP
 );
+```
 
+```sql
 CREATE TABLE location (
   time TIMESTAMP NOT NULL,
   vehicle_id INTEGER REFERENCES vehicles (vehicle_id),
   latitude FLOAT,
   longitude FLOAT
 ) WITH (
-  tsdb.hypertable
+  tsdb.hypertable,
+  tsdb.segmentby='vehicle_id',
+  tsdb.orderby='time DESC'
 );
 ```
-
-<CreateHypertablePolicyNote />
 
 You can use the first table, which gives a distinct set of vehicles, to
 perform a `LATERAL JOIN` against the location table:
@@ -368,7 +370,11 @@ SELECT data.* FROM vehicles v
   ) AS data
 ON true
 ORDER BY v.vehicle_id, data.time DESC;
+```
 
+The output looks like this:
+
+```bash
             time            | vehicle_id | latitude  |  longitude
 ----------------------------+------------+-----------+-------------
  2017-12-19 20:58:20.071784 |         72 | 40.753690 |  -73.980340
@@ -394,10 +400,12 @@ BEGIN
   RETURN NEW;
 END
 $BODY$;
+```
 
+```sql
 CREATE TRIGGER create_vehicle_trigger
   BEFORE INSERT OR UPDATE ON location
-  FOR EACH ROW EXECUTE PROCEDURE create_vehicle_trigger_fn();
+  FOR EACH ROW EXECUTE FUNCTION create_vehicle_trigger_fn();
 ```
 
 You could also implement this functionality without a separate metadata table by
