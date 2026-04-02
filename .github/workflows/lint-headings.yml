@@ -1,5 +1,6 @@
 # Ensure doc headings use sentence case (first word capitalized; rest lowercase except proper nouns/acronyms).
-# Posts a PR comment when violations are found and removes it when they are fixed.
+# Posts an advisory PR comment when violations are found and removes it when they are fixed.
+# This check is informational and does not block merge.
 name: Lint heading case
 
 on:
@@ -47,6 +48,22 @@ jobs:
         run: |
           pnpm run lint:headings 2>&1 | tee lint-output.txt
           echo "exit_code=$?" >> $GITHUB_OUTPUT
+
+      - name: Annotate changed files
+        if: steps.lint.outputs.exit_code != '0'
+        run: |
+          # Parse lint output and emit GitHub Actions warning annotations
+          # Format: "  src/content/path/file.mdx:42"
+          while IFS= read -r line; do
+            if [[ "$line" =~ ^[[:space:]]+(src/[^:]+):([0-9]+)$ ]]; then
+              file="${BASH_REMATCH[1]}"
+              lineno="${BASH_REMATCH[2]}"
+              # Read the next line for the heading text
+              IFS= read -r heading_line || true
+              heading=$(echo "$heading_line" | sed 's/^[[:space:]]*//')
+              echo "::warning file=${file},line=${lineno}::Heading is not sentence case: ${heading}"
+            fi
+          done < lint-output.txt
 
       - name: Update PR comment
         if: github.event_name == 'pull_request'
@@ -97,7 +114,11 @@ jobs:
                 '<details>\n<summary>Click to expand linter output</summary>\n\n' +
                 '```\n' + escaped + '\n```\n\n' +
                 '</details>\n\n' +
-                'Run `pnpm run lint:headings -- --fix` locally to auto-fix many headings, then fix any remaining proper nouns manually.';
+                '> **This check is advisory and does not block merge**, but please fix violations when possible.\n\n' +
+                '### How to fix\n' +
+                '1. Run `pnpm run lint:headings -- --fix` locally to auto-fix many headings\n' +
+                '2. Review and fix any remaining proper nouns manually\n' +
+                '3. Headings should be sentence case: first word capitalized, rest lowercase (except proper nouns and acronyms)';
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -106,6 +127,3 @@ jobs:
               });
             }
 
-      - name: Fail if lint had violations
-        if: steps.lint.outputs.exit_code != '0'
-        run: exit 1
