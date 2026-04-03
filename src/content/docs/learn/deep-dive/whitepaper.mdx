@@ -92,9 +92,7 @@ At ingest time, {C.HYPERTABLE}s ensure that {C.PG} can deal with a constant stre
 
 At query time, {C.HYPERTABLE}s efficiently exclude irrelevant {C.CHUNK}s from the execution plan when the partitioning column is used in a `WHERE` clause. This architecture ensures fast query execution, avoiding the gradual slowdowns that affect non-partitioned tables as they accumulate millions of rows. {C.CHUNK_CAP}-local indexes keep indexing overhead minimal, ensuring index operations scans remain efficient regardless of dataset size.
 
-<center>
-<Image src={imgHypertable} alt="Hypertable architecture: automatic time-based partitioning into chunks" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgHypertable} alt="Hypertable architecture: automatic time-based partitioning into chunks" />
 
 {C.HYPERTABLE_CAP}s are the foundation for all of {C.TIMESCALE_DB}'s real-time analytics capabilities. They enable seamless data ingestion, high-throughput writes, optimized query execution, and {C.CHUNK}-based lifecycle management, including automated data retention (drop a {C.CHUNK}) and data tiering (move a {C.CHUNK} to object storage).
 
@@ -117,9 +115,7 @@ Unlike traditional columnar databases, {C.HYPERCORE} allows data to be inserted 
 {C.TIMESCALE_DB}'s columnar storage layout optimizes analytical query performance by structuring data efficiently on disk, reducing scan times, and maximizing compression rates. Unlike traditional row-based storage, where data is stored sequentially by row, columnar storage organizes and compresses data by column, allowing queries to retrieve only the necessary fields in batches rather than scanning entire rows. But unlike many column store implementations, {C.TIMESCALE_DB}'s {C.COLUMNSTORE} supports full mutability, inserts, upserts, updates, and deletes, even at the individual record level, with transactional guarantees. Data is also immediately visible to queries as soon as it is written.
 
 
-<center>
-<Image src={imgHypertableHypercore} alt="Hypertable with hypercore: rowstore and columnstore chunks" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgHypertableHypercore} alt="Hypertable with hypercore: rowstore and columnstore chunks" />
 
 
 #### Columnar batches
@@ -127,9 +123,7 @@ Unlike traditional columnar databases, {C.HYPERCORE} allows data to be inserted 
 {C.TIMESCALE_DB} uses columnar collocation and columnar compression within row-based storage to optimize analytical query performance while maintaining full {C.PG} compatibility. This approach ensures efficient storage, high compression ratios, and rapid query execution.
 
 
-<center>
-<Image src={imgColumnstore} alt="Columnstore batch structure: rows grouped and compressed by column" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgColumnstore} alt="Columnstore batch structure: rows grouped and compressed by column" />
 
 A {C.ROWSTORE} {C.CHUNK} is converted to a {C.COLUMNSTORE} {C.CHUNK} by successfully grouping together sets of rows (typically up to 1000) into a single batch, then converting the batch into columnar form.
 
@@ -149,9 +143,7 @@ This architecture provides the benefits of columnar storage, optimized scans, re
 To optimize query performance, {C.TIMESCALE_DB} allows explicit control over how data is physically organized within columnar storage. By structuring data effectively, queries can minimize disk reads and execute more efficiently, using vectorized execution for parallel batch processing where possible.
 
 
-<center>
-<Image src={imgColumnstoreSegmentby} alt="Segmenting and ordering data in columnstore with SEGMENTBY and ORDERBY" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgColumnstoreSegmentby} alt="Segmenting and ordering data in columnstore with SEGMENTBY and ORDERBY" />
 
 
 
@@ -169,9 +161,7 @@ Traditional databases force a trade-off between fast updates and efficient analy
 {C.HYPERCORE_CAP} navigates these trade-offs with a hybrid approach that enables immediate updates without modifying compressed {C.COLUMNSTORE} data in place. By staging changes in an interim {C.ROWSTORE} {C.CHUNK}, {C.HYPERCORE} allows updates and deletes to happen efficiently while preserving the analytical performance of columnar storage.
 
 
-<center>
-<Image src={imgMutation} alt="Data mutability in Hypercore: staging changes in rowstore before recompression" class="main-content__illustration" style={{ height: "auto" }} />
-</center>
+<Image src={imgMutation} alt="Data mutability in hypercore: staging changes in rowstore before recompression" />
 
 
 #### Real-time writes without delays
@@ -208,9 +198,7 @@ Real-time analytics isn't just about raw speed, it's about executing queries eff
 Queries automatically skip irrelevant partitions ({C.CHUNK}s) based on the primary partitioning key (usually a timestamp), ensuring they only scan relevant data.
 
 
-<center>
-<Image src={imgConstraintExclusion} alt="Primary partition exclusion: skipping irrelevant chunks based on time range" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgConstraintExclusion} alt="Primary partition exclusion: skipping irrelevant chunks based on time range" />
 
 
 #### Secondary partition exclusion (columnar)
@@ -218,9 +206,7 @@ Queries automatically skip irrelevant partitions ({C.CHUNK}s) based on the prima
 Min/max metadata allows queries filtering on correlated dimensions (e.g., `order_id` or secondary timestamps) to exclude {C.CHUNK}s that don't contain relevant data.
 
 
-<center>
-<Image src={imgChunkSkippingSecondary} alt="Secondary partition exclusion: using min/max metadata to skip chunks on non-partitioning columns" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgChunkSkippingSecondary} alt="Secondary partition exclusion: using min/max metadata to skip chunks on non-partitioning columns" />
 
 
 #### {C.PG} indexes (row and columnar)
@@ -228,9 +214,7 @@ Min/max metadata allows queries filtering on correlated dimensions (e.g., `order
 Unlike many databases, {C.TIMESCALE_DB} supports sparse indexes on {C.COLUMNSTORE} data, allowing queries to efficiently locate specific values within both row-based and compressed columnar storage. These indexes enable fast lookups, range queries, and filtering operations that further reduce unnecessary data scans.
 
 
-<center>
-<Image src={imgRowstoreIndexes} alt="PostgreSQL indexes on both rowstore and columnstore data" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgRowstoreIndexes} alt="PostgreSQL indexes on both rowstore and columnstore data" />
 
 
 #### Batch-level filtering (columnar)
@@ -238,9 +222,7 @@ Unlike many databases, {C.TIMESCALE_DB} supports sparse indexes on {C.COLUMNSTOR
 Within each {C.CHUNK}, compressed columnar batches are organized using `SEGMENTBY` keys and ordered by `ORDERBY` columns. Indexes and min/max metadata can be used to quickly exclude batches that don't match the query criteria.
 
 
-<center>
-<Image src={imgBatchSkipping} alt="Batch-level filtering: excluding compressed batches using SEGMENTBY keys and min/max metadata" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgBatchSkipping} alt="Batch-level filtering: excluding compressed batches using SEGMENTBY keys and min/max metadata" />
 
 
 ### Maximize locality
@@ -248,9 +230,7 @@ Within each {C.CHUNK}, compressed columnar batches are organized using `SEGMENTB
 Organizing data for efficient access ensures queries are read in the most optimal order, reducing unnecessary random reads and reducing scans of unneeded data.
 
 
-<center>
-<Image src={imgSegmentAndOrder} alt="Data locality: segmentation groups related data, ordering sorts within segments" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgSegmentAndOrder} alt="Data locality: segmentation groups related data, ordering sorts within segments" />
 
 
 
@@ -265,9 +245,7 @@ Once a query is scanning only the required columnar data in the optimal order, {
 
 
 
-<center>
-<Image src={imgSimd} alt="SIMD vectorized execution: decompression, filtering, and aggregation in parallel" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgSimd} alt="SIMD vectorized execution: decompression, filtering, and aggregation in parallel" />
 
 The {C.TIMESCALE_DB} implementation of SIMD vectorization currently allows:
 
@@ -284,9 +262,7 @@ Aggregating large datasets in real time can be expensive, requiring repeated sca
 by shifting computation from every query run to a single, asynchronous step after data is ingested. Only the {C.TIME_BUCKET}s that receive new or modified data are updated, and queries read precomputed results instead of scanning raw data, dramatically improving performance and efficiency.
 
 
-<center>
-<Image src={imgCaggs} alt="Continuous aggregates: incremental materialization of time-bucketed data" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgCaggs} alt="Continuous aggregates: incremental materialization of time-bucketed data" />
 
 When you know the types of queries you'll need ahead of time, {C.CAGG}s allow you to pre-aggregate data along meaningful time intervals, such as per-minute, hourly, or daily summaries, delivering instant results without on-the-fly computation.
 
@@ -334,9 +310,7 @@ Balancing high-ingest rates and low-latency analytical queries on the same syste
 * {C.READ_REPLICA_CAP}s scale query performance separately, ensuring fast analytics even under heavy workloads.
 
 
-<center>
-<Image src={imgComputeSeparation} alt="Workload isolation: primary handles ingestion while read replicas serve analytical queries" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgComputeSeparation} alt="Workload isolation: primary handles ingestion while read replicas serve analytical queries" />
 
 This separation ensures that frequent queries on fresh data don't interfere with ingestion, making it easier to support live monitoring, anomaly detection, interactive dashboards, and alerting systems.
 
@@ -346,9 +320,7 @@ This separation ensures that frequent queries on fresh data don't interfere with
 Not all real-time data is equally valuable, recent data is queried constantly, while older data is accessed less frequently. {C.CLOUD_LONG} can be configured to automatically tier data to cheaper bottomless object storage, ensuring that hot data remains instantly accessible, while historical data is still available.
 
 
-<center>
-<Image src={imgTiering} alt="Data tiering: recent data in high-performance storage, older data in object storage" class="main-content__illustration" style={{ width: "80%", height: "auto" }} />
-</center>
+<Image src={imgTiering} alt="Data tiering: recent data in high-performance storage, older data in object storage" />
 
 * **Recent, high-velocity data** stays in high-performance storage for ultra-fast queries.
 * **Older, less frequently accessed data** is automatically moved to cost-efficient object storage but remains queryable and available for building {C.CAGG}s.
