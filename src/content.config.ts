@@ -6,7 +6,7 @@ import { docsSchema } from "@astrojs/starlight/schema";
 import {
   INTEGRATION_TECHNOLOGY_KEYS,
   type IntegrationTechnologyKey
-} from "./src/lib/integration-technologies";
+} from "./lib/integration-technologies";
 
 const integrationTechnologyZodEnum = z.enum(
   INTEGRATION_TECHNOLOGY_KEYS as unknown as [
