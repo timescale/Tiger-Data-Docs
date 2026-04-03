@@ -2,14 +2,25 @@
 /**
  * Integrate overview: search bar + dropdown filters + flat card grid.
  * Filter dimensions: Type of Tool, Industry, Platform, First Party/Third Party, Technology.
- * Relies on frontmatter: integrationCategory, integrationIndustry[], integrationPlatforms[], connectorType, keywords[].
+ * Relies on frontmatter: integrationCategory, integrationIndustry[], integrationPlatforms[], connectorType, keywords[],
+ * integrationHideFromOverviewCards (omit from card grid only; sidebar unchanged).
  */
 import { getEntry } from "astro:content";
 
-/** Static image import shape from Vite/Astro. */
-type CardLogoImport = { src: string; width: number; height: number };
+import {
+  INTEGRATION_TECHNOLOGY_KEYS,
+  resolveIntegrationTechnologies,
+  type IntegrationTechnologyKey
+} from "../lib/integration-technologies";
 
-/** Eagerly import all raster logos so we can resolve them by filename. */
+/** Static image import shape from Vite/Astro (`import logo from '...'`). */
+type CardLogoImport = {
+  src: string;
+  width: number;
+  height: number;
+};
+
+/** Optional raster logos (SVG default imports differ; use PNG/WebP for cards). */
 const cardLogoModules = import.meta.glob<{ default: CardLogoImport }>(
   "../assets/images/integrate/card-logos/**/*.{png,jpg,jpeg,webp}",
   { eager: true }
@@ -24,6 +35,26 @@ function resolveCardLogo(
     if (path.endsWith(normalized)) return cardLogoModules[path].default;
   }
   return undefined;
+}
+
+/** Deterministic badge colors for placeholder initials (no gradient strip on cards). */
+const INTEGRATION_BADGE_PALETTE: { bg: string; fg: string }[] = [
+  { bg: "#FF9900", fg: "#ffffff" },
+  { bg: "#E67E22", fg: "#ffffff" },
+  { bg: "#1E3A5F", fg: "#FF9900" },
+  { bg: "#0073BB", fg: "#ffffff" },
+  { bg: "#111111", fg: "#ffffff" },
+  { bg: "#146EB4", fg: "#ffffff" },
+  { bg: "#5B2C83", fg: "#ffffff" },
+  { bg: "#0D9488", fg: "#ffffff" }
+];
+
+function badgeColorsForSlug(slug: string): { bg: string; fg: string } {
+  let h = 0;
+  for (let i = 0; i < slug.length; i++) {
+    h = (h * 31 + slug.charCodeAt(i)) >>> 0;
+  }
+  return INTEGRATION_BADGE_PALETTE[h % INTEGRATION_BADGE_PALETTE.length];
 }
 
 const pathMap = import.meta.glob("../content/docs/integrate/**/*.mdx");
@@ -68,7 +99,25 @@ type DocData = {
   integrationCardLogo?: string;
   integrationCardLogoDark?: string;
   integrationCardLogoAlt?: string;
+  integrationCardInitials?: string;
+  integrationHideFromOverviewCards?: boolean;
+  integrationTechnologies?: IntegrationTechnologyKey[];
 };
+
+function cardInitials(data: DocData, displayTitle: string): string {
+  if (data.integrationCardInitials?.trim()) {
+    return data.integrationCardInitials.trim().slice(0, 4);
+  }
+  const stripped = displayTitle.replace(/\s+and Tiger Data\s*$/i, "").trim();
+  const words = stripped.split(/[\s/&]+/).filter(Boolean);
+  if (words.length >= 2) {
+    return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+  }
+  if (words.length === 1 && words[0].length >= 2) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+  return (stripped.slice(0, 2) || "?").toUpperCase();
+}
 
 function cardTitle(data: DocData): string {
   if (data.integrationCardTitle) {
@@ -106,10 +155,13 @@ for (const slug of allSlugs) {
           sortOrder: d.sortOrder,
           integrationCardTitle: d.integrationCardTitle,
           integrationPlatforms: d.integrationPlatforms ?? ["aws"],
-          keywords: (d as any).keywords ?? [],
-          integrationCardLogo: (d as any).integrationCardLogo,
-          integrationCardLogoDark: (d as any).integrationCardLogoDark,
-          integrationCardLogoAlt: (d as any).integrationCardLogoAlt
+          keywords: d.keywords ?? [],
+          integrationTechnologies: d.integrationTechnologies,
+          integrationCardLogo: d.integrationCardLogo,
+          integrationCardLogoDark: d.integrationCardLogoDark,
+          integrationCardLogoAlt: d.integrationCardLogoAlt,
+          integrationCardInitials: d.integrationCardInitials,
+          integrationHideFromOverviewCards: d.integrationHideFromOverviewCards === true
         }
       });
     }
@@ -120,6 +172,18 @@ for (const slug of allSlugs) {
 
 // Sort entries alphabetically by display title
 entries.sort((a, b) => cardTitle(a.data).localeCompare(cardTitle(b.data)));
+
+/**
+ * Pages shown as cards on /integrate (sidebar and direct URLs still list all integrate pages).
+ * Prefer frontmatter `integrationHideFromOverviewCards: true`; slug list is a fallback for
+ * pages that must stay in the nav but never appear as cards.
+ */
+const SLUGS_HIDDEN_FROM_INTEGRATE_CARDS = new Set(["integrate/troubleshooting"]);
+
+const cardEntries = entries.filter(
+  (e) =>
+    !SLUGS_HIDDEN_FROM_INTEGRATE_CARDS.has(e.slug) && !e.data.integrationHideFromOverviewCards
+);
 
 // --- Filter: Type of Tool (integrationCategory) ---
 const CATEGORY_LABELS: Record<string, string> = {
@@ -154,7 +218,7 @@ function getCategoryLabel(slug: string): string {
   );
 }
 const uniqueCategories = CATEGORY_ORDER.filter((cat) =>
-  entries.some((e) => e.data.integrationCategory === cat)
+  cardEntries.some((e) => e.data.integrationCategory === cat)
 );
 
 // --- Filter: Industry ---
@@ -180,7 +244,7 @@ const INDUSTRY_ORDER = [
   "manufacturing"
 ];
 const uniqueIndustries = INDUSTRY_ORDER.filter((ind) =>
-  entries.some((e) =>
+  cardEntries.some((e) =>
     (e.data.integrationIndustry ?? []).map(normalizeIndustryKey).includes(ind)
   )
 );
@@ -197,41 +261,15 @@ function getPartyType(data: DocData): string {
   return "third-party";
 }
 
-// --- Filter: Technology ---
-const TECHNOLOGY_MAP: Record<string, string[]> = {
-  PostgreSQL: [
-    "postgres",
-    "psql",
-    "pgadmin",
-    "fdw",
-    "foreign data wrappers",
-    "postgresql"
-  ],
-  Python: ["python", "psycopg2", "sdk"],
-  SQL: ["sql editor", "sql shell", "query tool", "interactive queries"],
-  Kafka: ["kafka", "confluent", "event streaming"],
-  AWS: ["aws", "lambda", "sagemaker", "cloudwatch", "s3"],
-  Azure: ["azure"],
-  GCP: ["google cloud", "gcp"],
-  Terraform: ["terraform", "iac", "infrastructure as code"],
-  Kubernetes: ["kubernetes", "k8s", "container orchestration"],
-  Grafana: ["grafana"],
-  Prometheus: ["prometheus"],
-  "REST API": ["api integration", "rest"]
-};
+// --- Filter: Technology (keywords + optional integrationTechnologies; see src/lib/integration-technologies.ts) ---
 function getTechnologies(data: DocData): string[] {
-  const kw = (data.keywords ?? []).map((k: string) => k.toLowerCase());
-  const techs: string[] = [];
-  for (const [tech, patterns] of Object.entries(TECHNOLOGY_MAP)) {
-    if (patterns.some((p) => kw.some((k) => k.includes(p)))) {
-      techs.push(tech);
-    }
-  }
-  return techs;
+  return resolveIntegrationTechnologies(
+    data.integrationTechnologies,
+    data.keywords
+  );
 }
-const TECHNOLOGY_ORDER = Object.keys(TECHNOLOGY_MAP);
-const uniqueTechnologies = TECHNOLOGY_ORDER.filter((tech) =>
-  entries.some((e) => getTechnologies(e.data).includes(tech))
+const uniqueTechnologies = INTEGRATION_TECHNOLOGY_KEYS.filter((tech) =>
+  cardEntries.some((e) => getTechnologies(e.data).includes(tech))
 );
 
 function slugToHref(slug: string): string {
@@ -244,7 +282,7 @@ const headerTitle = routeEntry?.data?.title ?? "Integrate";
 const headerDescription = routeEntry?.data?.description;
 ---
 
-<div class="integrate-overview" id="integrate-overview-root">
+<div class="integrate-overview not-content" id="integrate-overview-root">
   <header class="integrate-header" aria-labelledby="integrate-overview-heading">
     <h1 class="integrate-header__title" id="integrate-overview-heading">
       {headerTitle}
@@ -490,11 +528,19 @@ const headerDescription = routeEntry?.data?.description;
   <!-- Cards grid -->
   <div class="integrate-cards-grid" id="integrate-cards-grid">
     {
-      entries.map(({ slug, data }) => {
+      cardEntries.map(({ slug, data }) => {
         const platforms = getPlatforms(data);
         const party = getPartyType(data);
         const technologies = getTechnologies(data);
         const title = cardTitle(data);
+        const logoLight = resolveCardLogo(data.integrationCardLogo);
+        const logoDark = resolveCardLogo(data.integrationCardLogoDark);
+        const hasLogo = !!logoLight;
+        const hasDualLogo = !!logoLight && !!logoDark;
+        const logoAlt =
+          data.integrationCardLogoAlt?.trim() ||
+          title.replace(/\s+and Tiger Data\s*$/i, "").trim() ||
+          title;
         return (
           <a
             href={slugToHref(slug)}
@@ -508,15 +554,40 @@ const headerDescription = routeEntry?.data?.description;
             data-technologies={technologies.join(",")}
             data-search-text={`${title} ${data.description ?? ""} ${(data.keywords ?? []).join(" ")}`.toLowerCase()}
           >
-            <div class="integrate-card-accent" />
             <div class="integrate-card-body">
-              <span class="integrate-card-tag">
-                {getCategoryLabel(data.integrationCategory ?? "")}
-              </span>
-              <h3 class="integrate-card-title">{title}</h3>
-              {data.description && (
-                <p class="integrate-card-desc">{data.description}</p>
+              {hasLogo && (
+                <span class="integrate-card-logo-wrap" role="img" aria-label={logoAlt}>
+                  <img
+                    src={logoLight!.src}
+                    alt=""
+                    width={56}
+                    height={56}
+                    class:list={["integrate-card-logo-img", { "integrate-card-logo-light-only": hasDualLogo }]}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  {hasDualLogo && (
+                    <img
+                      src={logoDark!.src}
+                      alt=""
+                      width={56}
+                      height={56}
+                      class="integrate-card-logo-img integrate-card-logo-dark-only"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  )}
+                </span>
               )}
+              <div class="integrate-card-copy">
+                <span class="integrate-card-tag">
+                  {getCategoryLabel(data.integrationCategory ?? "")}
+                </span>
+                <h3 class="integrate-card-title">{title}</h3>
+                {data.description && (
+                  <p class="integrate-card-desc">{data.description}</p>
+                )}
+              </div>
             </div>
           </a>
         );
@@ -941,13 +1012,13 @@ const headerDescription = routeEntry?.data?.description;
     }
   }
 
-  /* Card */
+  /* Card: flat surface, icon + copy (no top gradient strip) */
   .integrate-card {
     display: flex;
     flex-direction: column;
-    border: 1px solid light-dark(#dddde3, var(--tiger-grey-700));
+    border: 1px solid light-dark(#e0e0e0, var(--tiger-grey-700));
     border-radius: var(--tiger-radius-md, 8px);
-    overflow: hidden;
+    background: light-dark(var(--tiger-white, #ffffff), var(--tiger-grey-850, #1a1a24));
     text-decoration: none;
     color: inherit;
     transition:
@@ -962,39 +1033,127 @@ const headerDescription = routeEntry?.data?.description;
     border-color: light-dark(var(--tiger-grey-400), var(--tiger-vivid-purple));
     box-shadow: var(--tiger-shadow-md);
   }
-  .integrate-card-accent {
-    height: 6px;
-    background: linear-gradient(
-      90deg,
-      var(--tiger-electric-yellow) 0%,
-      var(--tiger-pure-teal) 100%
-    );
-  }
   .integrate-card-body {
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    flex-direction: row;
+    /* Align logo tile with the first line of copy (category tag), not vertical center of the block. */
+    align-items: flex-start;
+    gap: 1rem;
     padding: var(--tiger-space-lg, 24px);
     flex: 1;
+    min-width: 0;
+  }
+  .integrate-card-media {
+    flex-shrink: 0;
+    align-self: flex-start;
+    width: var(--integrate-card-logo-size, 56px);
+    height: var(--integrate-card-logo-size, 56px);
+  }
+  .integrate-card-logo-wrap {
+    --integrate-card-logo-size: 56px;
+    --integrate-card-logo-inset: 8px;
+    /* Grid centers raster logos more reliably than flex (no baseline / line-box quirks). */
+    display: grid;
+    place-items: center;
+    place-content: center;
+    flex-shrink: 0;
+    align-self: flex-start;
+    width: var(--integrate-card-logo-size);
+    height: var(--integrate-card-logo-size);
+    padding: var(--integrate-card-logo-inset);
+    line-height: 0;
+    border-radius: var(--tiger-radius-md, 8px);
+    overflow: hidden;
+    background: light-dark(var(--tiger-grey-50), var(--tiger-grey-800));
+    border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
+    box-sizing: border-box;
+  }
+  .integrate-card-logo-img {
+    display: block;
+    grid-area: 1 / 1;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    object-position: center;
+    margin: 0;
+  }
+  /* Dark/light logo swap via prefers-color-scheme */
+  .integrate-card-logo-dark-only {
+    display: none;
+  }
+  @media (prefers-color-scheme: dark) {
+    .integrate-card-logo-light-only {
+      display: none;
+    }
+    .integrate-card-logo-dark-only {
+      display: block;
+    }
+  }
+  /* Also respect Starlight's data-theme attribute for manual theme toggles */
+  :global([data-theme="dark"]) .integrate-card-logo-light-only {
+    display: none;
+  }
+  :global([data-theme="dark"]) .integrate-card-logo-dark-only {
+    display: block;
+  }
+  :global([data-theme="light"]) .integrate-card-logo-light-only {
+    display: block;
+  }
+  :global([data-theme="light"]) .integrate-card-logo-dark-only {
+    display: none;
+  }
+  .integrate-card-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--integrate-card-logo-size, 56px);
+    height: var(--integrate-card-logo-size, 56px);
+    border-radius: var(--tiger-radius-md, 8px);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    box-sizing: border-box;
+  }
+  .integrate-card-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
   }
   .integrate-card-tag {
-    display: inline-block;
-    align-self: flex-start;
-    padding: 0.15rem 0.5rem;
+    display: block;
+    margin: 0;
+    padding: 0;
+    line-height: 1.25;
     font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: light-dark(var(--tiger-grey-600), var(--tiger-grey-400));
-    background: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
-    border-radius: 3px;
+    letter-spacing: 0.06em;
+    color: light-dark(var(--tiger-grey-500), var(--tiger-grey-400));
+    background: transparent;
   }
   .integrate-card-title {
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 1.0625rem;
     line-height: 1.3;
     margin: 0;
+    padding: 0;
     color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
+  }
+  /*
+   * Starlight markdown.css adds margin-top to headings that follow non-headings (e.g. span + h3).
+   * `.not-content` on the overview root normally excludes that; these rules reinforce card layout.
+   */
+  #integrate-overview-root .integrate-card-title {
+    margin-block: 0;
   }
   .integrate-card-desc {
     margin: 0;
