@@ -173,8 +173,17 @@ for (const slug of allSlugs) {
 // Sort entries alphabetically by display title
 entries.sort((a, b) => cardTitle(a.data).localeCompare(cardTitle(b.data)));
 
-/** Pages shown as cards on /integrate (sidebar and direct URLs still list all integrate pages). */
-const cardEntries = entries.filter((e) => !e.data.integrationHideFromOverviewCards);
+/**
+ * Pages shown as cards on /integrate (sidebar and direct URLs still list all integrate pages).
+ * Prefer frontmatter `integrationHideFromOverviewCards: true`; slug list is a fallback for
+ * pages that must stay in the nav but never appear as cards.
+ */
+const SLUGS_HIDDEN_FROM_INTEGRATE_CARDS = new Set(["integrate/troubleshooting"]);
+
+const cardEntries = entries.filter(
+  (e) =>
+    !SLUGS_HIDDEN_FROM_INTEGRATE_CARDS.has(e.slug) && !e.data.integrationHideFromOverviewCards
+);
 
 // --- Filter: Type of Tool (integrationCategory) ---
 const CATEGORY_LABELS: Record<string, string> = {
