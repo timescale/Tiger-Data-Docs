@@ -37,7 +37,7 @@ ordered index.
 Multi-column {C.SKIPSCAN_SHORT} is supported for queries that do not produce NULL distinct values. For example:
 
 ```sql
-CREATE INDEX ON metrics(region, device, metric_type);
+CREATE INDEX ON metrics(region, device, metric_type, time DESC);
 -- All distinct columns have filters which don't allow NULLs: can use SkipScan
 SELECT DISTINCT ON (region, device, metric_type) *
 FROM   metrics
@@ -60,11 +60,11 @@ Design your layout:
 - Rowstore: create an index starting with the `DISTINCT` columns, followed by your time sort. If the `DISTINCT` columns are not the first in your index, ensure any leading columns are used as constraints in your query. This means that if you are asking a question such as "retrieve a list of unique IDs in order" and "retrieve the last reading of each ID," you need at least one index like this:
 
     ```sql
-    CREATE INDEX "cpu_customer_tags_id_time_idx" \
+    CREATE INDEX "cpu_customer_tags_id_time_idx"
     ON readings (customer_id, tags_id, time DESC)
     ```
 
-- Columnstore: set `timescaledb.compress_segmentby` to the distinct columns and `compress_orderby` to match your query's sort. Compress your historical chunks.
+- Columnstore: set `tsdb.segmentby` to the distinct columns and `tsdb.orderby` to match your query's sort. Convert your historical chunks to the columnstore.
 
 With your index set up correctly, you should start to see immediate benefit for
 `DISTINCT` queries. When SkipScan is chosen for your query, the `EXPLAIN

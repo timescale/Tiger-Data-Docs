@@ -193,7 +193,7 @@ const starlightLinksValidator = process.env.CHECK_LINKS
 export default defineConfig({
   site: 'https://www.tigerdata.com',
   base: BASE,
-  trailingSlash: "never",
+  trailingSlash: "ignore",
   markdown: {
     remarkPlugins: [remarkResolveConstantsInHeadings],
     rehypePlugins: [[rehypeBasePath, { base: BASE }]],
@@ -305,7 +305,7 @@ export default defineConfig({
         tabs: [
           // Get Started tab
           {
-            label: "Get Started",
+            label: "Get started",
             link: "/get-started",
             sidebar: [
               "get-started", // Welcome/index page
@@ -728,21 +728,21 @@ export default defineConfig({
               },
               // --- Type of Tool (matches integrationCategory) ---
               {
-                label: "Type of Tool",
+                label: "Type of tool",
                 collapsed: false,
                 items: [
                   {
-                    label: "Data Engineering & ETL",
+                    label: "Data engineering & ETL",
                     collapsed: true,
                     autogenerate: { directory: "integrate/data-engineering-etl" },
                   },
                   {
-                    label: "Data Ingestion & Streaming",
+                    label: "Data ingestion & streaming",
                     collapsed: true,
                     autogenerate: { directory: "integrate/data-ingestion-streaming" },
                   },
                   {
-                    label: "BI & Visualization",
+                    label: "BI & visualization",
                     collapsed: true,
                     autogenerate: { directory: "integrate/bi-vizualization" },
                   },
@@ -752,22 +752,22 @@ export default defineConfig({
                     autogenerate: { directory: "integrate/connectors" },
                   },
                   {
-                    label: "Code & Libraries",
+                    label: "Code & libraries",
                     collapsed: true,
                     autogenerate: { directory: "integrate/code" },
                   },
                   {
-                    label: "Query & Administration",
+                    label: "Query & administration",
                     collapsed: true,
                     autogenerate: { directory: "integrate/query-administration" },
                   },
                   {
-                    label: "Secure Connectivity",
+                    label: "Secure connectivity",
                     collapsed: true,
                     autogenerate: { directory: "integrate/secure-connectivity" },
                   },
                   {
-                    label: "Observability & Alerting",
+                    label: "Observability & alerting",
                     collapsed: true,
                     items: [
                       { label: "Overview", link: "/integrate/observability-alerting" },
@@ -781,7 +781,7 @@ export default defineConfig({
                     ],
                   },
                   {
-                    label: "Configuration & Deployment",
+                    label: "Configuration & deployment",
                     collapsed: true,
                     autogenerate: { directory: "integrate/configuration-deployment" },
                   },
@@ -792,7 +792,7 @@ export default defineConfig({
                 label: "Industry",
                 collapsed: true,
                 items: [
-                  { label: "Oil and Gas", link: "/integrate/?industry=oil-and-gas" },
+                  { label: "Oil and gas", link: "/integrate/?industry=oil-and-gas" },
                   { label: "IoT", link: "/integrate/?industry=iot" },
                   { label: "Energy", link: "/integrate/?industry=energy" },
                   { label: "Crypto", link: "/integrate/?industry=crypto" },
@@ -812,11 +812,11 @@ export default defineConfig({
               },
               // --- First Party / Third Party ---
               {
-                label: "First Party/Third Party",
+                label: "First party/third party",
                 collapsed: true,
                 items: [
-                  { label: "First Party", link: "/integrate/?party=first-party" },
-                  { label: "Third Party", link: "/integrate/?party=third-party" },
+                  { label: "First party", link: "/integrate/?party=first-party" },
+                  { label: "Third party", link: "/integrate/?party=third-party" },
                 ],
               },
               // --- Technology ---
@@ -996,11 +996,6 @@ export default defineConfig({
                 items: [{ label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" }],
               },
               {
-                label: "Limitations",
-                collapsed: true,
-                items: [{ label: "Limitations", link: "/deploy/tiger-cloud/limitations" }],
-              },
-              {
                 label: "Self-Hosted",
                 collapsed: true,
                 items: [
@@ -1040,7 +1035,7 @@ export default defineConfig({
                   },
                   { label: "Manage storage using tablespaces", link: "/deploy/self-hosted/manage-storage" },
                   {
-                    label: "Replication and High Availability",
+                    label: "Replication and high availability",
                     collapsed: true,
                     items: [
                       { label: "Replication and HA", link: "/deploy/self-hosted/replication-and-ha" },
@@ -1074,7 +1069,7 @@ export default defineConfig({
                 ],
               },
               {
-                label: "Managed Service (MST)",
+                label: "Managed service (MST)",
                 collapsed: true,
                 items: [
                   { label: "Managed Service for TimescaleDB", link: "/deploy/mst" },
@@ -1116,12 +1111,17 @@ export default defineConfig({
                   { label: "Maintenance", link: "/deploy/mst/maintenance" },
                   { label: "Failover", link: "/deploy/mst/failover" },
                   { label: "Backups", link: "/deploy/mst/manage-backups" },
-                  { label: "Aiven Client", link: "/deploy/mst/aiven-client" },
+                  { label: "Aiven client", link: "/deploy/mst/aiven-client" },
                   { label: "Migrate to MST", link: "/deploy/mst/migrate-to-mst" },
                   { label: "REST API", link: "/deploy/mst/restapi" },
                   { label: "Index issues", link: "/deploy/mst/identify-index-issues" },
                   { label: "Troubleshooting", link: "/deploy/mst/troubleshooting" },
                 ],
+              },
+              {
+                label: "Limitations",
+                collapsed: true,
+                items: [{ label: "Limitations", link: "/deploy/limitations" }],
               },
             ],
           },
