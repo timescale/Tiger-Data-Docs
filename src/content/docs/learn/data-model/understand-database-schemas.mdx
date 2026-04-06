@@ -1,23 +1,68 @@
 ---
-title: Understand database schemas
-description: Design efficient database schemas for real-time analytics in TimescaleDB
+title: Understand schema optimization
+description: Schema optimization options available in TimescaleDB and Tiger Cloud, including indexes, constraints, triggers, tablespaces, JSON, and FDW
 products: [cloud, mst, self_hosted]
 ---
 
 import * as C from "@constants";
 
-Schema design decides how rows, indexes, and optional JSON line up with your access patterns. A good fit keeps hot paths fast; a poor fit shows up as wasted IO, bloated indexes, or painful migrations later.
+{C.TIMESCALE_DB} inherits the full schema toolbox from {C.PG} — indexes, constraints, triggers,
+tablespaces, foreign data wrappers, and JSON/JSONB types — and applies them to {C.HYPERTABLE}s and
+{C.CHUNK}s. A well-designed schema keeps hot paths fast; a poor fit shows up as wasted I/O, bloated
+indexes, or painful migrations later.
 
-If you are working with semi-structured data, such as readings from IoT sensors
-that collect varying measurements, you might need a flexible schema. In this
-case, you can use {C.PG} JSON and JSONB data types.
+## Indexes
 
-{C.TIMESCALE_DB} supports all table objects supported within {C.PG}, including
-data types, indexes, and triggers. However, when you create a hypertable, set the
-datatype for the `time` column as `timestamptz` and not `timestamp`. For more
-information, see [{C.PG} timestamp best practices](https://wiki.postgresql.org/wiki/Don't_Do_This#Don.27t_use_timestamp_.28without_time_zone.29).
+Indexes are the primary tool for [accelerating queries](/build/performance-optimization/indexing).
+{C.TIMESCALE_DB} automatically creates a time-based index on every {C.HYPERTABLE}. You can add
+[secondary indexes](/build/performance-optimization/secondary-indexes) (B-tree, hash, GiST, GIN)
+to speed up filters on non-time columns such as device IDs, tags, or status codes.
 
-This section explains how to design your schema, how indexing and tablespaces
-work, and how to use {C.PG} constraint types. It also includes examples to
-help you create your own schema, and learn how to use JSON and JSONB for
-semi-structured data.
+For {C.HYPERTABLE}s with {C.HYPERCORE} enabled, secondary indexes also support
+{C.CHUNK_SKIPPING}, which lets the query planner skip entire {C.CHUNK}s that don't match a filter.
+
+## Constraints
+
+Use {C.PG} [constraints](/build/performance-optimization/ensure-data-integrity-with-constraints) —
+`NOT NULL`, `CHECK`, `UNIQUE`, and foreign keys — to enforce data integrity at the database level.
+{C.HYPERTABLE_CAP}s support all standard constraint types, with the requirement that `UNIQUE` and
+`PRIMARY KEY` constraints must include the partitioning column.
+
+## Triggers
+
+[Triggers](/build/performance-optimization/automate-tasks-with-triggers) let you run custom logic
+automatically when rows are inserted, updated, or deleted. Common use cases include auditing
+changes, enforcing business rules, and transforming data on write.
+
+## Tablespaces
+
+[Tablespaces](/build/performance-optimization/manage-tablespaces) let you control where {C.PG}
+stores data on disk. You can place hot {C.CHUNK}s on fast SSDs and move older {C.CHUNK}s to slower,
+cheaper storage. This is primarily useful for {C.SELF_SHORT} deployments — {C.CLOUD_LONG} manages
+storage tiers automatically.
+
+## JSON and JSONB
+
+When your data has varying or unpredictable fields — for example, IoT sensors that report different
+measurements — use {C.PG} [`JSONB` columns](/build/performance-optimization/handle-semi-structured-data-with-json)
+for the flexible parts and regular columns for the fields you always filter or aggregate on. This
+gives you schema flexibility without sacrificing query performance on known fields.
+
+## Foreign data wrappers (FDW)
+
+[Foreign data wrappers](/build/performance-optimization/query-external-data-sources-with-fdw) let you
+query external {C.PG} data sources as if they were local tables. This is useful for joining time-series data with reference data stored elsewhere.
+
+## Schema changes
+
+You can [alter {C.HYPERTABLE} schemas](/build/performance-optimization/alter-update-table-schema)
+after creation: add or drop columns, change data types, rename columns, and modify constraints.
+Schema changes propagate automatically across all {C.CHUNK}s.
+
+## Best practices
+
+- Set the time column datatype to `timestamptz`, not `timestamp`. See
+  [{C.PG} timestamp best practices](https://wiki.postgresql.org/wiki/Don't_Do_This#Don.27t_use_timestamp_.28without_time_zone.29).
+- Add secondary indexes only on columns you actively filter or join on — unused indexes slow down writes.
+- Use `JSONB` over `JSON` for semi-structured data — `JSONB` supports indexing and is more efficient to query.
+- Include the partitioning column in any `UNIQUE` or `PRIMARY KEY` constraint.
