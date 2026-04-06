@@ -1,74 +1,107 @@
 ---
 title: "Understand capabilities"
-description: "Learn how TimescaleDB capabilities work together to power time-series and analytics workloads"
+description: "Learn how TimescaleDB and Tiger Cloud capabilities work together to power time-series and analytics workloads"
 ---
 
 import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
-TimescaleDB extends {C.PG} with powerful capabilities designed specifically for time-series data, real-time analytics, and event-driven workloads. These capabilities work together to provide a complete solution for ingesting, storing, querying, and analyzing massive datasets efficiently.
+{C.TIMESCALE_DB} and {C.CLOUD_LONG} extend {C.PG} with powerful capabilities designed specifically for time-series data, real-time analytics, and event-driven workloads. These capabilities work together to provide a complete solution for ingesting, storing, querying, and analyzing massive datasets efficiently.
 
-Capabilities overview
+## Capabilities overview
 
-TimescaleDB capabilities fall into the following categories:
+{C.TIMESCALE_DB} and {C.CLOUD_LONG} capabilities fall into the following categories:
 
-Data storage and organization
+### Data storage and organization
 
--   **[Hypertables](/learn/hypertables/understand-hypertables)**: automatically partition time-series data into chunks for efficient data management at scale
--   **[Hypercore](/learn/columnar-storage/understand-hypercore)**: automatically provides columnar storage with advanced compression, delivering 90-95% storage reduction
+-   **[{C.HYPERTABLE_CAP}s](/learn/hypertables/understand-hypertables)**: automatically partition time-series data into {C.CHUNK}s for efficient data management at scale.
+-   **[{C.HYPERCORE_CAP}](/learn/columnar-storage/understand-hypercore)**: compress data into columnar storage delivering 90-95% storage reduction.
 
-Data processing and aggregation
+### Data processing and aggregation
 
--   **[Continuous aggregates](/learn/continuous-aggregates/about-continuous-aggregates)**: automatically maintain pre-computed aggregations that update incrementally as new data arrives
--   **[Hyperfunctions](/build/data-management/hyperfunctions)**: provide specialized SQL functions for time-series analysis, including statistical aggregation and percentiles
+-   **[{C.CAGG_CAP}s](/learn/continuous-aggregates/about-continuous-aggregates)**: maintain pre-computed aggregations that update incrementally as new data arrives.
+-   **[{C.HYPERFUNC_CAP}](/build/data-management/hyperfunctions)**: analyze data with specialized SQL functions including statistical aggregation and percentiles.
 
-Data lifecycle management
+### Data lifecycle management
 
--   **[Data retention](/learn/data-management/data-retention)**: policies automatically drop old data based on time intervals, keeping storage costs under control
--   **Compression**: (superseded by Hypercore) provides row-based compression for older data in existing deployments
+-   **[Data retention](/learn/data-management/data-retention)**: automatically drop old data based on time intervals, keeping storage costs under control.
+-   **[Data tiering](/learn/data-management/storage)** ({C.CLOUD_LONG}-exclusive capability): move older data to low-cost object storage while keeping it queryable with standard SQL.
 
-Schema optimization and automation
+### Schema optimization and automation
 
--   **[Optimize your schema](/learn/data-model/understand-database-schemas)**: using {C.PG} features like indexes, constraints, triggers, tablespaces, and foreign data wrappers
--   **[Jobs](/build/data-management/jobs/create-and-manage-jobs)**: automate recurring tasks like compression, continuous aggregate refreshes, data retention, and custom maintenance
+-   **[Schema optimization](/learn/data-model/understand-database-schemas)**: use {C.PG} features like indexes, constraints, triggers, tablespaces, and foreign data wrappers.
+-   **[Jobs](/build/data-management/jobs/create-and-manage-jobs)**: automate recurring tasks like {C.CAGG} refreshes, data retention, and custom maintenance.
 
-Typical workflow
+## Typical workflow
 
-Here’s how TimescaleDB capabilities work together in a typical time-series application:
+Here’s how {C.TIMESCALE_DB} capabilities work together in a typical time-series application:
 
-1.  **[Data ingestion](/learn/hypertables/understand-hypertables)** Start by [creating a hypertable](/learn/hypertables/understand-hypertables) for your time-series data. The hypertable automatically partitions data into time-based chunks, enabling efficient inserts and queries. As data arrives, it’s written to the appropriate chunk based on timestamp. For high-volume ingestion, [optimize your schema](/learn/data-model/understand-database-schemas) with appropriate indexes and constraints. Use bulk insert methods like COPY or multi-row INSERT statements for best performance. For migrating existing data or importing from external sources, see [import and ingest data](/migrate/live-migration).
-2.  **[Real-time analytics](/learn/continuous-aggregates/about-continuous-aggregates)** As data lands in hypertables, [continuous aggregates](/build/continuous-aggregates/create-a-continuous-aggregate) automatically update to maintain pre-computed summaries. Use [hyperfunctions](/build/data-management/hyperfunctions) in your aggregates to calculate statistics, percentiles, time-weighted averages, and other specialized metrics. Query continuous aggregates instead of raw data for instant results on dashboards and reports. Real-time aggregates ensure you see the latest data without waiting for batch processing.
-3.  **[Data optimization](/learn/columnar-storage/understand-hypercore)** [Hypercore](/build/columnar-storage/setup-hypercore) automatically provides columnar storage with advanced compression for all new hypertables, dramatically reducing storage costs and speeding up analytical queries. Data is automatically converted to columnar format and optimized for analytical access patterns. This columnar storage reduces storage by 90-95% while maintaining full query capabilities and delivering 100-1000x performance improvements for analytics workloads.
-4.  **[Data lifecycle](/learn/data-management/data-retention)** [Configure retention policies](/learn/data-management/data-retention) to automatically drop old data when it’s no longer needed. Retention works seamlessly with Hypercore and compression, removing entire chunks efficiently without impacting performance. Retention policies can preserve aggregated data in continuous aggregates even after dropping raw data, enabling long-term trend analysis without storing every data point.
-5.  **[Automation](/build/data-management/jobs/create-and-manage-jobs)** [Schedule jobs](/build/data-management/jobs/create-and-manage-jobs) to automate compression, continuous aggregate refreshes, retention, and custom maintenance tasks. Jobs run reliably in the background and provide execution history for monitoring and troubleshooting. Use job scheduling for regular data quality checks, statistics updates, or data transformations that need to run on a schedule.
+<NumberedList>
+  <NumberedItem title="Data ingestion">
+    Start by [creating a {C.HYPERTABLE}](/learn/hypertables/understand-hypertables) for your
+    time-series data. The {C.HYPERTABLE} automatically partitions data into time-based {C.CHUNK}s,
+    enabling efficient inserts and queries. For high-volume ingestion,
+    [optimize your schema](/learn/data-model/understand-database-schemas) with appropriate indexes
+    and constraints. Use bulk insert methods like `COPY` or multi-row `INSERT` statements for best
+    performance. For migrating existing data or importing from external sources, see
+    [Migrate](/migrate/).
+  </NumberedItem>
+  <NumberedItem title="Data optimization">
+    [{C.HYPERCORE_CAP}](/build/columnar-storage/setup-hypercore) is automatically enabled when you
+    create a {C.HYPERTABLE}, providing columnar storage with advanced compression. This reduces
+    storage by 90-95% while maintaining full query capabilities and delivering 100x to 1000x
+    performance improvements for analytical queries.
+  </NumberedItem>
+  <NumberedItem title="Real-time analytics">
+    Create [{C.CAGG}s](/build/continuous-aggregates/create-a-continuous-aggregate) to automatically maintain pre-computed summaries. Use
+    [{C.HYPERFUNC}](/build/data-management/hyperfunctions) in your aggregates to calculate
+    statistics, percentiles, time-weighted averages, and other specialized metrics. Query {C.CAGG}s
+    instead of raw data for instant results on dashboards and reports. [{C.RTAGG_CAP}s](/learn/continuous-aggregates/real-time-aggregates) ensure you
+    see the latest data without waiting for batch processing.
+  </NumberedItem>
+  <NumberedItem title="Data lifecycle">
+    [Configure retention policies](/learn/data-management/data-retention) to automatically drop old
+    data when it’s no longer needed. Retention works seamlessly with {C.HYPERCORE}, removing entire {C.CHUNK}s efficiently without impacting performance. Retention
+    policies can preserve aggregated data in {C.CAGG}s even after dropping raw data, enabling
+    long-term trend analysis without storing every data point. On {C.CLOUD_LONG}, use
+    [tiered storage](/learn/data-management/storage) to move older data to low-cost object storage
+    while keeping it queryable.
+  </NumberedItem>
+  <NumberedItem title="Automation">
+    [Schedule jobs](/build/data-management/jobs/create-and-manage-jobs) to automate {C.HYPERCORE} compression,
+    {C.CAGG} refreshes, retention, and custom maintenance tasks. Jobs run reliably in the background
+    and provide execution history for monitoring and troubleshooting.
+  </NumberedItem>
+</NumberedList>
 
-Capabilities by use case
+## Capabilities by use case
 
-IoT and sensor data
+### IoT and sensor data
 
 For IoT workloads with millions of devices generating continuous metrics:
 
--   **[Hypertables](/learn/hypertables/understand-hypertables)**: partition data by time and optionally by device ID for optimal performance
--   **[Hypercore](/learn/columnar-storage/understand-hypercore)**: automatic columnar storage compresses sensor readings with 95%+ storage reduction
--   **[Continuous aggregates](/learn/continuous-aggregates/about-continuous-aggregates)**: pre-compute device statistics, fleet-wide metrics, and anomaly detection
--   **[Data retention](/learn/data-management/data-retention)**: automatically drop raw sensor data after a retention period
--   **[Hyperfunctions](/build/data-management/hyperfunctions)**: use downsampling (LTTB) for visualization, time-weighted averages for irregular samples
+-   **[{C.HYPERTABLE_CAP}s](/learn/hypertables/understand-hypertables)**: partition data by time and optionally by device ID for optimal performance.
+-   **[{C.HYPERCORE_CAP}](/learn/columnar-storage/understand-hypercore)**: compress sensor readings with 95%+ storage reduction.
+-   **[{C.CAGG_CAP}s](/learn/continuous-aggregates/about-continuous-aggregates)**: pre-compute device statistics and fleet-wide metrics.
+-   **[{C.HYPERFUNC_CAP}](/build/data-management/hyperfunctions)**: downsample with LTTB for visualization, use time-weighted averages for irregular samples.
+-   **[Data retention](/learn/data-management/data-retention)**: drop raw sensor data automatically after a retention period.
 
-Financial analytics
+### Financial analytics
 
 For financial data with high-frequency trading, market data, and portfolio analytics:
 
--   **[Hypertables](/learn/hypertables/understand-hypertables)**: store tick data, OHLCV bars, and trade executions with automatic columnar storage
--   **[Hyperfunctions](/build/data-management/hyperfunctions)**: calculate candlestick aggregates, percentiles, statistical measures
--   **[Continuous aggregates](/learn/continuous-aggregates/about-continuous-aggregates)**: maintain pre-computed OHLCV bars, technical indicators, portfolio valuations
--   **[Hypercore](/learn/columnar-storage/understand-hypercore)**: automatic compression enables cost-effective long-term backtesting on historical market data
--   **[Optimize schema](/learn/data-model/understand-database-schemas)**: use indexes for symbol lookups, constraints for data integrity
+-   **[{C.HYPERTABLE_CAP}s](/learn/hypertables/understand-hypertables)**: store tick data, OHLCV bars, and trade executions.
+-   **[{C.HYPERCORE_CAP}](/learn/columnar-storage/understand-hypercore)**: compress historical market data for cost-effective long-term backtesting.
+-   **[{C.CAGG_CAP}s](/learn/continuous-aggregates/about-continuous-aggregates)**: maintain pre-computed OHLCV bars, technical indicators, and portfolio valuations.
+-   **[{C.HYPERFUNC_CAP}](/build/data-management/hyperfunctions)**: calculate candlestick aggregates, percentiles, and statistical measures.
+-   **[Schema optimization](/learn/data-model/understand-database-schemas)**: use indexes for symbol lookups, constraints for data integrity.
 
-Observability and monitoring
+### Observability and monitoring
 
 For system metrics, logs, and distributed tracing:
 
--   **[Hypertables](/learn/hypertables/understand-hypertables)**: ingest metrics, logs, and traces with automatic partitioning and columnar storage
--   **[Continuous aggregates](/learn/continuous-aggregates/about-continuous-aggregates)**: maintain service health metrics, error rates, latency percentiles
--   **[Hyperfunctions](/build/data-management/hyperfunctions)**: calculate uptime/downtime (heartbeat aggregation), detect anomalies, analyze distributions
--   **[Hypercore](/learn/columnar-storage/understand-hypercore)**: automatic compression enables cost-effective long-term retention of historical metrics and traces
--   **[Data retention](/learn/data-management/data-retention)**: drop raw data after debugging period while keeping aggregated metrics
+-   **[{C.HYPERTABLE_CAP}s](/learn/hypertables/understand-hypertables)**: ingest metrics, logs, and traces with automatic partitioning.
+-   **[{C.HYPERCORE_CAP}](/learn/columnar-storage/understand-hypercore)**: compress historical metrics and traces for cost-effective long-term retention.
+-   **[{C.CAGG_CAP}s](/learn/continuous-aggregates/about-continuous-aggregates)**: maintain service health metrics, error rates, and latency percentiles.
+-   **[{C.HYPERFUNC_CAP}](/build/data-management/hyperfunctions)**: calculate uptime/downtime via heartbeat aggregation, detect anomalies, and analyze distributions.
+-   **[Data retention](/learn/data-management/data-retention)**: drop raw data after the debugging period while keeping aggregated metrics.

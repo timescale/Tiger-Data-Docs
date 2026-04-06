@@ -379,8 +379,8 @@ export default defineConfig({
                 collapsed: true,
                 items: [
                   { label: "Tiger Cloud", link: "/learn/tiger-cloud" },
-                  { label: "Supported regions", link: "/learn/tiger-cloud/regions" },
                   { label: "Cloud-exclusive features", link: "/learn/tiger-cloud/cloud-exclusive-features" },
+                  { label: "Supported regions", link: "/learn/tiger-cloud/regions" },
                 ],
               },
               {
