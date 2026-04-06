@@ -441,8 +441,7 @@ export default defineConfig({
                 label: "Hypercore",
                 collapsed: true,
                 items: [
-                  { label: "Columnar storage overview", link: "/learn/columnar-storage" },
-                  { label: "Understand Hypercore", link: "/learn/columnar-storage/understand-hypercore" },
+                  { label: "Understand hypercore", link: "/learn/columnar-storage/understand-hypercore" },
                   { label: "Compression methods", link: "/learn/columnar-storage/compression-methods" },
                 ],
               },
@@ -1880,8 +1879,8 @@ export default defineConfig({
         "/learn/data-management/storage/about-storage-tiers",
       "/build/data-management/storage/about-storage-tiers/":
         "/learn/data-management/storage/about-storage-tiers/",
-      "/build/columnar-storage": "/learn/columnar-storage",
-      "/build/columnar-storage/": "/learn/columnar-storage/",
+      "/build/columnar-storage": "/learn/columnar-storage/understand-hypercore",
+      "/build/columnar-storage/": "/learn/columnar-storage/understand-hypercore/",
       "/build/columnar-storage/understand-hypercore": "/learn/columnar-storage/understand-hypercore",
       "/build/columnar-storage/understand-hypercore/": "/learn/columnar-storage/understand-hypercore/",
       "/build/columnar-storage/compression-methods": "/learn/columnar-storage/compression-methods",
