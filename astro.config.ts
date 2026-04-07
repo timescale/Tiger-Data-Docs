@@ -395,13 +395,13 @@ export default defineConfig({
                 label: "Data model",
                 collapsed: true,
                 items: [
+                  { label: "Design your data model", link: "/learn/data-model/design-your-data-model" },
                   { label: "Wide, narrow, and medium tables", link: "/learn/data-model/wide-narrow-medium-tables" },
                   {
                     label: "Primary keys, time columns, and uniqueness",
                     link: "/learn/data-model/primary-keys-time-and-uniqueness",
                   },
-                  { label: "Design your data model", link: "/learn/hypertables/design-your-data-model" },
-                  { label: "Understand database schemas", link: "/learn/data-model/understand-database-schemas" },
+                  { label: "Schema optimization", link: "/learn/data-model/understand-database-schemas" },
                 ],
               },
               {
@@ -409,14 +409,10 @@ export default defineConfig({
                 collapsed: true,
                 items: [
                   { label: "Understand hypertables", link: "/learn/hypertables/understand-hypertables" },
-                  { label: "Creating and configuring hypertables", link: "/learn/hypertables/creating-and-configuring-hypertables" },
-                  { label: "Partitioning hypertables", link: "/learn/hypertables/partitioning-hypertables" },
+                  { label: "Create and configure a hypertable", link: "/learn/hypertables/creating-and-configuring-hypertables" },
+                  { label: "Partition a hypertable", link: "/learn/hypertables/partitioning-hypertables" },
                   { label: "Hypertable indexes", link: "/learn/hypertables/hypertable-indexes" },
-                  { label: "Querying time-series data", link: "/learn/hypertables/querying-time-series-data" },
-                  { label: "Optimize time-series data in hypertables", link: "/learn/hypertables/optimize-data-in-hypertables" },
-                  { label: "Hypertable operations", link: "/learn/hypertables/hypertable-operations" },
-                  { label: "Improve hypertable performance", link: "/learn/performance-optimization/improve-hypertable-performance" },
-                  { label: "Hypertables and unique indexes", link: "/learn/performance-optimization/hypertables-and-unique-indexes" },
+                  { label: "Hypertable operations", link: "/learn/hypertables/optimize-data-in-hypertables" },
                 ],
               },
               {
@@ -654,6 +650,8 @@ export default defineConfig({
                   { label: "Automate tasks with triggers", link: "/build/performance-optimization/automate-tasks-with-triggers" },
                   { label: "Query external data sources with FDW", link: "/build/performance-optimization/query-external-data-sources-with-fdw" },
                   { label: "Improve query and upsert performance", link: "/build/performance-optimization/secondary-indexes" },
+                  { label: "Improve hypertable performance", link: "/build/performance-optimization/improve-hypertable-performance" },
+                  { label: "Enforce constraints with unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
                 ],
               },
               // --- Troubleshooting (renamed from "Tips and tricks") ---
@@ -1817,8 +1815,8 @@ export default defineConfig({
       "/learn/fundamentals/understand-capabilities":
         "/learn/capabilities-and-comparison/understand-capabilities",
       "/learn/fundamentals/optimize-data-in-hypertables": "/learn/hypertables/optimize-data-in-hypertables",
-      "/learn/fundamentals/design-your-data-model": "/learn/hypertables/design-your-data-model",
-      "/learn/fundamentals/querying-time-series-data": "/learn/hypertables/querying-time-series-data",
+      "/learn/fundamentals/design-your-data-model": "/learn/data-model/design-your-data-model",
+      "/learn/fundamentals/querying-time-series-data": "/learn/hypertables/understand-hypertables",
       "/learn/fundamentals/tiger-cloud-feature-comparison":
         "/get-started/feature-comparison",
       "/learn/concepts": "/learn",
@@ -1827,8 +1825,11 @@ export default defineConfig({
       "/learn/topics/": "/learn/",
       "/learn/concepts/understand-hypertables": "/learn/hypertables/understand-hypertables",
       "/learn/concepts/optimize-data-in-hypertables": "/learn/hypertables/optimize-data-in-hypertables",
-      "/learn/concepts/design-your-data-model": "/learn/hypertables/design-your-data-model",
-      "/learn/concepts/querying-time-series-data": "/learn/hypertables/querying-time-series-data",
+      "/learn/hypertables/hypertable-operations": "/learn/hypertables/optimize-data-in-hypertables",
+      "/learn/concepts/design-your-data-model": "/learn/data-model/design-your-data-model",
+      "/learn/hypertables/design-your-data-model": "/learn/data-model/design-your-data-model",
+      "/learn/concepts/querying-time-series-data": "/learn/hypertables/understand-hypertables",
+      "/learn/hypertables/querying-time-series-data": "/learn/hypertables/understand-hypertables",
       "/learn/concepts/understanding-chunks": "/learn/chunks/understanding-chunks",
       "/learn/concepts/understand-capabilities":
         "/learn/capabilities-and-comparison/understand-capabilities",
@@ -1903,14 +1904,14 @@ export default defineConfig({
         "/learn/continuous-aggregates/materialized-hypertables",
       "/build/continuous-aggregates/materialized-hypertables/":
         "/learn/continuous-aggregates/materialized-hypertables/",
-      "/build/performance-optimization/improve-hypertable-performance":
-        "/learn/performance-optimization/improve-hypertable-performance",
-      "/build/performance-optimization/improve-hypertable-performance/":
-        "/learn/performance-optimization/improve-hypertable-performance/",
-      "/build/performance-optimization/hypertables-and-unique-indexes":
-        "/learn/performance-optimization/hypertables-and-unique-indexes",
-      "/build/performance-optimization/hypertables-and-unique-indexes/":
-        "/learn/performance-optimization/hypertables-and-unique-indexes/",
+      "/learn/performance-optimization/improve-hypertable-performance":
+        "/build/performance-optimization/improve-hypertable-performance",
+      "/learn/performance-optimization/improve-hypertable-performance/":
+        "/build/performance-optimization/improve-hypertable-performance/",
+      "/learn/performance-optimization/hypertables-and-unique-indexes":
+        "/build/performance-optimization/hypertables-and-unique-indexes",
+      "/learn/performance-optimization/hypertables-and-unique-indexes/":
+        "/build/performance-optimization/hypertables-and-unique-indexes/",
       // Tiger Cloud overview removed; send old URL to AWS service management entry
       "/deploy/tiger-cloud": "/deploy/tiger-cloud/tiger-cloud-aws/service-management",
       "/deploy/tiger-cloud/": "/deploy/tiger-cloud/tiger-cloud-aws/service-management/",

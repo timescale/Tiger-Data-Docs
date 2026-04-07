@@ -1,26 +1,118 @@
 ---
-title: "Creating and configuring hypertables"
-description: "Create a hypertable from a regular Postgres table, set chunk intervals, indexes, and migrate existing data on Tiger Cloud."
+title: Create and configure a hypertable
+description: Create a hypertable, set chunk intervals, control default indexes, and migrate existing data
 ---
 
 import * as C from "@constants";
 
-Hypertables turn ordinary {C.PG} tables into time-partitioned tables made of **chunks**, so you can scale to very large datasets. Start with a normal table, then call `create_hypertable()`.
+{C.HYPERTABLE_CAP}s turn ordinary {C.PG} tables into time-partitioned tables made of
+**{C.CHUNK}s**, so you can scale to very large datasets. Add
+`WITH (timescaledb.hypertable)` to a standard `CREATE TABLE` statement to create one.
 
-## Create a hypertable
+## Create a {C.HYPERTABLE}
 
-1. Create a regular {C.PG} table with your time (or integer) partitioning column.
-2. Call `create_hypertable()` to register it as a hypertable.
+The simplest form auto-detects the partition column from the first `timestamptz` column
+and adds `NOT NULL` automatically if needed:
 
-Key arguments to understand:
+```sql
+CREATE TABLE sensor_data (
+  time        TIMESTAMPTZ NOT NULL,
+  device_id   INT,
+  temperature DOUBLE PRECISION
+) WITH (timescaledb.hypertable);
+```
 
-- **`chunk_time_interval`**: Default is often seven days. Size chunks for your ingest rate and memory. Larger chunks mean fewer chunks; smaller chunks mean more chunks and more planning overhead. See [Sizing hypertable chunks](/learn/hypertables/sizing-hypertable-chunks).
-- **`create_default_indexes`**: An index on the partitioning column is created by default. For large bulk loads into a **new** hypertable, you can set this to `false` and add indexes later. If you use a unique or primary key, the partitioning column must appear in that constraint.
-- **`migrate_data`**: To convert a table that **already has rows**, set `migrate_data` appropriately so existing data is migrated into chunks. For very large tables, creating an empty hypertable and loading data in batches is often safer and more predictable.
+If your table has multiple timestamp columns or uses a non-standard name, specify the
+partition column explicitly:
 
-## Related
+```sql
+CREATE TABLE order_events (
+  created_at  TIMESTAMPTZ NOT NULL,
+  order_id    BIGINT,
+  status      TEXT
+) WITH (
+  timescaledb.hypertable,
+  timescaledb.partition_column = 'created_at'
+);
+```
 
-- [Partitioning hypertables](/learn/hypertables/partitioning-hypertables)
-- [Sizing hypertable chunks](/learn/hypertables/sizing-hypertable-chunks)
-- [Hypertable indexes](/learn/hypertables/hypertable-indexes)
-- [Design your data model](/learn/hypertables/design-your-data-model)
+## Configuration options
+
+Set these options in the `WITH` clause to control how the {C.HYPERTABLE} is created:
+
+| Option | Default | Description |
+|---|---|---|
+| `timescaledb.hypertable` | — | Required. Marks the table as a {C.HYPERTABLE}. |
+| `timescaledb.partition_column` | Auto-detected | The column used to partition data into {C.CHUNK}s. Auto-detected from the first `timestamptz` column. Required if the table has no `timestamptz` column or has more than one. |
+| `timescaledb.chunk_interval` | `7 days` | The time range each {C.CHUNK} covers. Tune this for your ingest rate and memory. See [Sizing {C.HYPERTABLE} {C.CHUNK}s](/learn/hypertables/sizing-hypertable-chunks). |
+| `timescaledb.create_default_indexes` | `true` | Creates an index on the partition column automatically. Set to `false` for large bulk loads where you want to add indexes after loading. |
+
+### Set {C.CHUNK} interval
+
+Choose a {C.CHUNK} interval so that all active {C.CHUNK}s fit in memory. The default is
+7 days, which works well for many workloads. For high-throughput ingestion, a shorter interval
+like 1 day may be better:
+
+```sql
+CREATE TABLE high_throughput_metrics (
+  time        TIMESTAMPTZ NOT NULL,
+  device_id   INT,
+  value       DOUBLE PRECISION
+) WITH (
+  timescaledb.hypertable,
+  timescaledb.chunk_interval = '1 day'
+);
+```
+
+### Disable default indexes
+
+For large bulk loads into a new {C.HYPERTABLE}, skip automatic index creation and add indexes
+after the data is loaded:
+
+```sql
+CREATE TABLE bulk_load_target (
+  time        TIMESTAMPTZ NOT NULL,
+  device_id   INT,
+  value       DOUBLE PRECISION
+) WITH (
+  timescaledb.hypertable,
+  timescaledb.create_default_indexes = false
+);
+
+-- Load data first, then create indexes
+CREATE INDEX ON bulk_load_target (time DESC);
+CREATE INDEX ON bulk_load_target (device_id, time DESC);
+```
+
+## Convert an existing table
+
+To convert a {C.PG} table that already has data, use the `create_hypertable()` function
+with `migrate_data`:
+
+```sql
+SELECT create_hypertable('existing_table', by_range('time'), migrate_data => true);
+```
+
+For very large tables, this can be slow and lock-heavy. A safer approach is to create
+an empty {C.HYPERTABLE} and load data in batches:
+
+```sql
+CREATE TABLE new_table (LIKE existing_table INCLUDING ALL)
+  WITH (timescaledb.hypertable);
+
+INSERT INTO new_table SELECT * FROM existing_table;
+```
+
+## Learn more
+
+- [Partition a {C.HYPERTABLE}](/learn/hypertables/partitioning-hypertables) — time, integer,
+  and space partitioning.
+- [Sizing {C.HYPERTABLE} {C.CHUNK}s](/learn/hypertables/sizing-hypertable-chunks) — choosing
+  the right {C.CHUNK} interval.
+- [{C.HYPERTABLE_CAP} indexes](/learn/hypertables/hypertable-indexes) — default and custom
+  indexes.
+- [Primary keys, time columns, and uniqueness](/learn/data-model/primary-keys-time-and-uniqueness) —
+  partition column and constraint rules.
+- [CREATE TABLE reference](/reference/timescaledb/hypertables/create_table) — full API reference.
+- [`create_hypertable()` reference](/reference/timescaledb/hypertables/create_hypertable) —
+  for converting existing tables.

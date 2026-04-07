@@ -1,55 +1,106 @@
 ---
-title: "Primary keys, time columns, and uniqueness for hypertables"
-description: "Choose a time partition column, primary keys, and unique constraints so your hypertable matches TimescaleDB rules and your query patterns."
+title: Primary keys, time columns, and uniqueness for hypertables
+description: Choose a time partition column, primary keys, and unique constraints so your hypertable matches TimescaleDB rules and your query patterns
 ---
 
 import * as C from "@constants";
 
-Every hypertable has a **partitioning column** (usually **time**). That choice drives chunk boundaries, retention, compression, and, critically, which **unique** and **primary key** constraints are valid. Decide these when you model the table, not after data is loaded.
+Every {C.HYPERTABLE} has a **partitioning column**, usually **time**. That choice drives {C.CHUNK}
+boundaries, retention, {C.COLUMNSTORE}, and which **unique** and **primary key** constraints are
+valid. Decide these when you model the table, not after data is loaded.
 
 ## Time column
 
-### Role
+The partition column defines how rows are grouped into **{C.CHUNK}s**. It is almost always:
 
-The partition column defines how rows are grouped into **chunks**. It is almost always:
-
-- A **`timestamptz`** (or `timestamp` / `date`) column for event time, or  
-- An **integer** (or `bigint`) timeline, Unix epoch seconds or milliseconds, sequence-like counters, or other monotonic keys.
+- A **`timestamptz`** (or `timestamp` / `date`) column for event time
+- An **integer** (`smallint`, `int`, or `bigint`) column for Unix epoch seconds, milliseconds, or other monotonic keys
 
 ### `timestamptz` vs integer time
 
-- **`timestamptz`**: Natural for real-world clocks, time zones, and human-readable queries. Prefer this for most applications.
-- **Integer epoch**: Useful when upstream systems already emit epoch integers, or when you need a custom “now” function for policies. You must provide [`integer_now_func`](/reference/timescaledb/hypertables/set_integer_now_func/) for integer time so background jobs know what “current” means.
+- **`timestamptz`**: Natural for real-world clocks, time zones, and human-readable queries.
+  Prefer this for most applications.
+- **Integer epoch**: Useful when upstream systems already emit epoch integers. If you use
+  background jobs like retention or {C.COLUMNSTORE} policies, set
+  [`integer_now_func`](/reference/timescaledb/hypertables/set_integer_now_func/) so those jobs
+  know what "current" means.
 
-Pick a type you can keep **stable**; changing the partition column later is effectively a migration.
+Pick a type you can keep **stable** — changing the partition column later requires a migration.
 
 ## Primary keys and unique constraints
 
-TimescaleDB requires that **any unique constraint or primary key on a hypertable include the partitioning column** (and that the set of columns is compatible with how chunks are split, effectively, uniqueness must be enforceable per chunk in a way consistent with the hypertable definition).
+{C.TIMESCALE_DB} requires that **every unique constraint or primary key includes the partitioning
+column**. Additionally, if your {C.HYPERTABLE} uses multiple partitioning dimensions (for example,
+space partitioning on `device_id`), all partitioning columns must appear in the constraint.
 
-In practice:
+This rule exists because uniqueness is enforced **per {C.CHUNK}**. Including all partitioning
+columns ensures that {C.PG} can check the constraint within a single {C.CHUNK} without scanning
+the entire {C.HYPERTABLE}.
 
-- A common pattern is **`PRIMARY KEY (device_id, time)`** or **`UNIQUE (device_id, time)`** when each device writes at most one row per timestamp (or you round time to a bucket that makes rows distinct).
-- A **`PRIMARY KEY (id)`** on a surrogate **`id`** column alone is **not** valid if `id` is the only column in the key and **`time` is not included**, because the same `id` could not be guaranteed unique across the hypertable in the way {C.PG} expects for a hypertable. If you use a surrogate key, it must still be consistent with the hypertable’s uniqueness rules, often you add **`time`** (or the partition key) to the key.
+### Valid examples
 
-### Why this matters
+A sensor table where each device writes at most one row per timestamp:
 
-Uniqueness is enforced in a way that works with **chunk-wise** storage and parallel operations. If your business rule is “unique per device per second,” model that explicitly in the key (for example `(device_id, time_bucket)` or a rounded `time`), rather than assuming a global `id` alone is enough.
+```sql
+CREATE TABLE sensor_data (
+  time        TIMESTAMPTZ NOT NULL,
+  device_id   INT         NOT NULL,
+  temperature DOUBLE PRECISION,
+  humidity    DOUBLE PRECISION,
+  PRIMARY KEY (device_id, time)
+) WITH (timescaledb.hypertable);
+```
+
+An order events table with a surrogate ID that still includes the partition column:
+
+```sql
+CREATE TABLE order_events (
+  time      TIMESTAMPTZ NOT NULL,
+  order_id  BIGINT      NOT NULL,
+  status    TEXT,
+  UNIQUE (order_id, time)
+) WITH (timescaledb.hypertable);
+```
+
+### Invalid example
+
+A surrogate key that does not include the partition column fails:
+
+```sql
+-- This fails because 'id' alone cannot guarantee uniqueness per chunk
+CREATE TABLE bad_example (
+  id   SERIAL PRIMARY KEY,
+  time TIMESTAMPTZ NOT NULL,
+  value DOUBLE PRECISION
+) WITH (timescaledb.hypertable);
+```
+
+### Unique constraints and {C.COLUMNSTORE}
+
+When you insert into a {C.COLUMNSTORE} {C.CHUNK} that has a unique constraint or primary key,
+{C.TIMESCALE_DB} decompresses data in memory to check for constraint violations. {C.HYPERTABLE_CAP}s
+**without** unique constraints skip this check, so inserts into {C.COLUMNSTORE} {C.CHUNK}s are
+faster. If your workload is append-only with no duplicates, consider whether you truly need a
+unique constraint.
 
 ### Indexes
 
-Unique constraints create indexes. Those indexes affect **ingest cost** and **storage**. See [Hypertable indexes](/learn/hypertables/hypertable-indexes) and [Hypertables and unique indexes](/learn/performance-optimization/hypertables-and-unique-indexes) for tuning and edge cases.
+Unique constraints create indexes. Those indexes affect **ingest cost** and **storage**. See
+[{C.HYPERTABLE_CAP} indexes](/learn/hypertables/hypertable-indexes) and
+[{C.HYPERTABLE_CAP}s and unique indexes](/build/performance-optimization/hypertables-and-unique-indexes)
+for tuning and edge cases.
 
 ## Modeling checklist
 
-1. **Partition column**: One clear time (or integer) column used consistently in queries and policies.  
-2. **Uniqueness**: Express real-world identity (`sensor + time`, `order_id + time`, and so on) in keys that **include** the partition column where required.  
-3. **Nulls**: Avoid nullable partition columns; define defaults or reject bad rows at ingest.  
-4. **Future timestamps**: If you allow far-future `time` values, chunk and retention behavior can look surprising; align with your ingestion validation.
+- **Partition column**: One clear time or integer column used consistently in queries and policies.
+- **Uniqueness**: Express real-world identity (`sensor + time`, `order_id + time`) in keys
+   that **include** all partitioning columns.
+- **Nulls**: {C.TIMESCALE_DB} enforces `NOT NULL` on the partition column automatically. Make sure your ingest pipeline never sends null values for this column.
+- **Future timestamps**: Far-future `time` values create unexpected {C.CHUNK}s and affect retention
+   behavior. Validate timestamps at ingest.
 
 ## Related
 
-- [Creating and configuring hypertables](/learn/hypertables/creating-and-configuring-hypertables)
-- [Partitioning hypertables](/learn/hypertables/partitioning-hypertables)
+- [Creating and configuring {C.HYPERTABLE}s](/learn/hypertables/creating-and-configuring-hypertables)
+- [Partitioning {C.HYPERTABLE}s](/learn/hypertables/partitioning-hypertables)
 - [Wide, narrow, and medium tables](/learn/data-model/wide-narrow-medium-tables)
-- [Design your data model](/learn/hypertables/design-your-data-model)
