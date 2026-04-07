@@ -1,28 +1,115 @@
 ---
-title: "Partitioning hypertables"
-description: "Time, date, and integer partitioning, chunk intervals, integer_now_func, and optional space dimensions on Tiger Cloud."
+title: Partition a hypertable
+description: Partition a hypertable by time or integer columns, and understand when to use space partitioning
 ---
 
 import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
 
-You partition a hypertable on one or more columns. The primary dimension is usually **time** (`timestamp`, `date`) or an **integer** (for example Unix time or a sequence-like key).
+Every {C.HYPERTABLE} is partitioned on at least one column, called a **dimension**. The primary
+dimension is almost always **time**. Each {C.CHUNK} is assigned a range of time and only
+contains data from that range.
 
-## Time and integer columns
+## Time partitioning
 
-- **Timestamp / date**: Typical for event data. Set `chunk_time_interval` to control chunk size.
-- **Integer**: For Unix epoch seconds, milliseconds, or other integer timelines, use an integer partition column and a matching chunk interval (for example one day in seconds: `60 * 60 * 24`).
+Partition by a `timestamptz`, `timestamp`, `date`, or
+[UUIDv7](/reference/timescaledb/uuid-functions) column.
+[Best practice is to use `timestamptz`](https://wiki.postgresql.org/wiki/Don't_Do_This#Don.27t_use_timestamp_.28without_time_zone.29).
 
-For integer partitions, define [`integer_now_func`](/reference/timescaledb/hypertables/set_integer_now_func/) so policies (compression, refresh, retention, tiering) know how to interpret “now” for chunk age.
+```sql
+CREATE TABLE sensor_data (
+  time        TIMESTAMPTZ NOT NULL,
+  device_id   INT,
+  temperature DOUBLE PRECISION
+) WITH (
+  timescaledb.hypertable,
+  timescaledb.chunk_interval = '1 day'
+);
+```
 
-- For **Unix time**, you can often define the function once and reuse it across hypertables.
-- For **sequence-style** integer keys, you may need a dedicated function per hypertable.
+By default, each {C.CHUNK} holds data for 7 days. You can change this with
+`timescaledb.chunk_interval` to better suit your workload.
 
-## Space dimensions
+{C.TIMESCALE_DB} divides time into potential {C.CHUNK} ranges based on the interval. When you
+insert data from a time range that doesn't yet have a {C.CHUNK}, {C.TIMESCALE_DB} automatically
+creates one. This means the start time of your earliest {C.CHUNK} does not necessarily equal
+the earliest timestamp in your data — there might be a gap. This doesn't affect queries, but
+you may notice it when inspecting {C.CHUNK}s.
 
-You can add extra partition dimensions with [`add_dimension`](/reference/timescaledb/hypertables/add_dimension/) (for example `device_id` alongside time). That can help I/O on multi-disk **self-hosted** setups. On **Tiger Cloud**, chunks typically live on a single volume, so extra space dimensions rarely help query performance, prefer careful time chunking and indexing instead.
+## Integer partitioning
 
-## Related
+For tables where the partition column is an integer (Unix epoch, sequence, or other monotonic
+key), specify the {C.CHUNK} interval as a number:
 
-- [Creating and configuring hypertables](/learn/hypertables/creating-and-configuring-hypertables)
-- [Sizing hypertable chunks](/learn/hypertables/sizing-hypertable-chunks)
-- [Design your data model](/learn/hypertables/design-your-data-model)
+```sql
+CREATE TABLE events (
+  epoch_ms  BIGINT NOT NULL,
+  device_id INT,
+  payload   JSONB
+) WITH (
+  timescaledb.hypertable,
+  timescaledb.partition_column = 'epoch_ms',
+  timescaledb.chunk_interval = 86400000
+);
+```
+
+If you use background policies like retention or {C.COLUMNSTORE}, set
+[`integer_now_func`](/reference/timescaledb/hypertables/set_integer_now_func/) so those
+policies know what "current" means:
+
+```sql
+CREATE OR REPLACE FUNCTION epoch_ms_now() RETURNS BIGINT
+LANGUAGE SQL STABLE AS $$
+  SELECT (extract(epoch FROM now()) * 1000)::BIGINT
+$$;
+
+SELECT set_integer_now_func('events', 'epoch_ms_now');
+```
+
+For **Unix time**, you can reuse the same function across {C.HYPERTABLE}s. For
+**sequence-style** keys, you need a dedicated function per {C.HYPERTABLE}.
+
+The default {C.CHUNK} interval of 7 days works for many workloads, but tuning it can
+significantly improve performance. See
+[Sizing {C.HYPERTABLE} {C.CHUNK}s](/learn/hypertables/sizing-hypertable-chunks) for guidance.
+
+## Space partitioning (hash dimension)
+
+{C.TIMESCALE_DB} supports adding a hash dimension to a {C.HYPERTABLE} with `add_dimension()`,
+which distributes rows across multiple partitions within each {C.CHUNK}. For example, you
+could partition by `tenant_id` in a multi-tenant setup to isolate tenants into separate
+partitions.
+
+<Callout variant="warning">
+Space partitioning multiplies the number of {C.CHUNK}s, increases query planning overhead,
+and requires all unique constraints to include the hash column. Do not use it without
+extensive testing and a deep understanding of how it affects your specific workload. For most
+use cases, time-based {C.CHUNK} sizing and indexing are a better fit.
+</Callout>
+
+If you have a specific use case that requires hash partitioning, add a hash dimension after
+creating the {C.HYPERTABLE}:
+
+```sql
+SELECT add_dimension('my_table', by_hash('device_id', 4));
+```
+
+The second argument to `by_hash()` is the number of partitions. You must specify it
+explicitly — there is no default.
+
+## Learn more
+
+- [Sizing {C.HYPERTABLE} {C.CHUNK}s](/learn/hypertables/sizing-hypertable-chunks) — choosing
+  the right {C.CHUNK} interval for your workload.
+- [Create and configure a {C.HYPERTABLE}](/learn/hypertables/creating-and-configuring-hypertables) —
+  `CREATE TABLE` options including `chunk_interval`.
+- [Primary keys, time columns, and uniqueness](/learn/data-model/primary-keys-time-and-uniqueness) —
+  constraint rules for partitioned tables.
+- [Improve {C.HYPERTABLE} performance](/build/performance-optimization/improve-hypertable-performance) —
+  optimize {C.CHUNK} intervals and enable {C.CHUNK_SKIPPING}.
+- [`set_integer_now_func()` reference](/reference/timescaledb/hypertables/set_integer_now_func) —
+  required for integer-partitioned policies.
+- [`add_dimension()` reference](/reference/timescaledb/hypertables/add_dimension) —
+  add hash or range dimensions.
+- [`set_chunk_time_interval()` reference](/reference/timescaledb/hypertables/set_chunk_time_interval) —
+  change the {C.CHUNK} interval on an existing {C.HYPERTABLE}.

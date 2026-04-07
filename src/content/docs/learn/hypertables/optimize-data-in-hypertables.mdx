@@ -1,5 +1,5 @@
 ---
-title: Optimize time-series data in hypertables
+title: Hypertable operations
 description: Create, alter, and drop a hypertable, and speed up data ingest with direct compress
 products: [cloud, mst, self_hosted]
 keywords: [hypertable, create hypertable, alter hypertable, drop hypertable, direct compress, data ingest]
@@ -66,10 +66,8 @@ ALTER TABLE conditions
   ADD COLUMN humidity DOUBLE PRECISION NULL;
 ```
 
-If the column you are adding has the default value set to `NULL`, or has no
-default value, then adding a column is relatively fast. If you set the default
-to a non-null value, it takes longer, because it needs to fill in this value for
-all existing rows of all existing {C.CHUNK}s.
+Adding a column is fast regardless of the default value. {C.PG} 11+ stores the
+default in the catalog without rewriting existing rows.
 
 ### Rename a {C.HYPERTABLE}
 
@@ -95,11 +93,10 @@ ALTER TABLE conditions
 
 The following restrictions apply:
 
-- You cannot change the type of `segmentby` columns.
 - For time dimension columns, you can only change to `TIMESTAMPTZ`, `TIMESTAMP`, `DATE`,
-  `INTEGER` (smallint, integer, or bigint), or `UUID` (UUIDv7 only).
+  `INTEGER` (smallint, integer, or bigint), or `UUID`.
 - You cannot change the type of columns with custom partitioning functions.
-- You cannot change the type of columns for {C.HYPERTABLE}s with {C.COLUMNSTORE} enabled. See [Altering {C.HYPERTABLE}s with {C.COLUMNSTORE} enabled](/build/performance-optimization/alter-update-table-schema) for how to do it instead.
+- You cannot change column types when the {C.HYPERTABLE} has {C.COLUMNSTORE} {C.CHUNK}s. Convert those {C.CHUNK}s back to {C.ROWSTORE} first. See [Altering {C.HYPERTABLE}s with {C.COLUMNSTORE} enabled](/build/performance-optimization/alter-update-table-schema).
 - For columns with statistics enabled, you can only change to integer or timestamp types.
   To change to other types, first disable statistics using `disable_column_stats`.
 
@@ -115,13 +112,53 @@ ALTER TABLE conditions
 
 You cannot drop partitioning columns.
 
+## Delete data
+
+Prefer [`drop_chunks()`](/reference/timescaledb/hypertables/drop_chunks/) to remove whole time
+ranges instead of running large `DELETE` statements. Dropping {C.CHUNK}s is faster and avoids
+table bloat:
+
+```sql
+SELECT drop_chunks('conditions', older_than => INTERVAL '30 days');
+```
+
+For automated deletion, use a
+[data retention policy](/reference/timescaledb/data-retention/).
+
+## Vacuum and bloat
+
+Heavy `INSERT`, `UPDATE`, and `DELETE` operations cause table bloat over time. {C.PG}
+autovacuum runs by default, but you may need to tune its settings for high write-rate
+{C.HYPERTABLE}s. Run `VACUUM ANALYZE` manually when you need to reclaim space or refresh
+query planner statistics:
+
+```sql
+VACUUM ANALYZE conditions;
+```
+
 ## Drop a {C.HYPERTABLE}
 
 Drop a {C.HYPERTABLE} using a standard {C.PG} [`DROP TABLE`](https://www.postgresql.org/docs/current/sql-droptable.html)
 command:
 
 ```sql
-DROP TABLE weather;
+DROP TABLE conditions;
 ```
 
-All data {C.CHUNK}s belonging to the {C.HYPERTABLE} are deleted.
+All {C.CHUNK}s belonging to the {C.HYPERTABLE} are deleted. For very large {C.HYPERTABLE}s
+that may time out, drop {C.CHUNK}s first with `drop_chunks()`, then drop the table.
+
+## Learn more
+
+- [Create and configure a {C.HYPERTABLE}](/learn/hypertables/creating-and-configuring-hypertables) —
+  `CREATE TABLE` options and configuration.
+- [Alter and update table schemas](/build/performance-optimization/alter-update-table-schema) —
+  detailed guide for ALTER operations with {C.COLUMNSTORE}.
+- [Improve {C.HYPERTABLE} performance](/build/performance-optimization/improve-hypertable-performance) —
+  optimize {C.CHUNK} intervals and enable {C.CHUNK_SKIPPING}.
+- [`CREATE TABLE` reference](/reference/timescaledb/hypertables/create_table) — full API reference.
+- [`drop_chunks()` reference](/reference/timescaledb/hypertables/drop_chunks) — remove {C.CHUNK}s
+  by age or time range.
+- [Data retention policies](/reference/timescaledb/data-retention/) — automate data deletion.
+- [`show_chunks()` reference](/reference/timescaledb/hypertables/show_chunks) — list {C.CHUNK}s
+  for a {C.HYPERTABLE}.

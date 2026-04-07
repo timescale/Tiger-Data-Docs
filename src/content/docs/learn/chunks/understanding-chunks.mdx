@@ -31,7 +31,7 @@ Chunks are not just an implementation detail, they are why hypertables can deliv
 
 ### Query performance and chunk skipping
 
-Time-series queries usually filter by time (e.g. “last 24 hours” or “September 2024”). Because each chunk covers a known time range, the query planner can **skip chunks that don’t contain any data for that range**. So instead of scanning the entire table, Tiger Data only touches the chunks that might contain matching rows. That “chunk skipping” dramatically reduces work and speeds up queries. On Tiger Cloud, you can also [enable chunk skipping on non-partitioning columns](/learn/performance-optimization/improve-hypertable-performance#enable-chunk-skipping) (for example, a “received at” timestamp when the hypertable is partitioned by “event time”), so even more chunks can be skipped when they’re irrelevant to the query.
+Time-series queries usually filter by time (e.g. “last 24 hours” or “September 2024”). Because each chunk covers a known time range, the query planner can **skip chunks that don’t contain any data for that range**. So instead of scanning the entire table, Tiger Data only touches the chunks that might contain matching rows. That “chunk skipping” dramatically reduces work and speeds up queries. On Tiger Cloud, you can also [enable chunk skipping on non-partitioning columns](/build/performance-optimization/improve-hypertable-performance#enable-chunk-skipping) (for example, a “received at” timestamp when the hypertable is partitioned by “event time”), so even more chunks can be skipped when they’re irrelevant to the query.
 
 ### Maintenance and lifecycle
 
@@ -57,7 +57,7 @@ The **chunk interval** is the time span each chunk is responsible for (e.g. one 
 - **Creation**: When you insert a row whose time falls in a range that doesn’t yet have a chunk, TimescaleDB **creates a new chunk** for that range automatically. So the number of chunks grows as new time ranges receive data.
 - **Columnstore and compression**: On Tiger Data, a [columnstore policy](/build/columnar-storage/setup-hypercore) often converts chunks to columnar format after a certain age (e.g. after one chunk interval). So the chunk interval also influences when data moves into the columnstore and gets compressed, often by a significant factor (e.g. up to ~98% in many workloads). See the [Hypertables and chunks](/reference/timescaledb/hypertables) overview on the Tiger Data docs for the exact behavior of your version.
 
-Choosing the right chunk interval is a trade-off: you want chunks **small enough** that active (recent) chunks and their indexes fit in memory for fast access, but **not so small** that you end up with too many chunks (which can slow query planning and reduce compression effectiveness). The [Improve query performance](/learn/performance-optimization/improve-hypertable-performance) guide explains how to choose and tune the chunk interval in practice.
+Choosing the right chunk interval is a trade-off: you want chunks **small enough** that active (recent) chunks and their indexes fit in memory for fast access, but **not so small** that you end up with too many chunks (which can slow query planning and reduce compression effectiveness). The [Improve query performance](/build/performance-optimization/improve-hypertable-performance) guide explains how to choose and tune the chunk interval in practice.
 
 ---
 
@@ -66,10 +66,10 @@ Choosing the right chunk interval is a trade-off: you want chunks **small enough
 You don’t need to create or manage chunks manually for normal use, you create a [hypertable](/learn/hypertables/understand-hypertables) and insert/query it; chunks are created and used automatically. “Using chunks effectively” means **designing and tuning so that chunking works in your favor**.
 
 1. **Choose an appropriate chunk interval**  
-   Set the chunk interval when you [create the hypertable](/learn/hypertables/understand-hypertables) (or change it for new chunks with `set_chunk_time_interval()`). A common guideline is to size the interval so that the indexes of chunks you’re currently ingesting into fit within a reasonable share of main memory (e.g. 25% of RAM). For step-by-step guidance and examples, see [Optimize hypertable chunk intervals](/learn/performance-optimization/improve-hypertable-performance#optimize-hypertable-chunk-intervals).
+   Set the chunk interval when you [create the hypertable](/learn/hypertables/understand-hypertables) (or change it for new chunks with `set_chunk_time_interval()`). A common guideline is to size the interval so that the indexes of chunks you’re currently ingesting into fit within a reasonable share of main memory (e.g. 25% of RAM). For step-by-step guidance and examples, see [Optimize hypertable chunk intervals](/build/performance-optimization/improve-hypertable-performance#optimize-hypertable-chunk-intervals).
 
 2. **Use time-based filters in queries**  
-   Queries that filter on the partitioning (time) column allow the planner to skip irrelevant chunks. If you often filter by another column (e.g. “ingested at”), consider [enabling chunk skipping](/learn/performance-optimization/improve-hypertable-performance#enable-chunk-skipping) on that column (where supported) so more chunks can be skipped.
+   Queries that filter on the partitioning (time) column allow the planner to skip irrelevant chunks. If you often filter by another column (e.g. “ingested at”), consider [enabling chunk skipping](/build/performance-optimization/improve-hypertable-performance#enable-chunk-skipping) on that column (where supported) so more chunks can be skipped.
 
 3. **Inspect chunks when tuning or debugging**  
    You can list chunks for a hypertable with [`show_chunks()`](/reference/timescaledb/hypertables/show_chunks) and inspect size with functions like [`chunks_detailed_size()`](/reference/timescaledb/hypertables/chunks_detailed_size). That’s useful when you’re deciding whether to change the chunk interval or investigating query plans.
@@ -84,7 +84,7 @@ If you’re just getting started, [Your first hypertable](/learn/hypertables/und
 ## Next steps
 
 - [Understand hypertables](/learn/hypertables/understand-hypertables): Partitioning, indexes, and how hypertables behave.
-- [Improve hypertable and query performance](/learn/performance-optimization/improve-hypertable-performance): Optimize chunk intervals and enable chunk skipping.
+- [Improve hypertable and query performance](/build/performance-optimization/improve-hypertable-performance): Optimize chunk intervals and enable chunk skipping.
 - [Time-Series / Hypertables](/learn/hypertables/understand-hypertables): Create and alter hypertables (including chunk interval).
 - [Hypertables and chunks (Tiger Data API)](/reference/timescaledb/hypertables): API overview and related functions (`show_chunks`, `drop_chunk`, `move_chunk`, etc.).
 - [Glossary: Chunk, Chunk interval, Chunk skipping](/learn/glossary): Short definitions for reference.
