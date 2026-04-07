@@ -47,24 +47,61 @@ const tagOptions = [
     </div>
   </div>
 
-  <!-- Tag filters -->
+  <!-- Tag filters: label + track with scroll arrows when pills overflow -->
   <div class="changelog-filter__tags">
-    <span class="changelog-filter__tags-label">Filter by:</span>
-    <button 
-      class="changelog-filter__tag-btn changelog-filter__tag-btn--all active"
-      data-tag="all"
-      aria-pressed="true"
-    >All</button>
-    {tagOptions.map((tag) => (
-      <button 
-        class={`changelog-filter__tag-btn changelog-filter__tag-btn--${tag.value}`}
-        data-tag={tag.value}
-        aria-pressed="false"
+    <span class="changelog-filter__tags-label" id="changelog-filter-tags-label">Filter by:</span>
+    <div class="changelog-filter__tags-track">
+      <button
+        type="button"
+        class="changelog-filter__tags-nav changelog-filter__tags-nav--prev"
+        aria-label="Scroll tag filters left"
+        aria-controls="changelog-filter-tags-scroll"
+        disabled
       >
-        <span class="changelog-filter__tag-icon" aria-hidden="true">{tag.icon}</span>
-        {tag.label}
+        <span class="changelog-filter__tags-nav-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+        </span>
       </button>
-    ))}
+      <div class="changelog-filter__tags-scroll-clip">
+        <div
+          class="changelog-filter__tags-scroll"
+          id="changelog-filter-tags-scroll"
+          role="group"
+          aria-labelledby="changelog-filter-tags-label"
+        >
+          <!-- Inner row keeps pill flex layout separate from overflow-x scrollport (avoids
+               scrollbar gutter vertically centering pills and clipping bottoms). -->
+          <div class="changelog-filter__tags-scroll-row">
+            <button 
+              class="changelog-filter__tag-btn changelog-filter__tag-btn--all active"
+              data-tag="all"
+              aria-pressed="true"
+            >All</button>
+            {tagOptions.map((tag) => (
+              <button 
+                class={`changelog-filter__tag-btn changelog-filter__tag-btn--${tag.value}`}
+                data-tag={tag.value}
+                aria-pressed="false"
+              >
+                <span class="changelog-filter__tag-icon" aria-hidden="true">{tag.icon}</span>
+                {tag.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="changelog-filter__tags-nav changelog-filter__tags-nav--next"
+        aria-label="Scroll tag filters right"
+        aria-controls="changelog-filter-tags-scroll"
+        disabled
+      >
+        <span class="changelog-filter__tags-nav-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+        </span>
+      </button>
+    </div>
   </div>
 
   <!-- Results count -->
@@ -82,6 +119,8 @@ const tagOptions = [
     --filter-text-muted: light-dark(#6b7280, #9ca3af);
     --filter-accent: light-dark(#6446fb, #f5ff80);
     --filter-accent-text: light-dark(#ffffff, #000000);
+    /* Single pill + nav row height in expanded and compact (keep shape consistent). */
+    --changelog-tag-row-height: 1.75rem;
     
     /* Park below the fixed site header (not under it). --stl-nav-height is 3.5rem base; taller with tabbed nav on ≥50rem. */
     position: sticky;
@@ -89,7 +128,7 @@ const tagOptions = [
     z-index: 50;
     isolation: isolate;
     padding: 1rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
     /* Opaque enough that entries scroll behind the bar; blur is extra polish */
     background-color: var(--filter-bg);
     background-image: linear-gradient(
@@ -101,6 +140,42 @@ const tagOptions = [
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     box-shadow: 0 1px 0 light-dark(rgba(15, 23, 42, 0.06), rgba(255, 255, 255, 0.06));
+    transition: padding 0.2s ease, margin 0.2s ease;
+    display: flex;
+    flex-direction: column;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .changelog-filter {
+      transition: none;
+    }
+  }
+
+  /* Narrow bar once the first entry scrolls into the sticky overlap zone (see script).
+     Same width as expanded (no horizontal bleed) so the card does not jump when condensing. */
+  .changelog-filter.changelog-filter--compact {
+    padding: 0.5rem 1rem;
+    box-sizing: border-box;
+    gap: 0.5rem;
+  }
+
+  /* Remove search row from layout entirely (margin-bottom on controls was leaving a gap). */
+  .changelog-filter.changelog-filter--compact .changelog-filter__controls {
+    display: none !important;
+    margin: 0 !important;
+    margin-bottom: 0 !important;
+    padding: 0 !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+  }
+
+  .changelog-filter.changelog-filter--compact .changelog-filter__results {
+    margin-top: 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--filter-border);
+    font-size: 0.75rem;
   }
 
   .changelog-filter__controls {
@@ -152,20 +227,245 @@ const tagOptions = [
     color: var(--filter-text-muted);
   }
 
-  /* Tags: label and all buttons in one flex row; same height so they align */
+  /*
+   * Tags: expanded = label + wrapped pill rows (no horizontal scroll).
+   * Compact (condensed sticky) = single row + horizontal scroll, arrows, edge fades.
+   */
   .changelog-filter__tags {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  /* Grid keeps label and pill row aligned without flex baseline quirks. */
+  .changelog-filter--compact .changelog-filter__tags {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 0.75rem;
+    row-gap: 0;
+    min-height: 0;
+  }
+
+  .changelog-filter__tags-track {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 0.375rem;
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* One fixed row: center nav, clip, and pills (stretch + overflow scroll was clipping bottoms). */
+  .changelog-filter--compact .changelog-filter__tags-track {
+    height: var(--changelog-tag-row-height);
+    min-height: var(--changelog-tag-row-height);
+    max-height: var(--changelog-tag-row-height);
+    flex-shrink: 0;
+    align-items: center;
+  }
+
+  .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-nav {
+    display: none !important;
+  }
+
+  .changelog-filter.changelog-filter--compact .changelog-filter__tags-track:not(.is-overflowing) .changelog-filter__tags-nav {
+    display: none;
+  }
+
+  .changelog-filter__tags-nav {
+    box-sizing: border-box;
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: var(--changelog-tag-row-height);
+    min-height: var(--changelog-tag-row-height);
+    margin: 0;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--filter-border);
+    border-radius: 8px;
+    background: var(--filter-input-bg);
+    color: var(--filter-text-muted);
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      opacity 0.15s ease;
+  }
+
+  .changelog-filter--compact .changelog-filter__tags-label {
+    height: var(--changelog-tag-row-height);
+    line-height: var(--changelog-tag-row-height);
+    display: inline-flex;
+    align-items: center;
+    align-self: center;
+  }
+
+  /* Fixed height matches track so pills are not vertically centered inside a shorter scrollport
+     (hidden horizontal scrollbar was stealing height and clipping pill bottoms). */
+  .changelog-filter--compact .changelog-filter__tags-scroll-clip {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    height: var(--changelog-tag-row-height);
+    max-height: var(--changelog-tag-row-height);
+    overflow: hidden;
+  }
+
+  .changelog-filter--compact .changelog-filter__tags-scroll-clip::before,
+  .changelog-filter--compact .changelog-filter__tags-scroll-clip::after {
+    top: 0;
+    bottom: 0;
+  }
+
+  .changelog-filter__tags-nav:hover:not(:disabled) {
+    border-color: var(--filter-accent);
+    color: var(--filter-text);
+  }
+
+  .changelog-filter__tags-nav:focus-visible {
+    outline: 2px solid var(--filter-accent);
+    outline-offset: 2px;
+  }
+
+  .changelog-filter__tags-nav:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .changelog-filter__tags-nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+  }
+
+  .changelog-filter__tags-scroll-clip {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Edge fades when there is more content to scroll (uses same bg as the filter card). */
+  .changelog-filter__tags-scroll-clip::before,
+  .changelog-filter__tags-scroll-clip::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0.25rem;
+    width: 1.25rem;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .changelog-filter__tags-scroll-clip::before {
+    left: 0;
+    background: linear-gradient(to right, var(--filter-bg), transparent);
+  }
+
+  .changelog-filter__tags-scroll-clip::after {
+    right: 0;
+    background: linear-gradient(to left, var(--filter-bg), transparent);
+  }
+
+  .changelog-filter.changelog-filter--compact .changelog-filter__tags-track.is-overflowing:not(.is-at-start) .changelog-filter__tags-scroll-clip::before {
+    opacity: 1;
+  }
+
+  .changelog-filter.changelog-filter--compact .changelog-filter__tags-track.is-overflowing:not(.is-at-end) .changelog-filter__tags-scroll-clip::after {
+    opacity: 1;
+  }
+
+  .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll-clip::before,
+  .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll-clip::after {
+    opacity: 0 !important;
+  }
+
+  /* Expanded: wrap pills to multiple rows; buttons live in __tags-scroll-row. */
+  .changelog-filter__tags-scroll {
+    min-width: 0;
+    overflow: visible;
+    padding-bottom: 0.25rem;
+  }
+
+  .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.375rem;
   }
 
+  /* Scrollport: column flex centers the pill row vertically in the track (flex-start sat
+     content in the band above a reserved horizontal scrollbar, which looked ~8px low). */
+  .changelog-filter--compact .changelog-filter__tags-scroll {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: var(--changelog-tag-row-height);
+    max-height: var(--changelog-tag-row-height);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    line-height: 1;
+    font-size: inherit;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .changelog-filter--compact .changelog-filter__tags-scroll-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.375rem;
+    flex: 0 0 auto;
+    width: max-content;
+    min-height: 0;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  .changelog-filter--compact .changelog-filter__tags-scroll .changelog-filter__tag-btn {
+    flex-shrink: 0;
+  }
+
+  .changelog-filter--compact .changelog-filter__tags-scroll::-webkit-scrollbar {
+    display: none;
+    height: 0;
+  }
+
+  .changelog-filter__tags-scroll:focus-visible {
+    outline: 2px solid var(--filter-accent);
+    outline-offset: 2px;
+  }
+
   .changelog-filter__tags-label {
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--filter-text-muted);
-    height: 1.75rem;
-    line-height: 1.75rem;
+    height: var(--changelog-tag-row-height);
+    line-height: var(--changelog-tag-row-height);
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
@@ -180,7 +480,8 @@ const tagOptions = [
     align-items: center;
     justify-content: center;
     gap: 0.25rem;
-    height: 1.75rem;
+    height: var(--changelog-tag-row-height);
+    min-height: var(--changelog-tag-row-height);
     padding: 0 0.5rem;
     font-size: 0.75rem;
     font-weight: 500;
@@ -190,9 +491,15 @@ const tagOptions = [
     border: 1px solid var(--filter-border);
     border-radius: 9999px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
     white-space: nowrap;
     flex-shrink: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    padding-block: 0;
   }
 
   .changelog-filter__tag-btn:hover {
@@ -212,6 +519,9 @@ const tagOptions = [
   }
 
   .changelog-filter__tag-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: 0.75rem;
     line-height: 1;
   }
@@ -232,6 +542,7 @@ const tagOptions = [
   /* Responsive */
   @media (max-width: 640px) {
     .changelog-filter {
+      --changelog-tag-row-height: 1.625rem;
       padding: 0.75rem;
       border-radius: 8px;
       margin-bottom: 1rem;
@@ -251,19 +562,48 @@ const tagOptions = [
     }
 
     .changelog-filter__tags {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.25rem;
+    }
+
+    .changelog-filter--compact .changelog-filter__tags {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      column-gap: 0.5rem;
+      row-gap: 0;
+    }
+
+    .changelog-filter__tags-track {
+      width: 100%;
+    }
+
+    .changelog-filter__tags-nav {
+      width: 2rem;
+    }
+
+    .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll {
+      padding-bottom: 0.125rem;
+    }
+
+    .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll-row {
       gap: 0.25rem;
     }
 
     .changelog-filter__tags-label {
-      width: 100%;
-      margin-bottom: 0.125rem;
       font-size: 0.75rem;
       line-height: 1;
       height: auto;
     }
 
+    .changelog-filter--compact .changelog-filter__tags-label {
+      height: var(--changelog-tag-row-height);
+      line-height: var(--changelog-tag-row-height);
+      font-size: 0.75rem;
+    }
+
     .changelog-filter__tag-btn {
-      height: 1.5rem;
       padding: 0 0.375rem;
       font-size: 0.6875rem;
     }
@@ -277,12 +617,20 @@ const tagOptions = [
       padding-top: 0.5rem;
       font-size: 0.75rem;
     }
+
+    .changelog-filter.changelog-filter--compact .changelog-filter__results {
+      margin-top: 0;
+    }
+
+    .changelog-filter.changelog-filter--compact {
+      padding: 0.375rem 0.75rem;
+      gap: 0.375rem;
+    }
   }
 </style>
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    const filterContainer = document.getElementById('changelog-filter');
     const searchInput = document.getElementById('changelog-search') as HTMLInputElement;
     const tagButtons = document.querySelectorAll('.changelog-filter__tag-btn');
     const resultsContainer = document.querySelector('.changelog-filter__results-count');
@@ -290,8 +638,115 @@ const tagOptions = [
     let activeFilters: Set<string> = new Set(['all']);
     let searchQuery = '';
 
-    // Get all changelog entries
+    /** Bottom edge of the filter while expanded; expand/compact thresholds use this so height changes do not oscillate. */
+    let baselineFilterBottomPx = 0;
+    let stickyRaf = 0;
+
     const getEntries = () => document.querySelectorAll('.changelog-entry') as NodeListOf<HTMLElement>;
+
+    const getFirstVisibleEntry = (): HTMLElement | null => {
+      for (const el of getEntries()) {
+        if (el.getAttribute('data-hidden') === 'true') continue;
+        return el;
+      }
+      return null;
+    };
+
+    const tagsScrollEl = document.getElementById('changelog-filter-tags-scroll');
+    const tagsTrackEl = document.querySelector('.changelog-filter__tags-track');
+    const tagsPrevBtn = document.querySelector(
+      '.changelog-filter__tags-nav--prev'
+    ) as HTMLButtonElement | null;
+    const tagsNextBtn = document.querySelector(
+      '.changelog-filter__tags-nav--next'
+    ) as HTMLButtonElement | null;
+
+    const updateTagScrollAffordance = () => {
+      const filter = document.getElementById('changelog-filter');
+      const el = tagsScrollEl;
+      const track = tagsTrackEl;
+      if (!el || !track || !filter) return;
+
+      if (!filter.classList.contains('changelog-filter--compact')) {
+        track.classList.remove('is-overflowing', 'is-at-start', 'is-at-end');
+        if (tagsPrevBtn) tagsPrevBtn.disabled = true;
+        if (tagsNextBtn) tagsNextBtn.disabled = true;
+        el.scrollLeft = 0;
+        return;
+      }
+
+      const { scrollLeft, scrollWidth, clientWidth } = el;
+      const overflow = scrollWidth > clientWidth + 2;
+
+      track.classList.toggle('is-overflowing', overflow);
+      track.classList.toggle('is-at-start', !overflow || scrollLeft <= 2);
+      track.classList.toggle('is-at-end', !overflow || scrollLeft >= scrollWidth - clientWidth - 2);
+
+      if (tagsPrevBtn) {
+        tagsPrevBtn.disabled = !overflow || scrollLeft <= 2;
+      }
+      if (tagsNextBtn) {
+        tagsNextBtn.disabled = !overflow || scrollLeft >= scrollWidth - clientWidth - 2;
+      }
+    };
+
+    const prefersReducedMotion = () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const scrollTagsByPage = (direction: 1 | -1) => {
+      if (!tagsScrollEl) return;
+      const step = Math.max(160, Math.floor(tagsScrollEl.clientWidth * 0.65));
+      tagsScrollEl.scrollBy({
+        left: direction * step,
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+      });
+    };
+
+    tagsPrevBtn?.addEventListener('click', () => scrollTagsByPage(-1));
+    tagsNextBtn?.addEventListener('click', () => scrollTagsByPage(1));
+    tagsScrollEl?.addEventListener('scroll', updateTagScrollAffordance, { passive: true });
+
+    if (tagsScrollEl && typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(updateTagScrollAffordance).observe(tagsScrollEl);
+    }
+
+    const updateChangelogStickyChrome = () => {
+      const filter = document.getElementById('changelog-filter');
+      if (!filter) return;
+
+      const first = getFirstVisibleEntry();
+      let isCompact = filter.classList.contains('changelog-filter--compact');
+
+      if (first) {
+        if (!isCompact) {
+          baselineFilterBottomPx = filter.getBoundingClientRect().bottom;
+        }
+        const ft = first.getBoundingClientRect().top;
+
+        if (!isCompact && ft < baselineFilterBottomPx - 8) {
+          filter.classList.add('changelog-filter--compact');
+        } else if (isCompact && ft > baselineFilterBottomPx + 24) {
+          filter.classList.remove('changelog-filter--compact');
+        }
+      }
+
+      const fb = filter.getBoundingClientRect().bottom;
+      document.documentElement.style.setProperty(
+        '--changelog-scroll-margin-top',
+        `${Math.round(fb + 12)}px`
+      );
+
+      updateTagScrollAffordance();
+    };
+
+    const scheduleChangelogStickyUpdate = () => {
+      if (stickyRaf) return;
+      stickyRaf = requestAnimationFrame(() => {
+        stickyRaf = 0;
+        updateChangelogStickyChrome();
+      });
+    };
 
     // Update URL with current filter state
     const updateURL = () => {
@@ -364,6 +819,8 @@ const tagOptions = [
       }
 
       updateURL();
+      scheduleChangelogStickyUpdate();
+      requestAnimationFrame(updateTagScrollAffordance);
     };
 
     // Event handlers
@@ -412,8 +869,19 @@ const tagOptions = [
       });
     });
 
+    window.addEventListener('scroll', scheduleChangelogStickyUpdate, { passive: true });
+    window.addEventListener('resize', () => {
+      scheduleChangelogStickyUpdate();
+      updateTagScrollAffordance();
+    });
+
     // Initialize
     readURL();
     applyFilters();
+    scheduleChangelogStickyUpdate();
+    requestAnimationFrame(() => {
+      scheduleChangelogStickyUpdate();
+      updateTagScrollAffordance();
+    });
   });
 </script>

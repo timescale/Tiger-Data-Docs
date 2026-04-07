@@ -2911,7 +2911,8 @@ main
 .changelog-page-toc > h2,
 .changelog-page-toc > :where(.sl-heading-wrapper) {
   height: 0;
-  margin: 0;
+  margin: 0 !important;
+  margin-block: 0 !important;
   padding: 0;
   overflow: hidden;
   visibility: hidden;
@@ -2964,18 +2965,60 @@ main
   z-index: 50 !important;
 }
 
+/*
+ * Changelog filter: pin compact chrome + all tag pills to var(--changelog-tag-row-height) from
+ * ChangelogFilter.astro so markdown/prose cannot change pill shape between expanded and compact.
+ */
+.page:has(#changelog-filter)
+  #changelog-filter.changelog-filter--compact
+  .changelog-filter__tags-track,
+.page:has(#changelog-filter)
+  #changelog-filter.changelog-filter--compact
+  .changelog-filter__tags-scroll-clip,
+.page:has(#changelog-filter)
+  #changelog-filter.changelog-filter--compact
+  .changelog-filter__tags-scroll,
+.page:has(#changelog-filter)
+  #changelog-filter.changelog-filter--compact
+  .changelog-filter__tags-nav,
+.page:has(#changelog-filter)
+  #changelog-filter.changelog-filter--compact
+  .changelog-filter__tags-label {
+  height: var(--changelog-tag-row-height);
+  min-height: var(--changelog-tag-row-height);
+  max-height: var(--changelog-tag-row-height);
+}
+
+.page:has(#changelog-filter) #changelog-filter .changelog-filter__tag-btn {
+  box-sizing: border-box;
+  height: var(--changelog-tag-row-height);
+  min-height: var(--changelog-tag-row-height);
+}
+
+/* Tight gap below the filter; padding avoids margin collapse with the filter block. */
 .page:has(#changelog-filter) .changelog-page-toc {
   position: relative;
   z-index: 0;
+  padding-top: 0.25rem;
+}
+
+/* Remove prose/Starlight top spacing before the first card (TOC duplicate heading is hidden). */
+.page:has(#changelog-filter) .changelog-page-toc > :where(.sl-heading-wrapper) + .changelog-entry,
+.page:has(#changelog-filter) .changelog-page-toc > h2 + .changelog-entry,
+.page:has(#changelog-filter) .changelog-page-toc > .changelog-entry:first-child {
+  margin-top: 0;
 }
 
 .page:has(#changelog-filter) .changelog-entry {
   z-index: 0;
 }
 
+/* JS sets --changelog-scroll-margin-top to the filter stack bottom + gap so TOC/hash
+   targets (h2) land below the sticky filter; fallback matches a tall expanded bar. */
 .page:has(main .changelog-page-toc) .changelog-entry {
-  scroll-margin-top: calc(
-    var(--stl-nav-height, 3.5rem) + env(safe-area-inset-top, 0px) + 15rem
+  scroll-margin-top: var(
+    --changelog-scroll-margin-top,
+    calc(var(--stl-nav-height, 3.5rem) + env(safe-area-inset-top, 0px) + 11rem)
   );
 }
 
