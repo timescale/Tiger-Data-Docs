@@ -1,28 +1,97 @@
 ---
-title: Sizing hypertable chunks
-description: Fit active chunks in memory, balance chunk count vs compression, and align chunk_time_interval with shared_buffers on Tiger Cloud
+title: Size hypertable chunks
+description: Choose a chunk interval that balances memory usage, query planning, and columnstore effectiveness
 ---
 
-Chunks should be **small enough** that active data can be cached for fast access, but **large enough** that you do not create so many chunks that planning and compression suffer.
+import * as C from "@constants";
 
-## Active vs inactive chunks
+{C.CHUNK_CAP} size affects insert and query performance. You want {C.CHUNK}s small enough to
+fit into memory so you can insert and query recent data without reading from disk. However,
+too many small {C.CHUNK}s can slow query planning and reduce {C.COLUMNSTORE} effectiveness.
 
-- **Active** chunks receive new writes (and their indexes) and should fit comfortably in cache.
-- **Inactive** chunks are older and mostly read-only; they can rely more on disk.
+## How the {C.CHUNK} interval works
 
-## shared_buffers on Tiger Cloud
+The {C.CHUNK} interval is the time range each {C.CHUNK} covers. It determines how many
+{C.CHUNK}s you get for a given time range:
 
-On Tiger Cloud, `shared_buffers` is commonly **25%** of service RAM. Size `chunk_time_interval` so the working set of **active** chunks (including indexes) stays within what you can reasonably expect to cache, for example, on a 64&nbsp;GB service, think in terms of on the order of 16&nbsp;GB for shared buffers, and keep active chunk footprint aligned with your workload.
+- **Default**: 7 days for timestamp columns. For integer columns, defaults vary by type
+  (`smallint`: 10,000, `integer`: 100,000, `bigint`: 1,000,000).
+- **New {C.CHUNK}s only**: Changing the interval with
+  [`set_chunk_time_interval()`](/reference/timescaledb/hypertables/set_chunk_time_interval)
+  affects only {C.CHUNK}s created after the change. Existing {C.CHUNK}s keep their original
+  boundaries.
+- **Minimum**: For timestamp types, intervals shorter than 1 second trigger a warning.
+
+## Sizing guideline
+
+Set `chunk_interval` so that the indexes of {C.CHUNK}s currently being ingested into fit
+within 25% of main memory (`shared_buffers`).
+
+{C.PG} builds indexes on the fly during ingestion. When an index doesn't fit in memory, it is
+constantly flushed to disk and read back, wasting I/O that would otherwise be used for writes.
+
+**Example**: On a system with 64 GB of memory, `shared_buffers` is typically ~16 GB.
+
+- If index growth is approximately 2 GB per day, a 7-day interval is appropriate
+  (2 GB x 7 = 14 GB, fits in 16 GB).
+- If index growth is around 10 GB per day, use a 1-day interval
+  (10 GB, fits in 16 GB).
+
+## Active vs inactive {C.CHUNK}s
+
+- **Active** {C.CHUNK}s receive new writes and their indexes should fit comfortably in cache.
+- **Inactive** {C.CHUNK}s are older and mostly read-only — they can rely more on disk,
+  especially after conversion to {C.COLUMNSTORE}.
+
+## Too many {C.CHUNK}s
+
+Having too many {C.CHUNK}s in the system has costs:
+
+- **Query planning**: The planner must evaluate each {C.CHUNK} to decide whether to include
+  or skip it. More {C.CHUNK}s means more planning time.
+- **{C.COLUMNSTORE_CAP}**: Very small {C.CHUNK}s compress less effectively because there is
+  less data to find patterns in.
+- **System limits**: Limit the number of {C.HYPERTABLE}s in your {C.SERVICE_SHORT} — tens of
+  thousands of {C.HYPERTABLE}s is not recommended.
+
+## Setting the {C.CHUNK} interval
+
+Set the interval at creation time:
+
+```sql
+CREATE TABLE sensor_data (
+  time        TIMESTAMPTZ NOT NULL,
+  device_id   INT,
+  value       DOUBLE PRECISION
+) WITH (
+  timescaledb.hypertable,
+  timescaledb.chunk_interval = '1 day'
+);
+```
+
+Or change it for an existing {C.HYPERTABLE}:
+
+```sql
+SELECT set_chunk_time_interval('sensor_data', INTERVAL '1 day');
+```
+
+You can also set a global default for all new {C.HYPERTABLE}s:
+
+```sql
+SET timescaledb.default_chunk_time_interval = '1 day';
+```
 
 ## Learn more
 
-- [Partition a hypertable](/learn/hypertables/partitioning-hypertables) — time and integer
+- [Partition a {C.HYPERTABLE}](/learn/hypertables/partitioning-hypertables): Time and integer
   partitioning options.
-- [Create and configure a hypertable](/learn/hypertables/creating-and-configuring-hypertables) —
-  set `chunk_interval` at creation time.
-- [Improve hypertable performance](/build/performance-optimization/improve-hypertable-performance) —
-  optimize chunk intervals and enable chunk skipping.
-- [`set_chunk_time_interval()` reference](/reference/timescaledb/hypertables/set_chunk_time_interval) —
-  change the chunk interval on an existing hypertable.
-- [`show_chunks()` reference](/reference/timescaledb/hypertables/show_chunks) — inspect existing
-  chunks and their ranges.
+- [Create and configure a {C.HYPERTABLE}](/learn/hypertables/creating-and-configuring-hypertables):
+  `CREATE TABLE` options including `chunk_interval`.
+- [Improve {C.HYPERTABLE} and query performance](/build/performance-optimization/improve-hypertable-performance):
+  Optimize {C.CHUNK} intervals and enable {C.CHUNK_SKIPPING}.
+- [Chunk time intervals blog post](https://www.tigerdata.com/blog/timescale-cloud-tips-testing-your-chunk-size):
+  Detailed analysis of choosing intervals.
+- [`set_chunk_time_interval()` reference](/reference/timescaledb/hypertables/set_chunk_time_interval):
+  Change the {C.CHUNK} interval on an existing {C.HYPERTABLE}.
+- [`show_chunks()` reference](/reference/timescaledb/hypertables/show_chunks): Inspect existing
+  {C.CHUNK}s and their ranges.

@@ -426,9 +426,9 @@ export default defineConfig({
                 label: "Chunks and time buckets",
                 collapsed: true,
                 items: [
-                  { label: "Understanding chunks", link: "/learn/chunks/understanding-chunks" },
-                  { label: "Sizing hypertable chunks", link: "/learn/hypertables/sizing-hypertable-chunks" },
-                  { label: "About time buckets", link: "/learn/data-management/time-buckets/about-time-buckets" },
+                  { label: "Understand chunks", link: "/learn/chunks/understanding-chunks" },
+                  { label: "Size hypertable chunks", link: "/learn/hypertables/sizing-hypertable-chunks" },
+                  { label: "Understand time buckets", link: "/learn/data-management/time-buckets/about-time-buckets" },
                   { label: "Use time buckets", link: "/learn/data-management/time-buckets/use-time-buckets" },
                   { label: "Manually drop chunks", link: "/learn/data-management/data-retention/manually-drop-chunks" },
                 ],
@@ -445,7 +445,7 @@ export default defineConfig({
                 label: "Continuous aggregates (CAGGs)",
                 collapsed: true,
                 items: [
-                  { label: "Continuous aggregates overview", link: "/learn/continuous-aggregates" },
+                  { label: "Understand continuous aggregates", link: "/learn/continuous-aggregates" },
                   { label: "Time and continuous aggregates", link: "/learn/continuous-aggregates/time-and-continuous-aggregates" },
                   { label: "Hierarchical continuous aggregates", link: "/learn/continuous-aggregates/hierarchical-continuous-aggregates" },
                   { label: "Real-time aggregates", link: "/learn/continuous-aggregates/real-time-aggregates" },
@@ -456,11 +456,9 @@ export default defineConfig({
                 label: "Data lifecycle",
                 collapsed: true,
                 items: [
-                  { label: "Data retention overview", link: "/learn/data-management/data-retention" },
-                  { label: "About data retention", link: "/learn/data-management/data-retention/about-data-retention" },
+                  { label: "Understand data retention", link: "/learn/data-management/data-retention/about-data-retention" },
                   { label: "Data retention with continuous aggregates", link: "/learn/data-management/data-retention/data-retention-with-continuous-aggregates" },
-                  { label: "Tiered storage overview", link: "/learn/data-management/storage" },
-                  { label: "About storage tiers", link: "/learn/data-management/storage/about-storage-tiers" },
+                  { label: "Understand tiered storage", link: "/learn/data-management/storage/about-storage-tiers" },
                 ],
               },
               {
@@ -1860,7 +1858,8 @@ export default defineConfig({
         "/learn/data-management/time-buckets/use-time-buckets",
       "/build/data-management/time-buckets/use-time-buckets/":
         "/learn/data-management/time-buckets/use-time-buckets/",
-      "/build/data-management/data-retention": "/learn/data-management/data-retention",
+      "/build/data-management/data-retention": "/learn/data-management/data-retention/about-data-retention",
+      "/learn/data-management/data-retention": "/learn/data-management/data-retention/about-data-retention",
       "/build/data-management/data-retention/": "/learn/data-management/data-retention/",
       "/build/data-management/data-retention/about-data-retention":
         "/learn/data-management/data-retention/about-data-retention",
@@ -1874,7 +1873,8 @@ export default defineConfig({
         "/learn/data-management/data-retention/data-retention-with-continuous-aggregates",
       "/build/data-management/data-retention/data-retention-with-continuous-aggregates/":
         "/learn/data-management/data-retention/data-retention-with-continuous-aggregates/",
-      "/build/data-management/storage": "/learn/data-management/storage",
+      "/build/data-management/storage": "/learn/data-management/storage/about-storage-tiers",
+      "/learn/data-management/storage": "/learn/data-management/storage/about-storage-tiers",
       "/build/data-management/storage/": "/learn/data-management/storage/",
       "/build/data-management/storage/about-storage-tiers":
         "/learn/data-management/storage/about-storage-tiers",
@@ -1889,9 +1889,13 @@ export default defineConfig({
       "/build/continuous-aggregates": "/learn/continuous-aggregates",
       "/build/continuous-aggregates/": "/learn/continuous-aggregates/",
       "/build/continuous-aggregates/about-continuous-aggregates":
-        "/learn/continuous-aggregates/about-continuous-aggregates",
+        "/learn/continuous-aggregates",
       "/build/continuous-aggregates/about-continuous-aggregates/":
-        "/learn/continuous-aggregates/about-continuous-aggregates/",
+        "/learn/continuous-aggregates/",
+      "/learn/continuous-aggregates/about-continuous-aggregates":
+        "/learn/continuous-aggregates",
+      "/learn/continuous-aggregates/about-continuous-aggregates/":
+        "/learn/continuous-aggregates/",
       "/build/continuous-aggregates/time-and-continuous-aggregates":
         "/learn/continuous-aggregates/time-and-continuous-aggregates",
       "/build/continuous-aggregates/time-and-continuous-aggregates/":
