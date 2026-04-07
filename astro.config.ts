@@ -462,6 +462,15 @@ export default defineConfig({
                 ],
               },
               {
+                label: "Search",
+                collapsed: true,
+                items: [
+                  { label: "Key vector concepts for pgvector", link: "/learn/search/key-vector-database-concepts-for-understanding-pgvector" },
+                  { label: "Understand pg_textsearch and BM25 search", link: "/learn/search/using-pg-textsearch" },
+                  { label: "Understand pgvector and pgvectorscale", link: "/learn/search/pgvector-pgvectorsearch" },
+                ],
+              },
+              {
                 label: "Glossary",
                 collapsed: true,
                 items: [{ label: "Browse terms", link: "/learn/glossary" }],
@@ -986,9 +995,12 @@ export default defineConfig({
                 ],
               },
               {
-                label: "Tiger Cloud troubleshooting",
+                label: "Tiger Cloud operations",
                 collapsed: true,
-                items: [{ label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" }],
+                items: [
+                  { label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" },
+                  { label: "Vectorizer and LLM calls migration guide", link: "/deploy/tiger-cloud/vectorizer-deprecation" },
+                ],
               },
               {
                 label: "Self-Hosted",
@@ -1803,6 +1815,9 @@ export default defineConfig({
       "/learn/examples/aggregate-organizational-data-with-ai-2": "/build/examples/aggregate-organizational-data-with-ai-2",
       "/learn/production-patterns": "/build/production-patterns",
       "/learn/production-patterns/": "/build/production-patterns/",
+      // Tiger Cloud operational guide (moved out of Learn → Search)
+      "/learn/search/vectorizer-deprecation": "/deploy/tiger-cloud/vectorizer-deprecation",
+      "/learn/search/vectorizer-deprecation/": "/deploy/tiger-cloud/vectorizer-deprecation/",
       "/learn/fundamentals/your-first-hypertable": "/build/how-to/your-first-hypertable",
       "/learn/fundamentals/basic-compression": "/build/how-to/basic-compression",
       // Learn IA: /learn/hypertables/*, /learn/chunks/*, /learn/capabilities-and-comparison/*. Keep legacy URLs working.
