@@ -62,36 +62,27 @@ const tagOptions = [
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
         </span>
       </button>
-      <div class="changelog-filter__tags-scroll-clip">
-        <!--
-          Scroll id stays on the overflow-x element. Inner row is flex so the scrollport can be
-          display:block — flex+overflow-x:auto reserves a horizontal scrollbar band and blows the
-          track height (~44px vs 28px), misaligning pills vs arrow buttons.
-        -->
-        <div
-          class="changelog-filter__tags-scroll"
-          id="changelog-filter-tags-scroll"
-          role="group"
-          aria-labelledby="changelog-filter-tags-label"
-        >
-          <div class="changelog-filter__tags-scroll-inner">
-            <button 
-              class="changelog-filter__tag-btn changelog-filter__tag-btn--all active"
-              data-tag="all"
-              aria-pressed="true"
-            >All</button>
-            {tagOptions.map((tag) => (
-              <button 
-                class={`changelog-filter__tag-btn changelog-filter__tag-btn--${tag.value}`}
-                data-tag={tag.value}
-                aria-pressed="false"
-              >
-                <span class="changelog-filter__tag-icon" aria-hidden="true">{tag.icon}</span>
-                {tag.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      <!-- Direct child of tags-track: prev | #changelog-filter-tags-scroll | next (no clip wrapper). -->
+      <div
+        class="changelog-filter__tags-scroll"
+        id="changelog-filter-tags-scroll"
+        role="group"
+        aria-labelledby="changelog-filter-tags-label"
+      >
+        <button
+          class="changelog-filter__tag-btn changelog-filter__tag-btn--all active"
+          data-tag="all"
+          aria-pressed="true"
+        >All</button>{tagOptions.map((tag) => (
+          <button
+            class={`changelog-filter__tag-btn changelog-filter__tag-btn--${tag.value}`}
+            data-tag={tag.value}
+            aria-pressed="false"
+          >
+            <span class="changelog-filter__tag-icon" aria-hidden="true">{tag.icon}</span>
+            {tag.label}
+          </button>
+        ))}
       </div>
       <button
         type="button"
@@ -157,7 +148,8 @@ const tagOptions = [
   /* Narrow bar once the first entry scrolls into the sticky overlap zone (see script).
      Same width as expanded (no horizontal bleed) so the card does not jump when condensing. */
   .changelog-filter.changelog-filter--compact {
-    padding: 0.25rem 1rem 0.5rem;
+    /* Tight top: search is hidden; extra top padding looked like empty space above the row */
+    padding: 0 1rem 0.5rem;
     box-sizing: border-box;
     gap: 0.375rem;
   }
@@ -281,6 +273,11 @@ const tagOptions = [
     display: none;
   }
 
+  .changelog-filter--compact .changelog-filter__tags-nav {
+    position: relative;
+    z-index: 2;
+  }
+
   .changelog-filter__tags-nav {
     box-sizing: border-box;
     flex: 0 0 auto;
@@ -303,30 +300,16 @@ const tagOptions = [
       opacity 0.15s ease;
   }
 
+  /* Same fixed row height as the track so grid align-items:center does not vertically offset the label vs pills */
   .changelog-filter--compact .changelog-filter__tags-label {
     display: inline-flex;
     align-items: center;
     align-self: center;
-    min-height: var(--changelog-tag-row-height);
-    height: auto;
-    line-height: 1.25;
-  }
-
-  .changelog-filter--compact .changelog-filter__tags-scroll-clip {
-    position: relative;
-    flex: 1 1 auto;
-    min-width: 0;
     height: var(--changelog-tag-row-height);
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-  }
-
-  .changelog-filter--compact .changelog-filter__tags-scroll-clip::before,
-  .changelog-filter--compact .changelog-filter__tags-scroll-clip::after {
-    top: 0;
-    bottom: 0;
-    width: 0.75rem;
+    min-height: var(--changelog-tag-row-height);
+    max-height: var(--changelog-tag-row-height);
+    line-height: var(--changelog-tag-row-height);
+    font-size: 0.875rem;
   }
 
   .changelog-filter__tags-nav:hover:not(:disabled) {
@@ -351,19 +334,24 @@ const tagOptions = [
     line-height: 0;
   }
 
-  .changelog-filter__tags-scroll-clip {
+  /*
+   * Scroll region: flexes between nav arrows; edge fades live on this element (no clip wrapper).
+   * Collapse JSX whitespace between tag buttons; real font sizes live on .changelog-filter__tag-btn.
+   */
+  .changelog-filter__tags-scroll {
     position: relative;
     flex: 1 1 auto;
     min-width: 0;
+    font-size: 0;
+    line-height: 0;
   }
 
-  /* Edge fades when there is more content to scroll (uses same bg as the filter card). */
-  .changelog-filter__tags-scroll-clip::before,
-  .changelog-filter__tags-scroll-clip::after {
+  /* Edge fades when there is more content to scroll (same bg as the filter card). */
+  .changelog-filter__tags-scroll::before,
+  .changelog-filter__tags-scroll::after {
     content: "";
     position: absolute;
     top: 0;
-    bottom: 0.25rem;
     width: 1.25rem;
     pointer-events: none;
     z-index: 1;
@@ -371,34 +359,41 @@ const tagOptions = [
     transition: opacity 0.15s ease;
   }
 
-  .changelog-filter__tags-scroll-clip::before {
+  .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll::before,
+  .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll::after {
+    bottom: 0.25rem;
+  }
+
+  .changelog-filter--compact .changelog-filter__tags-scroll::before,
+  .changelog-filter--compact .changelog-filter__tags-scroll::after {
+    bottom: 0;
+    width: 1rem;
+  }
+
+  .changelog-filter__tags-scroll::before {
     left: 0;
     background: linear-gradient(to right, var(--filter-bg), transparent);
   }
 
-  .changelog-filter__tags-scroll-clip::after {
+  .changelog-filter__tags-scroll::after {
     right: 0;
     background: linear-gradient(to left, var(--filter-bg), transparent);
   }
 
-  .changelog-filter.changelog-filter--compact .changelog-filter__tags-track.is-overflowing:not(.is-at-start) .changelog-filter__tags-scroll-clip::before {
+  .changelog-filter.changelog-filter--compact .changelog-filter__tags-track.is-overflowing:not(.is-at-start) .changelog-filter__tags-scroll::before {
     opacity: 1;
   }
 
-  .changelog-filter.changelog-filter--compact .changelog-filter__tags-track.is-overflowing:not(.is-at-end) .changelog-filter__tags-scroll-clip::after {
+  .changelog-filter.changelog-filter--compact .changelog-filter__tags-track.is-overflowing:not(.is-at-end) .changelog-filter__tags-scroll::after {
     opacity: 1;
   }
 
-  .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll-clip::before,
-  .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll-clip::after {
+  .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll::before,
+  .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll::after {
     opacity: 0 !important;
   }
 
-  .changelog-filter__tags-scroll {
-    min-width: 0;
-  }
-
-  /* Expanded: wrapped pill rows; inner uses display:contents so buttons lay out as before. */
+  /* Expanded: pills are direct children — flex-wrap rows. */
   .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll {
     display: flex;
     flex-wrap: wrap;
@@ -408,51 +403,43 @@ const tagOptions = [
     padding-bottom: 0.25rem;
   }
 
-  .changelog-filter:not(.changelog-filter--compact) .changelog-filter__tags-scroll-inner {
-    display: contents;
-  }
-
   /*
-   * Compact scrollport: block + overflow-x only (not display:flex on the same node). Otherwise
-   * browsers reserve space for a horizontal scrollbar and the track grows taller than the arrows.
+   * Compact: same scroll element — block + horizontal scroll; pills are inline-flex on one line
+   * (not a nested flex row, so no extra wrapper and no stray flex line-height).
    */
   .changelog-filter--compact .changelog-filter__tags-scroll {
+    box-sizing: border-box;
     display: block;
     width: 100%;
     min-width: 0;
+    min-height: 0;
     height: var(--changelog-tag-row-height);
     max-height: var(--changelog-tag-row-height);
     margin: 0;
-    padding: 0 0.25rem 0 0;
+    padding: 0 0 0 0;
+    /* End padding keeps the last pill out from under the gradient + next button */
+    padding-inline-end: 0.75rem;
     border: 0;
     background: transparent;
-    line-height: 0;
-    font-size: 0;
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    scroll-padding-inline-end: 0.25rem;
+    scroll-padding-inline: 0;
+    scroll-padding-inline-end: 0.75rem;
     white-space: nowrap;
   }
 
-  .changelog-filter--compact .changelog-filter__tags-scroll-inner {
+  .changelog-filter--compact .changelog-filter__tags-scroll > .changelog-filter__tag-btn {
     display: inline-flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 0.375rem;
-    height: var(--changelog-tag-row-height);
-    max-height: var(--changelog-tag-row-height);
     vertical-align: top;
-    line-height: 1;
-    font-size: 0.75rem;
+    margin-inline-end: 0.375rem;
   }
 
-  .changelog-filter--compact .changelog-filter__tags-scroll .changelog-filter__tag-btn {
-    flex-shrink: 0;
+  .changelog-filter--compact .changelog-filter__tags-scroll > .changelog-filter__tag-btn:last-child {
+    margin-inline-end: 0;
   }
 
   .changelog-filter--compact .changelog-filter__tags-scroll::-webkit-scrollbar {
