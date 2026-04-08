@@ -53,7 +53,7 @@
 
   /* Link color – match brand accent (purple) so inline links don’t switch to blue; same as CTA/accents */
   --stl-color-link: var(--tiger-vivid-purple);
-  --stl-color-link-hover: #6446fb;
+  --stl-color-link-hover: #000;
 
   /* Background & Foreground */
   --stl-color-background: var(--tiger-white);
@@ -196,14 +196,14 @@
 :root[data-theme="dark"] {
   --stl-color-accent: var(--tiger-electric-yellow);
   --stl-color-link: var(--tiger-electric-yellow);
-  --stl-color-link-hover: #cce066;
+  --stl-color-link-hover: #fff;
   --stl-color-background: var(--tiger-black);
   /* Primary text: use near-white for strong contrast and readability on dark background */
   --stl-color-foreground: #f0f0f0;
   --tiger-fg-emphasized: var(--tiger-grey-200);
   --tiger-fg-muted: var(--tiger-grey-400);
   --tiger-bg-default: var(--tiger-grey-100);
-  --tiger-link-cta: #849bff;
+  --tiger-link-cta: #fff;
   --stl-button-primary-bg: var(--tiger-grey-100);
   --stl-button-primary-fg: var(--tiger-black);
   --button-secondary-border: var(--tiger-grey-300);
@@ -615,7 +615,7 @@ a {
 
 a:hover {
   color: var(--stl-color-link-hover);
-  text-decoration: underline;
+  /* text-decoration: underline; */
   text-decoration-style: solid;
 }
 
@@ -1801,6 +1801,8 @@ starlight-toc {
   text-align: left;
 }
 
+
+
 .right-sidebar-container starlight-toc nav,
 .right-sidebar-panel starlight-toc nav,
 starlight-toc nav {
@@ -1809,6 +1811,7 @@ starlight-toc nav {
   flex-direction: column;
   align-items: flex-start;
   padding-block: 0.25rem 0.5rem;
+  width: 260px;
 }
 
 .right-sidebar-container starlight-toc h2,
@@ -2118,10 +2121,9 @@ header.header {
     calc((100% - var(--tiger-content-width)) / 2)
   ) !important;
 }
-/* Inner header row (logo, nav tabs, search, CTA): max 1312px, full width of header content box so it expands on full screen */
+/* Inner header row (logo, nav tabs, search, CTA): full width */
 header .header {
-  max-width: var(--tiger-content-width);
-  margin-inline: auto;
+  max-width: none;
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -2345,6 +2347,15 @@ header .header {
     padding-inline: var(--tiger-space-lg) !important;
   }
 }
+/* ============================================
+   Light theme exclusive
+   ============================================ */
+:root[data-theme="light"]
+  .splash-section__cards
+  .stl-ui-mintlify-compat-card:hover {
+  background: var(--tiger-grey-100);
+}
+
 
 /* ============================================
    CardGroup Layout
@@ -2354,6 +2365,11 @@ header .header {
   flex-wrap: wrap;
   justify-content: flex-start;
   gap: var(--tiger-space-lg);
+}
+
+/* Card padding */
+.stl-ui-mintlify-compat-card {
+  padding: var(--tiger-space-md);
 }
 
 /* Consistent card sizing */
@@ -2709,7 +2725,6 @@ header .header {
   column-gap: 16px !important;
   row-gap: 8px !important;
   align-items: start;
-  padding: 0;
   background: var(--tiger-white, #fff);
   border-radius: 16px;
   border: none;
@@ -2896,7 +2911,8 @@ main
 .changelog-page-toc > h2,
 .changelog-page-toc > :where(.sl-heading-wrapper) {
   height: 0;
-  margin: 0;
+  margin: 0 !important;
+  margin-block: 0 !important;
   padding: 0;
   overflow: hidden;
   visibility: hidden;
@@ -2949,18 +2965,30 @@ main
   z-index: 50 !important;
 }
 
+/* Tight gap below the filter; padding avoids margin collapse with the filter block. */
 .page:has(#changelog-filter) .changelog-page-toc {
   position: relative;
   z-index: 0;
+  padding-top: 0.25rem;
+}
+
+/* Remove prose/Starlight top spacing before the first card (TOC duplicate heading is hidden). */
+.page:has(#changelog-filter) .changelog-page-toc > :where(.sl-heading-wrapper) + .changelog-entry,
+.page:has(#changelog-filter) .changelog-page-toc > h2 + .changelog-entry,
+.page:has(#changelog-filter) .changelog-page-toc > .changelog-entry:first-child {
+  margin-top: 0;
 }
 
 .page:has(#changelog-filter) .changelog-entry {
   z-index: 0;
 }
 
+/* JS sets --changelog-scroll-margin-top to the filter stack bottom + gap so TOC/hash
+   targets (h2) land below the sticky filter; fallback matches a tall expanded bar. */
 .page:has(main .changelog-page-toc) .changelog-entry {
-  scroll-margin-top: calc(
-    var(--stl-nav-height, 3.5rem) + env(safe-area-inset-top, 0px) + 15rem
+  scroll-margin-top: var(
+    --changelog-scroll-margin-top,
+    calc(var(--stl-nav-height, 3.5rem) + env(safe-area-inset-top, 0px) + 11rem)
   );
 }
 

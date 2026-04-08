@@ -1,61 +1,117 @@
 ---
-title: "Wide, narrow, and medium tables"
-description: "Choose a Postgres table layout for time-series metrics, narrow, wide, or medium, and understand trade-offs for schema evolution and queries."
+title: Wide, narrow, and medium tables
+description: Choose a narrow, wide, or medium table layout for your time-series data in PostgreSQL
 ---
 
 import * as C from "@constants";
 
-When you design a {C.PG} schema for time-series data, choosing between **wide** and **narrow** table layouts matters. Each pattern has different advantages for metrics, data types, and query shape. A **medium** layout sits between the two.
+When you design a {C.PG} schema for time-series data, choosing between **narrow**, **wide**, and **medium** table layouts affects how you query, how easily you add new metrics, and how well your data compresses into {C.COLUMNSTORE}. This page explains each layout with examples and helps you pick the right one.
 
 ## Narrow table layout
 
-A narrow table typically has few data value columns but may include multiple metadata or categorizing columns. This design works well when you have a small set of known metrics and data types. You can give each metric its own table and data type. Adding a new metric is usually as simple as creating a new table.
+A narrow table has few value columns but may include multiple metadata columns. Each metric gets its own table and data type.
 
-### Advantages
+```sql
+-- One table per metric
+CREATE TABLE cpu_usage (
+  time        TIMESTAMPTZ NOT NULL,
+  host_id     INT,
+  usage       DOUBLE PRECISION
+);
 
-- Simplifies adding new metrics by creating new tables.
-- Allows precise data type management for each metric.
+CREATE TABLE memory_usage (
+  time        TIMESTAMPTZ NOT NULL,
+  host_id     INT,
+  bytes_used  BIGINT
+);
+```
 
-### Disadvantages
+**Advantages:**
+- Adding a new metric means creating a new table — no schema changes to existing tables.
+- Each metric has its own precise data type.
+- Columns are uniform, so compression ratios are typically high.
 
-- Many tables can become hard to operate.
-- Querying several metrics at once may require complex joins or unions and more I/O.
+**Disadvantages:**
+- Many tables become hard to manage operationally.
+- Querying several metrics at once requires joins or unions and more I/O.
 
 ## Wide table layout
 
-A wide table has many columns, often one column per metric. Use it when metrics are known up front and change rarely. Related values live in one row, so you avoid joins across metric tables for common queries.
+A wide table has many columns, often one per metric. Related values live in a single row, so common queries avoid joins.
 
-### Advantages
+```sql
+CREATE TABLE host_metrics (
+  time          TIMESTAMPTZ NOT NULL,
+  host_id       INT,
+  cpu_usage     DOUBLE PRECISION,
+  mem_bytes     BIGINT,
+  disk_io_read  BIGINT,
+  disk_io_write BIGINT,
+  net_rx_bytes  BIGINT,
+  net_tx_bytes  BIGINT
+);
+```
 
-- Simpler query construction when all metrics live in one table.
-- Efficient access to column subsets, especially with columnar compression.
+**Advantages:**
+- Simpler queries — all metrics for a host are in one row.
+- Efficient column access, especially with columnar compression.
 
-### Disadvantages
-
-- New metrics require schema changes (`ALTER TABLE`), which can be costly.
+**Disadvantages:**
+- New metrics require `ALTER TABLE ADD COLUMN`, which can be costly on large tables.
 - Dropped columns do not immediately reclaim disk space.
 
 ## Medium table layout
 
-A medium layout balances narrow and wide: one column per necessary **data type**, not necessarily one column per metric. It helps when you know the types you need but not every metric you will add.
+A medium layout uses one column per **data type** rather than one column per metric. A separate metadata column identifies which metric each row represents.
 
-### Advantages
+```sql
+CREATE TABLE metrics (
+  time          TIMESTAMPTZ NOT NULL,
+  host_id       INT,
+  metric_name   TEXT,
+  value_double  DOUBLE PRECISION,
+  value_bigint  BIGINT
+);
+```
 
-- Easier to extend with new metrics without changing the table shape as often as a pure wide design.
-- Can simplify multi-tenancy (for example, one hypertable per customer).
+**Advantages:**
+- New metrics don't require schema changes — just insert rows with a new `metric_name`.
+- Works well for multi-tenancy where each tenant may have different metrics.
 
-### Disadvantages
+**Disadvantages:**
+- You need a mapping from logical metric names to typed columns.
+- Querying metrics of different types requires filtering and casting.
 
-- You need a mapping from logical metrics to the right typed columns.
-- Querying several metrics with different types can require more complex SQL.
+## Comparison
 
-## Tiger Cloud and compression
+| | Narrow | Wide | Medium |
+|---|---|---|---|
+| **Best for** | Few, well-defined metrics with distinct types | Many related metrics queried together | Dynamic or unknown metrics with mixed types |
+| **Adding metrics** | Create a new table | `ALTER TABLE` | Insert rows with a new name |
+| **Query complexity** | Joins/unions across tables | Simple single-table queries | Filtering on `metric_name` |
+| **Schema changes** | Rare per table | Frequent as metrics grow | Rare |
+| **Compression** | Excellent (uniform columns) | Good (NULL-heavy columns compress well) | Good (uniform typed columns) |
 
-Tiger Cloud supports all of these layouts with compression. Narrow tables often compress very well because columns are uniform. Medium and wide tables still benefit from compression, and NULL-heavy columns typically compress efficiently. Pick wide, narrow, or medium based on metric count, types, how often the schema changes, and how you query.
+## Which layout should you choose?
 
-For a longer discussion, see [Designing your database schema: wide vs narrow {C.PG} tables](https://www.timescale.com/learn/designing-your-database-schema-wide-vs-narrow-postgres-tables).
+- **You know all metrics up front and they rarely change** → wide. You get simple queries
+  and good compression.
+- **You have a small, fixed set of distinct metric types** → narrow. Each table stays focused
+  and compresses well.
+- **Metrics are dynamic, user-defined, or vary by tenant** → medium. You avoid constant
+  schema changes.
 
-## Related
+In practice, many systems combine layouts. For example, use a wide table for core
+host metrics and a medium table for custom application-level metrics.
 
-- [Design your data model](/learn/hypertables/design-your-data-model): hub for Tiger Cloud hypertable, compression, and lifecycle topics
-- [Understand hypertables](/learn/hypertables/understand-hypertables)
+## Learn more
+
+- [Primary keys, time columns, and uniqueness](/learn/data-model/primary-keys-time-and-uniqueness):
+  Partition column and constraint rules for {C.HYPERTABLE}s.
+- [Schema optimization](/learn/data-model/understand-database-schemas): Indexes, constraints,
+  and other schema tools.
+- [Create and configure a {C.HYPERTABLE}](/learn/hypertables/creating-and-configuring-hypertables):
+  `CREATE TABLE` options including `segmentby` and `orderby`.
+- [Accelerate queries using indexes](/build/performance-optimization/indexing): How-to guide
+  for creating and tuning indexes.
+- [CREATE TABLE reference](/reference/timescaledb/hypertables/create_table): Full API reference.
