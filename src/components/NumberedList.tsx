@@ -1,3 +1,4 @@
+import React from "react";
 import type { ReactNode } from "react";
 
 /**
@@ -12,18 +13,34 @@ import type { ReactNode } from "react";
  *     <NumberedItem title="Step one">Description or body text.</NumberedItem>
  *     <NumberedItem title="Step two">More details here.</NumberedItem>
  *   </NumberedList>
+ *
+ * Backticks in title strings are rendered as <code> elements:
+ *   <NumberedItem title="Use `psql` to connect">...</NumberedItem>
  */
 
+/** Parse backtick-wrapped segments in a string into <code> elements. */
+function renderInlineCode(text: string): ReactNode {
+  const parts = text.split(/(`[^`]+`)/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    part.startsWith("`") && part.endsWith("`")
+      ? React.createElement("code", { key: i }, part.slice(1, -1))
+      : part,
+  );
+}
+
 export interface NumberedItemProps {
-  title: string;
+  title: ReactNode;
   children?: ReactNode;
 }
 
 export function NumberedItem({ title, children }: NumberedItemProps) {
+  const renderedTitle =
+    typeof title === "string" ? renderInlineCode(title) : title;
   return (
     <li className="numbered-list__item">
       <div className="numbered-list__item-content">
-        <strong className="numbered-list__item-title">{title}</strong>
+        <strong className="numbered-list__item-title">{renderedTitle}</strong>
         {children != null && (
           <div className="numbered-list__item-body">{children}</div>
         )}
