@@ -541,7 +541,6 @@ export default defineConfig({
                       { label: "Delete data", link: "/build/data-management/write-data/delete" },
                     ],
                   },
-                  { label: "Run queries from Tiger Console", link: "/build/data-management/run-queries-from-tiger-console" },
                   {
                     label: "Query data",
                     collapsed: true,
@@ -549,33 +548,23 @@ export default defineConfig({
                       { label: "SELECT data", link: "/build/data-management/query-data/select" },
                       { label: "SkipScan for DISTINCT queries", link: "/build/data-management/query-data/skipscan" },
                       { label: "Advanced analytic queries", link: "/build/data-management/query-data/advanced-analytic-queries" },
+                      { label: "Query external data sources with FDW", link: "/build/performance-optimization/query-external-data-sources-with-fdw" },
                     ],
                   },
+                  { label: "Run queries from Tiger Console", link: "/build/data-management/run-queries-from-tiger-console" },
                 ],
               },
-              // --- Automate with jobs and retention (split from "Manage my time-series data") ---
+              // --- Automate with jobs and policies (split from "Manage my time-series data") ---
               {
-                label: "Automate with jobs and retention",
+                label: "Automate with jobs and policies",
                 collapsed: true,
                 items: [
-                  {
-                    label: "Jobs",
-                    collapsed: true,
-                    items: [
-                      { label: "About jobs", link: "/build/data-management/jobs" },
-                      { label: "Create and manage jobs", link: "/build/data-management/jobs/create-and-manage-jobs" },
-                      { label: "Downsample and compress chunks", link: "/build/data-management/jobs/example-downsample-and-compress" },
-                      { label: "Generic retention policy", link: "/build/data-management/jobs/example-generic-retention" },
-                      { label: "Automatic tablespace management", link: "/build/data-management/jobs/example-tiered-storage" },
-                    ],
-                  },
-                  {
-                    label: "Data retention",
-                    collapsed: true,
-                    items: [
-                      { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
-                    ],
-                  },
+                  { label: "About automation", link: "/build/data-management/about-automation" },
+                  { label: "Add a data retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
+                  { label: "Create and manage custom jobs", link: "/build/data-management/create-and-manage-jobs" },
+                  { label: "Create a custom retention job", link: "/build/data-management/example-generic-retention" },
+                  { label: "Custom job to downsample and compress chunks", link: "/build/data-management/example-downsample-and-compress" },
+                  { label: "Custom job for automatic tablespace management", link: "/build/data-management/example-tiered-storage" },
                 ],
               },
               // --- Spread data across storage tiers (split from "Manage my time-series data") ---
@@ -593,7 +582,7 @@ export default defineConfig({
                 label: "Use hyperfunctions for analytics",
                 collapsed: true,
                 items: [
-                  { label: "Hyperfunctions", link: "/build/data-management/hyperfunctions" },
+                  { label: "Hyperfunctions overview", link: "/build/data-management/hyperfunctions" },
                   { label: "Counter aggregation", link: "/build/data-management/hyperfunctions/counter-aggregation" },
                   { label: "Function pipelines", link: "/build/data-management/hyperfunctions/function-pipelines" },
                   {
@@ -653,7 +642,6 @@ export default defineConfig({
                   { label: "Ensure data integrity with constraints", link: "/build/performance-optimization/ensure-data-integrity-with-constraints" },
                   { label: "Handle semi-structured data with JSON", link: "/build/performance-optimization/handle-semi-structured-data-with-json" },
                   { label: "Automate tasks with triggers", link: "/build/performance-optimization/automate-tasks-with-triggers" },
-                  { label: "Query external data sources with FDW", link: "/build/performance-optimization/query-external-data-sources-with-fdw" },
                   { label: "Improve query and upsert performance", link: "/build/performance-optimization/secondary-indexes" },
                   { label: "Improve hypertable performance", link: "/build/performance-optimization/improve-hypertable-performance" },
                   { label: "Enforce constraints with unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
@@ -1873,6 +1861,13 @@ export default defineConfig({
         "/learn/data-management/time-buckets/use-time-buckets",
       "/build/data-management/time-buckets/use-time-buckets/":
         "/learn/data-management/time-buckets/use-time-buckets/",
+      "/build/data-management/about-jobs": "/build/data-management/about-automation",
+      "/build/data-management/jobs": "/build/data-management/about-automation",
+      "/build/data-management/jobs/": "/build/data-management/about-automation",
+      "/build/data-management/jobs/create-and-manage-jobs": "/build/data-management/create-and-manage-jobs",
+      "/build/data-management/jobs/example-downsample-and-compress": "/build/data-management/example-downsample-and-compress",
+      "/build/data-management/jobs/example-generic-retention": "/build/data-management/example-generic-retention",
+      "/build/data-management/jobs/example-tiered-storage": "/build/data-management/example-tiered-storage",
       "/build/data-management/data-retention": "/learn/data-management/data-retention/about-data-retention",
       "/learn/data-management/data-retention": "/learn/data-management/data-retention/about-data-retention",
       "/build/data-management/data-retention/": "/learn/data-management/data-retention/",
