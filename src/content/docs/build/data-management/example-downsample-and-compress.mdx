@@ -1,6 +1,6 @@
 ---
-title: Use a job to downsample and compress chunks
-description: Downsample and compress your hypertable chunks by combining a continuous aggregate refresh policy with compression
+title: Create a custom job to downsample and compress chunks
+description: Downsample and convert hypertable chunks to the columnstore by combining a continuous aggregate refresh policy with hypercore
 products: [cloud, mst, self_hosted]
 keywords: [jobs, compression, downsample]
 ---
@@ -8,9 +8,9 @@ keywords: [jobs, compression, downsample]
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 
-{C.TIMESCALE_DB} lets you downsample and compress {C.CHUNK}s by combining a [{C.CAGG} refresh policy](/build/continuous-aggregates/refresh-policies) with
+{C.TIMESCALE_DB} lets you downsample and convert {C.CHUNK}s to the {C.COLUMNSTORE} by combining a [{C.CAGG} refresh policy](/build/continuous-aggregates/refresh-policies) with
 [{C.HYPERCORE}](/learn/columnar-storage/understand-hypercore). If you want to implement features not supported by those policies, you can write
-a {C.JOB} to downsample and convert {C.CHUNK}s to {C.COLUMNSTORE} instead.
+a {C.JOB} to downsample and convert {C.CHUNK}s to the {C.COLUMNSTORE} instead.
 
 The following example downsamples raw data to an average over hourly data. This is an
 illustrative example, which can be done more simply with a {C.CAGG} policy. But you can make the query
@@ -20,9 +20,9 @@ arbitrarily complex.
 <NumberedItem title={`Create a procedure to downsample ${C.CHUNK}s and convert them to ${C.COLUMNSTORE}`}>
 This procedure first queries the {C.CHUNK}s of a {C.HYPERTABLE} to
 determine if they are older than the `lag` parameter. The {C.HYPERTABLE} in this
-example is named `metrics`. If the {C.CHUNK} is not already compressed,
-downsample it by taking the average of the raw data. Then compress by converting to
-the {C.COLUMNSTORE}. This procedure uses a temporary table to store the data while calculating the average.
+example is named `metrics`. If the {C.CHUNK} is not already in the {C.COLUMNSTORE},
+downsample it by taking the average of the raw data, then convert it to the
+{C.COLUMNSTORE}. This procedure uses a temporary table to store the data while calculating the average.
 
 ```sql
 CREATE OR REPLACE PROCEDURE downsample_compress (job_id int, config jsonb)
