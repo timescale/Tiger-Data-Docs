@@ -498,7 +498,7 @@ export default defineConfig({
                     collapsed: true,
                     items: [
                       { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-                      { label: "Basic compression with Hypercore", link: "/build/how-to/basic-compression" },
+                      { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
                     ],
                   },
                   {
@@ -507,7 +507,6 @@ export default defineConfig({
                     items: [
                       { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
                       { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
-                      { label: "Template tutorial (preview)", link: "/build/examples/00-template-tutorial-render" },
                     ],
                   },
                   {
@@ -524,7 +523,6 @@ export default defineConfig({
                     ],
                   },
                   { label: "Tiger Data cookbook", link: "/build/examples/cookbook" },
-                  { label: "Production patterns", link: "/build/production-patterns" },
                 ],
               },
               // --- Write and query data (split from "Manage my time-series data") ---
@@ -1811,10 +1809,12 @@ export default defineConfig({
       "/learn/examples/aggregate-organizational-data-with-ai/": "/build/examples/aggregate-organizational-data-with-ai/",
       "/learn/examples/cookbook": "/build/examples/cookbook",
       "/learn/examples/create-services-with-terraform": "/build/examples/create-services-with-terraform",
-      "/learn/examples/00-template-tutorial-render": "/build/examples/00-template-tutorial-render",
+      "/learn/examples/00-template-tutorial-render": "/build/examples/",
       "/learn/examples/aggregate-organizational-data-with-ai-2": "/build/examples/aggregate-organizational-data-with-ai-2",
-      "/learn/production-patterns": "/build/production-patterns",
-      "/learn/production-patterns/": "/build/production-patterns/",
+      "/learn/production-patterns": "/build/",
+      "/learn/production-patterns/": "/build/",
+      "/build/production-patterns": "/build/",
+      "/build/production-patterns/": "/build/",
       // Tiger Cloud operational guide (moved out of Learn → Search)
       "/learn/search/vectorizer-deprecation": "/deploy/tiger-cloud/vectorizer-deprecation",
       "/learn/search/vectorizer-deprecation/": "/deploy/tiger-cloud/vectorizer-deprecation/",
