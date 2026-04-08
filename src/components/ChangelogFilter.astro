@@ -116,9 +116,11 @@ const tagOptions = [
     /* Single pill + nav row height in expanded and compact (keep shape consistent). */
     --changelog-tag-row-height: 1.75rem;
     
-    /* Park below the fixed site header (not under it). --stl-nav-height is 3.5rem base; taller with tabbed nav on ≥50rem. */
-    position: sticky;
-    top: calc(var(--stl-nav-height, 3.5rem) + env(safe-area-inset-top, 0px));
+    /* Park below the fixed site header (not under it). --stl-nav-height is 3.5rem base; taller with tabbed nav on ≥50rem.
+       Controlled by --changelog-sticky-position and --changelog-sticky-top (set in theme.css).
+       To re-enable sticky: set --changelog-sticky-position: sticky and remove --changelog-sticky-top. */
+    position: var(--changelog-sticky-position, sticky);
+    top: var(--changelog-sticky-top, calc(var(--stl-nav-height, 3.5rem) + env(safe-area-inset-top, 0px)));
     z-index: 50;
     isolation: isolate;
     padding: 1rem;
@@ -706,9 +708,22 @@ const tagOptions = [
       new ResizeObserver(updateTagScrollAffordance).observe(tagsScrollEl);
     }
 
+    /** Returns true when --changelog-sticky-position resolves to `sticky`. */
+    const isStickyEnabled = () => {
+      const filter = document.getElementById('changelog-filter');
+      if (!filter) return false;
+      return getComputedStyle(filter).position === 'sticky';
+    };
+
     const updateChangelogStickyChrome = () => {
       const filter = document.getElementById('changelog-filter');
       if (!filter) return;
+
+      /* Skip compact toggle when sticky is disabled — the bar just stays in normal flow. */
+      if (!isStickyEnabled()) {
+        filter.classList.remove('changelog-filter--compact');
+        return;
+      }
 
       const first = getFirstVisibleEntry();
       let isCompact = filter.classList.contains('changelog-filter--compact');
