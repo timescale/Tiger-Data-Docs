@@ -1,0 +1,352 @@
+---
+title: Vectorizer and in-database LLM calls migration guide
+description: "Plan your move off Tiger Cloud-managed vectorizer workers and in-database LLM SQL helpers before June 30, 2026. Tables, embeddings, and vectorizer definitions stay in the database."
+products: [cloud]
+---
+
+import * as C from "@constants";
+
+This guide is for **{C.CLOUD_LONG}** (AWS and Azure). It does not apply to self-hosted deployments that never used {C.CLOUD_LONG}-managed vectorizer scheduling.
+
+The following AI capabilities are deprecated on {C.CLOUD_LONG} and **will be removed on June 30, 2026**:
+
+- **Managed vectorizer**: the {C.CLOUD_LONG}-managed service that ran vectorizer workers for you. Your vectorizer definitions and embedding tables stay in place; you run the **vectorizer worker** yourself (see [Migrate the vectorizer](#migrate-the-vectorizer)).
+- **In-database LLM calls**: SQL-callable helpers such as `ai.openai_embed`, `ai.openai_chat_complete`, `ai.anthropic_generate`, `ai.ollama_embed`, `ai.cohere_embed`, and related `ai.*` entry points. These will no longer be available from SQL.
+
+**Your data is not affected.** Tables, embeddings, and vectorizer configuration remain in the database. Only {C.CLOUD_LONG}-managed execution of the worker and the in-database LLM call surface are going away.
+
+**What is not changing:** Semantic search with [pgvector](https://github.com/pgvector/pgvector) and [{C.PGVECTORSCALE}](https://github.com/timescale/pgvectorscale), and keyword search with BM25 via [pg_textsearch](https://github.com/timescale/pg_textsearch), stay available on {C.CLOUD_LONG}. Those are still the building blocks for hybrid search.
+
+## Upgrade the extension
+
+In pgai **v0.10.0**, vectorizer code moved out of the `ai` extension into the standalone **pgai** Python package. On extension versions **0.4.0 through 0.9.x**, vectorizer SQL objects still belong to the extension. **Upgrade the extension** before you follow the worker migration below.
+
+### 1. check your current pgai version
+
+```sql
+SELECT extversion FROM pg_extension WHERE extname = 'ai';
+```
+
+If the result is `0.9.x` or earlier, complete the upgrade steps below. If it is **0.10.0** or later, skip to [Migrate the vectorizer](#migrate-the-vectorizer).
+
+### 2. upgrade pgai to the latest version
+
+```sql
+ALTER EXTENSION ai UPDATE;
+```
+
+This migration detaches vectorizer objects from the extension **without** dropping them. Definitions and data stay intact.
+
+### 3. install the pgai library for ongoing vectorizer management
+
+**pip:**
+
+```bash
+pip install "pgai[vectorizer-worker]"
+pgai install -d "postgres://tsdbadmin:<password>@<host>:<port>/tsdb?sslmode=require"
+```
+
+**Docker:**
+
+```bash
+docker run --pull always --rm --entrypoint python \
+  timescale/pgai-vectorizer-worker:latest \
+  -m pgai install -d "postgres://tsdbadmin:<password>@<host>:<port>/tsdb?sslmode=require"
+```
+
+After these steps, continue with [Migrate the vectorizer](#migrate-the-vectorizer).
+
+## Migrate the vectorizer
+
+### 1. disable cloud scheduling
+
+Connect to your database and remove the cloud scheduler from your vectorizers. This deletes the {C.TIMESCALE_DB} background jobs and sets scheduling to `none`, while leaving vectorizers enabled so your self-hosted worker can process them:
+
+```sql
+-- Delete the TimescaleDB scheduled jobs
+SELECT public.delete_job((config->'scheduling'->>'job_id')::int)
+FROM ai.vectorizer
+WHERE config->'scheduling'->>'implementation' = 'timescaledb';
+
+-- Switch scheduling to none
+UPDATE ai.vectorizer
+SET config = jsonb_set(config, '{scheduling}', '{"config_type": "scheduling", "implementation": "none"}'::jsonb)
+WHERE config->'scheduling'->>'implementation' = 'timescaledb';
+```
+
+### 2. get your connection string
+
+Copy your [{C.CLOUD_LONG} connection string](/integrate/find-connection-details) from {C.CONSOLE_LONG}. It looks like:
+
+```
+postgres://tsdbadmin:<password>@<host>:<port>/tsdb?sslmode=require
+```
+
+### 3. run the vectorizer worker
+
+Pick one of the following.
+
+#### Option A: Docker (recommended)
+
+Create a `.env` file with your API keys:
+
+```
+OPENAI_API_KEY=sk-your-openai-api-key
+```
+
+Run the worker:
+
+```bash
+docker run \
+  --env-file .env \
+  timescale/pgai-vectorizer-worker:latest \
+  --db-url "postgres://tsdbadmin:<password>@<host>:<port>/tsdb?sslmode=require" \
+  --poll-interval 5m \
+  -c 4
+```
+
+#### Option B: Docker Compose
+
+```yaml
+name: pgai-vectorizer
+services:
+  vectorizer-worker:
+    image: timescale/pgai-vectorizer-worker:latest
+    environment:
+      PGAI_VECTORIZER_WORKER_DB_URL: "postgres://tsdbadmin:<password>@<host>:<port>/tsdb?sslmode=require"
+      OPENAI_API_KEY: "sk-your-openai-api-key"
+    command: ["--poll-interval", "5m", "-c", "4"]
+    restart: unless-stopped
+```
+
+Start it:
+
+```bash
+docker compose up -d
+```
+
+#### Option C: CLI
+
+```bash
+pip install pgai[vectorizer-worker]
+```
+
+```bash
+export OPENAI_API_KEY=sk-your-openai-api-key
+pgai vectorizer worker -d "postgres://tsdbadmin:<password>@<host>:<port>/tsdb?sslmode=require" --poll-interval 5m -c 4
+```
+
+#### Option D: Python
+
+```python
+import asyncio
+from datetime import timedelta
+
+from pgai import Worker
+
+worker = Worker(
+    db_url="postgres://tsdbadmin:<password>@<host>:<port>/tsdb?sslmode=require",
+    poll_interval=timedelta(minutes=5),
+    concurrency=4,
+)
+asyncio.run(worker.run())
+```
+
+Full worker options: [pgai vectorizer worker documentation](https://github.com/timescale/pgai/blob/main/docs/vectorizer/worker.md).
+
+## Migrate away from in-database LLM calls
+
+Move provider calls into **application code**. Keep using {C.PG} for storage and vector search; generate embeddings and completions **outside** the database, then pass vectors or text into SQL as parameters.
+
+### Migrate embedding calls
+
+**Before** (embedding inside the database):
+
+```sql
+SELECT id, content
+FROM documents
+ORDER BY embedding <=> ai.openai_embed('text-embedding-3-small', 'search query')
+LIMIT 5;
+```
+
+**After** (embedding in Python, vector as a query parameter):
+
+```python
+import openai
+import psycopg2
+
+client = openai.OpenAI()  # uses OPENAI_API_KEY env var
+
+def semantic_search(query: str, limit: int = 5):
+    response = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=query,
+    )
+    embedding = response.data[0].embedding
+
+    conn = psycopg2.connect("postgres://tsdbadmin:<password>@<host>:<port>/tsdb?sslmode=require")
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT id, content
+        FROM documents
+        ORDER BY embedding <=> %s::vector
+        LIMIT %s
+        """,
+        (embedding, limit),
+    )
+    return cur.fetchall()
+```
+
+With **asyncpg**, bind the embedding the way your driver and pgvector build expect (for example a string literal for `vector` or a supported sequence type):
+
+```python
+import openai
+import asyncpg
+
+client = openai.OpenAI()
+
+async def semantic_search(query: str, limit: int = 5):
+    response = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=query,
+    )
+    embedding = response.data[0].embedding
+
+    conn = await asyncpg.connect("postgres://tsdbadmin:<password>@<host>:<port>/tsdb?sslmode=require")
+    rows = await conn.fetch(
+        """
+        SELECT id, content
+        FROM documents
+        ORDER BY embedding <=> $1::vector
+        LIMIT $2
+        """,
+        str(embedding),
+        limit,
+    )
+    return rows
+```
+
+### Migrate chat completion calls
+
+**Before:**
+
+```sql
+SELECT ai.openai_chat_complete(
+  'gpt-4o',
+  jsonb_build_array(
+    jsonb_build_object('role', 'user', 'content', 'Summarize this: ' || doc.content)
+  )
+)->'choices'->0->'message'->>'content' AS summary
+FROM documents doc
+WHERE doc.id = 1;
+```
+
+**After:**
+
+```python
+import openai
+
+client = openai.OpenAI()
+
+def summarize(content: str) -> str:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": f"Summarize this: {content}"}],
+    )
+    return response.choices[0].message.content
+```
+
+### Migrate Anthropic calls
+
+**Before:**
+
+```sql
+SELECT ai.anthropic_generate(
+  'claude-sonnet-4-20250514',
+  jsonb_build_array(
+    jsonb_build_object('role', 'user', 'content', 'Explain this concept')
+  )
+);
+```
+
+**After:**
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+def generate(prompt: str) -> str:
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return message.content[0].text
+```
+
+### Migrate Cohere reranking
+
+**Before:**
+
+```sql
+SELECT ai.cohere_rerank(
+  'rerank-english-v3.0',
+  'search query',
+  jsonb_agg(content)
+)
+FROM documents
+LIMIT 100;
+```
+
+**After:**
+
+```python
+import cohere
+
+client = cohere.Client()
+
+def rerank(query: str, documents: list[str]) -> list:
+    response = client.rerank(
+        model="rerank-english-v3.0",
+        query=query,
+        documents=documents,
+    )
+    return response.results
+```
+
+### Summary of function replacements
+
+| Deprecated function | Replacement |
+| ------------------- | ----------- |
+| `ai.openai_embed(model, text)` | `openai.OpenAI().embeddings.create(model=model, input=text)` |
+| `ai.openai_chat_complete(model, messages)` | `openai.OpenAI().chat.completions.create(model=model, messages=messages)` |
+| `ai.openai_chat_complete_simple(model, prompt)` | `openai.OpenAI().chat.completions.create(model=model, messages=[...])` |
+| `ai.openai_moderate(model, input)` | `openai.OpenAI().moderations.create(model=model, input=input)` |
+| `ai.anthropic_generate(model, messages)` | `anthropic.Anthropic().messages.create(model=model, messages=messages)` |
+| `ai.ollama_embed(model, text)` | `ollama.embed(model=model, input=text)` |
+| `ai.ollama_generate(model, prompt)` | `ollama.generate(model=model, prompt=prompt)` |
+| `ai.ollama_chat_complete(model, messages)` | `ollama.chat(model=model, messages=messages)` |
+| `ai.cohere_embed(model, text)` | `cohere.Client().embed(model=model, texts=[text])` |
+| `ai.cohere_rerank(model, query, docs)` | `cohere.Client().rerank(model=model, query=query, documents=docs)` |
+| `ai.cohere_chat_complete(model, messages)` | `cohere.Client().chat(model=model, messages=messages)` |
+| `ai.voyageai_embed(model, text)` | `voyageai.Client().embed(texts=[text], model=model)` |
+| `ai.voyageai_rerank(model, query, docs)` | `voyageai.Client().rerank(query=query, documents=docs, model=model)` |
+
+### General migration pattern
+
+For any `ai.*` SQL function:
+
+1. **Identify the provider** from the name (`openai_`, `anthropic_`, `ollama_`, `cohere_`, `voyageai_`).
+2. **Install that provider’s SDK** (`pip install openai`, `pip install anthropic`, and so on).
+3. **Call the SDK from your application** before or after your SQL.
+4. **Pass structured results as parameters** (for embeddings, pass the vector into `ORDER BY ... <=> $1` style queries).
+
+## Next steps
+
+| Topic | Where to read |
+| ----- | ------------- |
+| pgai SQL and vectorizer reference | **[pgai reference](/reference/pgai/)** |
+| Vector search concepts | **[Key vector concepts for pgvector](/learn/search/key-vector-database-concepts-for-understanding-pgvector)** |
+| Tiger Cloud + pgvector overview | **[Understand pgvector and pgvectorscale](/learn/search/pgvector-pgvectorsearch)** |

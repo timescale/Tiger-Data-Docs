@@ -6,7 +6,7 @@ Documentation site for Tiger Data, built on Astro + Starlight using the Stainles
 
 - **Node.js** (v18 or later): [nodejs.org](https://nodejs.org/)
 - **pnpm** (package manager): install with `npm install -g pnpm` or see [pnpm.io/installation](https://pnpm.io/installation)
-- **Stainless API key**: required for API reference generation
+- **Stainless API key**: required only if you need the generated **Tiger Cloud REST API** reference locally. To run without any Stainless credentials, use **`pnpm dev:local`** (see below).
   1. Sign in at [app.stainless.com](https://app.stainless.com)
   2. Go to **Org Settings → API keys** and copy your key (starts with `stl_sk...`)
   3. Create a `.env` file in the project root (use `.env.example` as a template):
@@ -24,13 +24,28 @@ Documentation site for Tiger Data, built on Astro + Starlight using the Stainles
 5. Start the dev server: `pnpm dev`
 6. Visit [localhost:4321](http://localhost:4321/)
 
+### Run without a Stainless API key
+
+If you do not have `STAINLESS_API_KEY` or `stl auth login`, use the local preset so the site skips downloading the Tiger Cloud OpenAPI spec from Stainless:
+
+```bash
+pnpm install
+pnpm dev:local
+```
+
+`dev:local` sets `DOCS_LOCAL_WITHOUT_STAINLESS=1`, which disables generated REST API pages and points the Reference sidebar to a stub page (`/reference/tiger-cloud-rest-local-preview` in the running site). All other docs (TimescaleDB reference, Toolkit, guides, and so on) work normally.
+
+For a production build without Stainless (for example, CI that cannot reach the API), use `pnpm build:local`. To restore the full REST reference, unset `DOCS_LOCAL_WITHOUT_STAINLESS`, add a key or CLI auth, and run `pnpm dev` or `pnpm build` again.
+
 ### Other Commands
 
 ```bash
-pnpm build      # Build for production (runs sync first via prebuild)
-pnpm preview    # Preview production build
-pnpm sync       # Sync docs from source repos (timescaledb, pgai, pgvectorscale)
-pnpm format     # Format code
+pnpm build         # Build for production
+pnpm build:local   # Build with DOCS_LOCAL_WITHOUT_STAINLESS (no Stainless API for REST reference)
+pnpm dev:local     # Dev server without Stainless API (same as DOCS_LOCAL_WITHOUT_STAINLESS=1)
+pnpm preview       # Preview production build
+pnpm sync          # Sync docs from source repos (timescaledb, pgai, pgvectorscale)
+pnpm format        # Format code
 ```
 
 ## Site Structure
@@ -53,7 +68,7 @@ All documentation content lives under `src/content/docs/`. The structure follows
 
 Each main section follows a three-level hierarchy:
 
-```
+``` md
 src/content/docs/
 └── {section}/              # Main section (e.g., build, learn, deploy)
     ├── index.mdx           # Landing page for the section
@@ -90,6 +105,35 @@ build/
 - Content was drafted/migrated from existing docs during the IA restructure
 - Each subcategory should have sub-pages built out and prepped for migration
 
+### Integrate section: hide a page from the `/integrate` card grid
+
+The [Integrate overview](/integrate) page (`src/content/docs/integrate/index.mdx`) shows a searchable card grid of integrations. Some pages (for example [Troubleshoot](/integrate/troubleshooting)) should stay in the **sidebar** and remain reachable by URL, but should **not** appear as a card on that overview.
+
+In the page’s frontmatter, set:
+
+```yaml
+integrationHideFromOverviewCards: true
+```
+
+This only removes the page from the **card grid** (and from the overview’s filter options that are derived from visible cards). It does **not** remove the page from the Starlight sidebar or from search indexing.
+
+### Integrate overview: Technology filter and frontmatter
+
+The **Technology** dropdown on `/integrate` tags each card with one or more technology labels so readers can filter (for example AWS, Kafka, PostgreSQL). Labels must be declared in the content schema or Astro strips them:
+
+1. **`keywords`** (optional array of strings) — Used for search and, when `integrationTechnologies` is omitted, to **infer** technologies by matching substrings (see `src/lib/integration-technologies.ts`). Example: a keyword containing `kafka` maps to the **Kafka** filter.
+
+2. **`integrationTechnologies`** (optional array) — **Explicit** tags. Use when inference is wrong or too broad. Allowed values are exactly: `PostgreSQL`, `Python`, `SQL`, `Kafka`, `AWS`, `Azure`, `GCP`, `Terraform`, `Kubernetes`, `Grafana`, `Prometheus`, `REST API`.
+
+Example:
+
+```yaml
+keywords: ["kafka integration", "event streaming"]
+integrationTechnologies: ["Kafka", "AWS"]
+```
+
+If you set `integrationTechnologies`, it **replaces** inference from `keywords` for that page (the explicit list wins).
+
 ## About Stainless Docs
 
 The Stainless Docs Platform is built on top of [Astro](https://astro.build) and [Starlight](https://starlight.astro.build). Starlight is a powerful documentation framework designed for speed, accessibility, and customizability.
@@ -103,7 +147,7 @@ This project uses the `@stainless-api/docs` integration which provides:
 
 ## Environment
 
-Requires `STAINLESS_API_KEY` for API reference generation. See `.env.example`.
+`STAINLESS_API_KEY` (or `stl auth login`) is required for **generated** Tiger Cloud REST API reference unless you set **`DOCS_LOCAL_WITHOUT_STAINLESS=1`** or use **`pnpm dev:local`** / **`pnpm build:local`**. See `.env.example`.
 
 ### Optional: Algolia instead of Pagefind
 

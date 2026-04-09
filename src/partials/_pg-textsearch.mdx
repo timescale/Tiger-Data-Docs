@@ -4,7 +4,11 @@ import { Callout } from "@stainless-api/docs/components";
 import SinceRelease from "@components/SinceRelease.astro";
 import IntegrationPrereqs from "./_integration-prereqs.mdx";
 
-<SinceRelease mode="early_access" /> This preview release is designed for development and staging environments.
+<Callout variant="note">
+**pg_textsearch v1.0.0** (March 2026) is **production-ready** on {C.CLOUD_LONG}. See the [v1.0.0 release notes](https://github.com/timescale/pg_textsearch/releases/tag/v1.0.0).
+</Callout>
+
+`pg_textsearch` supports **{C.PG} 17 and 18**. For self-hosted installs, confirm versions against the [upstream compatibility table](https://github.com/timescale/pg_textsearch#postgresql-version-compatibility).
 
 {C.PG} full-text search at scale consistently hits a wall where performance degrades catastrophically.
 {C.COMPANY}'s [pg_textsearch](https://github.com/timescale/pg_textsearch) brings modern [BM25](https://en.wikipedia.org/wiki/Okapi_BM25)-based full-text search directly into {C.PG},
@@ -43,7 +47,7 @@ To install this {C.PG} extension:
 
 <NumberedItem title={`Connect to your ${C.SERVICE_LONG}`}>
 
-In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services) open an [SQL editor](/get-started/run-queries-from-console). You can also connect to your {C.SERVICE_SHORT} using [psql](/integrate/psql#connect-to-your-service).
+In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services) open an [SQL editor](/build/data-management/run-queries-from-tiger-console). You can also connect to your {C.SERVICE_SHORT} using [psql](/integrate/query-administration/psql#connect-to-your-service).
 
 </NumberedItem>
 
@@ -72,6 +76,22 @@ SELECT * FROM pg_extension WHERE extname = 'pg_textsearch';
 </NumberedList>
 
 You have installed `pg_textsearch` on {C.CLOUD_LONG}.
+
+## Self-hosted: load `pg_textsearch` before `CREATE EXTENSION`
+
+On self-managed {C.PG}, the extension must be **preloaded** so the server loads it at startup:
+
+1. Set `shared_preload_libraries` in `postgresql.conf` (append `pg_textsearch` to any existing list):
+
+   ```ini
+   shared_preload_libraries = 'pg_textsearch'
+   ```
+
+2. Restart {C.PG}.
+
+3. In each database where you need search, run `CREATE EXTENSION pg_textsearch;`.
+
+{C.CLOUD_LONG} manages preloading for you; you typically only run `CREATE EXTENSION` in the SQL editor or client.
 
 ## Create BM25 indexes on your data
 
@@ -178,19 +198,26 @@ large enough. This allows efficient indexing of very large partitioned datasets.
 
 You have configured parallel index builds for faster indexing.
 
-## Optimize search queries for performance
+## Merge BM25 segments after bulk loads
 
-Use efficient query patterns to leverage BM25 ranking and optimize search performance. The `<@>` operator provides
-BM25-based ranking scores as negative values, where lower (more negative) scores indicate better matches. In `ORDER BY`
-clauses, the index is automatically detected from the column. For `WHERE` clause filtering, use `to_bm25query()` with
-an explicit index name.
+After large batch inserts or sustained incremental writes, multiple on-disk **segments** can accumulate. Merging them into a single segment improves query speed by reducing how many segments a query must scan. This is analogous to Lucene’s `forceMerge(1)`.
 
-<NumberedList>
-
-<NumberedItem title="Perform ranked searches using the distance operator">
+Use `bm25_force_merge()` **after bulk loads**, not during steady high write traffic:
 
 ```sql
-SELECT name, description, description <@> to_bm25query('ergonomic work', 'products_search_idx') as score
+SELECT bm25_force_merge('products_search_idx');
+```
+
+## Optimize search queries for performance
+
+The `<@>` operator returns BM25-based scores as **negative** values: **lower (more negative) means a better match**.
+
+### Ranked search with implicit query syntax (primary pattern)
+
+For typical top-k search, pass the query as a **string literal**. In `ORDER BY`, {C.PG} can **automatically detect** the BM25 index from the indexed column:
+
+```sql
+SELECT name, description, description <@> 'ergonomic work' AS score
 FROM products
 ORDER BY score
 LIMIT 3;
@@ -206,14 +233,24 @@ You see something like:
  Standing Desk              | Adjustable height desk for better posture and productivity throughout the workday  |                   0
 ```
 
-</NumberedItem>
+### The `bm25query` type and `to_bm25query()`
 
-<NumberedItem title="Filter results by score threshold">
+Use an explicit **`bm25query`** value when you need the index name in the expression (for example in `WHERE`, or when the planner cannot infer the index from context):
 
-For filtering with WHERE clauses, use explicit index specification with `to_bm25query()`:
+| Form | Use |
+|------|-----|
+| `to_bm25query('query text')` | Query text only; use in **`ORDER BY`** with an index scan (implicit index detection from the column). |
+| `to_bm25query('query text', 'index_name')` | Query text **and** index name; required for **`WHERE`** filters and whenever you must name the index. |
+| `'index_name:query text'::bm25query` | Cast form (embedded index name). In {C.PG} 18, the single-colon form helps the planner when expressions are evaluated early. |
+| `text <@> bm25query` → `double precision` | BM25 score (negative is better). |
+| `bm25query = bm25query` | Equality comparison. |
+
+### Filter results by score threshold
+
+For `WHERE` clauses, use **`to_bm25query()`** with an explicit index name:
 
 ```sql
-SELECT name, description <@> to_bm25query('wireless', 'products_search_idx') as score
+SELECT name, description <@> to_bm25query('wireless', 'products_search_idx') AS score
 FROM products
 WHERE description <@> to_bm25query('wireless', 'products_search_idx') < -0.5;
 ```
@@ -226,12 +263,10 @@ You see something like:
  Ergonomic Mouse | -0.9066488742828369
 ```
 
-</NumberedItem>
-
-<NumberedItem title="Combine with standard SQL operations">
+### Combine with standard SQL operations
 
 ```sql
-SELECT category, name, description <@> to_bm25query('ergonomic', 'products_search_idx') as score
+SELECT category, name, description <@> to_bm25query('ergonomic', 'products_search_idx') AS score
 FROM products
 WHERE price < 500
   AND description <@> to_bm25query('ergonomic', 'products_search_idx') < -0.5
@@ -247,30 +282,32 @@ You see something like:
  Electronics | Ergonomic Mouse | -0.9066488742828369
 ```
 
-</NumberedItem>
+### Pre-filtering vs post-filtering
 
-<NumberedItem title="Verify index usage with EXPLAIN">
+How you combine BM25 with other predicates affects performance:
+
+- **Pre-filtering**: use another index (for example B-tree on `category_id`) so {C.PG} restricts rows **before** BM25 scoring. Best when the filter is **selective** (for example matches a small fraction of rows); then `ORDER BY ... LIMIT` scores a smaller candidate set.
+- **Post-filtering**: the BM25 index scan produces top-k matches **first**; other `WHERE` conditions apply **after**. If the filter removes most of those rows, you can get **fewer rows than `LIMIT`**. Increase the inner `LIMIT` and re-limit in application code if needed.
+
+This mirrors tradeoffs familiar from approximate vector indexes: know whether your filter is shrinking the universe of rows before or after ranking.
+
+### Verify plans with EXPLAIN (and sequential scans on small tables)
 
 ```sql
 EXPLAIN SELECT * FROM products
-ORDER BY description <@> to_bm25query('ergonomic', 'products_search_idx')
+ORDER BY description <@> 'ergonomic'
 LIMIT 5;
 ```
 
-You see something like:
+On **small** tables, the planner may choose a **sequential scan** instead of the BM25 index. To force index use while testing, you can run:
 
 ```sql
-                                           QUERY PLAN
---------------------------------------------------------------------------------------------
- Limit  (cost=8.55..8.56 rows=3 width=140)
-   ->  Sort  (cost=8.55..8.56 rows=3 width=140)
-         Sort Key: ((description <@> 'products_search_idx:ergonomic'::bm25query))
-         ->  Seq Scan on products  (cost=0.00..8.53 rows=3 width=140)
+SET enable_seqscan = off;
 ```
 
-</NumberedItem>
-
-</NumberedList>
+<Callout variant="note">
+Even when `EXPLAIN` shows a sequential scan, `<@>` and `to_bm25query()` still use the BM25 index for **corpus statistics** (document counts, average length, and related metadata) required to score results.
+</Callout>
 
 You have optimized your search queries for BM25 ranking.
 
@@ -341,9 +378,9 @@ WITH vector_search AS (
 ),
 keyword_search AS (
   SELECT id,
-         ROW_NUMBER() OVER (ORDER BY content <@> to_bm25query('query performance', 'articles_content_idx')) AS rank
+         ROW_NUMBER() OVER (ORDER BY content <@> 'query performance') AS rank
   FROM articles
-  ORDER BY content <@> to_bm25query('query performance', 'articles_content_idx')
+  ORDER BY content <@> 'query performance'
   LIMIT 20
 )
 SELECT a.id,
@@ -383,9 +420,9 @@ WITH vector_search AS (
 ),
 keyword_search AS (
   SELECT id,
-         ROW_NUMBER() OVER (ORDER BY content <@> to_bm25query('query performance', 'articles_content_idx')) AS rank
+         ROW_NUMBER() OVER (ORDER BY content <@> 'query performance') AS rank
   FROM articles
-  ORDER BY content <@> to_bm25query('query performance', 'articles_content_idx')
+  ORDER BY content <@> 'query performance'
   LIMIT 20
 )
 SELECT
@@ -431,12 +468,19 @@ Customize `pg_textsearch` behavior for your specific use case and data character
 To manage memory usage, you control when the in-memory index spills to disk segments. When the memtable reaches the
 threshold, it automatically flushes to a segment at transaction commit.
 
+<Callout variant="tip">
+**Crash recovery:** the memtable is rebuilt from the heap on startup, so you do **not** lose indexed data if {C.PG} crashes before a spill to disk completes.
+</Callout>
+
 ```sql
 -- Set memtable spill threshold (default 32000000 posting entries, ~1M docs/segment)
 SET pg_textsearch.memtable_spill_threshold = 32000000;
 
 -- Set bulk load spill threshold (default 100000 terms per transaction)
 SET pg_textsearch.bulk_load_threshold = 150000;
+
+-- Segments per level before automatic compaction (default 8, allowed range 2–64)
+SET pg_textsearch.segments_per_level = 8;
 
 -- Set default query limit when no LIMIT clause is present (default 1000)
 SET pg_textsearch.default_limit = 5000;
@@ -446,6 +490,9 @@ SET pg_textsearch.enable_bmw = true;
 
 -- Log block skip statistics for debugging query performance (disabled by default)
 SET pg_textsearch.log_bmw_stats = false;
+
+-- Log BM25 scores during scans (disabled by default)
+SET pg_textsearch.log_scores = false;
 ```
 <SinceRelease version="v0.1.0" product="pg_textsearch" />
 
@@ -496,20 +543,19 @@ WITH (text_config='english', k1=1.5, b=0.8);
     WHERE indexrelid::regclass::text ~ 'bm25';
     ```
 
-- View index summary with corpus statistics and memory usage
+- View index summary with corpus statistics and memory usage (**superuser**)
     ```sql
     SELECT bm25_summarize_index('products_search_idx');
     ```
 
-- View detailed index structure (output is truncated for display)
+- View detailed index structure (output is truncated for display) (**superuser**)
     ```sql
     SELECT bm25_dump_index('products_search_idx');
     ```
 
-- Export full index dump to a file for detailed analysis
-    ```sql
-    SELECT bm25_dump_index('products_search_idx', '/tmp/index_dump.txt');
-    ```
+<Callout variant="note">
+The two-argument form `bm25_dump_index('index_name', '/path/to/file.txt')` exists only in **debug builds** compiled with `-DDEBUG_DUMP_INDEX`. Standard packages expose the single-argument form only.
+</Callout>
 
 - Force memtable spill to disk (useful for testing or memory management)
     ```sql
@@ -525,7 +571,14 @@ caching and pagination to improve user experience with large result sets.
 
 ## Current limitations
 
-The preview releases focus on core BM25 functionality. Current limitations include:
+* **No phrase search**: you cannot search for exact multi-word phrases (no positional index; emulate with BM25 plus a post-filter if needed).
+* **No compressed data support**: `pg_textsearch` does not work with **compressed** chunk or table data (for example Hypercore-compressed data where the extension applies).
+* **No expression indexing**: each BM25 index covers a **single text column**. You cannot index an expression such as `lower(title) || ' ' || content` directly; use a **generated column** that concatenates or normalizes text, then index that column.
+* **No built-in faceted search**: there is no dedicated faceting operator; use ordinary {C.PG} patterns (`WHERE`, `GROUP BY`, counts) alongside BM25 filters.
+* **Insert and update throughput**: the memtable design supports incremental writes, but **sustained write-heavy** workloads are still a focus of ongoing performance work. Prefer **bulk load, then index** (or `bm25_force_merge` after large batches) when possible.
+* **No background compaction**: segment compaction runs **synchronously** during memtable spill; write-heavy workloads may see latency spikes during spills.
+* **Partitioned table statistics**: BM25 statistics are **per partition**. Scores are accurate within a partition but are **not directly comparable** across partitions when a query spans many partitions (different IDF and length stats). Prefer queries that target a single partition when rank comparability matters.
+* **Word length limit**: tokenization inherits {C.PG}’s `tsvector` **2047 character** word limit; very long tokens (for example base64 blobs) may be ignored with an `INFO` message.
+* **PL/pgSQL and stored procedures**: the implicit form `text <@> 'query'` relies on planner hooks that **do not run** inside PL/pgSQL `DO` blocks, functions, or procedures. Use **`to_bm25query('query', 'index_name')`** explicitly in those contexts.
 
-* **No phrase search**: you cannot search for exact multi-word phrases.
-* **No compressed data support**: `pg_textsearch` does not work with compressed data.
+For more detail and workarounds, see the [limitations section](https://github.com/timescale/pg_textsearch#limitations) in the upstream README.

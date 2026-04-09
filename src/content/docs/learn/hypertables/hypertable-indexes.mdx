@@ -1,31 +1,70 @@
 ---
-title: "Hypertable indexes"
-description: "Default indexes on partition columns, composite unique keys, per-chunk index builds, and maintenance_work_mem on Tiger Cloud."
+title: Hypertable indexes
+description: Default indexes, supported index types, and links to indexing guides for hypertables
 ---
 
 import * as C from "@constants";
 
+Indexes on {C.HYPERTABLE}s work the same as on regular {C.PG} tables, with a few
+{C.TIMESCALE_DB}-specific behaviors.
+
 ## Default indexes
 
-Creating a hypertable can add an index on the partitioning column (`create_default_indexes`). Indexes speed up `SELECT` but slow bulk `INSERT`. Drop unused indexes to save space and write cost.
+When you create a {C.HYPERTABLE}, {C.TIMESCALE_DB} automatically creates a B-tree index on the
+partition column (time descending). If the {C.HYPERTABLE} has a space dimension, a second
+composite index on (space column, time descending) is also created. You can disable this with
+`timescaledb.create_default_indexes = false` if you plan to add custom indexes after
+loading data.
 
-For **composite unique** indexes, every column in the unique constraint must be compatible with hypertable partitioning rules, usually the time column and any other keys your uniqueness requires.
+Indexes speed up `SELECT` queries but slow down `INSERT` operations and increase storage.
+Drop any indexes you don't actively use.
 
-## Safer index builds
+## Supported index types
 
-Use [`timescaledb.transaction_per_chunk`](/reference/timescaledb/hypertable/create_index/) when creating indexes so work happens **per chunk**, reducing exclusive locks on the whole hypertable.
+{C.HYPERTABLE}s support all {C.PG} index types:
 
-## Invalid indexes
+- **B-tree** — the default. Best for equality and range filters on time, device IDs, and
+  other scalar columns.
+- **Hash** — useful for equality-only lookups.
+- **GIN** — for JSONB, arrays, and full-text search columns.
+- **GiST** — for geometric, range, and full-text search data.
+- **BRIN** — block range indexes, useful for very large append-only tables.
 
-Indexes can be **invalid** after failed `CREATE INDEX` or corruption. Find and drop/recreate them rather than leaving them invalid.
+## Unique indexes and primary keys
 
-## Bulk loads and maintenance_work_mem
+Any `UNIQUE` or `PRIMARY KEY` index must include the partition column. This is a
+{C.TIMESCALE_DB} requirement because uniqueness is enforced per {C.CHUNK}. See
+[Primary keys, time columns, and uniqueness](/learn/data-model/primary-keys-time-and-uniqueness)
+for details.
 
-When backfilling or migrating data and creating many chunks, raise [`maintenance_work_mem`](https://www.postgresql.org/docs/current/runtime-config-resource.html#GUC-MAINTENANCE-WORK-MEM) for faster index builds. A common starting point is around **5%** of RAM; tune for your instance.
+## Per-{C.CHUNK} index builds
 
-More context: [PostgreSQL performance tuning: key parameters](https://www.timescale.com/learn/postgresql-performance-tuning-key-parameters) and [optimizing database indexes](https://www.timescale.com/learn/postgresql-performance-tuning-optimizing-database-indexes).
+Use the `timescaledb.transaction_per_chunk` option when creating indexes to build per
+{C.CHUNK} in separate transactions, reducing lock contention:
 
-## Related
+```sql
+CREATE INDEX idx_device_time ON sensor_data (device_id, time DESC)
+  WITH (timescaledb.transaction_per_chunk = true);
+```
 
-- [Hypertable operations](/learn/hypertables/hypertable-operations)
-- [Creating and configuring hypertables](/learn/hypertables/creating-and-configuring-hypertables)
+## {C.COLUMNSTORE_CAP} and indexes
+
+{C.PG} indexes (including B-tree) are kept on {C.CHUNK}s converted to {C.COLUMNSTORE} and
+continue to work for queries. {C.TIMESCALE_DB} also uses batch-level metadata (min/max values)
+to skip irrelevant batches during scans. For best {C.COLUMNSTORE} query performance, tune
+segmenting and ordering in addition to indexes. See
+[Improve query and upsert performance](/build/performance-optimization/secondary-indexes) for
+details.
+
+## Learn more
+
+- [Accelerate queries using indexes](/build/performance-optimization/indexing): How-to guide
+  for creating and tuning indexes.
+- [Improve query and upsert performance](/build/performance-optimization/secondary-indexes):
+  Segmenting and ordering {C.COLUMNSTORE} data.
+- [Enforce constraints with unique indexes](/build/performance-optimization/hypertables-and-unique-indexes):
+  Unique index rules and limitations.
+- [Primary keys, time columns, and uniqueness](/learn/data-model/primary-keys-time-and-uniqueness):
+  Partition column requirements for unique constraints.
+- [`CREATE INDEX` reference](/reference/timescaledb/hypertables/create_index): Full API
+  reference including `transaction_per_chunk`.

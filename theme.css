@@ -53,7 +53,7 @@
 
   /* Link color – match brand accent (purple) so inline links don’t switch to blue; same as CTA/accents */
   --stl-color-link: var(--tiger-vivid-purple);
-  --stl-color-link-hover: #6446fb;
+  --stl-color-link-hover: #000;
 
   /* Background & Foreground */
   --stl-color-background: var(--tiger-white);
@@ -196,14 +196,14 @@
 :root[data-theme="dark"] {
   --stl-color-accent: var(--tiger-electric-yellow);
   --stl-color-link: var(--tiger-electric-yellow);
-  --stl-color-link-hover: #cce066;
+  --stl-color-link-hover: #fff;
   --stl-color-background: var(--tiger-black);
   /* Primary text: use near-white for strong contrast and readability on dark background */
   --stl-color-foreground: #f0f0f0;
   --tiger-fg-emphasized: var(--tiger-grey-200);
   --tiger-fg-muted: var(--tiger-grey-400);
   --tiger-bg-default: var(--tiger-grey-100);
-  --tiger-link-cta: #849bff;
+  --tiger-link-cta: #fff;
   --stl-button-primary-bg: var(--tiger-grey-100);
   --stl-button-primary-fg: var(--tiger-black);
   --button-secondary-border: var(--tiger-grey-300);
@@ -615,7 +615,7 @@ a {
 
 a:hover {
   color: var(--stl-color-link-hover);
-  text-decoration: underline;
+  /* text-decoration: underline; */
   text-decoration-style: solid;
 }
 
@@ -1470,6 +1470,79 @@ nav.sidebar .sidebar-content ul ul a[aria-current="page"],
   background-color: var(--sidebar-nav-bg-active);
 }
 
+/*
+ * Drawer / mobile-only CTA row (e.g. “Get started”): `#starlight__sidebar a` uses ID
+ * specificity and forces nav-link layout (space-between, nav text color, 40px min-height).
+ * That overrides `.stl-ui-button--accent` and looks wrong in light and dark themes.
+ */
+#starlight__sidebar .stl-sidebar-header-links a.stl-ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: unset;
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  border-radius: var(--tiger-radius-sm);
+  color: var(--stl-button-primary-fg);
+  background-color: var(--stl-button-primary-bg);
+  border: none;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+#starlight__sidebar .stl-sidebar-header-links a.stl-ui-button:hover {
+  color: var(--stl-button-primary-fg);
+  background-color: var(--stl-button-primary-bg);
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: var(--tiger-shadow-sm);
+}
+
+#starlight__sidebar .stl-sidebar-header-links a.stl-ui-button:focus-visible {
+  outline: 2px solid var(--stl-color-accent);
+  outline-offset: 2px;
+}
+
+/*
+ * Mobile drawer hierarchy: `@stainless-api/docs` `tabsMiddleware` prepends every top-level tab
+ * (`stl-mobile-only-sidebar-item`) to the active tab’s sidebar with `unshift`, so the list order is
+ * [all tabs…][Overview / section groups…]. That reads backwards: users expect the current tab’s IA
+ * first, then a way to switch tabs. Reorder with flex `order` (DOM stays the same for a11y/SSR).
+ */
+@media not (min-width: 50rem) {
+  #starlight__sidebar .stldocs-root > .stldocs-sidebar-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #starlight__sidebar .stldocs-root > .stldocs-sidebar-list > li:has(> a.stl-mobile-only-sidebar-item) {
+    order: 2;
+  }
+
+  #starlight__sidebar .stldocs-root > .stldocs-sidebar-list > li:not(:has(> a.stl-mobile-only-sidebar-item)) {
+    order: 1;
+  }
+
+  /* Visual break before the tab strip (first mobile row is still :first-child in the DOM) */
+  #starlight__sidebar
+    .stldocs-root
+    > .stldocs-sidebar-list
+    > li:has(> a.stl-mobile-only-sidebar-item):first-child {
+    margin-block-start: 0.75rem;
+    padding-block-start: 0.75rem;
+    border-block-start: 1px solid var(--sidebar-nav-border-divider);
+  }
+}
+
 /* Group header (details summary) – base styles for all expander summaries */
 .sidebar-content details summary,
 nav.sidebar .sidebar-content details summary,
@@ -1486,13 +1559,21 @@ nav.sidebar details summary {
   letter-spacing: -0.01em;
 }
 
-/* Top-level group headers – prominent section headings with visual separation */
+/*
+ * Top-level section label look: expander summaries and standalone top-level links
+ * (flattened single-item groups render as .stldocs-sidebar-entry-link).
+ */
 #starlight__sidebar
   .stldocs-root
   > .stldocs-sidebar-list
   > .stldocs-sidebar-entry-group
   > .stldocs-sidebar-expander
-  > summary.stldocs-expander-summary {
+  > summary.stldocs-expander-summary,
+#starlight__sidebar
+  .stldocs-root
+  > .stldocs-sidebar-list
+  > .stldocs-sidebar-entry-link
+  > a {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -1502,9 +1583,23 @@ nav.sidebar details summary {
   min-height: 32px;
   /* Balanced block padding so label + chevron sit on the optical vertical center */
   padding-block: 0.5rem;
+  line-height: 1.35;
+  box-sizing: border-box;
 }
 
-/* Nested group headers (inside a top-level group) – sub-section style */
+#starlight__sidebar
+  .stldocs-root
+  > .stldocs-sidebar-list
+  > .stldocs-sidebar-entry-link
+  > a[aria-current="page"] {
+  opacity: 1;
+  font-weight: 700;
+}
+
+/*
+ * Nested expander rows (e.g. Tiger Cloud on AWS, Configuration): match link
+ * weight so sub-sections do not read as heavy bold next to all-caps parents.
+ */
 #starlight__sidebar
   .stldocs-sidebar-entry-group
   .stldocs-sidebar-list
@@ -1512,7 +1607,7 @@ nav.sidebar details summary {
   > .stldocs-sidebar-expander
   > summary.stldocs-expander-summary {
   font-size: var(--sidebar-nav-font-size);
-  font-weight: 600;
+  font-weight: 450;
   text-transform: none;
   letter-spacing: -0.01em;
   opacity: 1;
@@ -1543,11 +1638,15 @@ nav.sidebar .sidebar-content details summary:hover,
   background-color: var(--sidebar-nav-bg-hover);
 }
 
-/* Top-level groups – generous spacing for clear section separation */
+/* Top-level rows (groups and standalone links) – consistent vertical rhythm */
 #starlight__sidebar
   .stldocs-root
   > .stldocs-sidebar-list
-  > li.stldocs-sidebar-entry-group {
+  > li.stldocs-sidebar-entry-group,
+#starlight__sidebar
+  .stldocs-root
+  > .stldocs-sidebar-list
+  > li.stldocs-sidebar-entry-link {
   margin-block-start: 1rem;
   margin-block-end: 0.25rem;
 }
@@ -1555,7 +1654,7 @@ nav.sidebar .sidebar-content details summary:hover,
 #starlight__sidebar
   .stldocs-root
   > .stldocs-sidebar-list
-  > li.stldocs-sidebar-entry-group:first-child {
+  > li:first-child {
   margin-block-start: 0;
 }
 
@@ -1702,6 +1801,8 @@ starlight-toc {
   text-align: left;
 }
 
+
+
 .right-sidebar-container starlight-toc nav,
 .right-sidebar-panel starlight-toc nav,
 starlight-toc nav {
@@ -1710,6 +1811,7 @@ starlight-toc nav {
   flex-direction: column;
   align-items: flex-start;
   padding-block: 0.25rem 0.5rem;
+  width: 260px;
 }
 
 .right-sidebar-container starlight-toc h2,
@@ -1948,12 +2050,65 @@ tr:hover td {
 /* ============================================
    Header & Navigation
    ============================================ */
+/*
+ * Framework `page.css` sets `header { z-index: 10 }` (sticky). In-page UI (splash intro panels,
+ * integrate filter menus) can use z-index up to 100, which then paints above tab hover dropdowns
+ * that extend over main. Keep the whole header subtree above main content.
+ */
+.page > header {
+  z-index: 100;
+}
+
+/*
+ * Mobile: The real menu control is rendered in the custom header next to search (`MobileMenuToggle` /
+ * `SplashMobileMenuToggle`). PageFrame still outputs `starlight-menu-button` inside `nav.sidebar` for grid
+ * layout; hide it so there is a single hamburger and no duplicate `aria-controls` target confusion.
+ *
+ * `@stainless-api/docs/styles/overrides.css` sets `starlight-menu-button { display: none }` and only
+ * `.sidebar starlight-menu-button` is shown in `page.css`. Toggles moved into the header must be shown
+ * explicitly or they stay invisible.
+ *
+ * Nav height: primary row + tab strip + borders; ~5.75rem tracks the stacked header better than 7rem.
+ */
+@media not (min-width: 50rem) {
+  .page > nav.sidebar > starlight-menu-button {
+    display: none !important;
+  }
+
+  .header .header-grid__mobile-menu starlight-menu-button,
+  .stl-splash-mobile-menu-toggle starlight-menu-button {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /*
+   * Drawer visibility: Starlight’s PageFrame uses `--sl-sidebar-visibility` on `.sidebar-pane`.
+   * Stainless `page.css` (mobile) instead sets `visibility: hidden` on
+   * `.page > .sidebar > .sidebar-pane` and only reveals it when the *in-nav* sibling
+   * `starlight-menu-button[aria-expanded="true"]` precedes `.sidebar-pane`. Our hamburger is
+   * in the header, so that sibling selector never matches; we must open the drawer via
+   * `body[data-mobile-menu-expanded]` from `MobileMenuToggle` and set `visibility` directly
+   * (the variable alone does not override Stainless’s `visibility: hidden`).
+   */
+  body[data-mobile-menu-expanded] .page > nav.sidebar .sidebar-pane,
+  body[data-mobile-menu-expanded] #starlight__sidebar.sidebar-pane {
+    --sl-sidebar-visibility: visible !important;
+    visibility: visible !important;
+  }
+
+  :root:has(.header--mobile-secondary-nav) {
+    --stl-nav-height: 5.75rem;
+    --sl-nav-height: 5.75rem;
+  }
+}
+
 /* Figma 3513:11064 – header bar full width; inner content in a 1312px band, centered. Same inset so logo aligns with main content. */
 .stl-header,
 header.header {
   padding-inline: max(
     var(--tiger-content-inset),
-    calc((100vw - var(--tiger-content-width)) / 2)
+    calc((100% - var(--tiger-content-width)) / 2)
   ) !important;
 }
 /* Splash: force header padding so framework default (e.g. 22px) doesn’t override; header bar is full width via .page max-width: none. */
@@ -1963,13 +2118,12 @@ header.header {
 .page:has([data-template="splash"] main) header.header {
   padding-inline: max(
     var(--tiger-content-inset),
-    calc((100vw - var(--tiger-content-width)) / 2)
+    calc((100% - var(--tiger-content-width)) / 2)
   ) !important;
 }
-/* Inner header row (logo, nav tabs, search, CTA): max 1312px, full width of header content box so it expands on full screen */
+/* Inner header row (logo, nav tabs, search, CTA): full width */
 header .header {
-  max-width: var(--tiger-content-width);
-  margin-inline: auto;
+  max-width: none;
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -1979,7 +2133,7 @@ header .header {
   header.header {
     padding-inline: max(
       var(--tiger-space-2xl),
-      calc((100vw - var(--tiger-content-width)) / 2)
+      calc((100% - var(--tiger-content-width)) / 2)
     ) !important;
   }
   .page:has(main .splash-hero) > header.header,
@@ -1988,7 +2142,7 @@ header .header {
   .page:has([data-template="splash"] main) header.header {
     padding-inline: max(
       var(--tiger-space-2xl),
-      calc((100vw - var(--tiger-content-width)) / 2)
+      calc((100% - var(--tiger-content-width)) / 2)
     ) !important;
   }
 }
@@ -2193,6 +2347,15 @@ header .header {
     padding-inline: var(--tiger-space-lg) !important;
   }
 }
+/* ============================================
+   Light theme exclusive
+   ============================================ */
+:root[data-theme="light"]
+  .splash-section__cards
+  .stl-ui-mintlify-compat-card:hover {
+  background: var(--tiger-grey-100);
+}
+
 
 /* ============================================
    CardGroup Layout
@@ -2202,6 +2365,11 @@ header .header {
   flex-wrap: wrap;
   justify-content: flex-start;
   gap: var(--tiger-space-lg);
+}
+
+/* Card padding */
+.stl-ui-mintlify-compat-card {
+  padding: var(--tiger-space-md);
 }
 
 /* Consistent card sizing */
@@ -2557,7 +2725,6 @@ header .header {
   column-gap: 16px !important;
   row-gap: 8px !important;
   align-items: start;
-  padding: 0;
   background: var(--tiger-white, #fff);
   border-radius: 16px;
   border: none;
@@ -2744,7 +2911,8 @@ main
 .changelog-page-toc > h2,
 .changelog-page-toc > :where(.sl-heading-wrapper) {
   height: 0;
-  margin: 0;
+  margin: 0 !important;
+  margin-block: 0 !important;
   padding: 0;
   overflow: hidden;
   visibility: hidden;
@@ -2784,7 +2952,16 @@ main
   }
 }
 
-/* Changelog: sticky filter bar — avoid clipping `position:sticky` and offset in-page anchors */
+/* Changelog: sticky filter bar — avoid clipping `position:sticky` and offset in-page anchors
+   Toggle sticky behavior for the filter bar AND entry headers:
+   set --changelog-sticky-position to `relative` to disable, `sticky` to enable.
+   When disabling, also set --changelog-sticky-top to `auto` so `top` offsets
+   don't push elements out of normal flow. */
+.page:has(#changelog-filter) {
+  --changelog-sticky-position: relative;
+  --changelog-sticky-top: auto;
+}
+
 .page:has(#changelog-filter) main .l-markdown-content {
   overflow-x: visible;
   overflow-y: visible;
@@ -2797,18 +2974,30 @@ main
   z-index: 50 !important;
 }
 
+/* Tight gap below the filter; padding avoids margin collapse with the filter block. */
 .page:has(#changelog-filter) .changelog-page-toc {
   position: relative;
   z-index: 0;
+  padding-top: 0.25rem;
+}
+
+/* Remove prose/Starlight top spacing before the first card (TOC duplicate heading is hidden). */
+.page:has(#changelog-filter) .changelog-page-toc > :where(.sl-heading-wrapper) + .changelog-entry,
+.page:has(#changelog-filter) .changelog-page-toc > h2 + .changelog-entry,
+.page:has(#changelog-filter) .changelog-page-toc > .changelog-entry:first-child {
+  margin-top: 0;
 }
 
 .page:has(#changelog-filter) .changelog-entry {
   z-index: 0;
 }
 
+/* JS sets --changelog-scroll-margin-top to the filter stack bottom + gap so TOC/hash
+   targets (h2) land below the sticky filter; fallback matches a tall expanded bar. */
 .page:has(main .changelog-page-toc) .changelog-entry {
-  scroll-margin-top: calc(
-    var(--stl-nav-height, 3.5rem) + env(safe-area-inset-top, 0px) + 15rem
+  scroll-margin-top: var(
+    --changelog-scroll-margin-top,
+    calc(var(--stl-nav-height, 3.5rem) + env(safe-area-inset-top, 0px) + 11rem)
   );
 }
 
@@ -3088,13 +3277,9 @@ main
   margin-bottom: 0.25rem;
 }
 
-/* Step body – Body/16/Regular per Figma */
+/* Step body – inherits normal page text styling */
 .numbered-list__item-body {
-  font-family: var(--stl-font-family);
-  font-weight: 450;
-  font-size: 16px;
-  line-height: 1.5;
-  color: var(--tiger-bg-default);
+  margin-top: 0.25rem;
 }
 
 /* Spacing for code blocks and Callouts inside a step */
@@ -3103,37 +3288,20 @@ main
   margin-top: 0.75rem;
 }
 
-/* Force paragraphs and links to stay inline so links don't break onto their own line */
-.numbered-list__item-body > p,
-.numbered-list__item-body > a {
-  display: inline !important;
-  margin: 0 !important;
+/* Nested ordered lists inside a step use lowercase letters (a, b, c) */
+.numbered-list__item-body ol {
+  list-style-type: lower-alpha;
+  padding-left: 1.5rem;
+  margin-top: 0.75rem;
 }
 
-.numbered-list__item-body a {
-  display: inline !important;
+.numbered-list__item-body ol > li {
+  margin-bottom: 0.5rem;
 }
 
-/* Single p wrapping text+link+text: make it inline so the sentence stays on one line */
-.numbered-list__item-body p:first-child {
-  display: inline !important;
-  margin: 0 0.25rem 0 0 !important;
-}
-
-.numbered-list__item-body > p + p {
-  margin-left: 0.25rem;
-}
-
-.numbered-list__item-body p:first-child::after {
-  content: none;
-}
-
-.numbered-list__item-body p {
-  margin: 0.25rem 0 0 0;
-}
-
-.numbered-list__item-body p + p {
-  margin-top: 0.25rem;
+/* Two levels deep use lowercase Roman numerals (i, ii, iii) */
+.numbered-list__item-body ol ol {
+  list-style-type: lower-roman;
 }
 
 /* ============================================

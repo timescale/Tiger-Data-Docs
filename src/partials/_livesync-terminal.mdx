@@ -98,7 +98,7 @@ psql $TARGET -f schema.sql
 
 For efficient querying and analysis, you can convert tables which contain time-series or
 events data, and tables that are already partitioned using {C.PG} declarative partition into
-[hypertables](/use-timescale/hypertables/).
+[hypertables](/learn/hypertables/understand-hypertables).
 
 <NumberedList>
 
@@ -168,7 +168,7 @@ ALTER PUBLICATION <publication_name> ADD TABLE <table_name>;
 ALTER PUBLICATION <publication_name> SET(publish_via_partition_root=true);
 ```
 
-To convert a partitioned table to a hypertable, follow [Convert partitions and tables with time-series data into hypertables](/migrate/livesync-for-postgresql/#convert-partitions-and-tables-with-time-series-data-into-hypertables).
+To convert a partitioned table to a hypertable, follow [Convert partitions and tables with time-series data into hypertables](/migrate/livesync-for-postgresql/).
 
 </NumberedItem>
 
@@ -210,16 +210,16 @@ docker run -d --rm --name livesync timescale/live-sync:<version-tag> run \
 
 - `--target`: The connection string to the target {C.SERVICE_LONG}.
 
-- `--table-map`: (Optional) A JSON string that maps source tables to target tables. If not provided, the source and target table names are assumed to be the same. For example, to map the source table `metrics` to the target table `metrics_data`.
+- `--table-map`: (Optional) A JSON string that maps source tables to target tables. If not provided, the source and target table names are assumed to be the same.
 
-    ```
-    --table-map '{"source": {"schema": "public", "table": "metrics"}, "target": {"schema": "public", "table": "metrics_data"}}'
-    ```
+    For example, to map the source table `metrics` to the target table `metrics_data`:
+
+    `--table-map '{"source": {"schema": "public", "table": "metrics"}, "target": {"schema": "public", "table": "metrics_data"}}'`
+
     To map only the schema, use:
 
-    ```
-    --table-map '{"source": {"schema": "public"}, "target": {"schema": "analytics"}}'
-    ```
+    `--table-map '{"source": {"schema": "public"}, "target": {"schema": "analytics"}}'`
+
     This flag can be repeated for multiple table mappings.
 
 - `--table-sync-workers`: (Optional) The number of parallel workers to use for initial table sync. Default is 4.
@@ -365,13 +365,11 @@ EOF
 
 <NumberedItem title="Clean up">
 
-Use the `--drop` flag to remove the replication slots created by the {C.PG_CONNECTOR} on the source database.
+Use the `drop` sub-command to remove the replication slots created by the {C.PG_CONNECTOR} on the source database.
 
 ```shell
-docker run -it --rm --name livesync timescale/live-sync:<version-tag> run \
-   --publication <publication_name> --subscription <subscription_name> \
-   --source $SOURCE --target $TARGET \
-   --drop
+docker run -it --rm --name livesync timescale/live-sync:<version-tag> drop \
+   --subscription <subscription_name> --source $SOURCE --target $TARGET
 ```
 
 </NumberedItem>

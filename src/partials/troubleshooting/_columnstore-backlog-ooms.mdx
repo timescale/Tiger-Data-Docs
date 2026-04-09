@@ -12,7 +12,17 @@ However, before converting a large backlog of chunks from the {C.ROWSTORE} to th
 best practice is to set `maxchunks_to_compress` and limit the amount of chunks to be converted. For example:
 
 ```sql
-SELECT alter_job(job_id, config.maxchunks_to_compress => 10);
+SELECT alter_job(j.job_id, config => j.config || '{"maxchunks_to_compress": 10}'::jsonb)
+FROM timescaledb_information.jobs j
+WHERE j.proc_name = 'policy_compression'
+  AND j.hypertable_name = '<hypertable_name>';
 ```
 
-When all chunks have been converted to the {C.COLUMNSTORE}, set `maxchunks_to_compress` to `0`, unlimited.
+When all chunks have been converted to the {C.COLUMNSTORE}, reset `maxchunks_to_compress` to `0` (unlimited):
+
+```sql
+SELECT alter_job(j.job_id, config => j.config || '{"maxchunks_to_compress": 0}'::jsonb)
+FROM timescaledb_information.jobs j
+WHERE j.proc_name = 'policy_compression'
+  AND j.hypertable_name = '<hypertable_name>';
+```

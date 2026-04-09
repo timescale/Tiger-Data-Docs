@@ -1,0 +1,130 @@
+---
+/**
+ * Fork of @astrojs/starlight/components/MobileMenuToggle.astro
+ *
+ * - Guards customElements.define so repeat script evaluation (client router / HMR) does not throw.
+ * - connectedCallback clears stale body[data-mobile-menu-expanded] when new buttons mount with
+ *   aria-expanded=false (fixes drawer not opening after in-app navigation).
+ * - setExpanded uses explicit set/removeAttribute on body (avoids toggleAttribute edge cases).
+ */
+import { Icon } from "@astrojs/starlight/components";
+---
+
+<starlight-menu-button class="print:hidden">
+  <button
+    aria-expanded="false"
+    aria-label={Astro.locals.t("menuButton.accessibleLabel")}
+    aria-controls="starlight__sidebar"
+    class="sl-flex md:sl-hidden"
+  >
+    <Icon name="bars" class="open-menu" />
+    <Icon name="close" class="close-menu" />
+  </button>
+</starlight-menu-button>
+
+<script>
+  class StarlightMenuButton extends HTMLElement {
+    btn = this.querySelector("button")!;
+
+    constructor() {
+      super();
+      this.btn.addEventListener("click", () => this.toggleExpanded());
+
+      const parentNav = this.closest("nav");
+      if (parentNav) {
+        parentNav.addEventListener("keyup", (e) => this.closeOnEscape(e));
+      }
+    }
+
+    connectedCallback() {
+      /**
+       * New DOM from navigation often ships aria-expanded="false", but `document.body` can still
+       * carry `data-mobile-menu-expanded` from the previous document (soft navigation) or bfcache.
+       * That leaves the drawer CSS out of sync with the button: clicks look like they do nothing.
+       */
+      if (this.getAttribute("aria-expanded") !== "true") {
+        document.body.removeAttribute("data-mobile-menu-expanded");
+      }
+    }
+
+    setExpanded(expanded: boolean) {
+      this.setAttribute("aria-expanded", String(expanded));
+      if (expanded) {
+        document.body.setAttribute("data-mobile-menu-expanded", "");
+      } else {
+        document.body.removeAttribute("data-mobile-menu-expanded");
+      }
+    }
+
+    toggleExpanded() {
+      this.setExpanded(this.getAttribute("aria-expanded") !== "true");
+    }
+
+    closeOnEscape(e: KeyboardEvent) {
+      if (e.code === "Escape") {
+        this.setExpanded(false);
+        this.btn.focus();
+      }
+    }
+  }
+
+  if (!customElements.get("starlight-menu-button")) {
+    customElements.define("starlight-menu-button", StarlightMenuButton);
+  }
+</script>
+
+<style>
+  @layer starlight.core {
+    button {
+      position: fixed;
+      top: calc((var(--sl-nav-height) - var(--sl-menu-button-size)) / 2);
+      inset-inline-end: var(--sl-nav-pad-x);
+      z-index: var(--sl-z-index-navbar);
+      border: 0;
+      border-radius: 50%;
+      width: var(--sl-menu-button-size);
+      height: var(--sl-menu-button-size);
+      padding: 0.5rem;
+      background-color: var(--sl-color-white);
+      color: var(--sl-color-black);
+      box-shadow: var(--sl-shadow-md);
+      cursor: pointer;
+    }
+
+    [aria-expanded="true"] button {
+      background-color: var(--sl-color-gray-2);
+      box-shadow: none;
+    }
+
+    [aria-expanded="true"] button .open-menu {
+      display: none;
+    }
+
+    :not([aria-expanded="true"]) button .close-menu {
+      display: none;
+    }
+
+    :global([data-theme="light"]) button {
+      background-color: var(--sl-color-black);
+      color: var(--sl-color-white);
+    }
+
+    :global([data-theme="light"]) [aria-expanded="true"] button {
+      background-color: var(--sl-color-gray-5);
+    }
+  }
+</style>
+
+<style is:global>
+  @layer starlight.core {
+    [data-mobile-menu-expanded] {
+      overflow: hidden;
+    }
+
+    @media (min-width: 50rem) {
+      [data-mobile-menu-expanded] {
+        overflow: auto;
+      }
+    }
+  }
+</style>

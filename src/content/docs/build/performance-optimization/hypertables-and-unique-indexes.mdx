@@ -1,0 +1,138 @@
+---
+title: Enforce constraints with unique indexes
+description: Having a unique index on your hypertable simplifies lookup, speeds up aggregation, and makes JOINs more efficient. Learn to create a unique index and what the related limitations are.
+products: [cloud, mst, self_hosted]
+keywords: [hypertables, unique indexes, primary keys]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import CreateHypertablePolicyNote from "../../../../partials/_create-hypertable-columnstore-policy-note.mdx";
+
+You use unique indexes on a {C.HYPERTABLE} to enforce [constraints](https://www.postgresql.org/docs/current/ddl-constraints.html). If you have a primary key,
+you have a unique index. In {C.PG}, a primary key is a unique index with a `NOT NULL` constraint.
+
+You do not need to have a unique index on your {C.HYPERTABLE}s. When you create a unique index,
+it must contain all the partitioning columns of the {C.HYPERTABLE}.
+
+## Create a {C.HYPERTABLE} and add unique indexes
+
+To create a unique index on a {C.HYPERTABLE}:
+
+<NumberedList>
+<NumberedItem title="Determine the partitioning columns">
+
+Before you create a unique index, you need to determine which unique indexes are
+allowed on your {C.HYPERTABLE}. Begin by identifying your partitioning columns.
+
+{C.TIMESCALE_DB} traditionally uses the following columns to partition {C.HYPERTABLE}s:
+
+*   The `time` column used to create the {C.HYPERTABLE}. Every {C.TIMESCALE_DB} {C.HYPERTABLE}
+    is partitioned by time.
+*   Any space-partitioning columns. Space partitions are optional and not
+    included in every {C.HYPERTABLE}.
+
+</NumberedItem>
+<NumberedItem title={`Create a ${C.HYPERTABLE}`}>
+
+Create a [{C.HYPERTABLE}](/learn/hypertables/understand-hypertables) for your time-series data using [CREATE TABLE](/reference/timescaledb/hypertables/create_table).
+For [efficient queries](/build/performance-optimization/secondary-indexes) on data in the {C.COLUMNSTORE}, remember to `segmentby` the column you will
+use most often to filter your data. For example:
+
+```sql
+CREATE TABLE hypertable_example(
+  time TIMESTAMPTZ,
+  user_id BIGINT,
+  device_id BIGINT,
+  value FLOAT
+) WITH (
+  tsdb.hypertable,
+  tsdb.segmentby = 'device_id',
+  tsdb.orderby = 'time DESC'
+);
+```
+
+<CreateHypertablePolicyNote />
+
+</NumberedItem>
+<NumberedItem title={`Create a unique index on the ${C.HYPERTABLE}`}>
+
+When you create a unique index on a {C.HYPERTABLE}, it must contain all the partitioning columns. It may contain
+other columns as well, and they may be arranged in any order. You cannot create a unique index without `time`,
+because `time` is a partitioning column.
+
+For example:
+
+- Create a unique index on `time` and `device_id` with a call to `CREATE UNIQUE INDEX`:
+
+   ```sql
+   CREATE UNIQUE INDEX idx_deviceid_time
+     ON hypertable_example(device_id, time);
+   ```
+
+- Create a unique index on `time`, `user_id`, and `device_id`.
+
+  `device_id` is not a partitioning column, but this still works:
+
+   ```sql
+   CREATE UNIQUE INDEX idx_userid_deviceid_time
+     ON hypertable_example(user_id, device_id, time);
+   ```
+
+<Callout variant="note">
+This restriction is necessary to guarantee global uniqueness in the index.
+</Callout>
+
+</NumberedItem>
+</NumberedList>
+
+## Create a {C.HYPERTABLE} from an existing table with unique indexes
+
+If you create a unique index on a table before turning it into a {C.HYPERTABLE}, the
+same restrictions apply in reverse. You can only partition the table by columns
+in your unique index.
+
+<NumberedList>
+<NumberedItem title="Create a relational table">
+
+```sql
+CREATE TABLE another_hypertable_example(
+  time TIMESTAMPTZ,
+  user_id BIGINT,
+  device_id BIGINT,
+  value FLOAT
+);
+```
+
+</NumberedItem>
+<NumberedItem title="Create a unique index on the table">
+
+For example, on `device_id` and `time`:
+
+```sql
+CREATE UNIQUE INDEX idx_deviceid_time
+  ON another_hypertable_example(device_id, time);
+```
+
+</NumberedItem>
+<NumberedItem title={`Turn the table into a partitioned ${C.HYPERTABLE}`}>
+
+- On `time` alone:
+
+   ```sql
+   SELECT * from create_hypertable('another_hypertable_example', by_range('time'));
+   ```
+
+- On `time` and `device_id`:
+
+   ```sql
+   SELECT * FROM create_hypertable('another_hypertable_example', by_range('time'));
+   SELECT * FROM add_dimension('another_hypertable_example', by_hash('device_id', 4));
+   ```
+
+You get an error if you try to turn the relational table into a {C.HYPERTABLE} partitioned by `time` and `user_id`.
+This is because `user_id` is not part of the `UNIQUE INDEX`. To fix the error, add `user_id` to your unique index.
+
+</NumberedItem>
+</NumberedList>

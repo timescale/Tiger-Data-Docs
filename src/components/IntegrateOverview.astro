@@ -2,9 +2,60 @@
 /**
  * Integrate overview: search bar + dropdown filters + flat card grid.
  * Filter dimensions: Type of Tool, Industry, Platform, First Party/Third Party, Technology.
- * Relies on frontmatter: integrationCategory, integrationIndustry[], integrationPlatforms[], connectorType, keywords[].
+ * Relies on frontmatter: integrationCategory, integrationIndustry[], integrationPlatforms[], connectorType, keywords[],
+ * integrationHideFromOverviewCards (omit from card grid only; sidebar unchanged).
  */
 import { getEntry } from "astro:content";
+
+import {
+  INTEGRATION_TECHNOLOGY_KEYS,
+  resolveIntegrationTechnologies,
+  type IntegrationTechnologyKey
+} from "../lib/integration-technologies";
+
+/** Static image import shape from Vite/Astro (`import logo from '...'`). */
+type CardLogoImport = {
+  src: string;
+  width: number;
+  height: number;
+};
+
+/** Optional raster logos (SVG default imports differ; use PNG/WebP for cards). */
+const cardLogoModules = import.meta.glob<{ default: CardLogoImport }>(
+  "../assets/images/integrate/card-logos/**/*.{png,jpg,jpeg,webp}",
+  { eager: true }
+);
+
+function resolveCardLogo(
+  filename: string | undefined
+): CardLogoImport | undefined {
+  if (!filename?.trim()) return undefined;
+  const normalized = filename.trim().replace(/^\.?\//, "");
+  for (const path of Object.keys(cardLogoModules)) {
+    if (path.endsWith(normalized)) return cardLogoModules[path].default;
+  }
+  return undefined;
+}
+
+/** Deterministic badge colors for placeholder initials (no gradient strip on cards). */
+const INTEGRATION_BADGE_PALETTE: { bg: string; fg: string }[] = [
+  { bg: "#FF9900", fg: "#ffffff" },
+  { bg: "#E67E22", fg: "#ffffff" },
+  { bg: "#1E3A5F", fg: "#FF9900" },
+  { bg: "#0073BB", fg: "#ffffff" },
+  { bg: "#111111", fg: "#ffffff" },
+  { bg: "#146EB4", fg: "#ffffff" },
+  { bg: "#5B2C83", fg: "#ffffff" },
+  { bg: "#0D9488", fg: "#ffffff" }
+];
+
+function badgeColorsForSlug(slug: string): { bg: string; fg: string } {
+  let h = 0;
+  for (let i = 0; i < slug.length; i++) {
+    h = (h * 31 + slug.charCodeAt(i)) >>> 0;
+  }
+  return INTEGRATION_BADGE_PALETTE[h % INTEGRATION_BADGE_PALETTE.length];
+}
 
 const pathMap = import.meta.glob("../content/docs/integrate/**/*.mdx");
 const indexSlug = "integrate/index";
@@ -30,7 +81,7 @@ const allSlugs = Object.keys(pathMap)
 const PLATFORM_LABELS: Record<string, string> = {
   aws: "Tiger Cloud on AWS",
   azure: "Tiger Cloud on Azure",
-  "self-hosted": "Self-Hosted",
+  "self-hosted": "Self-Hosted"
 };
 const PLATFORM_ORDER = ["aws", "azure", "self-hosted"] as const;
 type PlatformSlug = (typeof PLATFORM_ORDER)[number];
@@ -45,18 +96,43 @@ type DocData = {
   integrationCardTitle?: string;
   integrationPlatforms?: PlatformSlug[];
   keywords?: string[];
+  integrationCardLogo?: string;
+  integrationCardLogoDark?: string;
+  integrationCardLogoAlt?: string;
+  integrationCardInitials?: string;
+  integrationHideFromOverviewCards?: boolean;
+  integrationTechnologies?: IntegrationTechnologyKey[];
 };
+
+function cardInitials(data: DocData, displayTitle: string): string {
+  if (data.integrationCardInitials?.trim()) {
+    return data.integrationCardInitials.trim().slice(0, 4);
+  }
+  const stripped = displayTitle.replace(/\s+and Tiger Data\s*$/i, "").trim();
+  const words = stripped.split(/[\s/&]+/).filter(Boolean);
+  if (words.length >= 2) {
+    return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+  }
+  if (words.length === 1 && words[0].length >= 2) {
+    return words[0].slice(0, 2).toUpperCase();
+  }
+  return (stripped.slice(0, 2) || "?").toUpperCase();
+}
 
 function cardTitle(data: DocData): string {
   if (data.integrationCardTitle) {
     return `${data.integrationCardTitle} and Tiger Data`;
   }
   const t = data.title ?? "";
-  const withMatch = t.match(/^Integrate (.+?) (?:with|and) Tiger (?:Cloud|Data)$/i);
+  const withMatch = t.match(
+    /^Integrate (.+?) (?:with|and) Tiger (?:Cloud|Data)$/i
+  );
   if (withMatch) return `${withMatch[1]} and Tiger Data`;
   const connectMatch = t.match(/^Connect (.+?) to Tiger (?:Cloud|Data)$/i);
   if (connectMatch) return `${connectMatch[1]} and Tiger Data`;
-  const connectWithMatch = t.match(/^Connect to Tiger (?:Cloud|Data) with (.+)$/i);
+  const connectWithMatch = t.match(
+    /^Connect to Tiger (?:Cloud|Data) with (.+)$/i
+  );
   if (connectWithMatch) return `${connectWithMatch[1]} and Tiger Data`;
   if (t && !/Tiger (?:Cloud|Data)/i.test(t)) return `${t} and Tiger Data`;
   return (t || "Integration").replace(/Tiger Cloud/gi, "Tiger Data");
@@ -79,8 +155,14 @@ for (const slug of allSlugs) {
           sortOrder: d.sortOrder,
           integrationCardTitle: d.integrationCardTitle,
           integrationPlatforms: d.integrationPlatforms ?? ["aws"],
-          keywords: (d as any).keywords ?? [],
-        },
+          keywords: d.keywords ?? [],
+          integrationTechnologies: d.integrationTechnologies,
+          integrationCardLogo: d.integrationCardLogo,
+          integrationCardLogoDark: d.integrationCardLogoDark,
+          integrationCardLogoAlt: d.integrationCardLogoAlt,
+          integrationCardInitials: d.integrationCardInitials,
+          integrationHideFromOverviewCards: d.integrationHideFromOverviewCards === true
+        }
       });
     }
   } catch {
@@ -90,6 +172,18 @@ for (const slug of allSlugs) {
 
 // Sort entries alphabetically by display title
 entries.sort((a, b) => cardTitle(a.data).localeCompare(cardTitle(b.data)));
+
+/**
+ * Pages shown as cards on /integrate (sidebar and direct URLs still list all integrate pages).
+ * Prefer frontmatter `integrationHideFromOverviewCards: true`; slug list is a fallback for
+ * pages that must stay in the nav but never appear as cards.
+ */
+const SLUGS_HIDDEN_FROM_INTEGRATE_CARDS = new Set(["integrate/troubleshooting"]);
+
+const cardEntries = entries.filter(
+  (e) =>
+    !SLUGS_HIDDEN_FROM_INTEGRATE_CARDS.has(e.slug) && !e.data.integrationHideFromOverviewCards
+);
 
 // --- Filter: Type of Tool (integrationCategory) ---
 const CATEGORY_LABELS: Record<string, string> = {
@@ -101,18 +195,30 @@ const CATEGORY_LABELS: Record<string, string> = {
   "query-administration": "Query & Administration",
   "secure-connectivity": "Secure Connectivity",
   "observability-alerting": "Observability & Alerting",
-  "configuration-deployment": "Configuration & Deployment",
+  "configuration-deployment": "Configuration & Deployment"
 };
 const CATEGORY_ORDER = [
-  "data-engineering-etl", "bi-vizualization", "data-ingestion-streaming",
-  "connectors", "code", "query-administration", "secure-connectivity",
-  "observability-alerting", "configuration-deployment",
+  "data-engineering-etl",
+  "bi-vizualization",
+  "data-ingestion-streaming",
+  "connectors",
+  "code",
+  "query-administration",
+  "secure-connectivity",
+  "observability-alerting",
+  "configuration-deployment"
 ];
 function getCategoryLabel(slug: string): string {
-  return CATEGORY_LABELS[slug] ?? slug.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  return (
+    CATEGORY_LABELS[slug] ??
+    slug
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ")
+  );
 }
 const uniqueCategories = CATEGORY_ORDER.filter((cat) =>
-  entries.some((e) => e.data.integrationCategory === cat)
+  cardEntries.some((e) => e.data.integrationCategory === cat)
 );
 
 // --- Filter: Industry ---
@@ -122,16 +228,25 @@ const INDUSTRY_LABELS: Record<string, string> = {
   energy: "Energy",
   crypto: "Crypto",
   healthcare: "Healthcare",
-  manufacturing: "Manufacturing",
+  manufacturing: "Manufacturing"
 };
 function normalizeIndustryKey(raw: string): string {
   const k = raw.trim().toLowerCase().replace(/\s+/g, "-");
   if (k === "oilandgas") return "oil-and-gas";
   return k;
 }
-const INDUSTRY_ORDER = ["oil-and-gas", "iot", "energy", "crypto", "healthcare", "manufacturing"];
+const INDUSTRY_ORDER = [
+  "oil-and-gas",
+  "iot",
+  "energy",
+  "crypto",
+  "healthcare",
+  "manufacturing"
+];
 const uniqueIndustries = INDUSTRY_ORDER.filter((ind) =>
-  entries.some((e) => (e.data.integrationIndustry ?? []).map(normalizeIndustryKey).includes(ind))
+  cardEntries.some((e) =>
+    (e.data.integrationIndustry ?? []).map(normalizeIndustryKey).includes(ind)
+  )
 );
 
 // --- Filter: Platform ---
@@ -146,49 +261,63 @@ function getPartyType(data: DocData): string {
   return "third-party";
 }
 
-// --- Filter: Technology ---
-const TECHNOLOGY_MAP: Record<string, string[]> = {
-  "PostgreSQL": ["postgres", "psql", "pgadmin", "fdw", "foreign data wrappers", "postgresql"],
-  "Python": ["python", "psycopg2", "sdk"],
-  "SQL": ["sql editor", "sql shell", "query tool", "interactive queries"],
-  "Kafka": ["kafka", "confluent", "event streaming"],
-  "AWS": ["aws", "lambda", "sagemaker", "cloudwatch", "s3"],
-  "Azure": ["azure"],
-  "GCP": ["google cloud", "gcp"],
-  "Terraform": ["terraform", "iac", "infrastructure as code"],
-  "Kubernetes": ["kubernetes", "k8s", "container orchestration"],
-  "Grafana": ["grafana"],
-  "Prometheus": ["prometheus"],
-  "REST API": ["api integration", "rest"],
-};
+// --- Filter: Technology (keywords + optional integrationTechnologies; see src/lib/integration-technologies.ts) ---
 function getTechnologies(data: DocData): string[] {
-  const kw = (data.keywords ?? []).map((k: string) => k.toLowerCase());
-  const techs: string[] = [];
-  for (const [tech, patterns] of Object.entries(TECHNOLOGY_MAP)) {
-    if (patterns.some((p) => kw.some((k) => k.includes(p)))) {
-      techs.push(tech);
-    }
-  }
-  return techs;
+  return resolveIntegrationTechnologies(
+    data.integrationTechnologies,
+    data.keywords
+  );
 }
-const TECHNOLOGY_ORDER = Object.keys(TECHNOLOGY_MAP);
-const uniqueTechnologies = TECHNOLOGY_ORDER.filter((tech) =>
-  entries.some((e) => getTechnologies(e.data).includes(tech))
+const uniqueTechnologies = INTEGRATION_TECHNOLOGY_KEYS.filter((tech) =>
+  cardEntries.some((e) => getTechnologies(e.data).includes(tech))
 );
 
 function slugToHref(slug: string): string {
-  return "/" + slug + "/";
+  return "/" + slug;
 }
+
+/** Splash template hides the default Starlight title; show title + description in this panel. */
+const routeEntry = Astro.locals.starlightRoute?.entry;
+const headerTitle = routeEntry?.data?.title ?? "Integrate";
+const headerDescription = routeEntry?.data?.description;
 ---
 
-<div class="integrate-overview" id="integrate-overview-root">
+<div class="integrate-overview not-content" id="integrate-overview-root">
+  <header class="integrate-header" aria-labelledby="integrate-overview-heading">
+    <h1 class="integrate-header__title" id="integrate-overview-heading">
+      {headerTitle}
+    </h1>
+    {
+      headerDescription ? (
+        <p class="integrate-header__description">{headerDescription}</p>
+      ) : null
+    }
+  </header>
+
   <!-- Search bar -->
   <div class="integrate-search-wrapper">
-    <svg class="integrate-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+    <svg
+      class="integrate-search-icon"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      width="18"
+      height="18"
+    >
       <circle cx="11" cy="11" r="8"></circle>
       <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
     </svg>
-    <input type="text" class="integrate-search-input" id="integrate-search" placeholder="Search by tool or keyword..." autocomplete="off" />
+    <input
+      type="text"
+      class="integrate-search-input"
+      id="integrate-search"
+      placeholder="Search by tool or keyword..."
+      autocomplete="off"
+    />
   </div>
 
   <!-- Filter dropdowns -->
@@ -197,17 +326,31 @@ function slugToHref(slug: string): string {
     <div class="integrate-filter-group" data-filter-key="category">
       <button type="button" class="integrate-filter-btn" aria-expanded="false">
         <span>Type of Tool</span>
-        <svg class="integrate-filter-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg
+          class="integrate-filter-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
         </svg>
       </button>
       <div class="integrate-filter-panel" hidden>
-        {uniqueCategories.map((cat) => (
-          <label class="integrate-filter-option">
-            <input type="checkbox" value={cat} data-filter-check="category" />
-            <span>{getCategoryLabel(cat)}</span>
-          </label>
-        ))}
+        {
+          uniqueCategories.map((cat) => (
+            <label class="integrate-filter-option">
+              <input type="checkbox" value={cat} data-filter-check="category" />
+              <span>{getCategoryLabel(cat)}</span>
+            </label>
+          ))
+        }
       </div>
     </div>
 
@@ -215,17 +358,31 @@ function slugToHref(slug: string): string {
     <div class="integrate-filter-group" data-filter-key="industry">
       <button type="button" class="integrate-filter-btn" aria-expanded="false">
         <span>Industry</span>
-        <svg class="integrate-filter-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg
+          class="integrate-filter-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
         </svg>
       </button>
       <div class="integrate-filter-panel" hidden>
-        {uniqueIndustries.map((ind) => (
-          <label class="integrate-filter-option">
-            <input type="checkbox" value={ind} data-filter-check="industry" />
-            <span>{INDUSTRY_LABELS[ind] ?? ind}</span>
-          </label>
-        ))}
+        {
+          uniqueIndustries.map((ind) => (
+            <label class="integrate-filter-option">
+              <input type="checkbox" value={ind} data-filter-check="industry" />
+              <span>{INDUSTRY_LABELS[ind] ?? ind}</span>
+            </label>
+          ))
+        }
       </div>
     </div>
 
@@ -233,17 +390,31 @@ function slugToHref(slug: string): string {
     <div class="integrate-filter-group" data-filter-key="platform">
       <button type="button" class="integrate-filter-btn" aria-expanded="false">
         <span>Platform</span>
-        <svg class="integrate-filter-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg
+          class="integrate-filter-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
         </svg>
       </button>
       <div class="integrate-filter-panel" hidden>
-        {PLATFORM_ORDER.map((key) => (
-          <label class="integrate-filter-option">
-            <input type="checkbox" value={key} data-filter-check="platform" />
-            <span>{PLATFORM_LABELS[key]}</span>
-          </label>
-        ))}
+        {
+          PLATFORM_ORDER.map((key) => (
+            <label class="integrate-filter-option">
+              <input type="checkbox" value={key} data-filter-check="platform" />
+              <span>{PLATFORM_LABELS[key]}</span>
+            </label>
+          ))
+        }
       </div>
     </div>
 
@@ -251,17 +422,37 @@ function slugToHref(slug: string): string {
     <div class="integrate-filter-group" data-filter-key="party">
       <button type="button" class="integrate-filter-btn" aria-expanded="false">
         <span>First Party/Third Party</span>
-        <svg class="integrate-filter-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg
+          class="integrate-filter-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
         </svg>
       </button>
       <div class="integrate-filter-panel" hidden>
         <label class="integrate-filter-option">
-          <input type="checkbox" value="first-party" data-filter-check="party" />
+          <input
+            type="checkbox"
+            value="first-party"
+            data-filter-check="party"
+          />
           <span>First Party</span>
         </label>
         <label class="integrate-filter-option">
-          <input type="checkbox" value="third-party" data-filter-check="party" />
+          <input
+            type="checkbox"
+            value="third-party"
+            data-filter-check="party"
+          />
           <span>Third Party</span>
         </label>
       </div>
@@ -271,26 +462,60 @@ function slugToHref(slug: string): string {
     <div class="integrate-filter-group" data-filter-key="technology">
       <button type="button" class="integrate-filter-btn" aria-expanded="false">
         <span>Technology</span>
-        <svg class="integrate-filter-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg
+          class="integrate-filter-chevron"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M3 4.5L6 7.5L9 4.5"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"></path>
         </svg>
       </button>
       <div class="integrate-filter-panel" hidden>
-        {uniqueTechnologies.map((tech) => (
-          <label class="integrate-filter-option">
-            <input type="checkbox" value={tech} data-filter-check="technology" />
-            <span>{tech}</span>
-          </label>
-        ))}
+        {
+          uniqueTechnologies.map((tech) => (
+            <label class="integrate-filter-option">
+              <input
+                type="checkbox"
+                value={tech}
+                data-filter-check="technology"
+              />
+              <span>{tech}</span>
+            </label>
+          ))
+        }
       </div>
     </div>
 
     <!-- Clear filters -->
-    <button type="button" class="integrate-clear-filters" id="integrate-clear-filters" hidden>
+    <button
+      type="button"
+      class="integrate-clear-filters"
+      id="integrate-clear-filters"
+      hidden
+    >
       Clear filters
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M9 5L5 9M5 5L9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 14 14"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.5"
+        ></circle>
+        <path
+          d="M9 5L5 9M5 5L9 9"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"></path>
       </svg>
     </button>
   </div>
@@ -302,179 +527,252 @@ function slugToHref(slug: string): string {
 
   <!-- Cards grid -->
   <div class="integrate-cards-grid" id="integrate-cards-grid">
-    {entries.map(({ slug, data }) => {
-      const platforms = getPlatforms(data);
-      const party = getPartyType(data);
-      const technologies = getTechnologies(data);
-      const title = cardTitle(data);
-      return (
-        <a
-          href={slugToHref(slug)}
-          class="integrate-card"
-          data-category={data.integrationCategory ?? ""}
-          data-industries={(data.integrationIndustry ?? []).map(normalizeIndustryKey).join(",")}
-          data-platforms={platforms.join(",")}
-          data-party={party}
-          data-technologies={technologies.join(",")}
-          data-search-text={`${title} ${data.description ?? ""} ${(data.keywords ?? []).join(" ")}`.toLowerCase()}
-        >
-          <div class="integrate-card-accent"></div>
-          <div class="integrate-card-body">
-            <span class="integrate-card-tag">{getCategoryLabel(data.integrationCategory ?? "")}</span>
-            <h3 class="integrate-card-title">{title}</h3>
-            {data.description && <p class="integrate-card-desc">{data.description}</p>}
-          </div>
-        </a>
-      );
-    })}
+    {
+      cardEntries.map(({ slug, data }) => {
+        const platforms = getPlatforms(data);
+        const party = getPartyType(data);
+        const technologies = getTechnologies(data);
+        const title = cardTitle(data);
+        const logoLight = resolveCardLogo(data.integrationCardLogo);
+        const logoDark = resolveCardLogo(data.integrationCardLogoDark);
+        const hasLogo = !!logoLight;
+        const hasDualLogo = !!logoLight && !!logoDark;
+        const logoAlt =
+          data.integrationCardLogoAlt?.trim() ||
+          title.replace(/\s+and Tiger Data\s*$/i, "").trim() ||
+          title;
+        return (
+          <a
+            href={slugToHref(slug)}
+            class="integrate-card"
+            data-category={data.integrationCategory ?? ""}
+            data-industries={(data.integrationIndustry ?? [])
+              .map(normalizeIndustryKey)
+              .join(",")}
+            data-platforms={platforms.join(",")}
+            data-party={party}
+            data-technologies={technologies.join(",")}
+            data-search-text={`${title} ${data.description ?? ""} ${(data.keywords ?? []).join(" ")}`.toLowerCase()}
+          >
+            <div class="integrate-card-body">
+              {hasLogo && (
+                <span class="integrate-card-logo-wrap" role="img" aria-label={logoAlt}>
+                  <img
+                    src={logoLight!.src}
+                    alt=""
+                    width={56}
+                    height={56}
+                    class:list={["integrate-card-logo-img", { "integrate-card-logo-light-only": hasDualLogo }]}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  {hasDualLogo && (
+                    <img
+                      src={logoDark!.src}
+                      alt=""
+                      width={56}
+                      height={56}
+                      class="integrate-card-logo-img integrate-card-logo-dark-only"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  )}
+                </span>
+              )}
+              <div class="integrate-card-copy">
+                <span class="integrate-card-tag">
+                  {getCategoryLabel(data.integrationCategory ?? "")}
+                </span>
+                <h3 class="integrate-card-title">{title}</h3>
+                {data.description && (
+                  <p class="integrate-card-desc">{data.description}</p>
+                )}
+              </div>
+            </div>
+          </a>
+        );
+      })
+    }
   </div>
 </div>
 
 <script>
-  // --- Integrate overview: search + dropdown filter logic ---
-  const searchInput = document.getElementById("integrate-search") as HTMLInputElement | null;
-  const clearBtn = document.getElementById("integrate-clear-filters") as HTMLButtonElement | null;
-  const noResults = document.getElementById("integrate-no-results") as HTMLElement | null;
-  const cards = document.querySelectorAll<HTMLElement>("#integrate-cards-grid .integrate-card");
-  const filterGroups = document.querySelectorAll<HTMLElement>(".integrate-filter-group");
-  const allCheckboxes = document.querySelectorAll<HTMLInputElement>("[data-filter-check]");
+  /**
+   * Search + filters must bind on `astro:page-load`: the bundled module runs once on first load,
+   * so client navigations to /integrate never ran the old top-level code (empty NodeLists).
+   */
+  const FILTER_KEYS = [
+    "category",
+    "industry",
+    "platform",
+    "party",
+    "technology"
+  ];
 
-  // Toggle dropdown panels
-  filterGroups.forEach((group) => {
-    const btn = group.querySelector<HTMLButtonElement>(".integrate-filter-btn");
-    const panel = group.querySelector<HTMLElement>(".integrate-filter-panel");
-    if (!btn || !panel) return;
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const isOpen = btn.getAttribute("aria-expanded") === "true";
-      // Close all other panels
-      filterGroups.forEach((g) => {
-        const b = g.querySelector<HTMLButtonElement>(".integrate-filter-btn");
-        const p = g.querySelector<HTMLElement>(".integrate-filter-panel");
+  let integrateOutsideClickBound = false;
+
+  function closeAllIntegrateFilterPanels() {
+    document
+      .querySelectorAll("#integrate-overview-root .integrate-filter-group")
+      .forEach((g) => {
+        const b = g.querySelector(".integrate-filter-btn");
+        const p = g.querySelector(".integrate-filter-panel");
         if (b) b.setAttribute("aria-expanded", "false");
         if (p) p.hidden = true;
       });
-      if (!isOpen) {
-        btn.setAttribute("aria-expanded", "true");
-        panel.hidden = false;
-      }
-    });
-  });
+  }
 
-  // Close panels on outside click
-  document.addEventListener("click", (e) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest(".integrate-filter-group")) {
-      filterGroups.forEach((g) => {
-        const b = g.querySelector<HTMLButtonElement>(".integrate-filter-btn");
-        const p = g.querySelector<HTMLElement>(".integrate-filter-panel");
-        if (b) b.setAttribute("aria-expanded", "false");
-        if (p) p.hidden = true;
+  function initIntegrateOverview() {
+    const root = document.getElementById("integrate-overview-root");
+    if (!root || root.dataset.integrateBound === "1") return;
+    root.dataset.integrateBound = "1";
+
+    const searchInput = root.querySelector("#integrate-search");
+    const clearBtn = root.querySelector("#integrate-clear-filters");
+    const noResults = root.querySelector("#integrate-no-results");
+    const cards = root.querySelectorAll(
+      "#integrate-cards-grid .integrate-card"
+    );
+    const filterGroups = root.querySelectorAll(".integrate-filter-group");
+    const allCheckboxes = root.querySelectorAll("[data-filter-check]");
+
+    if (!searchInput || filterGroups.length === 0) {
+      delete root.dataset.integrateBound;
+      return;
+    }
+
+    function getActiveFilters() {
+      /** @type {Record<string, string[]>} */
+      const filters = {};
+      allCheckboxes.forEach((cb) => {
+        if (cb.checked) {
+          const key = cb.getAttribute("data-filter-check") ?? "";
+          if (!filters[key]) filters[key] = [];
+          filters[key].push(cb.value);
+        }
+      });
+      return filters;
+    }
+
+    function applyFilters() {
+      const filters = getActiveFilters();
+      const query = (searchInput.value ?? "").trim().toLowerCase();
+      const hasFilters = Object.keys(filters).length > 0 || query.length > 0;
+      if (clearBtn) clearBtn.hidden = !hasFilters;
+
+      filterGroups.forEach((group) => {
+        const key = group.getAttribute("data-filter-key") ?? "";
+        const btn = group.querySelector(".integrate-filter-btn");
+        const count = (filters[key] ?? []).length;
+        if (btn)
+          btn.classList.toggle("integrate-filter-btn--active", count > 0);
+      });
+
+      let visibleCount = 0;
+      cards.forEach((card) => {
+        let show = true;
+
+        if (query) {
+          const text = card.getAttribute("data-search-text") ?? "";
+          if (!text.includes(query)) show = false;
+        }
+
+        if (show && filters["category"]?.length) {
+          const cat = card.getAttribute("data-category") ?? "";
+          if (!filters["category"].includes(cat)) show = false;
+        }
+
+        if (show && filters["industry"]?.length) {
+          const industries = (card.getAttribute("data-industries") ?? "")
+            .split(",")
+            .filter(Boolean);
+          if (!filters["industry"].some((f) => industries.includes(f)))
+            show = false;
+        }
+
+        if (show && filters["platform"]?.length) {
+          const platforms = (card.getAttribute("data-platforms") ?? "")
+            .split(",")
+            .filter(Boolean);
+          if (!filters["platform"].some((f) => platforms.includes(f)))
+            show = false;
+        }
+
+        if (show && filters["party"]?.length) {
+          const party = card.getAttribute("data-party") ?? "";
+          if (!filters["party"].includes(party)) show = false;
+        }
+
+        if (show && filters["technology"]?.length) {
+          const techs = (card.getAttribute("data-technologies") ?? "")
+            .split(",")
+            .filter(Boolean);
+          if (!filters["technology"].some((f) => techs.includes(f)))
+            show = false;
+        }
+
+        /* Use a class, not [hidden], so scoped .integrate-card { display: flex } cannot override hiding */
+        card.classList.toggle("integrate-card--filtered-out", !show);
+        if (show) visibleCount++;
+      });
+
+      if (noResults) noResults.hidden = visibleCount > 0;
+    }
+
+    filterGroups.forEach((group) => {
+      const btn = group.querySelector(".integrate-filter-btn");
+      const panel = group.querySelector(".integrate-filter-panel");
+      if (!btn || !panel) return;
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = btn.getAttribute("aria-expanded") === "true";
+        filterGroups.forEach((g) => {
+          const b = g.querySelector(".integrate-filter-btn");
+          const p = g.querySelector(".integrate-filter-panel");
+          if (b) b.setAttribute("aria-expanded", "false");
+          if (p) p.hidden = true;
+        });
+        if (!isOpen) {
+          btn.setAttribute("aria-expanded", "true");
+          panel.hidden = false;
+        }
+      });
+    });
+
+    if (!integrateOutsideClickBound) {
+      integrateOutsideClickBound = true;
+      document.addEventListener("click", (e) => {
+        const t = e.target;
+        if (!(t instanceof HTMLElement)) return;
+        if (t.closest(".integrate-filter-group")) return;
+        closeAllIntegrateFilterPanels();
       });
     }
-  });
 
-  // Get active filter values per dimension
-  function getActiveFilters(): Record<string, string[]> {
-    const filters: Record<string, string[]> = {};
-    allCheckboxes.forEach((cb) => {
-      if (cb.checked) {
-        const key = cb.getAttribute("data-filter-check") ?? "";
-        if (!filters[key]) filters[key] = [];
-        filters[key].push(cb.value);
-      }
-    });
-    return filters;
-  }
-
-  function applyFilters() {
-    const filters = getActiveFilters();
-    const query = (searchInput?.value ?? "").trim().toLowerCase();
-    const hasFilters = Object.keys(filters).length > 0 || query.length > 0;
-    if (clearBtn) clearBtn.hidden = !hasFilters;
-
-    // Update button labels with count
-    filterGroups.forEach((group) => {
-      const key = group.getAttribute("data-filter-key") ?? "";
-      const btn = group.querySelector<HTMLButtonElement>(".integrate-filter-btn");
-      const count = (filters[key] ?? []).length;
-      if (btn) {
-        btn.classList.toggle("integrate-filter-btn--active", count > 0);
-      }
+    searchInput.addEventListener("input", applyFilters);
+    /* Delegated: checkbox change inside filter panels always runs applyFilters */
+    root.addEventListener("change", (e) => {
+      const t = e.target;
+      if (t instanceof HTMLInputElement && t.hasAttribute("data-filter-check"))
+        applyFilters();
     });
 
-    let visibleCount = 0;
-    cards.forEach((card) => {
-      let show = true;
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        allCheckboxes.forEach((cb) => {
+          cb.checked = false;
+        });
+        searchInput.value = "";
+        window.history.replaceState({}, "", window.location.pathname);
+        applyFilters();
+      });
+    }
 
-      // Search filter
-      if (query) {
-        const text = card.getAttribute("data-search-text") ?? "";
-        if (!text.includes(query)) show = false;
-      }
-
-      // Category filter
-      if (show && filters["category"]?.length) {
-        const cat = card.getAttribute("data-category") ?? "";
-        if (!filters["category"].includes(cat)) show = false;
-      }
-
-      // Industry filter (card matches if it has ANY of the selected industries)
-      if (show && filters["industry"]?.length) {
-        const industries = (card.getAttribute("data-industries") ?? "").split(",").filter(Boolean);
-        if (!filters["industry"].some((f) => industries.includes(f))) show = false;
-      }
-
-      // Platform filter
-      if (show && filters["platform"]?.length) {
-        const platforms = (card.getAttribute("data-platforms") ?? "").split(",").filter(Boolean);
-        if (!filters["platform"].some((f) => platforms.includes(f))) show = false;
-      }
-
-      // Party filter
-      if (show && filters["party"]?.length) {
-        const party = card.getAttribute("data-party") ?? "";
-        if (!filters["party"].includes(party)) show = false;
-      }
-
-      // Technology filter
-      if (show && filters["technology"]?.length) {
-        const techs = (card.getAttribute("data-technologies") ?? "").split(",").filter(Boolean);
-        if (!filters["technology"].some((f) => techs.includes(f))) show = false;
-      }
-
-      card.hidden = !show;
-      if (show) visibleCount++;
-    });
-
-    if (noResults) noResults.hidden = visibleCount > 0;
-  }
-
-  // Wire up search
-  searchInput?.addEventListener("input", applyFilters);
-
-  // Wire up checkboxes
-  allCheckboxes.forEach((cb) => cb.addEventListener("change", applyFilters));
-
-  // Wire up clear
-  clearBtn?.addEventListener("click", () => {
-    allCheckboxes.forEach((cb) => { cb.checked = false; });
-    if (searchInput) searchInput.value = "";
-    // Remove query params from URL
-    window.history.replaceState({}, "", window.location.pathname);
-    applyFilters();
-  });
-
-  // Apply filters from URL query params (e.g. ?industry=energy&platform=aws)
-  // This allows sidebar links like /integrate/?industry=energy to pre-activate filters.
-  const FILTER_KEYS = ["category", "industry", "platform", "party", "technology"];
-  function applyFromURL() {
     const params = new URLSearchParams(window.location.search);
     let anyApplied = false;
     for (const key of FILTER_KEYS) {
       const val = params.get(key);
       if (!val) continue;
-      // Find matching checkbox and check it
       allCheckboxes.forEach((cb) => {
         if (cb.getAttribute("data-filter-check") === key && cb.value === val) {
           cb.checked = true;
@@ -484,12 +782,44 @@ function slugToHref(slug: string): string {
     }
     if (anyApplied) applyFilters();
   }
-  applyFromURL();
+
+  document.addEventListener("astro:page-load", initIntegrateOverview);
+  initIntegrateOverview();
 </script>
 
 <style>
   .integrate-overview {
     margin: 1.5rem 0;
+  }
+
+  /* ---- Page intro (splash template skips default PageTitle; no box, flows with the page) ---- */
+  /* Reset global `header { border-bottom; display: flex; ... }` from layout CSS so this in-page header is not styled like the site chrome */
+  .integrate-header {
+    display: block;
+    margin: 0 auto 1.75rem;
+    padding: 0;
+    max-width: 42rem;
+    text-align: center;
+    border-bottom: none;
+  }
+  .integrate-header__title {
+    margin: 0 0 0.5rem;
+    font-family: var(--stl-font-family, inherit);
+    font-size: clamp(1.625rem, 2.8vw, 2.125rem);
+    font-weight: 600;
+    letter-spacing: -0.035em;
+    line-height: 1.2;
+    color: light-dark(var(--tiger-bg-default, #15151e), var(--tiger-grey-50));
+  }
+  .integrate-header__description {
+    margin: 0;
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    letter-spacing: -0.01em;
+    color: light-dark(
+      var(--tiger-fg-emphasized, #555570),
+      rgba(220, 220, 230, 0.88)
+    );
   }
 
   /* ---- Search bar ---- */
@@ -516,7 +846,9 @@ function slugToHref(slug: string): string {
     border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
     border-radius: 9999px;
     outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
   }
   .integrate-search-input::placeholder {
     color: light-dark(var(--tiger-grey-400), var(--tiger-grey-500));
@@ -569,7 +901,9 @@ function slugToHref(slug: string): string {
     border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
     border-radius: 9999px;
     cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
     white-space: nowrap;
     box-sizing: border-box;
   }
@@ -678,50 +1012,148 @@ function slugToHref(slug: string): string {
     }
   }
 
-  /* Card */
+  /* Card: flat surface, icon + copy (no top gradient strip) */
   .integrate-card {
     display: flex;
     flex-direction: column;
-    border: 1px solid light-dark(#dddde3, var(--tiger-grey-700));
+    border: 1px solid light-dark(#e0e0e0, var(--tiger-grey-700));
     border-radius: var(--tiger-radius-md, 8px);
-    overflow: hidden;
+    background: light-dark(var(--tiger-white, #ffffff), var(--tiger-grey-850, #1a1a24));
     text-decoration: none;
     color: inherit;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  /* Filter script toggles this; [hidden] can lose to display:flex from prose or layout */
+  .integrate-card.integrate-card--filtered-out {
+    display: none !important;
   }
   .integrate-card:hover {
-    border-color: light-dark(#8f93f9, var(--tiger-vivid-purple));
+    border-color: light-dark(var(--tiger-grey-400), var(--tiger-vivid-purple));
     box-shadow: var(--tiger-shadow-md);
-  }
-  .integrate-card-accent {
-    height: 6px;
-    background: linear-gradient(90deg, var(--tiger-electric-yellow) 0%, var(--tiger-pure-teal) 100%);
   }
   .integrate-card-body {
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    flex-direction: row;
+    /* Align logo tile with the first line of copy (category tag), not vertical center of the block. */
+    align-items: flex-start;
+    gap: 1rem;
     padding: var(--tiger-space-lg, 24px);
     flex: 1;
+    min-width: 0;
+  }
+  .integrate-card-media {
+    flex-shrink: 0;
+    align-self: flex-start;
+    width: var(--integrate-card-logo-size, 56px);
+    height: var(--integrate-card-logo-size, 56px);
+  }
+  .integrate-card-logo-wrap {
+    --integrate-card-logo-size: 56px;
+    --integrate-card-logo-inset: 8px;
+    /* Grid centers raster logos more reliably than flex (no baseline / line-box quirks). */
+    display: grid;
+    place-items: center;
+    place-content: center;
+    flex-shrink: 0;
+    align-self: flex-start;
+    width: var(--integrate-card-logo-size);
+    height: var(--integrate-card-logo-size);
+    padding: var(--integrate-card-logo-inset);
+    line-height: 0;
+    border-radius: var(--tiger-radius-md, 8px);
+    overflow: hidden;
+    background: light-dark(var(--tiger-grey-50), var(--tiger-grey-800));
+    border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
+    box-sizing: border-box;
+  }
+  .integrate-card-logo-img {
+    display: block;
+    grid-area: 1 / 1;
+    width: auto;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    object-position: center;
+    margin: 0;
+  }
+  /* Dark/light logo swap via prefers-color-scheme */
+  .integrate-card-logo-dark-only {
+    display: none;
+  }
+  @media (prefers-color-scheme: dark) {
+    .integrate-card-logo-light-only {
+      display: none;
+    }
+    .integrate-card-logo-dark-only {
+      display: block;
+    }
+  }
+  /* Also respect Starlight's data-theme attribute for manual theme toggles */
+  :global([data-theme="dark"]) .integrate-card-logo-light-only {
+    display: none;
+  }
+  :global([data-theme="dark"]) .integrate-card-logo-dark-only {
+    display: block;
+  }
+  :global([data-theme="light"]) .integrate-card-logo-light-only {
+    display: block;
+  }
+  :global([data-theme="light"]) .integrate-card-logo-dark-only {
+    display: none;
+  }
+  .integrate-card-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--integrate-card-logo-size, 56px);
+    height: var(--integrate-card-logo-size, 56px);
+    border-radius: var(--tiger-radius-md, 8px);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    box-sizing: border-box;
+  }
+  .integrate-card-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
   }
   .integrate-card-tag {
-    display: inline-block;
-    align-self: flex-start;
-    padding: 0.15rem 0.5rem;
+    display: block;
+    margin: 0;
+    padding: 0;
+    line-height: 1.25;
     font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: light-dark(var(--tiger-grey-600), var(--tiger-grey-400));
-    background: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
-    border-radius: 3px;
+    letter-spacing: 0.06em;
+    color: light-dark(var(--tiger-grey-500), var(--tiger-grey-400));
+    background: transparent;
   }
   .integrate-card-title {
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 1.0625rem;
     line-height: 1.3;
     margin: 0;
+    padding: 0;
     color: light-dark(var(--tiger-grey-900), var(--tiger-grey-100));
+  }
+  /*
+   * Starlight markdown.css adds margin-top to headings that follow non-headings (e.g. span + h3).
+   * `.not-content` on the overview root normally excludes that; these rules reinforce card layout.
+   */
+  #integrate-overview-root .integrate-card-title {
+    margin-block: 0;
   }
   .integrate-card-desc {
     margin: 0;
