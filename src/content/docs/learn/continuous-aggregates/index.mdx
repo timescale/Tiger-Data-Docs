@@ -1,26 +1,293 @@
 ---
-title: Overview
-description: Continuous aggregates make queries lightning fast by precomputing and storing aggregate data incrementally
+title: Understand continuous aggregates
+description: Learn how TimescaleDB continuous aggregates combine your data into analytic summaries and are refreshed in the background when new data is added
 products: [cloud, mst, self_hosted]
 keywords: [continuous aggregates]
 ---
 
 import * as C from "@constants";
+import CaggsFunctionSupport from "../../../../partials/_caggs-function-support.mdx";
+import CaggsIntro from "../../../../partials/_caggs-intro.mdx";
+import CaggsTypes from "../../../../partials/_caggs-types.mdx";
+import CreateHypertablePolicyNote from "../../../../partials/_create-hypertable-columnstore-policy-note.mdx";
 
-From real-time dashboards to performance monitoring and historical trend analysis, data aggregation is a must-have for any sort of analytical application. To address this need, {C.TIMESCALE_DB} uses {C.CAGG}s to precompute and store aggregate data for you. Using {C.PG} [materialized views](https://www.postgresql.org/docs/current/rules-materializedviews.html), {C.TIMESCALE_DB} incrementally refreshes the aggregation query in the background. When you do run the query, only the data that has changed needs to be computed, not the entire dataset. This means you always have the latest aggregate data at your fingertips, and spend as little resources on it, as possible.
+<CaggsIntro />
 
-**Jobs to be done:** Use the tasks below in order, learn how CAGGs work, then create and configure them, then manage refresh, time, and storage.
+## Types of aggregation
 
-- [Learn about {C.CAGG}s](/learn/continuous-aggregates/about-continuous-aggregates) to understand how it works
-  before you begin using it.
-- [Create a {C.CAGG}](/build/continuous-aggregates/create-a-continuous-aggregate) and query it.
-- [Create a {C.CAGG} on top of another {C.CAGG}](/learn/continuous-aggregates/hierarchical-continuous-aggregates).
-- [Add refresh policies](/build/continuous-aggregates/refresh-policies) to an existing {C.CAGG}.
-- [Manage time](/learn/continuous-aggregates/time-and-continuous-aggregates/) in your {C.CAGG}s.
-- [Drop data](/build/continuous-aggregates/drop-data) from your {C.CAGG}s.
-- [Manage {C.MAT_HYPERTABLE}s](/learn/continuous-aggregates/materialized-hypertables).
-- [Use {C.RTAGG}s](/build/continuous-aggregates/real-time-aggregates).
-- [Convert {C.CAGG}s to the {C.COLUMNSTORE}](/build/continuous-aggregates/compression-on-continuous-aggregates).
-- [Migrate your {C.CAGG}s](/build/continuous-aggregates/migrate-to-new-form) from old to new format.
-  {C.CAGG_CAP}s created in {C.TIMESCALE_DB} v2.7 and later are in the new
-  format, unless explicitly created in the old format.
+<CaggsTypes />
+
+## {C.CAGG_CAP}s on {C.CAGG}s
+
+You can create a {C.CAGG} on top of another {C.CAGG}.
+This allows you to summarize data at different granularity. For example, you
+might have a raw {C.HYPERTABLE} that contains second-by-second data. Create a
+{C.CAGG} on the {C.HYPERTABLE} to calculate hourly data. To calculate
+daily data, create a {C.CAGG} on top of your hourly {C.CAGG}.
+
+For more information, see the documentation about
+[{C.CAGG}s on {C.CAGG}s](/learn/continuous-aggregates/hierarchical-continuous-aggregates).
+
+## {C.CAGG_CAP}s with a `JOIN` clause
+
+{C.CAGG_CAP}s support the following JOIN features:
+
+| Feature | {C.TIMESCALE_DB} &lt; 2.10.x | {C.TIMESCALE_DB} &lt;= 2.15.x | {C.TIMESCALE_DB} &gt;= 2.16.x |
+|-|-|-|-|
+| INNER JOIN | &#10060; | &#9989; | &#9989; |
+| LEFT JOIN | &#10060; | &#10060; | &#9989; |
+| LATERAL JOIN | &#10060; | &#10060; | &#9989; |
+| Joins between **ONE** {C.HYPERTABLE} and **ONE** standard {C.PG} table | &#10060; | &#9989; | &#9989; |
+| Joins between **ONE** {C.HYPERTABLE} and **MANY** standard {C.PG} tables | &#10060; | &#10060; | &#9989; |
+| Join conditions must be equality conditions, and there can only be **ONE** `JOIN` condition | &#10060; | &#9989; | &#9989; |
+| Any join conditions | &#10060; | &#10060; | &#9989; |
+
+JOINS in {C.TIMESCALE_DB} must meet the following conditions:
+
+- Only the changes to the {C.HYPERTABLE} are tracked, and they are updated in the
+  {C.CAGG} when it is refreshed. Changes to standard
+  {C.PG} table are not tracked.
+- You can use an `INNER`, `LEFT`, and `LATERAL` joins; no other join type is supported.
+- Joins on the {C.MAT_HYPERTABLE} of a {C.CAGG} are not supported.
+- Hierarchical {C.CAGG}s can be created on top of a {C.CAGG}
+  with a `JOIN` clause, but cannot themselves have a `JOIN` clause.
+
+### JOIN examples
+
+Given the following schema:
+
+```sql
+CREATE TABLE locations (
+  id TEXT PRIMARY KEY,
+  name TEXT
+);
+
+CREATE TABLE devices (
+  id SERIAL PRIMARY KEY,
+  location_id TEXT,
+  name TEXT
+);
+
+CREATE TABLE conditions (
+  "time" TIMESTAMPTZ,
+  device_id INTEGER,
+  temperature FLOAT8
+) WITH (
+  tsdb.hypertable
+);
+```
+
+<CreateHypertablePolicyNote />
+
+See the following `JOIN` examples on {C.CAGG}s:
+
+- `INNER JOIN` on a single equality condition, using the `ON` clause:
+
+    ```sql
+    CREATE MATERIALIZED VIEW conditions_by_day WITH (timescaledb.continuous) AS
+    SELECT time_bucket('1 day', time) AS bucket, devices.name, MIN(temperature), MAX(temperature)
+    FROM conditions
+    JOIN devices ON devices.id = conditions.device_id
+    GROUP BY bucket, devices.name
+    WITH NO DATA;
+    ```
+
+- `INNER JOIN` on a single equality condition, using the `ON` clause, with a further condition added in the `WHERE` clause:
+
+    ```sql
+    CREATE MATERIALIZED VIEW conditions_by_day WITH (timescaledb.continuous) AS
+    SELECT time_bucket('1 day', time) AS bucket, devices.name, MIN(temperature), MAX(temperature)
+    FROM conditions
+    JOIN devices ON devices.id = conditions.device_id
+    WHERE devices.location_id = 'location123'
+    GROUP BY bucket, devices.name
+    WITH NO DATA;
+    ```
+
+- `INNER JOIN` on a single equality condition specified in `WHERE` clause:
+
+    ```sql
+    CREATE MATERIALIZED VIEW conditions_by_day WITH (timescaledb.continuous) AS
+    SELECT time_bucket('1 day', time) AS bucket, devices.name, MIN(temperature), MAX(temperature)
+    FROM conditions, devices
+    WHERE devices.id = conditions.device_id
+    GROUP BY bucket, devices.name
+    WITH NO DATA;
+    ```
+
+- `INNER JOIN` on multiple equality conditions:
+
+    ```sql
+    CREATE MATERIALIZED VIEW conditions_by_day WITH (timescaledb.continuous) AS
+    SELECT time_bucket('1 day', time) AS bucket, devices.name, MIN(temperature), MAX(temperature)
+    FROM conditions
+    JOIN devices ON devices.id = conditions.device_id AND devices.location_id = 'location123'
+    GROUP BY bucket, devices.name
+    WITH NO DATA;
+    ```
+
+   {C.TIMESCALE_DB} v2.16.x and higher.
+
+- `INNER JOIN` with a single equality condition specified in `WHERE` clause can be combined with further conditions in the `WHERE` clause:
+
+    ```sql
+    CREATE MATERIALIZED VIEW conditions_by_day WITH (timescaledb.continuous) AS
+    SELECT time_bucket('1 day', time) AS bucket, devices.name, MIN(temperature), MAX(temperature)
+    FROM conditions, devices
+    WHERE devices.id = conditions.device_id
+    AND devices.location_id = 'location123'
+    GROUP BY bucket, devices.name
+    WITH NO DATA;
+    ```
+
+    {C.TIMESCALE_DB} v2.16.x and higher.
+
+- `INNER JOIN` between a {C.HYPERTABLE} and multiple {C.PG} tables:
+
+    ```sql
+    CREATE MATERIALIZED VIEW conditions_by_day WITH (timescaledb.continuous) AS
+    SELECT time_bucket('1 day', time) AS bucket, devices.name AS device, locations.name AS location, MIN(temperature), MAX(temperature)
+    FROM conditions
+    JOIN devices ON devices.id = conditions.device_id
+    JOIN locations ON locations.id = devices.location_id
+    GROUP BY bucket, devices.name, locations.name
+    WITH NO DATA;
+    ```
+
+   {C.TIMESCALE_DB} v2.16.x and higher.
+
+- `LEFT JOIN` between a {C.HYPERTABLE} and a {C.PG} table:
+
+    ```sql
+    CREATE MATERIALIZED VIEW conditions_by_day WITH (timescaledb.continuous) AS
+    SELECT time_bucket('1 day', time) AS bucket, devices.name, MIN(temperature), MAX(temperature)
+    FROM conditions
+    LEFT JOIN devices ON devices.id = conditions.device_id
+    GROUP BY bucket, devices.name
+    WITH NO DATA;
+    ```
+
+    {C.TIMESCALE_DB} v2.16.x and higher.
+
+- `LATERAL JOIN` between a {C.HYPERTABLE} and a subquery:
+
+    ```sql
+    CREATE MATERIALIZED VIEW conditions_by_day WITH (timescaledb.continuous) AS
+    SELECT time_bucket('1 day', time) AS bucket, devices.name, MIN(temperature), MAX(temperature)
+    FROM conditions,
+    LATERAL (SELECT * FROM devices WHERE devices.id = conditions.device_id) AS devices
+    GROUP BY bucket, devices.name
+    WITH NO DATA;
+    ```
+
+   {C.TIMESCALE_DB} v2.16.x and higher.
+
+## Function support
+
+In {C.TIMESCALE_DB} v2.7 and later, {C.CAGG}s support all {C.PG}
+aggregate functions. This includes both parallelizable aggregates, such as `SUM`
+and `AVG`, and non-parallelizable aggregates, such as `RANK`.
+
+In {C.TIMESCALE_DB} v2.10.0 and later, the `FROM` clause supports `JOINS`, with
+some restrictions. For more information, see the [`JOIN` support section](#continuous-aggregates-with-a-join-clause).
+
+In older versions of {C.TIMESCALE_DB}, {C.CAGG}s only support
+[aggregate functions that can be parallelized by {C.PG}](https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-AGGREGATION).
+You can work around this by aggregating the other parts of your query in the
+{C.CAGG}, then
+[using the window function to query the aggregate](/build/continuous-aggregates/create-a-continuous-aggregate#create-a-continuous-aggregate).
+
+<CaggsFunctionSupport />
+
+If you want the old behavior in later versions of {C.TIMESCALE_DB}, set the
+`timescaledb.finalized` parameter to `false` when you create your {C.CAGG}.
+
+## Components of a {C.CAGG}
+
+{C.CAGG_CAP}s consist of:
+
+- Materialization {C.HYPERTABLE} to store the aggregated data in
+- Materialization engine to aggregate data from the raw, underlying, table to
+  the materialization {C.HYPERTABLE}
+- Invalidation engine to determine when data needs to be re-materialized, due
+  to changes in the data
+- Query engine to access the aggregated data
+
+### Materialization {C.HYPERTABLE}
+
+{C.CAGG_CAP}s take raw data from the original {C.HYPERTABLE}, aggregate it,
+and store the aggregated data in a materialization {C.HYPERTABLE}. When you query
+the {C.CAGG} view, the aggregated data is returned to you as needed.
+
+Using the same temperature example, the materialization table looks like this:
+
+| day | location | chunk | avg temperature |
+|-|-|-|-|
+| 2021/01/01 | New York | 1 | 73 |
+| 2021/01/01 | Stockholm | 1 | 70 |
+| 2021/01/02 | New York | 2 | |
+| 2021/01/02 | Stockholm | 2 | 69 |
+
+The materialization table is stored as a {C.TIMESCALE_DB} {C.HYPERTABLE}, to take
+advantage of the scaling and query optimizations that {C.HYPERTABLE}s offer.
+Materialization tables contain a column for each group-by clause in the query,
+and an `aggregate` column for each aggregate in the query.
+
+For more information, see [{C.MAT_HYPERTABLE}s](/learn/continuous-aggregates/materialized-hypertables).
+
+### Materialization engine
+
+The materialization engine performs two transactions. The first transaction
+blocks all INSERTs, UPDATEs, and DELETEs, determines the time range to
+materialize, and updates the invalidation threshold. The second transaction
+unblocks other transactions, and materializes the aggregates. The first
+transaction is very quick, and most of the work happens during the second
+transaction, to ensure that the work does not interfere with other operations.
+
+### Invalidation engine
+
+Any change to the data in a {C.HYPERTABLE} could potentially invalidate some
+materialized rows. The invalidation engine checks to ensure that the system does
+not become swamped with invalidations.
+
+Fortunately, time-series data means that nearly all INSERTs and UPDATEs have a
+recent timestamp, so the invalidation engine does not materialize all the data,
+but to a set point in time called the materialization threshold. This threshold
+is set so that the vast majority of INSERTs contain more recent timestamps.
+These data points have never been materialized by the {C.CAGG}, so
+there is no additional work needed to notify the {C.CAGG} that they
+have been added. When the materializer next runs, it is responsible for
+determining how much new data can be materialized without invalidating the
+{C.CAGG}. It then materializes the more recent data and moves the
+materialization threshold forward in time. This ensures that the threshold lags
+behind the point-in-time where data changes are common, and that most INSERTs do
+not require any extra writes.
+
+When data older than the invalidation threshold is changed, each transaction
+logs the minimum and maximum timestamps of the rows it modified.
+The {C.CAGG} then identifies which complete {C.TIME_BUCKET}s are affected
+based on this per-transaction tracking. The range of buckets that are recalculated
+depends on transaction boundaries:
+
+- If you modify rows in the 10:00 bucket and rows in the 15:00 bucket within a
+  **single transaction**, all buckets from 10:00 to 15:00 (including intermediate
+  buckets 11:00, 12:00, 13:00, and 14:00) are recalculated during refresh.
+- If you modify rows in the 10:00 bucket in one transaction and rows in the 15:00
+  bucket in a **separate transaction**, only the 10:00 and 15:00 buckets are
+  recalculated. The intermediate buckets (11:00, 12:00, 13:00, 14:00) are not affected.
+
+This logging does cause some write load. However, the threshold lags behind the
+area of data that is currently changing, so the writes are small and rare.
+
+## Learn more
+
+- [Create a {C.CAGG}](/build/continuous-aggregates/create-a-continuous-aggregate): Step-by-step
+  guide to creating and querying a {C.CAGG}.
+- [Refresh {C.CAGG}s](/build/continuous-aggregates/refresh-policies): Set up automatic refresh
+  policies.
+- [Convert {C.CAGG}s to the {C.COLUMNSTORE}](/build/continuous-aggregates/compression-on-continuous-aggregates):
+  Compress older aggregated data.
+- [`CREATE MATERIALIZED VIEW` reference](/reference/timescaledb/continuous-aggregates/create_materialized_view):
+  Full API reference.
+- [{C.CAGG_CAP}s API overview](/reference/timescaledb/continuous-aggregates): All {C.CAGG}
+  functions and policies.

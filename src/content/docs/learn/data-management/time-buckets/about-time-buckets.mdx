@@ -1,12 +1,16 @@
 ---
-title: About time buckets
+title: Understand time buckets
 description: Learn how time buckets help you aggregate data by time interval for efficient and simple real-time analytics
 products: [cloud, mst, self_hosted]
 ---
 
+import { Image } from "astro:assets";
 import * as C from "@constants";
 
-The [`time_bucket`](/reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket) function enables you to aggregate data in a [hypertable](/build/data-management/understand-hypertables) into buckets of time. For example, 5 minutes, 1 hour, or 3 days.
+import imgTimeBucket from "../../../../../assets/images/learn/fundamentals/time-bucket.webp";
+import imgTimeBucketOrigin from "../../../../../assets/images/learn/fundamentals/time-bucket-origin.webp";
+
+The [`time_bucket`](/reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket) function enables you to aggregate data in a [{C.HYPERTABLE}](/learn/hypertables/understand-hypertables) into buckets of time. For example, 5 minutes, 1 hour, or 3 days.
 It's similar to {C.POSTGRESQL}'s [`date_bin`](https://www.postgresql.org/docs/current/functions-datetime.html#FUNCTIONS-DATETIME-BIN) function, but it gives you more
 flexibility in the bucket size and start time.
 
@@ -21,13 +25,13 @@ For examples of the `time_bucket` function, see
 
 Time bucketing groups data into time intervals. With `time_bucket`, the interval
 length can be any number of microseconds, milliseconds, seconds, minutes, hours,
-days, weeks, months, years, or centuries.
+days, weeks, months, or years.
 
 The `time_bucket` function is usually used in combination with `GROUP BY` to
 aggregate data. For example, you can calculate the average, maximum, minimum, or
 sum of values within a bucket.
 
-![Diagram showing time-bucket aggregating data into daily buckets, and calculating the daily sum of a value](https://assets.timescale.com/docs/images/getting-started/time-bucket.webp)
+<Image src={imgTimeBucket} alt="Diagram showing time_bucket aggregating data into daily buckets and calculating the daily sum" />
 
 ### Origin
 
@@ -45,7 +49,7 @@ bucket is `origin + bucket interval`. If your first timestamp does not fall
 exactly on a possible start date, the immediately preceding start date is used
 for the beginning of the bucket.
 
-![Diagram showing how time buckets are calculated from the origin](https://assets.timescale.com/docs/images/time-bucket-origin.webp)
+<Image src={imgTimeBucketOrigin} alt="Diagram showing how time bucket boundaries are calculated from the origin timestamp" />
 
 For example, say that your data's earliest timestamp is April 24, 2020. If you
 bucket by an interval of two weeks, the first bucket doesn't start on April 24,
@@ -57,7 +61,7 @@ origin in this case.
 #### Default origins
 
 For intervals that don't include months or years, the default origin is January
-3, 2000. For month, year, or century intervals, the default origin is January 1,
+3, 2000. For month or year intervals, the default origin is January 1,
 2000. For integer time values, the default origin is 0.
 
 These choices make the time ranges of {C.TIME_BUCKET}s more intuitive. Because
@@ -67,7 +71,7 @@ yearly {C.TIME_BUCKET}s use January 1, 2000, as an origin. This allows them to s
 on the first day of the calendar month or year.
 
 If you prefer another origin, you can set it yourself using the [`origin`
-parameter](/reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket#optional-arguments-for-interval-time-inputs). For example, to start weeks on Sunday, set the origin to
+parameter](/reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket#arguments). For example, to start weeks on Sunday, set the origin to
 Sunday, January 2, 2000.
 
 ### Timezones
@@ -82,3 +86,14 @@ on the origin date.
 If you use `TIMESTAMPTZ`, by default, bucket start times are aligned with
 `00:00:00 UTC`. To align {C.TIME_BUCKET}s to another timezone, set the `timezone`
 parameter.
+
+## Learn more
+
+- [Use {C.TIME_BUCKET}s](/learn/data-management/time-buckets/use-time-buckets): SQL examples
+  for grouping, offsetting, and calculating {C.TIME_BUCKET}s.
+- [Create a {C.CAGG}](/build/continuous-aggregates/create-a-continuous-aggregate): Pre-compute
+  {C.TIME_BUCKET} aggregations with {C.CAGG}s.
+- [`time_bucket()` reference](/reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket):
+  Full API reference with all parameters.
+- [Gapfilling and interpolation](/build/data-management/hyperfunctions/gapfilling-interpolation):
+  Fill gaps in {C.TIME_BUCKET} results with `time_bucket_gapfill()`.

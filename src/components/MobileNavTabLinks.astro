@@ -1,0 +1,110 @@
+---
+/**
+ * Horizontal, scrollable top-level doc section links for narrow viewports.
+ * Desktop uses NavTabsWithDropdown; hover mega-menus are poor on touch, so we link to each tab root.
+ */
+import { TABS } from "virtual:stl-docs-virtual-module";
+import type { StarlightRouteData } from "@astrojs/starlight/route-data";
+
+type NavTabConfig = { label: string; link: string; hidden?: boolean };
+const tabsFromConfig = TABS as readonly NavTabConfig[];
+
+const routeData = Astro.locals.starlightRoute as StarlightRouteData & {
+  _stlDocs?: { activeTabIndex?: number };
+};
+const activeTabIndex = routeData?._stlDocs?.activeTabIndex ?? -1;
+
+const navItems = tabsFromConfig
+  .map((item, index) => ({
+    ...item,
+    active: index === activeTabIndex,
+  }))
+  .filter((item) => !item.hidden)
+  .sort((a, b) => {
+    if (a.label === "Reference" && b.label === "Deploy") return 1;
+    if (a.label === "Deploy" && b.label === "Reference") return -1;
+    return 0;
+  });
+
+const BASE_PREFIX = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function prefixHref(href: string): string {
+  if (!href.startsWith("/")) return href;
+  if (href.startsWith(BASE_PREFIX + "/") || href === BASE_PREFIX) return href;
+  return BASE_PREFIX + href;
+}
+---
+
+<nav class="docs-mobile-tab-links" aria-label="Documentation sections">
+  <ul class="docs-mobile-tab-links__list">
+    {
+      navItems.map((item) => (
+        <li>
+          <a
+            href={prefixHref(item.link)}
+            class:list={[
+              "docs-mobile-tab-links__link",
+              item.active && "docs-mobile-tab-links__link--active",
+            ]}
+            aria-current={item.active ? "page" : undefined}
+          >
+            {item.label}
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>
+
+<style>
+  .docs-mobile-tab-links {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .docs-mobile-tab-links__list {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.375rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .docs-mobile-tab-links__link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    padding: 0.375rem 0.625rem;
+    font-family: var(--tiger-font-sans, "Geist", system-ui, sans-serif);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.25;
+    color: var(--stl-color-foreground);
+    text-decoration: none;
+    border-radius: var(--tiger-radius-sm, 6px);
+    border: 1px solid light-dark(var(--tiger-grey-200), var(--tiger-grey-700));
+    background-color: light-dark(var(--tiger-white), var(--tiger-grey-900));
+    transition:
+      background-color 0.12s ease,
+      border-color 0.12s ease;
+  }
+
+  .docs-mobile-tab-links__link:hover {
+    background-color: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
+  }
+
+  .docs-mobile-tab-links__link--active {
+    border-color: var(--stl-color-accent-border-strong, var(--stl-color-accent));
+    background-color: light-dark(
+      color-mix(in srgb, var(--tiger-vivid-purple) 8%, var(--tiger-white)),
+      color-mix(in srgb, var(--tiger-electric-yellow) 12%, var(--tiger-grey-900))
+    );
+  }
+</style>

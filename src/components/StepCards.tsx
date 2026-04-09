@@ -12,7 +12,7 @@ export type { StepCardProps } from "./StepCard";
  *   import { StepCards, StepCard } from "@components/StepCards";
  *   <StepCards heading="Next steps">
  *     <StepCard title="Terraform guide" description="Configure with IaC." href="/integrate/configuration-deployment/terraform" />
- *     <StepCard title="API reference" description="REST API docs." href="/reference/tiger-cloud-api" />
+ *     <StepCard title="API reference" description="REST API docs." href="/reference/tiger-cloud-rest" />
  *   </StepCards>
  */
 export interface StepCardsProps {
