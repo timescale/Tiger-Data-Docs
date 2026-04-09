@@ -44,7 +44,7 @@ In detail, the migration process consists of the following steps:
 
 <StepTwo />
 
-## 3. Set up schema and migrate relational data to target database
+## 3. set up schema and migrate relational data to target database
 
 You would probably like to convert some of your large tables which contain
 time-series data into {C.HYPERTABLE}s. This step consists of identifying those
@@ -54,11 +54,11 @@ data is backfilled into these {C.HYPERTABLE}s in a subsequent step.
 
 <SetupSourceTarget />
 
-### 3a. Dump the database roles from the source database
+### 3a. dump the database roles from the source database
 
 <DumpDatabaseRoles />
 
-### 3b. Determine which tables to convert to {C.HYPERTABLE}s
+### 3b. determine which tables to convert to {C.HYPERTABLE}s
 
 Ideal candidates for {C.HYPERTABLE}s are large tables containing
 time-series data.
@@ -66,7 +66,7 @@ This is usually data with some form of timestamp value (`TIMESTAMPTZ`,
 `TIMESTAMP`, `BIGINT`, `INT` etc.) as the primary dimension, and some other
 measurement values.
 
-### 3c. Dump all tables from the source database, excluding data from {C.HYPERTABLE} candidates
+### 3c. dump all tables from the source database, excluding data from {C.HYPERTABLE} candidates
 
 ```
 pg_dump -d "$SOURCE" \
@@ -85,7 +85,7 @@ pg_dump -d "$SOURCE" \
 
 <ExplainPgDumpFlags />
 
-### 3d. Load the roles and schema into the target database
+### 3d. load the roles and schema into the target database
 
 ```
 psql -X -d "$TARGET" \
@@ -95,7 +95,7 @@ psql -X -d "$TARGET" \
   -f dump.sql
 ```
 
-### 3e. Convert the plain tables to {C.HYPERTABLE}s, optionally compress data in the {C.COLUMNSTORE}
+### 3e. convert the plain tables to {C.HYPERTABLE}s, optionally compress data in the {C.COLUMNSTORE}
 
 For each table which should be converted to a {C.HYPERTABLE} in the target
 database, execute:
@@ -116,24 +116,24 @@ SELECT create_hypertable('<table name>', '<time column name>');
 For more information about the options which you can pass to
 `create_hypertable`, consult the [create_table API reference](/reference/timescaledb/hypertables/create_hypertable). For
 more information about {C.HYPERTABLE}s in general, consult the
-[{C.HYPERTABLE} documentation](/build/data-management/understand-hypertables).
+[{C.HYPERTABLE} documentation](/learn/hypertables/understand-hypertables).
 
 You may also wish to consider taking advantage of some of {C.CLOUD_LONG}'s killer
 features, such as:
-- [Retention policies](/learn/data-management/data-retention) to automatically drop unneeded data
-- [Tiered storage](/build/data-management/storage) to automatically move data to {C.CLOUD_LONG}'s low-cost bottomless object storage tier
-- [{C.HYPERCORE_CAP}](/learn/columnar-storage) to reduce the size of your {C.HYPERTABLE}s by compressing data in the {C.COLUMNSTORE}
-- [{C.CAGG_CAP}s](/build/continuous-aggregates) to write blisteringly fast aggregate queries on your data
+- [Retention policies](/learn/data-management/data-retention/about-data-retention) to automatically drop unneeded data
+- [Tiered storage](/build/data-management/storage/manage-storage) to automatically move data to {C.CLOUD_LONG}'s low-cost bottomless object storage tier
+- [{C.HYPERCORE_CAP}](/learn/columnar-storage/understand-hypercore) to reduce the size of your {C.HYPERTABLE}s by compressing data in the {C.COLUMNSTORE}
+- [{C.CAGG_CAP}s](/build/continuous-aggregates/create-a-continuous-aggregate) to write blisteringly fast aggregate queries on your data
 
 <StepFour />
 
 <StepFive />
 
-## 6. Backfill data from source to target
+## 6. backfill data from source to target
 
 <Step6aThroughc />
 
-### 6c. Copy the data with a streaming copy
+### 6c. copy the data with a streaming copy
 
 Execute the following command, replacing `<source table>` and `<hypertable>`
 with the fully qualified names of the source table and target {C.HYPERTABLE}
@@ -159,7 +159,7 @@ copy can be restarted.
 
 <Step6eTurnOnCompressionPolicies />
 
-## 7. Validate that all data is present in target database
+## 7. validate that all data is present in target database
 
 Now that all data has been backfilled, and the application is writing data to
 both databases, the contents of both databases should be the same. How exactly
@@ -180,10 +180,10 @@ reltuples value belongs to the {C.CHUNK} table, so you must take the sum of
 `reltuples` for all {C.CHUNK}s belonging to the {C.HYPERTABLE}. If the {C.CHUNK} is
 compressed in one database, but not the other, then this check cannot be used.
 
-## 8. Validate that target database can handle production load
+## 8. validate that target database can handle production load
 
 <ValidateProductionLoad />
 
-## 9. Switch production workload to target database
+## 9. switch production workload to target database
 
 <SwitchProductionWorkload />

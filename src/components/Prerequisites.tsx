@@ -46,7 +46,7 @@ function SuccessCheckIcon() {
 
 export function Prerequisites({
   title = "Prerequisites for this tutorial",
-  intro = "To follow the procedure on this page, you'll need to:",
+  intro = "To follow the procedure on this page, you'll need:",
   children,
 }: PrerequisitesProps) {
   return (

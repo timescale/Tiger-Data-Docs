@@ -4,13 +4,14 @@ description: "Sync updates to your primary Postgres database with Tiger Cloud in
 integrationCategory: "connectors"
 integrationIndustry: ["healthcare", "manufacturing"]
 keywords: ["postgres replication","logical replication","data sync","live migration","cdc","change data capture","real-time sync"]
+integrationCardLogo: "sync-from-postgres.png"
 sidebar:
   label: "Postgres"
 ---
 
 import * as C from "@constants";
 
-import { Badge } from '@stainless-api/docs/components';
+import { Badge, Callout } from '@stainless-api/docs/components';
 import { FlaskConicalIcon } from 'lucide-react';
 
 import { Tabs, Tab } from '@stainless-api/docs/stainless-docs/mintlify-compat';
@@ -18,14 +19,21 @@ import { Tabs, Tab } from '@stainless-api/docs/stainless-docs/mintlify-compat';
 import LivesyncConsole from "@partials/_livesync-console.mdx";
 import LivesyncTerminal from "@partials/_livesync-terminal.mdx";
 
+import { Image } from "astro:assets";
+import imgTigerConsoleConnectorOverview from "../../../../../assets/images/integrate/connectors/tiger-console-connector-overview.png";
+
 <Badge intent="accent" size="md">
-  <FlaskConicalIcon slot="icon" />{' '}
+  <FlaskConicalIcon slot="icon" />
   Early access
 </Badge>
 
+<Callout variant="note">
+The {C.PG_CONNECTOR} is not yet supported for production use.
+</Callout>
+
 You use the {C.PG_CONNECTOR} in {C.CLOUD_LONG} to synchronize all data or specific tables from a {C.PG} database instance to your {C.SERVICE_SHORT}, in real time. You run the connector continuously, turning {C.PG} into a primary database with your {C.SERVICE_SHORT} as a logical replica. This enables you to leverage {C.CLOUD_LONG}'s real-time analytics capabilities on your replica data.
 
-![CLOUD\_LONG connectors overview][cloud_long-connectors-overview]
+<Image src={imgTigerConsoleConnectorOverview} alt="Connectors overview in Tiger Console" />
 
 The {C.PG_CONNECTOR} in {C.CLOUD_LONG} leverages the well-established {C.PG} logical replication protocol. By relying on this protocol, {C.CLOUD_LONG} ensures compatibility, familiarity, and a broader knowledge base, making it easier for you to adopt the connector and integrate your data.
 
@@ -47,16 +55,18 @@ You use the {C.PG_CONNECTOR} for data synchronization, rather than migration. Th
 
 - Synchronize real-time changes from a {C.PG} instance to a {C.SERVICE_LONG}.
 
-- Add and remove tables on demand using the [{C.PG} PUBLICATION interface][create-publication].
+- Add and remove tables on demand using the [{C.PG} PUBLICATION interface](https://www.postgresql.org/docs/current/sql-createpublication.html).
 
-- Enable features such as [{C.HYPERTABLE}s][hypertables-section], [{C.COLUMNSTORE}][compression], and [{C.CAGG}s][caggs] on your logical replica.
+- Enable features such as [{C.HYPERTABLE}s](/learn/hypertables/understand-hypertables), [{C.COLUMNSTORE}](/learn/columnar-storage/understand-hypercore), and [{C.CAGG}s](/learn/continuous-aggregates) on your logical replica.
 
-This {C.PG_CONNECTOR} is not yet supported for production use. If you have any questions or feedback, talk to us in <a href="https://app.slack.com/client/T4GT3N2JK/C086NU9EZ88">#livesync in the {C.COMPANY} Community</a>.
 - Indexes, primary key, unique constraints, and sequences are **not** migrated. Create needed indexes on the target for your queries.
 - TimescaleDB as source has limited support (e.g. no continuous aggregates).
 - Schema changes must be coordinated: apply compatible changes on the target first, then on the source.
 - WAL volume on the source increases during large table copy.
 - **Continuous aggregates:** The connector uses `session_replication_role=replica` during copy, so triggers (including continuous aggregate invalidation) do not run. Data synced during initial load below a continuous aggregate’s materialization watermark may not appear in the aggregate until you manually refresh. If the aggregate exists on the source, include it in the connector’s publication; if only on the target, use the `force` option of [refresh_continuous_aggregate](/reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate) to refresh affected ranges.
+
+{/* Anchors for headings defined in imported partials, required for link validation */}
+<span id="tune-your-source-database" />
 
 <Tabs>
   <Tab title="Tiger Cloud Console">
@@ -67,13 +77,3 @@ This {C.PG_CONNECTOR} is not yet supported for production use. If you have any q
     <LivesyncTerminal />
   </Tab>
 </Tabs>
-
-[caggs]: /open-source/timescaledb/continuous-aggregates
-
-[cloud_long-connectors-overview]: https://assets.timescale.com/docs/images/tiger-on-azure/tiger-console-connector-overview.png
-
-[compression]: /open-source/timescaledb/compression
-
-[create-publication]: https://www.postgresql.org/docs/current/sql-createpublication.html
-
-[hypertables-section]: /open-source/timescaledb/hypertables

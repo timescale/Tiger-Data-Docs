@@ -6,6 +6,7 @@ products: [cloud, mst, self_hosted]
 
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 Schema changes on a {C.HYPERTABLE} use normal {C.PG} `ALTER TABLE` syntax, and {C.TIMESCALE_DB} propagates those changes to every underlying {C.CHUNK}.
 
@@ -72,38 +73,101 @@ If you encounter this error, you need to:
 This example shows how to change a column's data type on a {C.HYPERTABLE} with
 {C.COLUMNSTORE} enabled, which requires conversion to {C.ROWSTORE}:
 
+<NumberedList>
+
+<NumberedItem title="Check if you have a columnstore policy and note its settings">
+
+Query the jobs catalog to find the `job_id` and configuration for any existing {C.COLUMNSTORE} policy:
+
 ```sql
--- Step 1: Check if you have a columnstore policy and note its settings
 SELECT job_id, config FROM timescaledb_information.jobs
 WHERE proc_name = 'policy_compression'
   AND hypertable_name = 'conditions';
+```
 
--- Step 2: If a policy exists, pause it
+</NumberedItem>
+
+<NumberedItem title="Pause the columnstore policy">
+
+If a policy exists, pause it so it does not convert {C.CHUNK}s while you are modifying the schema:
+
+```sql
 SELECT alter_job(<job_id>, scheduled => false);
+```
 
--- Step 3: Convert all chunks back to rowstore
-SELECT decompress_chunk(show_chunks('conditions'));
+</NumberedItem>
 
--- Step 4: Disable columnstore (required for some operations)
+<NumberedItem title={`Convert all ${C.CHUNK}s back to ${C.ROWSTORE}`}>
+
+Use [`convert_to_rowstore`](/reference/timescaledb/hypercore/convert_to_rowstore) to move each {C.CHUNK} out of the {C.COLUMNSTORE}:
+
+```sql
+DO $$ DECLARE chunk regclass;
+BEGIN
+  FOR chunk IN SELECT show_chunks('conditions') LOOP
+    CALL convert_to_rowstore(chunk);
+  END LOOP;
+END $$;
+```
+
+</NumberedItem>
+
+<NumberedItem title={`Disable ${C.COLUMNSTORE}`}>
+
+Some operations, such as changing a column type, require {C.COLUMNSTORE} to be fully disabled:
+
+```sql
 ALTER TABLE conditions SET (timescaledb.columnstore = false);
+```
 
--- Step 5: Perform the schema modification
+</NumberedItem>
+
+<NumberedItem title="Perform the schema modification">
+
+```sql
 ALTER TABLE conditions
   ALTER COLUMN temperature TYPE double precision;
+```
 
--- Step 6: Re-enable columnstore with original settings
+</NumberedItem>
+
+<NumberedItem title={`Re-enable ${C.COLUMNSTORE} with original settings`}>
+
+```sql
 ALTER TABLE conditions SET (
   timescaledb.columnstore = true,
   timescaledb.compress_orderby = 'time DESC',
   timescaledb.compress_segmentby = 'device_id'
 );
-
--- Step 7: Restart the columnstore policy
-SELECT alter_job(<job_id>, scheduled => true);
-
--- Step 8: Optionally, manually convert the chunks to columnstore immediately
-SELECT compress_chunk(show_chunks('conditions'));
 ```
+
+</NumberedItem>
+
+<NumberedItem title="Restart the columnstore policy">
+
+```sql
+SELECT alter_job(<job_id>, scheduled => true);
+```
+
+</NumberedItem>
+
+<NumberedItem title={`Optionally, convert ${C.CHUNK}s to ${C.COLUMNSTORE} immediately`}>
+
+Without this step, {C.CHUNK}s are converted by the policy on its next scheduled run. To convert them now, use
+[`convert_to_columnstore`](/reference/timescaledb/hypercore/convert_to_columnstore):
+
+```sql
+DO $$ DECLARE chunk regclass;
+BEGIN
+  FOR chunk IN SELECT show_chunks('conditions') LOOP
+    CALL convert_to_columnstore(chunk);
+  END LOOP;
+END $$;
+```
+
+</NumberedItem>
+
+</NumberedList>
 
 For more information about {C.PG} `ALTER TABLE` operations, see the
 [{C.PG} `ALTER TABLE` documentation](https://www.postgresql.org/docs/current/sql-altertable.html).
