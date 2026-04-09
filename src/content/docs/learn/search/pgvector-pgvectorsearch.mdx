@@ -1,0 +1,59 @@
+---
+title: Understand pgvector and pgvectorscale
+description: "Learn how vector embeddings power semantic search, how pgvector and pgvectorscale work together on Tiger Cloud, and where to read about indexes, pgai, and BM25 hybrid search."
+---
+
+import * as C from "@constants";
+
+**pgvector** is a widely used open source extension for storing vectors and running similarity search in {C.PG}. **{C.PGVECTORSCALE}** builds on pgvector with indexing aimed at large-scale, high-performance workloads (including **StreamingDiskANN**, inspired by Microsoft’s DiskANN research).
+
+On {C.CLOUD_LONG}, **{C.PGAI_SHORT}** is available alongside these extensions. You can rely on familiar pgvector capabilities (for example **HNSW** and **IVFFlat** indexes) and add **StreamingDiskANN** from {C.PGVECTORSCALE} when you want to optimize vector search further. That combination makes it easier to migrate an existing pgvector deployment and still pick the index types that match your latency, recall, and cost goals. For index types, tuning, and tradeoffs, see **[pgvectorscale reference](/reference/pgvectorscale/)** (StreamingDiskANN, filtered search, and build or query parameters).
+
+## Why embeddings matter
+
+Embeddings are numeric representations of data (usually high-dimensional **vectors**). Similar meanings tend to land closer together in that space, so the database can retrieve “nearby” rows instead of relying only on exact tokens. In practice, many teams describe this as **semantic search**: matching intent and context, not just shared keywords.
+
+Pairing lexical search (keywords, BM25) with vectors is often called **hybrid search**. If you are focused on keyword ranking first, start with **[Understand pg_textsearch and BM25 search](/learn/search/using-pg-textsearch)**; this page centers on the vector side.
+
+## Common use cases
+
+- **Semantic search**: Return results that align with the meaning of a query even when phrasing differs from your stored text.
+- **Recommendations**: Suggest items whose embeddings sit close to embeddings of content the user already engaged with, beyond simple tags or categories.
+- **Retrieval-augmented generation (RAG)**: Fetch relevant rows from the database and pass them to an LLM as context so answers stay grounded in your data.
+- **Clustering and exploration**: Group entities in embedding space (for example with **k-means** or hierarchical methods) to surface structure that raw attributes might not show.
+
+## How vector similarity search works
+
+At a high level:
+
+1. **Ingest**: Generate embeddings for your content (in your application or inside the database, depending on your pipeline) and store them (typically in a `vector` column).
+2. **Query**: Turn the user’s question or search text into an embedding with the **same model** you used for storage.
+3. **Retrieve**: Ask the database for the stored rows whose embeddings are **closest** to the query embedding under a chosen distance metric.
+
+Internally, each embedding is a vector (a fixed-length list of floats). The database compares vectors with a **distance** or **similarity** function (common choices include **cosine** distance, **L2** (Euclidean), or **inner product**, depending on your model and index). A similarity search returns rows with the smallest distance (or highest similarity) to the query vector.
+
+## Embedding models and limits
+
+**{C.PGAI_SHORT}** on {C.CLOUD_LONG} integrates with popular hosted and open embedding models. Always match your table’s declared **dimensions** and your index **distance operator** to the model you use; supported providers, APIs, and limits are documented in the **[pgai reference](/reference/pgai/)**.
+
+**Text embeddings** (examples):
+
+- **OpenAI**: Models such as **text-embedding-3-small** or **text-embedding-3-large** (and older generations like **text-embedding-ada-002**) are common choices for English and multilingual text.
+- **Cohere**: Several representation models support English and multilingual text.
+
+**Image and multimodal embeddings** (examples):
+
+- **OpenAI CLIP**: Useful when you need shared space for **text and images**.
+- **VGG** and **Vision Transformer (ViT)**: Classic and transformer-based image backbones often used when your pipeline produces image vectors.
+
+Always keep **model version**, **dimensionality**, and **distance metric** consistent between indexing and query time.
+
+## Next steps
+
+| Goal | Where to read |
+|------|----------------|
+| Enable pgvector, walk through a chatbot-style flow, platform-specific notes | **[Create a chatbot using pgvector](/deploy/tiger-cloud/tiger-cloud-aws/tiger-cloud-extensions/pgvector)** (same pattern on [Azure](/deploy/tiger-cloud/tiger-cloud-azure/tiger-cloud-extensions/pgvector)) |
+| StreamingDiskANN, filtered vector search, index parameters | **[pgvectorscale reference](/reference/pgvectorscale/)** |
+| pgai install, vectorizer, and SQL interfaces | **[pgai reference](/reference/pgai/)** |
+| {C.CLOUD_LONG} vectorizer worker or in-database LLM SQL deprecation (June 30, 2026) | **[Vectorizer and LLM calls migration guide](/deploy/tiger-cloud/vectorizer-deprecation)** |
+| Lexical search with BM25 | **[Understand pg_textsearch and BM25 search](/learn/search/using-pg-textsearch)** |

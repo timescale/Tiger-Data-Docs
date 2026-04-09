@@ -218,6 +218,14 @@ Note: The `Callout` import is aliased via Vite to the custom `src/components/Cal
 Requires `STAINLESS_API_KEY` for API reference generation (see `.env.example`).
 Optional Algolia env vars for search: `PUBLIC_ALGOLIA_APP_ID`, `PUBLIC_ALGOLIA_INDEX`, `PUBLIC_ALGOLIA_SEARCH_KEY`, `PRIVATE_ALGOLIA_WRITE_KEY`. Setup: `.env.example` + [Stainless site search](https://www.stainless.com/docs/docs-platform/hosting-and-deploys/#site-search).
 
+### Pull Request Behavior
+
+When creating pull requests:
+- If the repository has a PR template, fill out each section of the template with relevant details rather than replacing or overriding it.
+- Do not append the Warp conversation link to PR descriptions.
+- Use the following co-author attribution in all commits and PR descriptions:
+  `Co-Authored-By: Erin's motly crew of robots`
+
 ### Hosting, search, and cache (self-hosted)
 
 When not using Stainless hosting, the site can be built with `pnpm build` and deployed anywhere that serves static files (Vercel, Netlify, Cloudflare Pages, etc.).

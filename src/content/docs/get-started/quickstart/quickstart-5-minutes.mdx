@@ -1,41 +1,36 @@
 ---
 title: 5-minute quickstart
-description: Get up and running with Tiger Data in 5 minutes
+description: Get up and running with Tiger Cloud in 5 minutes
 sidebar:
   order: 1
 ---
 
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 import { Prerequisites } from "@components/Prerequisites";
 
-In this tutorial we will create a {C.CLOUD_LONG} service, connect to it, create your first hypertable, and run a query. By the end you'll have a working time-series table and see results in under 5 minutes. For a deeper lesson on what hypertables are and why they matter, go next to [Your first hypertable](/build/how-to/your-first-hypertable) in Build.
+In this tutorial, you will create a {C.SERVICE_LONG}, connect to it, create your first {C.HYPERTABLE}, and run a query. By the end you'll have a working time-series table and see query results, all in under 5 minutes.
+
+For a more extensive lesson on what {C.HYPERTABLE}s are and why they matter, see [Your first {C.HYPERTABLE}](/build/how-to/your-first-hypertable).
 
 <Prerequisites>
-  - A {C.CLOUD_LONG} account (or
-  [self-hosted](/get-started/choose-your-path/install-timescaledb) if you
-  prefer) - A SQL client:
-  [psql](https://www.postgresql.org/docs/current/app-psql.html), or the SQL
-  editor / Data view in {C.CONSOLE}
+  - A [{C.CLOUD_LONG} account](https://console.cloud.tigerdata.com/)
 </Prerequisites>
 
----
+## Step 1: Create a {C.SERVICE_SHORT}
 
-## Step 1: Create a service
+1. In [{C.CONSOLE}](https://console.cloud.tigerdata.com/), click `New service` > `Real-time analytics`. Choose any provider, region, and compute size. Select a development environment with no replicas and no power-ups.
+1. Click `Create service`. The {C.SERVICE_SHORT} is ready in a few seconds.
+1. Download the database config and store it somewhere safe, you'll need the connection string to connect to your {C.SERVICE_SHORT}.
 
-1. In [Tiger Console](https://console.cloud.tigerdata.com/), click **+ New service** and follow the wizard (choose a region and plan; the default options work for this quickstart).
-2. Click **Create service**. The service is ready in a few seconds.
-3. **Download the config** and store it somewhere safe, you'll need the connection string to connect from psql or your app.
+For more detail, see [Create a {C.SERVICE_LONG}](/get-started/quickstart/create-service).
 
-For more detail (including Azure and different plans), see [Create a Tiger Cloud service](/get-started/quickstart/create-service).
-
----
-
-## Step 2: Connect to your database
+## Step 2: Connect to your {C.SERVICE_SHORT}
 
 Pick one way to run SQL:
 
-- **Console (easiest):** In {C.CONSOLE}, open your service, then use **Data view** or **SQL Editor** at the bottom. You're connected as soon as you see the query panel.
+- **{C.CONSOLE} (easiest):** In {C.CONSOLE}, open your {C.SERVICE_SHORT}, then use `Data view` at the top or `SQL Editor` at the bottom. You're connected as soon as you see the query panel.
 - **psql:** From your terminal, run `psql "<your-service-url>"` using the connection string from the config file you downloaded.
 
 Run this to confirm you're connected:
@@ -44,61 +39,58 @@ Run this to confirm you're connected:
 SELECT CURRENT_DATE;
 ```
 
-You should see today's date. If you do, you're ready for the next step. For connection options (including other clients), see [Connect your app](/get-started/quickstart/connect-your-app).
+You should see today's date. If you do, you're ready for the next step. For connection options, including other clients, see [Connect your app](/get-started/quickstart/connect-your-app).
 
----
+## Step 3: Create your first {C.HYPERTABLE} and run a query
 
-## Step 3: Create your first hypertable and run a query
+We'll create a small **{C.HYPERTABLE}** (a table optimized for time-series data), insert a few rows, and query them. You'll use standard SQL; the database handles partitioning automatically.
 
-We'll create a small **hypertable** (a table optimized for time-series data), insert a few rows, and query them. You'll use standard SQL; the database handles partitioning automatically.
+<NumberedList>
+   <NumberedItem title={`Create the ${C.HYPERTABLE}`}>
+   Run this in {C.CONSOLE} or your SQL client:
 
-**Create the hypertable.** Run this in your SQL client or Console:
+   ```sql
+   CREATE TABLE conditions (
+      time        TIMESTAMPTZ       NOT NULL,
+      location    TEXT              NOT NULL,
+      device      TEXT              NOT NULL,
+      temperature DOUBLE PRECISION  NULL,
+      humidity    DOUBLE PRECISION  NULL
+   ) WITH (
+      tsdb.hypertable,
+      tsdb.segmentby = 'device',
+      tsdb.orderby = 'time DESC'
+   );
+   ```
 
-```sql
-CREATE TABLE conditions (
-   time        TIMESTAMPTZ       NOT NULL,
-   location    TEXT              NOT NULL,
-   device      TEXT              NOT NULL,
-   temperature DOUBLE PRECISION  NULL,
-   humidity    DOUBLE PRECISION  NULL
-) WITH (
-   tsdb.hypertable,
-   tsdb.segmentby = 'device',
-   tsdb.orderby = 'time DESC'
-);
-```
+   You should see a confirmation that the table was created. The `tsdb.hypertable` option makes this a {C.HYPERTABLE} partitioned by time.
+   </NumberedItem>
+   <NumberedItem title="Insert sample data">
+   ```sql
+   INSERT INTO conditions (time, location, device, temperature, humidity)
+   VALUES
+      (NOW() - INTERVAL '2 hours', 'office', 'sensor-1', 22.1, 45.0),
+      (NOW() - INTERVAL '1 hour',  'office', 'sensor-1', 22.3, 44.8),
+      (NOW(),                      'office', 'sensor-1', 22.2, 45.1);
+   ```
+   </NumberedItem>
+   <NumberedItem title="Query the data">
+   ```sql
+   SELECT * FROM conditions ORDER BY time DESC;
+   ```
 
-You should see a confirmation that the table was created. The `tsdb.hypertable` option makes this a hypertable partitioned by time.
-
-**Insert some sample data:**
-
-```sql
-INSERT INTO conditions (time, location, device, temperature, humidity)
-VALUES
-   (NOW() - INTERVAL '2 hours', 'office', 'sensor-1', 22.1, 45.0),
-   (NOW() - INTERVAL '1 hour',  'office', 'sensor-1', 22.3, 44.8),
-   (NOW(),                      'office', 'sensor-1', 22.2, 45.1);
-```
-
-**Query the data:**
-
-```sql
-SELECT * FROM conditions ORDER BY time DESC;
-```
-
-You should see your three rows with the most recent first. You've just created a hypertable, inserted time-series data, and queried it, all with standard SQL.
+   You should see your three rows with the most recent first. You've just created a {C.HYPERTABLE}, inserted time-series data, and queried it, all with standard SQL.
+   </NumberedItem>
+</NumberedList>
 
 <Callout variant="tip">
-  **What just happened?** The table is partitioned by time into **chunks**
-  behind the scenes. You didn't have to manage chunks; you just used the table.
-  For the full picture (what hypertables are, when to use them), see [your first
-  hypertable](/build/how-to/your-first-hypertable).
+  **What just happened?** The table is partitioned by time into **{C.CHUNK}s**
+  behind the scenes. You didn't have to manage {C.CHUNK}s; you just used the table.
+  For the full picture, see [Your first {C.HYPERTABLE}](/build/how-to/your-first-hypertable).
 </Callout>
-
----
 
 ## Next steps
 
-- **[Your first hypertable](/build/how-to/your-first-hypertable)** (in Build → How-to guides): Understand what hypertables and chunks are, and go deeper with the same table.
-- **[Concepts](/learn/chunks/understanding-chunks)**: How chunks, querying, and design work.
-- **[Build](/build)**: Task-oriented guides: compression, continuous aggregates, performance, and more.
+- **[Your first {C.HYPERTABLE}](/build/how-to/your-first-hypertable)**: Understand what {C.HYPERTABLE}s and {C.CHUNK}s are, and go deeper with the same table.
+- **[Learn](/learn)**: How {C.CHUNK}s, querying, and other {C.COMPANY} features work.
+- **[Build with {C.COMPANY}](/build)**: Task-oriented guides: {C.HYPERCORE}, {C.CAGG}s, performance, and more.
