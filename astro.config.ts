@@ -1763,9 +1763,11 @@ export default defineConfig({
           ],
         },
       ],
-    }), sentry({
-      dsn: process.env.SENTRY_DSN,
-    })],
+    }), ...(process.env.SENTRY_DSN
+      ? [sentry({
+          dsn: process.env.SENTRY_DSN,
+        })]
+      : [])],
 
     redirects: withBase({
       ...(DOCS_LOCAL_WITHOUT_STAINLESS
