@@ -1804,7 +1804,7 @@ export default defineConfig({
       "/learn/examples/cookbook": "/build/examples/cookbook",
       "/learn/examples/create-services-with-terraform": "/build/examples/create-services-with-terraform",
       "/learn/examples/00-template-tutorial-render": "/build/examples/",
-      "/learn/examples/aggregate-organizational-data-with-ai-2": "/build/examples/aggregate-organizational-data-with-ai-2",
+      "/learn/examples/aggregate-organizational-data-with-ai-2": "/build/examples/aggregate-organizational-data-with-ai",
       "/learn/production-patterns": "/build/",
       "/learn/production-patterns/": "/build/",
       "/build/production-patterns": "/build/",
