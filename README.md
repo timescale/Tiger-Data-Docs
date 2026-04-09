@@ -149,6 +149,16 @@ This project uses the `@stainless-api/docs` integration which provides:
 
 `STAINLESS_API_KEY` (or `stl auth login`) is required for **generated** Tiger Cloud REST API reference unless you set **`DOCS_LOCAL_WITHOUT_STAINLESS=1`** or use **`pnpm dev:local`** / **`pnpm build:local`**. See `.env.example`.
 
+### Optional: Sentry error monitoring
+
+The site uses [`@sentry/astro`](https://docs.sentry.io/platforms/javascript/guides/astro/) for client and server error monitoring. Set `SENTRY_DSN` in your environment (or as a CI/CD secret) to enable it:
+
+```
+SENTRY_DSN=https://<key>@o<org>.ingest.us.sentry.io/<project>
+```
+
+Omitting the variable disables Sentry silently — no errors, no events captured.
+
 ### Optional: Algolia instead of Pagefind
 
 By default, search uses [Pagefind](https://pagefind.app/) (no extra services). To use [Algolia](https://www.algolia.com/) for site search, set the four variables in `.env.example` and follow [Stainless: site search](https://www.stainless.com/docs/docs-platform/hosting-and-deploys/#site-search) (keys, security, and running `pnpm build` to upload the index).
