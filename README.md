@@ -159,6 +159,16 @@ SENTRY_DSN=https://<key>@o<org>.ingest.us.sentry.io/<project>
 
 Omitting the variable disables Sentry silently — no errors, no events captured.
 
+#### Sentry MCP for AI assistants
+
+The repo includes pre-configured [Sentry MCP](https://docs.sentry.io/organization/integrations/integration-platform/internal-integrations/mcp-server/) configs so AI coding assistants can query Sentry issues, stack traces, and alerts directly:
+
+- `.mcp.json` — Claude Code (project-level config)
+- `.cursor/mcp.json` — Cursor
+- `.vscode/mcp.json` — VS Code / GitHub Copilot
+
+No extra setup is needed; your assistant discovers the config automatically when you open the repo.
+
 ### Optional: Algolia instead of Pagefind
 
 By default, search uses [Pagefind](https://pagefind.app/) (no extra services). To use [Algolia](https://www.algolia.com/) for site search, set the four variables in `.env.example` and follow [Stainless: site search](https://www.stainless.com/docs/docs-platform/hosting-and-deploys/#site-search) (keys, security, and running `pnpm build` to upload the index).
