@@ -1,6 +1,6 @@
 ---
 title: Your first hypertable
-description: Learn what hypertables are, why they matter, and create your first one step by step.
+description: Learn what hypertables are, why they matter, and create your first one step by step
 ---
 
 import * as C from "@constants";
@@ -8,62 +8,50 @@ import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import { Prerequisites } from "@components/Prerequisites";
 
-You will create a {C.HYPERTABLE} from scratch, see why time-based partitioning matters, and finish with queries you can reuse. Expect the same SQL surface you already know, with chunk-aware planning underneath.
+You will create a {C.HYPERTABLE} from scratch, see why time-based partitioning matters, and finish with queries you can reuse. Expect the same SQL surface you already know, with {C.CHUNK}-aware planning underneath.
 
----
+## What is a {C.HYPERTABLE}?
 
-## What is a hypertable?
+A {C.HYPERTABLE} is the main abstraction {C.TIMESCALE_DB} uses for time-series data. To your application it looks and behaves like a regular {C.PG} table: you `INSERT`, `SELECT`, `UPDATE`, and `DELETE` using standard SQL. Under the hood, the database automatically partitions your rows by time into storage units called {C.CHUNK}s. Each {C.CHUNK} holds a time range of data (for example, one day or one week). When you run a query, {C.TIMESCALE_DB} figures out which {C.CHUNK}s are relevant and only touches those, instead of scanning the whole table. That is why {C.HYPERTABLE}s can scale to very large volumes while keeping queries fast.
 
-A **hypertable** is the main abstraction {C.TIMESCALE_DB} uses for time-series data. To your application it looks and behaves like a regular {C.PG} table: you `INSERT`, `SELECT`, `UPDATE`, and `DELETE` using standard SQL. Under the hood, the database automatically partitions your rows by time into storage units called **{C.CHUNK}s**. Each {C.CHUNK} holds a time range of data (for example, one day or one week). When you run a query, {C.TIMESCALE_DB} figures out which {C.CHUNK}s are relevant and only touches those, instead of scanning the whole table. That is why hypertables can scale to very large volumes while keeping queries fast.
+For a deeper look at structure, partitioning, and indexes, see [Understand {C.HYPERTABLE}s](/learn/hypertables/understand-hypertables).
 
-For a deeper look at structure, partitioning, and indexes, see [Understand hypertables](/learn/hypertables/understand-hypertables).
+## Why use {C.HYPERTABLE}s?
 
----
+Time-series data (sensors, metrics, events, logs) usually grows quickly and is queried by time range. A normal table can become slow and hard to manage as it gets large. {C.HYPERTABLE_CAP}s are built for that workload: they give you automatic time-based partitioning, efficient time-range queries, and scalable data management (for example, compression and retention) without changing how you write SQL. You get the familiarity of a {C.PG} table with the performance and scalability of a purpose-built time-series store.
 
-## Why use hypertables?
+## Advantages of {C.HYPERTABLE}s
 
-Time-series data (sensors, metrics, events, logs) usually grows quickly and is queried by time range. A normal table can become slow and hard to manage as it gets large. Hypertables are built for that workload: they give you **automatic time-based partitioning**, **efficient time-range queries**, and **scalable data management** (e.g. compression and retention) without changing how you write SQL. So the main reason to use them is: **you get the familiarity of a {C.PG} table with the performance and scalability of a purpose-built time-series store.**
+- Efficient data management: Data is split into {C.CHUNK}s by time. You can [tune {C.CHUNK} intervals](/build/performance-optimization/improve-hypertable-performance#optimize-hypertable-chunk-intervals) to match how you ingest and query (for example, one {C.CHUNK} per day or per week).
+- Better performance: A time-descending index is created by default; you can add more indexes (including [unique indexes](/build/performance-optimization/hypertables-and-unique-indexes)) as needed. Queries use these indexes and only open relevant {C.CHUNK}s.
+- {C.CHUNK_SKIPPING_CAP}: The planner skips {C.CHUNK}s that don't match your query (for example, a time filter), which [reduces work and speeds up queries](/build/performance-optimization/improve-hypertable-performance#enable-chunk-skipping).
+- Advanced analysis: {C.HYPERFUNC_CAP} and related features let you aggregate and analyze large amounts of time-series data efficiently. See [About {C.TIMESCALE_DB} {C.HYPERFUNC}](/learn/hyperfunctions/about-hyperfunctions).
+- Familiar interface: You interact with a {C.HYPERTABLE} exactly like a normal table; partitioning and optimization are handled for you.
 
----
+## How are {C.HYPERTABLE}s used?
 
-## Advantages of hypertables
+You use a {C.HYPERTABLE} like any other table: connect with your usual client, run `INSERT` and `SELECT` (and `UPDATE`/`DELETE` where needed). Typical use cases include:
 
-- **Efficient data management**: Data is split into chunks by time. You can [tune chunk intervals](/learn/performance-optimization/improve-hypertable-performance#optimize-hypertable-chunk-intervals) to match how you ingest and query (e.g. one chunk per day or per week).
-- **Better performance**: A time-descending index is created by default; you can add more indexes (including [unique indexes](/learn/performance-optimization/hypertables-and-unique-indexes)) as needed. Queries use these indexes and only open relevant chunks.
-- **Chunk skipping**: The planner skips chunks that don’t match your query (e.g. time filter), which [reduces work and speeds up queries](/learn/performance-optimization/improve-hypertable-performance#enable-chunk-skipping).
-- **Advanced analysis**: [Hyperfunctions](/reference/timescaledb/hyperfunctions) and related features let you aggregate and analyze large amounts of time-series data efficiently.
-- **Familiar interface**: You interact with a hypertable exactly like a normal table; partitioning and optimization are handled for you.
+- IoT and sensors: Device readings with a timestamp (temperature, humidity, location).
+- Metrics and monitoring: Server or app metrics (CPU, latency, errors) over time.
+- Events and logs: User or system events with a time component.
 
-Inheritance is not supported for hypertables and may lead to unexpected behavior.
+For creating, altering, and managing {C.HYPERTABLE}s in real projects, see [Understand {C.HYPERTABLE}s](/learn/hypertables/understand-hypertables). For issues such as unique indexes, compression, or dropping {C.CHUNK}s, see [Troubleshoot {C.HYPERTABLE}s](/build/tips-and-tricks/troubleshoot-hypertables).
 
----
+## Make your first {C.HYPERTABLE}
 
-## How are hypertables used?
-
-You use a hypertable like any other table: connect with your usual client, run `INSERT` and `SELECT` (and `UPDATE`/`DELETE` where needed). Typical use cases include:
-
-- **IoT and sensors**: Device readings with a timestamp (temperature, humidity, location).
-- **Metrics and monitoring**: Server or app metrics (CPU, latency, errors) over time.
-- **Events and logs**: User or system events with a time component.
-
-For creating, altering, and managing hypertables in real projects, see [Time-Series / Hypertables](/learn/hypertables/understand-hypertables) and [Understand hypertables](/learn/hypertables/understand-hypertables). For issues such as unique indexes, compression, or dropping chunks, see [Troubleshooting](/build/tips-and-tricks) (including [Troubleshooting hypertables](https://www.tigerdata.com/docs/use-timescale/latest/hypertables/troubleshooting) on the Tiger Data docs).
-
----
-
-## Making your first hypertable
-
-We will create a simple hypertable for sensor-style data: a `conditions` table with time, location, device, temperature, and humidity. When you run the command, the table is created and automatically set up as a hypertable partitioned by the time column.
+You will create a simple {C.HYPERTABLE} for sensor-style data: a `conditions` table with time, location, device, temperature, and humidity. When you run the command, the table is created and automatically set up as a {C.HYPERTABLE} partitioned by the time column.
 
 <Prerequisites>
-  - A Tiger Cloud service with Real-time analytics (or self-hosted {C.TIMESCALE_DB})
-  - Your [connection details](/get-started/quickstart/create-service) -
-  Any client that can run SQL (e.g. `psql` or your app's SQL driver)
+  - A {C.SERVICE_LONG} with Real-time analytics or a running instance of {C.SELF_LONG}
+  - Your [connection details](/integrate/find-connection-details)
+  - Any client that can run SQL ({C.CONSOLE}, `psql`, or your app's SQL driver)
 </Prerequisites>
 
 <NumberedList>
 
-<NumberedItem title="Create the hypertable">
-Run the following SQL. The important part is the `WITH (tsdb.hypertable, ...)` clause: it tells the database to treat this table as a hypertable. The first column with a timestamp type (`time`) is used as the partitioning column by default. We use `tsdb.segmentby = 'device'` so that rows are grouped by `device` inside chunks, which helps both query and compression when you filter by device. We use `tsdb.orderby = 'time DESC'` so that recent data is stored in an order that matches typical time-range queries.
+<NumberedItem title={`Create the ${C.HYPERTABLE}`}>
+Run the following SQL. The important part is the `WITH (tsdb.hypertable, ...)` clause: it tells the database to treat this table as a {C.HYPERTABLE}. The first column with a timestamp type (`time`) is used as the partitioning column by default. We use `tsdb.segmentby = 'device'` so that rows are grouped by `device` inside {C.CHUNK}s, which helps both query and compression when you filter by device. We use `tsdb.orderby = 'time DESC'` so that recent data is stored in an order that matches typical time-range queries.
 
 ```sql
 CREATE TABLE conditions (
@@ -79,12 +67,12 @@ CREATE TABLE conditions (
 );
 ```
 
-You should see a confirmation that the table was created (exact message depends on your client). The table is now a hypertable: new chunks will be created automatically as you insert data into new time ranges.
+You should see a confirmation that the table was created (exact message depends on your client). The table is now a {C.HYPERTABLE}: new {C.CHUNK}s will be created automatically as you insert data into new time ranges.
 
 </NumberedItem>
 
 <NumberedItem title="Insert a few rows">
-Insert some sample rows so we can query the hypertable:
+Insert some sample rows so we can query the {C.HYPERTABLE}:
 
 ```sql
 INSERT INTO conditions (time, location, device, temperature, humidity)
@@ -96,26 +84,23 @@ VALUES
 
 </NumberedItem>
 
-<NumberedItem title="Query the hypertable">
+<NumberedItem title={`Query the ${C.HYPERTABLE}`}>
 Query it like a normal table:
 
 ```sql
 SELECT * FROM conditions ORDER BY time DESC;
 ```
 
-You should see your three rows, with the most recent first. Notice that you didn’t have to mention chunks or partitioning, you just use standard SQL. The database routes the query to the right chunk(s) for you.
+You should see your three rows, with the most recent first. Notice that you didn't have to mention {C.CHUNK}s or partitioning, you just use standard SQL. The database routes the query to the right {C.CHUNK}(s) for you.
 
 </NumberedItem>
 
 </NumberedList>
 
-You have built your first hypertable and used it for inserts and a time-ordered query. From here you can add more data, add indexes, or enable features like the columnstore; the [Time-Series / Hypertables](/learn/hypertables/understand-hypertables) guide and [Optimize time-series data in hypertables](https://www.tigerdata.com/docs/use-timescale/latest/hypertables/hypertable-crud) on the Tiger Data docs cover those next steps.
-
----
+You have built your first {C.HYPERTABLE} and used it for inserts and a time-ordered query. From here you can add more data, add indexes, or enable features like the {C.COLUMNSTORE}. The [Understand {C.HYPERTABLE}s](/learn/hypertables/understand-hypertables) guide and [{C.HYPERTABLE_CAP} operations](/learn/hypertables/optimize-data-in-hypertables) cover those next steps.
 
 ## Next steps
 
-- [Understanding chunks](/learn/chunks/understanding-chunks): How time-series data is stored in chunks.
-- [Querying time-series data](/learn/hypertables/querying-time-series-data): Patterns for querying hypertables.
-- [Time-Series / Hypertables](/learn/hypertables/understand-hypertables): Create, alter, and drop hypertables; columnstore and ingestion options.
-- [Troubleshooting](/build/tips-and-tricks): Common issues (e.g. unique indexes, compression, dropping chunks) and fixes.
+- [Understand {C.CHUNK}s](/learn/chunks/understanding-chunks): What {C.CHUNK}s are, why they matter, and how to use them effectively.
+- [Basic compression with {C.HYPERCORE}](/build/how-to/basic-compression): Compress data into the {C.COLUMNSTORE} for up to 98% storage savings and faster analytical queries.
+- [{C.HYPERTABLE_CAP} operations](/learn/hypertables/optimize-data-in-hypertables): Create, alter, and drop {C.HYPERTABLE}s, and speed up data ingest.

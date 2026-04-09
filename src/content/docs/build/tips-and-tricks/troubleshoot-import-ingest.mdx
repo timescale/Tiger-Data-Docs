@@ -16,28 +16,28 @@ Live migration tooling is currently experimental. You may run into the following
 -   Live migration does not yet support mutable columnstore compression (`INSERT`, `UPDATE`, `DELETE` on data in the columnstore).
 -   By default, numeric fields containing `NaN`/`+Inf`/`-Inf` values are not correctly replicated, and will be converted to `NULL`. A workaround is available, but is not enabled by default.
 
-Should you run into any problems, please open a support request before losing any time debugging issues. You can open a support request directly from Tiger Console, or by email to [support@tigerdata.com](mailto:support@tigerdata.com).
+Should you run into any problems, please open a support request before losing any time debugging issues. You can open a support request directly from {C.CONSOLE}, or by email to [support@tigerdata.com](mailto:support@tigerdata.com).
 
 Where can I find logs for processes running during live migration?
 
 Live migration involves several background processes to manage different stages of the migration. The logs of these processes can be helpful for troubleshooting unexpected behavior. You can find these logs in the `<volume_mount>/logs` directory.
 
-Source and target databases have different TimescaleDB versions
+Source and target databases have different {C.TIMESCALE_DB} versions
 
-When you migrate a self-hosted or Managed Service for TimescaleDB (MST) database to Tiger Cloud, the source database and the destination Tiger Cloud service must run the same version of TimescaleDB. Before you start live migration:
+When you migrate a self-hosted or {C.MST_LONG} database to {C.CLOUD_LONG}, the source database and the destination {C.SERVICE_LONG} must run the same version of {C.TIMESCALE_DB}. Before you start live migration:
 
-1.  Check the version of TimescaleDB running on the source database and the target Tiger Cloud service:
-2.  If the version of TimescaleDB on the source database is lower than your Tiger Cloud service, either:
-    -   **Downgrade**: reinstall an older version of TimescaleDB on your Tiger Cloud service that matches the source database:
-        1.  Connect to your Tiger Cloud service and check the versions of TimescaleDB available:
-        2.  If an available TimescaleDB release matches your source database:
+1.  Check the version of {C.TIMESCALE_DB} running on the source database and the target {C.SERVICE_LONG}:
+2.  If the version of {C.TIMESCALE_DB} on the source database is lower than your {C.SERVICE_LONG}, either:
+    -   **Downgrade**: reinstall an older version of {C.TIMESCALE_DB} on your {C.SERVICE_LONG} that matches the source database:
+        1.  Connect to your {C.SERVICE_LONG} and check the versions of {C.TIMESCALE_DB} available:
+        2.  If an available {C.TIMESCALE_DB} release matches your source database:
 
-            1.  Uninstall TimescaleDB from your Tiger Cloud service:
-            2.  Reinstall the correct version of TimescaleDB:
+            1.  Uninstall {C.TIMESCALE_DB} from your {C.SERVICE_LONG}:
+            2.  Reinstall the correct version of {C.TIMESCALE_DB}:
 
-            You may need to reconnect to your Tiger Cloud service using `psql -X` when you’re creating the TimescaleDB extension.
+            You may need to reconnect to your {C.SERVICE_LONG} using `psql -X` when you’re creating the {C.TIMESCALE_DB} extension.
 
-    -   **Upgrade**: for self-hosted databases, upgrade TimescaleDB to match your Tiger Cloud service.
+    -   **Upgrade**: for self-hosted databases, upgrade {C.TIMESCALE_DB} to match your {C.SERVICE_LONG}.
 
 Why does live migration log “no tuple identifier” warning?
 
@@ -55,9 +55,9 @@ Can I use live migration with a {C.PG} connection pooler like PgBouncer?
 
 Live migration does not support connection poolers. You must provide a connection string that points directly to your source and target databases for live migration to work smoothly.
 
-Can I use Tiger Cloud instance as source for live migration?
+Can I use {C.CLOUD_LONG} instance as source for live migration?
 
-No, Tiger Cloud cannot be used as a source database for live migration.
+No, {C.CLOUD_LONG} cannot be used as a source database for live migration.
 
 How can I exclude a schema/table from being replicated in live migration?
 
@@ -65,13 +65,13 @@ At present, live migration does not allow for excluding schemas or tables from r
 
 Large migrations blocked
 
-Tiger Cloud automatically manages the underlying disk volume. Due to platform limitations, it is only possible to resize the disk once every six hours. Depending on the rate at which you’re able to copy data, you may be affected by this restriction. Affected instances are unable to accept new data and error with: `FATAL: terminating connection due to administrator command`. If you intend on migrating more than 400 GB of data to Tiger Cloud, open a support request requesting the required storage to be pre-allocated in your Tiger Cloud service. You can open a support request directly from Tiger Console, or by email to [support@tigerdata.com](mailto:support@tigerdata.com).
+{C.CLOUD_LONG} automatically manages the underlying disk volume. Due to platform limitations, it is only possible to resize the disk once every six hours. Depending on the rate at which you’re able to copy data, you may be affected by this restriction. Affected instances are unable to accept new data and error with: `FATAL: terminating connection due to administrator command`. If you intend on migrating more than 400 GB of data to {C.CLOUD_LONG}, open a support request requesting the required storage to be pre-allocated in your {C.SERVICE_LONG}. You can open a support request directly from {C.CONSOLE}, or by email to [support@tigerdata.com](mailto:support@tigerdata.com).
 
 Import from a database with downtime
 
 Dumping and locks
 
-When `pg_dump` starts, it takes an `ACCESS SHARE` lock on all tables which it dumps. This ensures that tables aren’t dropped before `pg_dump` is able to drop them. A side effect of this is that any query which tries to take an `ACCESS EXCLUSIVE` lock on a table is be blocked by the `ACCESS SHARE` lock. A number of Tiger Cloud-internal processes require taking `ACCESS EXCLUSIVE` locks to ensure consistency of the data. The following is a non-exhaustive list of potentially affected operations:
+When `pg_dump` starts, it takes an `ACCESS SHARE` lock on all tables which it dumps. This ensures that tables aren’t dropped before `pg_dump` is able to drop them. A side effect of this is that any query which tries to take an `ACCESS EXCLUSIVE` lock on a table is be blocked by the `ACCESS SHARE` lock. A number of {C.CLOUD_LONG}-internal processes require taking `ACCESS EXCLUSIVE` locks to ensure consistency of the data. The following is a non-exhaustive list of potentially affected operations:
 
 -   converting a chunk into the columnstore/rowstore and back
 -   continuous aggregate refresh (before 2.12)
@@ -99,30 +99,30 @@ Ownership of background jobs
 
 The `_timescaledb_config` schema is an internal schema not part of the public API. For normal job management, use the [`timescaledb_information.jobs`](/reference/timescaledb/informational-views/jobs) informational view and job management functions. Direct modification of internal tables should only be done in migration scenarios as described below.
 
-The `_timescaledb_config.bgw_jobs` table is used to manage background jobs. This includes custom jobs, columnstore compression policies, retention policies, and continuous aggregate refresh policies. On Tiger Cloud, this table has a trigger which ensures that no database user can create or modify jobs owned by another database user. This trigger can provide an obstacle for migrations. If the `--no-owner` flag is used with `pg_dump` and `pg_restore`, all objects in the target database are owned by the user that ran `pg_restore`, likely `tsdbadmin`. If all the background jobs in the source database were owned by a user of the same name as the user running the restore (again likely `tsdbadmin`), then loading the `_timescaledb_config.bgw_jobs` table should work. If the background jobs in the source were owned by the `postgres` user, they are be automatically changed to be owned by the `tsdbadmin` user. In this case, one just needs to verify that the jobs do not make use of privileges that the `tsdbadmin` user does not possess. If background jobs are owned by one or more users other than the user employed in restoring, then there could be issues. To work around this issue, do not dump this table with `pg_dump`. Provide either `--exclude-table-data='_timescaledb_config.bgw_job'` or `--exclude-table='_timescaledb_config.bgw_job'` to `pg_dump` to skip this table. Then, use `psql` and the `COPY` command to dump and restore this table with modified values for the `owner` column. Once the table has been loaded and the restore completed, you may then use SQL to adjust the ownership of the jobs and/or the associated stored procedures and functions as you wish.
+The `_timescaledb_config.bgw_jobs` table is used to manage background jobs. This includes custom jobs, columnstore compression policies, retention policies, and continuous aggregate refresh policies. On {C.CLOUD_LONG}, this table has a trigger which ensures that no database user can create or modify jobs owned by another database user. This trigger can provide an obstacle for migrations. If the `--no-owner` flag is used with `pg_dump` and `pg_restore`, all objects in the target database are owned by the user that ran `pg_restore`, likely `tsdbadmin`. If all the background jobs in the source database were owned by a user of the same name as the user running the restore (again likely `tsdbadmin`), then loading the `_timescaledb_config.bgw_jobs` table should work. If the background jobs in the source were owned by the `postgres` user, they are be automatically changed to be owned by the `tsdbadmin` user. In this case, one just needs to verify that the jobs do not make use of privileges that the `tsdbadmin` user does not possess. If background jobs are owned by one or more users other than the user employed in restoring, then there could be issues. To work around this issue, do not dump this table with `pg_dump`. Provide either `--exclude-table-data='_timescaledb_config.bgw_job'` or `--exclude-table='_timescaledb_config.bgw_job'` to `pg_dump` to skip this table. Then, use `psql` and the `COPY` command to dump and restore this table with modified values for the `owner` column. Once the table has been loaded and the restore completed, you may then use SQL to adjust the ownership of the jobs and/or the associated stored procedures and functions as you wish.
 
 Common issues
 
 Extension availability
 
-There are a vast number of {C.PG} extensions available in the wild. Tiger Cloud supports many of the most popular extensions, but not all extensions. Before migrating, check that the extensions you are using are supported on Tiger Cloud. Consult the list of supported extensions.
+There are a vast number of {C.PG} extensions available in the wild. {C.CLOUD_LONG} supports many of the most popular extensions, but not all extensions. Before migrating, check that the extensions you are using are supported on {C.CLOUD_LONG}. Consult the list of supported extensions.
 
-TimescaleDB extension in the public schema
+{C.TIMESCALE_DB} extension in the public schema
 
-When self-hosting, the TimescaleDB extension may be installed in an arbitrary schema. Tiger Cloud only supports installing the TimescaleDB extension in the `public` schema. How to go about resolving this depends heavily on the particular details of the source schema and the migration approach chosen.
+When self-hosting, the {C.TIMESCALE_DB} extension may be installed in an arbitrary schema. {C.CLOUD_LONG} only supports installing the {C.TIMESCALE_DB} extension in the `public` schema. How to go about resolving this depends heavily on the particular details of the source schema and the migration approach chosen.
 
 Tablespaces
 
-Tiger Cloud does not support using custom tablespaces. Providing the `--no-tablespaces` flag to `pg_dump` and `pg_restore` when dumping/restoring the schema results in all objects being in the default tablespace as desired.
+{C.CLOUD_LONG} does not support using custom tablespaces. Providing the `--no-tablespaces` flag to `pg_dump` and `pg_restore` when dumping/restoring the schema results in all objects being in the default tablespace as desired.
 
 Only one database per instance
 
-While {C.PG} clusters can contain many databases, Tiger Cloud services are limited to a single database. When migrating a cluster with multiple databases to Tiger Cloud, one can either migrate each source database to a separate Tiger Cloud service or “merge” source databases to target schemas.
+While {C.PG} clusters can contain many databases, {C.SERVICE_LONG}s are limited to a single database. When migrating a cluster with multiple databases to {C.CLOUD_LONG}, one can either migrate each source database to a separate {C.SERVICE_LONG} or “merge” source databases to target schemas.
 
 Superuser privileges
 
-The `tsdbadmin` database user is the most powerful available on Tiger Cloud, but it is not a true superuser. Review your application for use of superuser privileged operations and mitigate before migrating.
+The `tsdbadmin` database user is the most powerful available on {C.CLOUD_LONG}, but it is not a true superuser. Review your application for use of superuser privileged operations and mitigate before migrating.
 
 Migrate partial continuous aggregates
 
-In order to improve the performance and compatibility of continuous aggregates, TimescaleDB v2.7 replaces _partial_ continuous aggregates with _finalized_ continuous aggregates. To test your database for partial continuous aggregates, run the following query: If you have partial continuous aggregates in your database, migrate them from partial to finalized before you migrate your database. If you accidentally migrate partial continuous aggregates across {C.PG} versions, you see the following error when you query any continuous aggregates:
+In order to improve the performance and compatibility of continuous aggregates, {C.TIMESCALE_DB} v2.7 replaces _partial_ continuous aggregates with _finalized_ continuous aggregates. To test your database for partial continuous aggregates, run the following query: If you have partial continuous aggregates in your database, migrate them from partial to finalized before you migrate your database. If you accidentally migrate partial continuous aggregates across {C.PG} versions, you see the following error when you query any continuous aggregates:

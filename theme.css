@@ -2911,7 +2911,8 @@ main
 .changelog-page-toc > h2,
 .changelog-page-toc > :where(.sl-heading-wrapper) {
   height: 0;
-  margin: 0;
+  margin: 0 !important;
+  margin-block: 0 !important;
   padding: 0;
   overflow: hidden;
   visibility: hidden;
@@ -2951,7 +2952,16 @@ main
   }
 }
 
-/* Changelog: sticky filter bar — avoid clipping `position:sticky` and offset in-page anchors */
+/* Changelog: sticky filter bar — avoid clipping `position:sticky` and offset in-page anchors
+   Toggle sticky behavior for the filter bar AND entry headers:
+   set --changelog-sticky-position to `relative` to disable, `sticky` to enable.
+   When disabling, also set --changelog-sticky-top to `auto` so `top` offsets
+   don't push elements out of normal flow. */
+.page:has(#changelog-filter) {
+  --changelog-sticky-position: relative;
+  --changelog-sticky-top: auto;
+}
+
 .page:has(#changelog-filter) main .l-markdown-content {
   overflow-x: visible;
   overflow-y: visible;
@@ -2964,18 +2974,30 @@ main
   z-index: 50 !important;
 }
 
+/* Tight gap below the filter; padding avoids margin collapse with the filter block. */
 .page:has(#changelog-filter) .changelog-page-toc {
   position: relative;
   z-index: 0;
+  padding-top: 0.25rem;
+}
+
+/* Remove prose/Starlight top spacing before the first card (TOC duplicate heading is hidden). */
+.page:has(#changelog-filter) .changelog-page-toc > :where(.sl-heading-wrapper) + .changelog-entry,
+.page:has(#changelog-filter) .changelog-page-toc > h2 + .changelog-entry,
+.page:has(#changelog-filter) .changelog-page-toc > .changelog-entry:first-child {
+  margin-top: 0;
 }
 
 .page:has(#changelog-filter) .changelog-entry {
   z-index: 0;
 }
 
+/* JS sets --changelog-scroll-margin-top to the filter stack bottom + gap so TOC/hash
+   targets (h2) land below the sticky filter; fallback matches a tall expanded bar. */
 .page:has(main .changelog-page-toc) .changelog-entry {
-  scroll-margin-top: calc(
-    var(--stl-nav-height, 3.5rem) + env(safe-area-inset-top, 0px) + 15rem
+  scroll-margin-top: var(
+    --changelog-scroll-margin-top,
+    calc(var(--stl-nav-height, 3.5rem) + env(safe-area-inset-top, 0px) + 11rem)
   );
 }
 
@@ -3255,13 +3277,9 @@ main
   margin-bottom: 0.25rem;
 }
 
-/* Step body – Body/16/Regular per Figma */
+/* Step body – inherits normal page text styling */
 .numbered-list__item-body {
-  font-family: var(--stl-font-family);
-  font-weight: 450;
-  font-size: 16px;
-  line-height: 1.5;
-  color: var(--tiger-bg-default);
+  margin-top: 0.25rem;
 }
 
 /* Spacing for code blocks and Callouts inside a step */
@@ -3270,37 +3288,20 @@ main
   margin-top: 0.75rem;
 }
 
-/* Force paragraphs and links to stay inline so links don't break onto their own line */
-.numbered-list__item-body > p,
-.numbered-list__item-body > a {
-  display: inline !important;
-  margin: 0 !important;
+/* Nested ordered lists inside a step use lowercase letters (a, b, c) */
+.numbered-list__item-body ol {
+  list-style-type: lower-alpha;
+  padding-left: 1.5rem;
+  margin-top: 0.75rem;
 }
 
-.numbered-list__item-body a {
-  display: inline !important;
+.numbered-list__item-body ol > li {
+  margin-bottom: 0.5rem;
 }
 
-/* Single p wrapping text+link+text: make it inline so the sentence stays on one line */
-.numbered-list__item-body p:first-child {
-  display: inline !important;
-  margin: 0 0.25rem 0 0 !important;
-}
-
-.numbered-list__item-body > p + p {
-  margin-left: 0.25rem;
-}
-
-.numbered-list__item-body p:first-child::after {
-  content: none;
-}
-
-.numbered-list__item-body p {
-  margin: 0.25rem 0 0 0;
-}
-
-.numbered-list__item-body p + p {
-  margin-top: 0.25rem;
+/* Two levels deep use lowercase Roman numerals (i, ii, iii) */
+.numbered-list__item-body ol ol {
+  list-style-type: lower-roman;
 }
 
 /* ============================================

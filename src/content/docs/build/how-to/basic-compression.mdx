@@ -5,14 +5,21 @@ description: Compress data into the columnstore for up to 98% storage savings an
 
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
+import { Prerequisites } from "@components/Prerequisites";
 
-{C.HYPERCORE} is {C.TIMESCALE_DB}'s hybrid row-columnar storage engine. It automatically compresses {C.CHUNK}s from the {C.ROWSTORE} into the {C.COLUMNSTORE}, typically reducing storage by 90–98% while making analytical queries significantly faster.
+{C.HYPERCORE_CAP} is {C.TIMESCALE_DB}'s hybrid row-columnar storage engine. It automatically compresses {C.CHUNK}s from the {C.ROWSTORE} into the {C.COLUMNSTORE}, typically reducing storage by 90–98% while making analytical queries significantly faster.
 
 ## How it works
 
-When you create a {C.HYPERTABLE} with `segmentby` and `orderby` options, {C.TIMESCALE_DB} automatically creates a [columnstore policy](/reference/timescaledb/hypercore/add_columnstore_policy) that converts older {C.CHUNK}s into columnar format. Recent data stays in the {C.ROWSTORE} for fast inserts, while older data is compressed in the {C.COLUMNSTORE} for efficient scans.
+When you create a {C.HYPERTABLE} with `segmentby` and `orderby` options, {C.TIMESCALE_DB} automatically creates a [{C.COLUMNSTORE} policy](/reference/timescaledb/hypercore/add_columnstore_policy) that converts older {C.CHUNK}s into columnar format. Recent data stays in the {C.ROWSTORE} for fast inserts, while older data is compressed in the {C.COLUMNSTORE} for efficient scans.
 
 ## Enable {C.HYPERCORE}
+
+<Prerequisites>
+  - A [{C.SERVICE_LONG}](/get-started/quickstart/create-service) with Real-time analytics or a running instance of {C.SELF_LONG}
+  - Your [connection details](/integrate/find-connection-details)
+  - Any client that can run SQL ({C.CONSOLE}, `psql`, or your app's SQL driver)
+</Prerequisites>
 
 Create a {C.HYPERTABLE} with {C.HYPERCORE} enabled using `CREATE TABLE`:
 
@@ -34,7 +41,7 @@ This automatically:
 - Creates a {C.HYPERTABLE} partitioned by `time`
 - Sets `device` as the segment column for efficient filtering
 - Orders data by `time DESC` for optimal compression and scan performance
-- Creates a columnstore policy that compresses {C.CHUNK}s after one {C.CHUNK} interval
+- Creates a {C.COLUMNSTORE} policy that compresses {C.CHUNK}s after one {C.CHUNK} interval
 
 <Callout variant="tip">
 Choose `segmentby` based on how you filter data (for example, by device, location, or user). Choose `orderby` based on your most common sort order (usually time descending). Lower cardinality `segmentby` columns give better compression.
@@ -42,7 +49,7 @@ Choose `segmentby` based on how you filter data (for example, by device, locatio
 
 ## Check compression results
 
-After the columnstore policy runs, check how much space you've saved:
+After the {C.COLUMNSTORE} policy runs, check how much space you've saved:
 
 ```sql
 SELECT
@@ -58,13 +65,13 @@ SELECT * FROM chunks_detailed_size('conditions');
 
 ## Benefits
 
-- **Storage savings**: 90–98% compression ratios are common
-- **Query performance**: analytical queries run faster on columnar data thanks to vectorized execution
-- **Cost reduction**: less storage means lower cloud costs
-- **Transparent**: queries work the same on both {C.ROWSTORE} and {C.COLUMNSTORE} data
+- Storage savings: 90–98% compression ratios are common.
+- Query performance: Analytical queries run faster on columnar data thanks to vectorized execution.
+- Cost reduction: Less storage means lower cloud costs.
+- Transparent: Queries work the same on both {C.ROWSTORE} and {C.COLUMNSTORE} data.
 
 ## Next steps
 
-- [Understand {C.HYPERCORE}](/learn/columnar-storage/understand-hypercore) — how the hybrid storage engine works
-- [Set up {C.HYPERCORE}](/build/columnar-storage/setup-hypercore) — optimize `segmentby`, `orderby`, and policies
-- [Compression methods](/learn/columnar-storage/compression-methods) — algorithms used for each data type
+- [Understand {C.HYPERCORE}](/learn/columnar-storage/understand-hypercore): How the hybrid storage engine works.
+- [Set up {C.HYPERCORE}](/build/columnar-storage/setup-hypercore): Optimize `segmentby`, `orderby`, and policies.
+- [Compression methods in {C.HYPERCORE}](/learn/columnar-storage/compression-methods): Algorithms used for each data type.
