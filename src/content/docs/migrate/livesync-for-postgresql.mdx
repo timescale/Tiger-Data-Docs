@@ -10,6 +10,7 @@ import { NumberedList, NumberedItem } from "@components/NumberedList";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 import LivesyncConfigureSourceDatabase from "../../../partials/_livesync-configure-source-database.mdx";
 import TuneSourceDatabaseAWSRDS from "../../../partials/_livesync-configure-source-database-awsrds.mdx";
+import MigrationPrerequisites from "../../../partials/_migrate_prerequisites.mdx";
 
 import { Image } from "astro:assets";
 import imgTigerConsoleConnectorOverview from "../../../assets/images/integrate/connectors/tiger-console-connector-overview.png";
@@ -23,7 +24,11 @@ import imgTigerConsoleConnectorOverview from "../../../assets/images/integrate/c
 The {C.PG_CONNECTOR} is not yet supported for production use.
 </Callout>
 
-You use the {C.PG_CONNECTOR} in {C.CLOUD_LONG} to synchronize all data or specific tables from a {C.PG} database to your {C.SERVICE_SHORT} in real time. You run the connector continuously, turning {C.PG} into the primary with your {C.SERVICE_LONG} as a logical replica, so you can leverage {C.CLOUD_LONG}’s real-time analytics on your replica data without impacting the primary.
+<Callout variant="tip">
+**Livesync vs live migration:** The {C.PG_CONNECTOR} (livesync) keeps a {C.SERVICE_LONG} **continuously synchronized** with a source {C.PG} database. It is designed for ongoing replication, not a one-time move. For a one-time database migration with minimal downtime, use [live migration](/migrate/live-migration) instead. The two features use different Docker images and are not interchangeable.
+</Callout>
+
+You use the {C.PG_CONNECTOR} in {C.CLOUD_LONG} to synchronize all data or specific tables from a {C.PG} database to your {C.SERVICE_SHORT} in real time. You run the connector continuously, turning {C.PG} into the primary with your {C.SERVICE_LONG} as a logical replica, so you can leverage {C.CLOUD_LONG}'s real-time analytics on your replica data without impacting the primary.
 
 The connector uses the established [{C.PG} logical replication protocol](https://www.postgresql.org/docs/current/logical-replication.html), so you get compatibility, familiarity, and a broad knowledge base when adopting it. This is used for **data synchronization**, not one-off migration.
 
@@ -31,15 +36,17 @@ The connector uses the established [{C.PG} logical replication protocol](https:/
 - **Copy existing data** from a {C.PG} instance to a {C.SERVICE_LONG}: up to ~150 GB/hr (recommended minimum 4 CPU/16 GB on both source and target); copy publication tables in parallel (very large tables use a single connection); foreign key validation is disabled during sync so you can sync a table without its referenced tables; and you can track progress via `pg_stat_progress_copy` on the source.
 - **Synchronize real-time changes** from the source to your {C.SERVICE_SHORT}.
 - **Add and remove tables on demand** using the [PUBLICATION interface](https://www.postgresql.org/docs/current/sql-createpublication.html).
-- **Enable** [{C.HYPERTABLE}s](/learn/hypertables/understand-hypertables), [{C.COLUMNSTORE}](/learn/columnar-storage/understand-hypercore), and [{C.CAGG}s](/learn/continuous-aggregates/about-continuous-aggregates) on your logical replica.
+- **Enable** [{C.HYPERTABLE}s](/learn/hypertables/understand-hypertables), [{C.COLUMNSTORE}](/learn/columnar-storage/understand-hypercore), and [{C.CAGG}s](/learn/continuous-aggregates) on your logical replica.
 
 <Image src={imgTigerConsoleConnectorOverview} alt="Connectors overview in Tiger Console" />
 
 ## Prerequisites
 
-To follow the steps on this page:
+<MigrationPrerequisites />
 
-- Create a [{C.SERVICE_LONG}](/get-started/quickstart/create-service/) and find your [connection details](/integrate/find-connection-details).
+In addition:
+
+- Find your {C.SERVICE_LONG} [connection details](/integrate/find-connection-details).
 - Install [{C.PG} client tools](/integrate/query-administration/psql) on your sync machine.
 - Make sure the source {C.PG} instance and the target {C.SERVICE_LONG} have the same extensions installed. The connector does not create extensions on the target. If a table uses types from an extension, create that extension on the target {C.SERVICE_SHORT} before syncing the table.
 
@@ -134,9 +141,9 @@ You’re now syncing the selected tables from your {C.PG} instance to your {C.SE
 
 </TabItem>
 
-<TabItem label={`${C.SELF_LONG_CAP}`}>
+<TabItem label="Docker / Terminal">
 
-Sync from a {C.PG} source to your **{C.SELF_LONG}** instance using the `timescale/live-sync` Docker image. The connector runs on a machine that can reach both source and target.
+Sync from a {C.PG} source using the `timescale/live-sync` Docker image. The connector runs on a machine that can reach both the source and target databases. The `TARGET` can be either a **{C.SERVICE_LONG}** or a **{C.SELF_LONG}** instance — only the connection string changes.
 
 <NumberedList>
 
@@ -155,10 +162,10 @@ On your sync machine, set the source and target connection strings:
 
 ```bash
 export SOURCE="postgres://<user>:<password>@<source host>:<source port>/<db_name>"
-export TARGET="postgres://<user>:<password>@<self-hosted host>:<port>/<db_name>"
+export TARGET="postgres://<user>:<password>@<target host>:<port>/<db_name>"
 ```
 
-`TARGET` is the connection string to your **{C.SELF_LONG}** instance. Avoid connection strings that route through poolers (for example, PgBouncer); use a direct connection.
+`TARGET` is the connection string to your {C.SERVICE_LONG} or {C.SELF_LONG} instance. Use your {C.SERVICE_LONG} host and port if syncing to {C.CLOUD_LONG}. Avoid connection strings that route through poolers (for example, PgBouncer); use a direct connection.
 
 </NumberedItem>
 
@@ -246,7 +253,29 @@ docker run -d --rm --name livesync timescale/live-sync:v0.11.2 run \
 - **Add/remove tables:** `ALTER PUBLICATION <publication_name> ADD TABLE ...` or `DROP TABLE ...` on the source; add tables to the publication as needed.
 - **Stop:** `docker stop livesync`
 - **Update statistics after initial sync:** `vacuumdb --analyze --verbose --dbname=$TARGET`
-- **Clean up replication slots (when done):** run the same `docker run ... timescale/live-sync:v0.11.2 run ... --drop` to remove slots on the source.
+
+</NumberedItem>
+
+<NumberedItem title="Clean up when done (--drop)">
+
+When you are permanently done syncing (for example, you have fully cut over to {C.CLOUD_LONG}, or you want to restart the sync from scratch), run the connector with `--drop` to remove the replication slot from the source and all subscription state from the target:
+
+```bash
+docker run --rm timescale/live-sync:v0.11.2 run \
+  --publication <publication_name> \
+  --subscription <subscription_name> \
+  --source $SOURCE \
+  --target $TARGET \
+  --drop
+```
+
+`--drop` removes:
+- The replication slot (`live_sync_<subscription_name>`) on the **source** database.
+- The subscription and internal tracking tables (`_ts_live_sync.*`) on the **target** database.
+
+<Callout variant="warning">
+Run `--drop` only when you intend to permanently stop or fully restart the sync. Dropping the replication slot while the source is still active causes WAL to be retained until the slot is recreated, which can grow disk usage on the source.
+</Callout>
 
 </NumberedItem>
 
