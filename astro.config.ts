@@ -5,6 +5,7 @@ import { defineConfig } from "astro/config";
 import type { AstroIntegration } from "astro";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
 import aiChat from "@stainless-api/docs-ai-chat/plugin";
+import starlightLlmsTxt from "starlight-llms-txt";
 import rehypeBasePath from "./src/plugins/rehype-base-path";
 import remarkResolveConstantsInHeadings from "./src/plugins/remark-resolve-constants-in-headings";
 
@@ -299,7 +300,10 @@ export default defineConfig({
             } as Record<string, string>,
             /** Single-link sidebar groups become one clickable row (see `src/starlight-route-middleware.ts`). */
             routeMiddleware: ["./src/starlight-route-middleware.ts"],
-            plugins: starlightLinksValidator ? [starlightLinksValidator()] : [],
+            plugins: [
+              starlightLlmsTxt(),
+              ...(starlightLinksValidator ? [starlightLinksValidator()] : []),
+            ],
           },
         },
         tabs: [
