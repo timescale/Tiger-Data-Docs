@@ -267,9 +267,11 @@ export default defineConfig({
           content: `!function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);},s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='//static.ads-twitter.com/uwt.js',a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');twq('init','o8fs3');twq('track','PageView');`,
         },
         {
-          // Statsig: set sticky cookie + log exposure for gradual docs rollout
+          // Statsig: set sticky cookie + log exposure for gradual docs rollout.
+          // Guard: skip SDK load entirely when PUBLIC_STATSIG_CLIENT_KEY is not set
+          // to avoid CORS errors from requests with k=undefined.
           tag: "script",
-          content: `!function(){try{document.cookie="td_new_docs=1;domain=.tigerdata.com;path=/;max-age=2592000;SameSite=Lax";var e=document.cookie.match(/ajs_anonymous_id=([^;]+)/);if(e&&e[1]){var t=document.createElement("script");t.async=!0;t.src="https://cdn.jsdelivr.net/npm/@statsig/js-client@3/build/statsig-js-client+session-replay+web-analytics.min.js";t.onload=function(){try{var s=new window.__STATSIG__.StatsigClient("${import.meta.env.PUBLIC_STATSIG_CLIENT_KEY}",{userID:decodeURIComponent(e[1])});s.initializeAsync().then(function(){s.checkGate("new_docs_site_rollout")})}catch(err){console.debug("Statsig init error:",err)}};document.head.appendChild(t)}}catch(err){console.debug("Statsig setup error:",err)}}();`,
+          content: `!function(){try{document.cookie="td_new_docs=1;domain=.tigerdata.com;path=/;max-age=2592000;SameSite=Lax";var k="${import.meta.env.PUBLIC_STATSIG_CLIENT_KEY}";if(!k||k==="undefined"){console.debug("Statsig: no client key, skipping");return}var e=document.cookie.match(/ajs_anonymous_id=([^;]+)/);if(e&&e[1]){var t=document.createElement("script");t.async=!0;t.src="https://cdn.jsdelivr.net/npm/@statsig/js-client@3/build/statsig-js-client+session-replay+web-analytics.min.js";t.onload=function(){try{var s=new window.__STATSIG__.StatsigClient(k,{userID:decodeURIComponent(e[1])});s.initializeAsync().then(function(){s.checkGate("new_docs_site_rollout")})}catch(err){console.debug("Statsig init error:",err)}};document.head.appendChild(t)}}catch(err){console.debug("Statsig setup error:",err)}}();`,
         },
       ],
       header: {
