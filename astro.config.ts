@@ -1850,7 +1850,7 @@ export default defineConfig({
       "/learn/overview/tiger-cloud-feature-comparison":
         "/get-started/feature-comparison",
       "/learn/overview/tiger-cloud-feature-comparison/":
-        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison/",
+        "/learn/capabilities-and-comparison/feature-comparison",
       "/learn/about-tiger-data/understand-capabilities":
         "/learn/capabilities-and-comparison/understand-capabilities",
       "/learn/about-tiger-data/understand-capabilities/":
@@ -1858,7 +1858,7 @@ export default defineConfig({
       "/learn/about-tiger-data/tiger-cloud-feature-comparison":
         "/get-started/feature-comparison",
       "/learn/about-tiger-data/tiger-cloud-feature-comparison/":
-        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison/",
+        "/learn/capabilities-and-comparison/feature-comparison",
       // Conceptual docs canonical under /learn/; old /build/ URLs redirect (bookmarks, external links)
       "/build/data-management/time-buckets/about-time-buckets":
         "/learn/data-management/time-buckets/about-time-buckets",
