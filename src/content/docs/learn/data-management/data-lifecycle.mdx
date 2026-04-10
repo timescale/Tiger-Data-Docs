@@ -1,0 +1,256 @@
+---
+title: Understand the data lifecycle
+description: Learn how to manage time-series data from ingestion to deletion using hypertables, continuous aggregates, tiered storage, and retention policies
+products: [cloud, mst, self_hosted]
+keywords: [data lifecycle, data management, data retention, continuous aggregates, tiered storage, compression]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+
+Time-series data is relentless. It grows at an ever-increasing rate and quickly
+becomes expensive and unwieldy to store and query. Managing your time-series data
+across its entire lifecycle is essential to building high-performance,
+cost-effective applications.
+
+{C.TIMESCALE_DB} provides purpose-built features for every stage of the data
+lifecycle, from the moment data is ingested to when it is archived or dropped.
+These features work together so you can maintain query performance, control
+storage costs, and automate routine maintenance — without building custom
+pipelines or relying on external tools.
+
+## The five phases
+
+The data lifecycle describes the journey your data takes as it ages. Each phase
+maps to a set of {C.TIMESCALE_DB} features that help you manage that stage
+efficiently:
+
+| Phase | What happens | {C.TIMESCALE_DB} features |
+|-------|-------------|--------------------------|
+| **1. Ingest and store** | Data arrives and is written to disk | [{C.HYPERTABLE_CAP}s](/learn/hypertables/understand-hypertables), [{C.CHUNK}s](/learn/chunks/understanding-chunks) |
+| **2. Query recent data** | Applications read and analyze fresh data | SQL, [`time_bucket`](/reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket), [indexes](/learn/hypertables/hypertable-indexes) |
+| **3. Create aggregated rollups** | Summarize data at coarser intervals | [{C.CAGG_CAP}s](/learn/continuous-aggregates), [downsampling](/build/data-management/example-downsample-and-compress) |
+| **4. Archive and tier** | Move aging data to cheaper storage | [Tiered storage](/learn/data-management/storage/about-storage-tiers), [{C.COLUMNSTORE}](/learn/columnar-storage/compression-methods) |
+| **5. Drop old data** | Remove data that is no longer valuable | [Retention policies](/learn/data-management/data-retention/about-data-retention), [`drop_chunks`](/reference/timescaledb/hypertables/drop_chunks) |
+
+{/* TODO: Insert lifecycle diagram here */}
+
+## Phase 1: ingest and store data efficiently
+
+When it comes to time-series data, storing data as quickly and as efficiently as
+possible is the foundation of everything else. {C.TIMESCALE_DB} achieves this
+through [{C.HYPERTABLE}s](/learn/hypertables/understand-hypertables) — an
+abstraction that automatically partitions your data by time into smaller tables
+called [{C.CHUNK}s](/learn/chunks/understanding-chunks).
+
+Because only recent {C.CHUNK}s are in memory, ingest throughput stays high even
+as overall data volume grows. You interact with {C.HYPERTABLE}s using standard
+SQL — there is no new query language to learn.
+
+Key considerations at this stage:
+
+- **Choose the right {C.CHUNK} interval.** The default is 7 days. Aim for each
+  {C.CHUNK} to be about 25% of available memory. See
+  [sizing {C.HYPERTABLE} {C.CHUNK}s](/learn/hypertables/sizing-hypertable-chunks).
+- **Enable the {C.COLUMNSTORE} early.** Converting older {C.CHUNK}s to the
+  [{C.COLUMNSTORE}](/learn/columnar-storage/compression-methods) can reduce
+  storage by up to 98% while improving analytical query performance.
+- **Automate {C.COLUMNSTORE} conversion.** Use a
+  [{C.COLUMNSTORE} policy](/reference/timescaledb/hypercore/add_columnstore_policy)
+  to automatically convert {C.CHUNK}s after a set interval.
+
+## Phase 2: query recent data
+
+Once data is stored, you need to query it efficiently. {C.TIMESCALE_DB} extends
+the {C.PG} query planner with time-series-aware optimizations. Queries on recent
+data benefit from {C.CHUNK} exclusion — the planner skips {C.CHUNK}s outside
+your time range entirely.
+
+For time-series analysis, the
+[`time_bucket`](/reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket)
+function groups data into fixed intervals (1 minute, 1 hour, 1 day), making it
+easy to compute aggregates over time windows:
+
+```sql
+SELECT
+  time_bucket('1 hour', time) AS bucket,
+  device_id,
+  avg(temperature) AS avg_temp
+FROM conditions
+WHERE time > now() - INTERVAL '7 days'
+GROUP BY bucket, device_id
+ORDER BY bucket DESC;
+```
+
+As your dataset grows and queries over longer time ranges slow down, it is time
+to move to the next phase.
+
+## Phase 3: create aggregated rollups
+
+As data ages, individual data points often matter less than statistical
+summaries. [{C.CAGG_CAP}s](/learn/continuous-aggregates) solve this by
+maintaining pre-computed aggregates that automatically update as new data
+arrives.
+
+Unlike standard {C.PG} materialized views, {C.CAGG}s only refresh the
+{C.TIME_BUCKET}s where underlying data changed — not the entire view. This makes
+them efficient even over very large datasets.
+
+```sql
+CREATE MATERIALIZED VIEW conditions_daily
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('1 day', time) AS day,
+  device_id,
+  avg(temperature) AS avg_temp,
+  min(temperature) AS min_temp,
+  max(temperature) AS max_temp
+FROM conditions
+GROUP BY day, device_id;
+
+SELECT add_continuous_aggregate_policy('conditions_daily',
+  start_offset => INTERVAL '7 days',
+  end_offset => INTERVAL '1 day',
+  schedule_interval => INTERVAL '1 day');
+```
+
+{C.CAGG_CAP}s are stored as {C.HYPERTABLE}s themselves, so they benefit from all
+the same features — {C.COLUMNSTORE} conversion, tiered storage, and retention
+policies.
+
+You can also create
+[hierarchical {C.CAGG}s](/learn/continuous-aggregates/hierarchical-continuous-aggregates)
+— a {C.CAGG} on top of another {C.CAGG} — to build multi-resolution
+rollup pipelines (for example, hourly to daily to monthly).
+
+## Phase 4: archive and tier older data
+
+Even with the {C.COLUMNSTORE} and {C.CAGG}s, there are cases where you need
+access to raw data for long periods — for compliance, model training, or
+historical analysis. Rather than paying for high-performance storage you rarely
+query, you can move older {C.CHUNK}s to cheaper storage.
+
+### On {C.CLOUD_LONG}
+
+[Tiered storage](/learn/data-management/storage/about-storage-tiers) provides a
+low-cost object storage tier backed by S3 and Azure Blob. Data is stored in
+Apache Parquet format with automatic {C.CHUNK}, row group, and column pruning for
+efficient queries. You set a policy and {C.CLOUD_LONG} handles the rest:
+
+```sql
+SELECT add_tiering_policy('conditions', INTERVAL '6 months');
+```
+
+Tiered data remains queryable via standard SQL — no separate query path or
+external pipeline required.
+
+### On self-hosted {C.TIMESCALE_DB}
+
+Use {C.PG}
+[tablespaces](https://www.postgresql.org/docs/current/manage-ag-tablespaces.html)
+with the [`move_chunk`](/reference/timescaledb/hypertables/move_chunk) function
+to relocate {C.CHUNK}s to slower, cheaper disks. You can automate this with a
+[custom {C.JOB}](/build/data-management/example-tiered-storage).
+
+## Phase 5: drop old data
+
+At some point, raw data is no longer valuable. Keeping it around slows down
+queries, inflates storage costs, and adds maintenance overhead.
+[Retention policies](/learn/data-management/data-retention/about-data-retention)
+automate the process of dropping old {C.CHUNK}s.
+
+```sql
+SELECT add_retention_policy('conditions', INTERVAL '12 months');
+```
+
+Because {C.TIMESCALE_DB} drops entire {C.CHUNK}s rather than deleting rows one
+by one, retention is nearly instantaneous and avoids the performance overhead
+of `DELETE` + `VACUUM`.
+
+<Callout variant="important">
+If you use {C.CAGG}s, make sure your retention policy interval is longer
+than the {C.CAGG} refresh window. Otherwise, the refresh sees the deleted
+raw data and removes the aggregate too. For details, see
+[data retention with {C.CAGG}s](/learn/data-management/data-retention/data-retention-with-continuous-aggregates).
+</Callout>
+
+## Putting it all together
+
+A complete lifecycle strategy combines multiple phases. Here is an example
+configuration for a `conditions` {C.HYPERTABLE} that stores device telemetry:
+
+```sql
+-- Phase 1: Create the hypertable
+SELECT create_hypertable('conditions', by_range('time'));
+
+-- Phase 3: Create a daily rollup
+CREATE MATERIALIZED VIEW conditions_daily
+WITH (timescaledb.continuous) AS
+SELECT time_bucket('1 day', time) AS day, device_id,
+       avg(temperature), min(temperature), max(temperature)
+FROM conditions
+GROUP BY day, device_id;
+
+SELECT add_continuous_aggregate_policy('conditions_daily',
+  start_offset => INTERVAL '7 days',
+  end_offset => INTERVAL '1 day',
+  schedule_interval => INTERVAL '1 day');
+
+-- Phase 1 (continued): Convert to columnstore after 7 days
+SELECT add_columnstore_policy('conditions', after => INTERVAL '7 days');
+
+-- Phase 4: Tier data to low-cost storage after 3 months (Tiger Cloud)
+SELECT add_tiering_policy('conditions', INTERVAL '3 months');
+
+-- Phase 5: Drop raw data after 12 months
+SELECT add_retention_policy('conditions', INTERVAL '12 months');
+```
+
+With this configuration:
+
+- Raw data is converted to the {C.COLUMNSTORE} after 7 days, reducing storage by up to 98%
+- Daily summaries are always available via the {C.CAGG}
+- After 3 months, raw {C.CHUNK}s move to low-cost object storage
+- After 12 months, raw {C.CHUNK}s are dropped entirely
+- The daily {C.CAGG} retains its data independently of the raw data
+
+All of this runs automatically via scheduled {C.JOB}s — no cron, no external
+scripts, no manual intervention.
+
+## Automate and customize
+
+Every lifecycle feature supports scheduled automation through the
+{C.TIMESCALE_DB} [job scheduler](/build/data-management/about-automation).
+
+If the built-in policies don't cover your use case, you can create
+[custom {C.JOB}s](/build/data-management/create-and-manage-jobs) — stored
+procedures that run on a schedule you define. Common examples include:
+
+- [Generic retention across all {C.HYPERTABLE}s](/build/data-management/example-generic-retention)
+- [Automated tablespace management](/build/data-management/example-tiered-storage)
+- [Downsampling and converting to {C.COLUMNSTORE} in one step](/build/data-management/example-downsample-and-compress)
+
+## Learn more
+
+### By lifecycle phase
+
+- **Ingest:** [Understand {C.HYPERTABLE}s](/learn/hypertables/understand-hypertables)
+  | [Create your first {C.HYPERTABLE}](/build/how-to/your-first-hypertable)
+  | [Size {C.CHUNK}s](/learn/hypertables/sizing-hypertable-chunks)
+- **Convert to {C.COLUMNSTORE}:** [{C.COLUMNSTORE_CAP} methods](/learn/columnar-storage/compression-methods)
+  | [Basic {C.COLUMNSTORE} conversion](/build/how-to/basic-compression)
+  | [`add_columnstore_policy()`](/reference/timescaledb/hypercore/add_columnstore_policy)
+- **Rollup:** [Understand {C.CAGG}s](/learn/continuous-aggregates)
+  | [Create a {C.CAGG}](/build/continuous-aggregates/create-a-continuous-aggregate)
+  | [Hierarchical {C.CAGG}s](/learn/continuous-aggregates/hierarchical-continuous-aggregates)
+- **Tier:** [Understand tiered storage](/learn/data-management/storage/about-storage-tiers)
+  | [Manage storage](/build/data-management/storage/manage-storage)
+- **Drop:** [Understand data retention](/learn/data-management/data-retention/about-data-retention)
+  | [Create a retention policy](/build/data-management/data-retention/create-a-retention-policy)
+  | [Retention with {C.CAGG}s](/learn/data-management/data-retention/data-retention-with-continuous-aggregates)
+
+### Automation
+
+- [About automation](/build/data-management/about-automation)
+- [Create and manage {C.JOB}s](/build/data-management/create-and-manage-jobs)
+- [`add_job()` reference](/reference/timescaledb/jobs-automation/add_job)

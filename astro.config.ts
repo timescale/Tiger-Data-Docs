@@ -457,6 +457,7 @@ export default defineConfig({
               label: "Data lifecycle",
               collapsed: true,
               items: [
+                { label: "Understand the data lifecycle", link: "/learn/data-management/data-lifecycle" },
                 { label: "Understand data retention", link: "/learn/data-management/data-retention/about-data-retention" },
                 { label: "Data retention with continuous aggregates", link: "/learn/data-management/data-retention/data-retention-with-continuous-aggregates" },
                 { label: "Understand tiered storage", link: "/learn/data-management/storage/about-storage-tiers" },
