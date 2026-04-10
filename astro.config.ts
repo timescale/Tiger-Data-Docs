@@ -321,51 +321,40 @@ export default defineConfig({
           sidebar: [
             "get-started", // Welcome/index page
             {
-              label: "Start here",
-              collapsed: false,
-              items: [
-                { label: "1. 5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
-                { label: "2. Connect your app", link: "/get-started/quickstart/connect-your-app" },
-                { label: "3. Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-              ],
-            },
-            {
-              label: "Setup",
+              label: "Choose your setup",
               collapsed: true,
               items: [
-                { label: "Choose your setup", link: "/get-started/feature-comparison" },
-                { label: "Tiger Cloud (recommended)", link: "/get-started/quickstart/create-service" },
-                { label: "Install self-hosted TimescaleDB", link: "/get-started/choose-your-path/install-timescaledb" },
-                { label: "Supported platforms", link: "/get-started/choose-your-path/supported-platforms" },
+                { label: "Compare Tiger Data products", link: "/get-started/feature-comparison" },
+                { label: "Cloud-exclusive features", link: "/get-started/cloud-exclusive-features" },
                 { label: "Compare TimescaleDB editions", link: "/get-started/choose-your-path/timescaledb-editions" },
+                { label: "Supported platforms", link: "/get-started/choose-your-path/supported-platforms" },
               ],
             },
             {
-              label: "Quickstart",
+              label: "Tiger Cloud",
               collapsed: true,
               items: [
                 { label: "5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
                 { label: "Create a Tiger Cloud service", link: "/get-started/quickstart/create-service" },
-                { label: "Connect your app", link: "/get-started/quickstart/connect-your-app" },
                 { label: "Get started with the command line", link: "/get-started/quickstart/cli-rest-api" },
                 { label: "Integrate Tiger Cloud with your AI assistant", link: "/get-started/quickstart/mcp-cli" },
               ],
             },
             {
-              label: "Hands-on",
+              label: "Self-hosted TimescaleDB",
               collapsed: true,
               items: [
-                { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-                { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
+                { label: "Install self-hosted TimescaleDB", link: "/get-started/choose-your-path/install-timescaledb" },
+                { label: "Connect your app", link: "/get-started/quickstart/connect-your-app" },
               ],
             },
             {
-              label: "News & updates",
+              label: "News and updates",
               collapsed: true,
               autogenerate: { directory: "get-started/news" },
             },
             {
-              label: "Contribute to the docs",
+              label: "Contribute to docs",
               collapsed: true,
               items: [{ label: "How to contribute", link: "/get-started/contributing" }],
             },
@@ -400,7 +389,7 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Understand capabilities", link: "/learn/capabilities-and-comparison/understand-capabilities" },
-                { label: "Compare the features in Tiger Data products", link: "/get-started/feature-comparison" },
+                { label: "Compare the features in Tiger Data products", link: "/learn/capabilities-and-comparison/feature-comparison" },
               ],
             },
             {
@@ -1863,7 +1852,7 @@ export default defineConfig({
       "/learn/overview/tiger-cloud-feature-comparison":
         "/get-started/feature-comparison",
       "/learn/overview/tiger-cloud-feature-comparison/":
-        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison/",
+        "/learn/capabilities-and-comparison/feature-comparison",
       "/learn/about-tiger-data/understand-capabilities":
         "/learn/capabilities-and-comparison/understand-capabilities",
       "/learn/about-tiger-data/understand-capabilities/":
@@ -1871,7 +1860,7 @@ export default defineConfig({
       "/learn/about-tiger-data/tiger-cloud-feature-comparison":
         "/get-started/feature-comparison",
       "/learn/about-tiger-data/tiger-cloud-feature-comparison/":
-        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison/",
+        "/learn/capabilities-and-comparison/feature-comparison",
       // Conceptual docs canonical under /learn/; old /build/ URLs redirect (bookmarks, external links)
       "/build/data-management/time-buckets/about-time-buckets":
         "/learn/data-management/time-buckets/about-time-buckets",
