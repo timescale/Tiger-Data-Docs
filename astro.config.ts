@@ -459,16 +459,11 @@ export default defineConfig({
               items: [
                 { label: "Understand the data lifecycle", link: "/learn/data-management/data-lifecycle" },
                 { label: "Hypertables and chunks", link: "/learn/hypertables/understand-hypertables" },
-                { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
                 { label: "Time buckets", link: "/learn/data-management/time-buckets/about-time-buckets" },
                 { label: "Continuous aggregates", link: "/learn/continuous-aggregates" },
-                { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
                 { label: "Hypercore and the columnstore", link: "/learn/columnar-storage/understand-hypercore" },
-                { label: "Set up hypercore", link: "/build/columnar-storage/setup-hypercore" },
                 { label: "Tiered storage", link: "/learn/data-management/storage/about-storage-tiers" },
-                { label: "Manage storage", link: "/build/data-management/storage/manage-storage" },
                 { label: "Data retention", link: "/learn/data-management/data-retention/about-data-retention" },
-                { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
               ],
             },
             {
@@ -533,6 +528,20 @@ export default defineConfig({
                   ],
                 },
                 { label: "Tiger Data cookbook", link: "/build/examples/cookbook" },
+              ],
+            },
+            // --- Data lifecycle how-tos (mirrors Learn > Data lifecycle) ---
+            {
+              label: "Data lifecycle",
+              collapsed: true,
+              items: [
+                { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
+                { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
+                { label: "Set up hypercore", link: "/build/columnar-storage/setup-hypercore" },
+                { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
+                { label: "Manage storage and tiering", link: "/build/data-management/storage/manage-storage" },
+                { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
+                { label: "Create and manage custom jobs", link: "/build/data-management/create-and-manage-jobs" },
               ],
             },
             // --- Write and query data (split from "Manage my time-series data") ---
