@@ -429,9 +429,9 @@ export default defineConfig({
               items: [
                 { label: "Understand chunks", link: "/learn/chunks/understanding-chunks" },
                 { label: "Size hypertable chunks", link: "/learn/hypertables/sizing-hypertable-chunks" },
-                { label: "Understand time buckets", link: "/learn/data-management/time-buckets/about-time-buckets" },
-                { label: "Use time buckets", link: "/learn/data-management/time-buckets/use-time-buckets" },
-                { label: "Manually drop chunks", link: "/learn/data-management/data-retention/manually-drop-chunks" },
+                { label: "Understand time buckets", link: "/learn/data-lifecycle/time-buckets/about-time-buckets" },
+                { label: "Use time buckets", link: "/learn/data-lifecycle/time-buckets/use-time-buckets" },
+                { label: "Manually drop chunks", link: "/learn/data-lifecycle/data-retention/manually-drop-chunks" },
               ],
             },
             {
@@ -457,9 +457,13 @@ export default defineConfig({
               label: "Data lifecycle",
               collapsed: true,
               items: [
-                { label: "Understand data retention", link: "/learn/data-management/data-retention/about-data-retention" },
-                { label: "Data retention with continuous aggregates", link: "/learn/data-management/data-retention/data-retention-with-continuous-aggregates" },
-                { label: "Understand tiered storage", link: "/learn/data-management/storage/about-storage-tiers" },
+                { label: "Understand the data lifecycle", link: "/learn/data-lifecycle" },
+                { label: "Hypertables and chunks", link: "/learn/hypertables/understand-hypertables" },
+                { label: "Time buckets", link: "/learn/data-lifecycle/time-buckets/about-time-buckets" },
+                { label: "Continuous aggregates", link: "/learn/continuous-aggregates" },
+                { label: "Hypercore and the columnstore", link: "/learn/columnar-storage/understand-hypercore" },
+                { label: "Tiered storage", link: "/learn/data-lifecycle/storage/about-storage-tiers" },
+                { label: "Data retention", link: "/learn/data-lifecycle/data-retention/about-data-retention" },
               ],
             },
             {
@@ -524,6 +528,20 @@ export default defineConfig({
                   ],
                 },
                 { label: "Tiger Data cookbook", link: "/build/examples/cookbook" },
+              ],
+            },
+            // --- Data lifecycle how-tos (mirrors Learn > Data lifecycle) ---
+            {
+              label: "Data lifecycle",
+              collapsed: true,
+              items: [
+                { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
+                { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
+                { label: "Set up hypercore", link: "/build/columnar-storage/setup-hypercore" },
+                { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
+                { label: "Manage storage and tiering", link: "/build/data-management/storage/manage-storage" },
+                { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
+                { label: "Create and manage custom jobs", link: "/build/data-management/create-and-manage-jobs" },
               ],
             },
             // --- Write and query data (split from "Manage my time-series data") ---
@@ -1861,15 +1879,48 @@ export default defineConfig({
         "/get-started/feature-comparison",
       "/learn/about-tiger-data/tiger-cloud-feature-comparison/":
         "/learn/capabilities-and-comparison/feature-comparison",
+      // Legacy /learn/data-management/ URLs (folder renamed to /learn/data-lifecycle/)
+      "/learn/data-management/data-lifecycle": "/learn/data-lifecycle",
+      "/learn/data-management/data-lifecycle/": "/learn/data-lifecycle/",
+      "/learn/data-management/time-buckets/about-time-buckets":
+        "/learn/data-lifecycle/time-buckets/about-time-buckets",
+      "/learn/data-management/time-buckets/about-time-buckets/":
+        "/learn/data-lifecycle/time-buckets/about-time-buckets/",
+      "/learn/data-management/time-buckets/use-time-buckets":
+        "/learn/data-lifecycle/time-buckets/use-time-buckets",
+      "/learn/data-management/time-buckets/use-time-buckets/":
+        "/learn/data-lifecycle/time-buckets/use-time-buckets/",
+      "/learn/data-management/data-retention":
+        "/learn/data-lifecycle/data-retention/about-data-retention",
+      "/learn/data-management/data-retention/":
+        "/learn/data-lifecycle/data-retention/",
+      "/learn/data-management/data-retention/about-data-retention":
+        "/learn/data-lifecycle/data-retention/about-data-retention",
+      "/learn/data-management/data-retention/about-data-retention/":
+        "/learn/data-lifecycle/data-retention/about-data-retention/",
+      "/learn/data-management/data-retention/manually-drop-chunks":
+        "/learn/data-lifecycle/data-retention/manually-drop-chunks",
+      "/learn/data-management/data-retention/manually-drop-chunks/":
+        "/learn/data-lifecycle/data-retention/manually-drop-chunks/",
+      "/learn/data-management/data-retention/data-retention-with-continuous-aggregates":
+        "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates",
+      "/learn/data-management/data-retention/data-retention-with-continuous-aggregates/":
+        "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates/",
+      "/learn/data-management/storage": "/learn/data-lifecycle/storage/about-storage-tiers",
+      "/learn/data-management/storage/": "/learn/data-lifecycle/storage/",
+      "/learn/data-management/storage/about-storage-tiers":
+        "/learn/data-lifecycle/storage/about-storage-tiers",
+      "/learn/data-management/storage/about-storage-tiers/":
+        "/learn/data-lifecycle/storage/about-storage-tiers/",
       // Conceptual docs canonical under /learn/; old /build/ URLs redirect (bookmarks, external links)
       "/build/data-management/time-buckets/about-time-buckets":
-        "/learn/data-management/time-buckets/about-time-buckets",
+        "/learn/data-lifecycle/time-buckets/about-time-buckets",
       "/build/data-management/time-buckets/about-time-buckets/":
-        "/learn/data-management/time-buckets/about-time-buckets/",
+        "/learn/data-lifecycle/time-buckets/about-time-buckets/",
       "/build/data-management/time-buckets/use-time-buckets":
-        "/learn/data-management/time-buckets/use-time-buckets",
+        "/learn/data-lifecycle/time-buckets/use-time-buckets",
       "/build/data-management/time-buckets/use-time-buckets/":
-        "/learn/data-management/time-buckets/use-time-buckets/",
+        "/learn/data-lifecycle/time-buckets/use-time-buckets/",
       "/build/data-management/about-jobs": "/build/data-management/about-automation",
       "/build/data-management/jobs": "/build/data-management/about-automation",
       "/build/data-management/jobs/": "/build/data-management/about-automation",
@@ -1877,28 +1928,28 @@ export default defineConfig({
       "/build/data-management/jobs/example-downsample-and-compress": "/build/data-management/example-downsample-and-compress",
       "/build/data-management/jobs/example-generic-retention": "/build/data-management/example-generic-retention",
       "/build/data-management/jobs/example-tiered-storage": "/build/data-management/example-tiered-storage",
-      "/build/data-management/data-retention": "/learn/data-management/data-retention/about-data-retention",
-      "/learn/data-management/data-retention": "/learn/data-management/data-retention/about-data-retention",
-      "/build/data-management/data-retention/": "/learn/data-management/data-retention/",
+      "/build/data-management/data-retention": "/learn/data-lifecycle/data-retention/about-data-retention",
+      "/learn/data-lifecycle/data-retention": "/learn/data-lifecycle/data-retention/about-data-retention",
+      "/build/data-management/data-retention/": "/learn/data-lifecycle/data-retention/",
       "/build/data-management/data-retention/about-data-retention":
-        "/learn/data-management/data-retention/about-data-retention",
+        "/learn/data-lifecycle/data-retention/about-data-retention",
       "/build/data-management/data-retention/about-data-retention/":
-        "/learn/data-management/data-retention/about-data-retention/",
+        "/learn/data-lifecycle/data-retention/about-data-retention/",
       "/build/data-management/data-retention/manually-drop-chunks":
-        "/learn/data-management/data-retention/manually-drop-chunks",
+        "/learn/data-lifecycle/data-retention/manually-drop-chunks",
       "/build/data-management/data-retention/manually-drop-chunks/":
-        "/learn/data-management/data-retention/manually-drop-chunks/",
+        "/learn/data-lifecycle/data-retention/manually-drop-chunks/",
       "/build/data-management/data-retention/data-retention-with-continuous-aggregates":
-        "/learn/data-management/data-retention/data-retention-with-continuous-aggregates",
+        "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates",
       "/build/data-management/data-retention/data-retention-with-continuous-aggregates/":
-        "/learn/data-management/data-retention/data-retention-with-continuous-aggregates/",
-      "/build/data-management/storage": "/learn/data-management/storage/about-storage-tiers",
-      "/learn/data-management/storage": "/learn/data-management/storage/about-storage-tiers",
-      "/build/data-management/storage/": "/learn/data-management/storage/",
+        "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates/",
+      "/build/data-management/storage": "/learn/data-lifecycle/storage/about-storage-tiers",
+      "/learn/data-lifecycle/storage": "/learn/data-lifecycle/storage/about-storage-tiers",
+      "/build/data-management/storage/": "/learn/data-lifecycle/storage/",
       "/build/data-management/storage/about-storage-tiers":
-        "/learn/data-management/storage/about-storage-tiers",
+        "/learn/data-lifecycle/storage/about-storage-tiers",
       "/build/data-management/storage/about-storage-tiers/":
-        "/learn/data-management/storage/about-storage-tiers/",
+        "/learn/data-lifecycle/storage/about-storage-tiers/",
       "/build/columnar-storage": "/learn/columnar-storage/understand-hypercore",
       "/build/columnar-storage/": "/learn/columnar-storage/understand-hypercore/",
       "/build/columnar-storage/understand-hypercore": "/learn/columnar-storage/understand-hypercore",
