@@ -263,13 +263,17 @@ export default defineConfig({
           tag: "script",
           content: `!function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);},s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='//static.ads-twitter.com/uwt.js',a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');twq('init','o8fs3');twq('track','PageView');`,
         },
+        // ──── BEGIN STATSIG ────
+        // Statsig client-side SDK: session replay, web analytics, and gate exposure logging.
+        // Uses Segment's ajs_anonymous_id cookie for user identification.
+        // TO REMOVE: see README-statsig.md for full cleanup instructions.
+        // Gate: new_docs_site_rollout — https://console.statsig.com/2aVMoalsJmTVASIsy8WxBu/gates/new_docs_site_rollout
+        // Env var: PUBLIC_STATSIG_CLIENT_KEY (set in Vercel + .env.local)
         {
-          // Statsig: set sticky cookie + log exposure for gradual docs rollout.
-          // Guard: skip SDK load entirely when PUBLIC_STATSIG_CLIENT_KEY is not set
-          // to avoid CORS errors from requests with k=undefined.
           tag: "script",
-          content: `!function(){try{document.cookie="td_new_docs=1;domain=.tigerdata.com;path=/;max-age=2592000;SameSite=Lax";var k="${import.meta.env.PUBLIC_STATSIG_CLIENT_KEY}";if(!k||k==="undefined"){console.debug("Statsig: no client key, skipping");return}var e=document.cookie.match(/ajs_anonymous_id=([^;]+)/);if(e&&e[1]){var t=document.createElement("script");t.async=!0;t.src="https://cdn.jsdelivr.net/npm/@statsig/js-client@3/build/statsig-js-client+session-replay+web-analytics.min.js";t.onload=function(){try{var s=new window.__STATSIG__.StatsigClient(k,{userID:decodeURIComponent(e[1])});s.initializeAsync().then(function(){s.checkGate("new_docs_site_rollout")})}catch(err){console.debug("Statsig init error:",err)}};document.head.appendChild(t)}}catch(err){console.debug("Statsig setup error:",err)}}();`,
+          content: `!function(){try{var k="${import.meta.env.PUBLIC_STATSIG_CLIENT_KEY}";if(!k||k==="undefined"){console.debug("Statsig: no client key, skipping");return}var e=document.cookie.match(/ajs_anonymous_id=([^;]+)/);if(e&&e[1]){var t=document.createElement("script");t.async=!0;t.src="https://cdn.jsdelivr.net/npm/@statsig/js-client@3/build/statsig-js-client+session-replay+web-analytics.min.js";t.onload=function(){try{var s=new window.__STATSIG__.StatsigClient(k,{userID:decodeURIComponent(e[1])});s.initializeAsync().then(function(){s.checkGate("new_docs_site_rollout")})}catch(err){console.debug("Statsig init error:",err)}};document.head.appendChild(t)}}catch(err){console.debug("Statsig setup error:",err)}}();`,
         },
+        // ──── END STATSIG ────
       ],
       header: {
         layout: "stacked",
