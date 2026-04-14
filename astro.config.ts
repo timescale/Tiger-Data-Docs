@@ -268,9 +268,11 @@ export default defineConfig({
           content: `!function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);},s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='//static.ads-twitter.com/uwt.js',a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');twq('init','o8fs3');twq('track','PageView');`,
         },
         {
-          // Statsig: set sticky cookie + log exposure for gradual docs rollout
+          // Statsig: set sticky cookie + log exposure for gradual docs rollout.
+          // Guard: skip SDK load entirely when PUBLIC_STATSIG_CLIENT_KEY is not set
+          // to avoid CORS errors from requests with k=undefined.
           tag: "script",
-          content: `!function(){try{document.cookie="td_new_docs=1;domain=.tigerdata.com;path=/;max-age=2592000;SameSite=Lax";var e=document.cookie.match(/ajs_anonymous_id=([^;]+)/);if(e&&e[1]){var t=document.createElement("script");t.async=!0;t.src="https://cdn.jsdelivr.net/npm/@statsig/js-client@3/build/statsig-js-client+session-replay+web-analytics.min.js";t.onload=function(){try{var s=new window.__STATSIG__.StatsigClient("${import.meta.env.PUBLIC_STATSIG_CLIENT_KEY}",{userID:decodeURIComponent(e[1])});s.initializeAsync().then(function(){s.checkGate("new_docs_site_rollout")})}catch(err){console.debug("Statsig init error:",err)}};document.head.appendChild(t)}}catch(err){console.debug("Statsig setup error:",err)}}();`,
+          content: `!function(){try{document.cookie="td_new_docs=1;domain=.tigerdata.com;path=/;max-age=2592000;SameSite=Lax";var k="${import.meta.env.PUBLIC_STATSIG_CLIENT_KEY}";if(!k||k==="undefined"){console.debug("Statsig: no client key, skipping");return}var e=document.cookie.match(/ajs_anonymous_id=([^;]+)/);if(e&&e[1]){var t=document.createElement("script");t.async=!0;t.src="https://cdn.jsdelivr.net/npm/@statsig/js-client@3/build/statsig-js-client+session-replay+web-analytics.min.js";t.onload=function(){try{var s=new window.__STATSIG__.StatsigClient(k,{userID:decodeURIComponent(e[1])});s.initializeAsync().then(function(){s.checkGate("new_docs_site_rollout")})}catch(err){console.debug("Statsig init error:",err)}};document.head.appendChild(t)}}catch(err){console.debug("Statsig setup error:",err)}}();`,
         },
       ],
       header: {
@@ -321,51 +323,40 @@ export default defineConfig({
           sidebar: [
             "get-started", // Welcome/index page
             {
-              label: "Start here",
-              collapsed: false,
-              items: [
-                { label: "1. 5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
-                { label: "2. Connect your app", link: "/get-started/quickstart/connect-your-app" },
-                { label: "3. Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-              ],
-            },
-            {
-              label: "Setup",
+              label: "Choose your setup",
               collapsed: true,
               items: [
-                { label: "Choose your setup", link: "/get-started/feature-comparison" },
-                { label: "Tiger Cloud (recommended)", link: "/get-started/quickstart/create-service" },
-                { label: "Install self-hosted TimescaleDB", link: "/get-started/choose-your-path/install-timescaledb" },
-                { label: "Supported platforms", link: "/get-started/choose-your-path/supported-platforms" },
+                { label: "Compare Tiger Data products", link: "/get-started/feature-comparison" },
+                { label: "Cloud-exclusive features", link: "/get-started/cloud-exclusive-features" },
                 { label: "Compare TimescaleDB editions", link: "/get-started/choose-your-path/timescaledb-editions" },
+                { label: "Supported platforms", link: "/get-started/choose-your-path/supported-platforms" },
               ],
             },
             {
-              label: "Quickstart",
+              label: "Tiger Cloud",
               collapsed: true,
               items: [
                 { label: "5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
                 { label: "Create a Tiger Cloud service", link: "/get-started/quickstart/create-service" },
-                { label: "Connect your app", link: "/get-started/quickstart/connect-your-app" },
                 { label: "Get started with the command line", link: "/get-started/quickstart/cli-rest-api" },
                 { label: "Integrate Tiger Cloud with your AI assistant", link: "/get-started/quickstart/mcp-cli" },
               ],
             },
             {
-              label: "Hands-on",
+              label: "Self-hosted TimescaleDB",
               collapsed: true,
               items: [
-                { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-                { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
+                { label: "Install self-hosted TimescaleDB", link: "/get-started/choose-your-path/install-timescaledb" },
+                { label: "Connect your app", link: "/get-started/quickstart/connect-your-app" },
               ],
             },
             {
-              label: "News & updates",
+              label: "News and updates",
               collapsed: true,
               autogenerate: { directory: "get-started/news" },
             },
             {
-              label: "Contribute to the docs",
+              label: "Contribute to docs",
               collapsed: true,
               items: [{ label: "How to contribute", link: "/get-started/contributing" }],
             },
@@ -400,7 +391,7 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Understand capabilities", link: "/learn/capabilities-and-comparison/understand-capabilities" },
-                { label: "Compare the features in Tiger Data products", link: "/get-started/feature-comparison" },
+                { label: "Compare the features in Tiger Data products", link: "/learn/capabilities-and-comparison/feature-comparison" },
               ],
             },
             {
@@ -440,9 +431,9 @@ export default defineConfig({
               items: [
                 { label: "Understand chunks", link: "/learn/chunks/understanding-chunks" },
                 { label: "Size hypertable chunks", link: "/learn/hypertables/sizing-hypertable-chunks" },
-                { label: "Understand time buckets", link: "/learn/data-management/time-buckets/about-time-buckets" },
-                { label: "Use time buckets", link: "/learn/data-management/time-buckets/use-time-buckets" },
-                { label: "Manually drop chunks", link: "/learn/data-management/data-retention/manually-drop-chunks" },
+                { label: "Understand time buckets", link: "/learn/data-lifecycle/time-buckets/about-time-buckets" },
+                { label: "Use time buckets", link: "/learn/data-lifecycle/time-buckets/use-time-buckets" },
+                { label: "Manually drop chunks", link: "/learn/data-lifecycle/data-retention/manually-drop-chunks" },
               ],
             },
             {
@@ -468,9 +459,13 @@ export default defineConfig({
               label: "Data lifecycle",
               collapsed: true,
               items: [
-                { label: "Understand data retention", link: "/learn/data-management/data-retention/about-data-retention" },
-                { label: "Data retention with continuous aggregates", link: "/learn/data-management/data-retention/data-retention-with-continuous-aggregates" },
-                { label: "Understand tiered storage", link: "/learn/data-management/storage/about-storage-tiers" },
+                { label: "Understand the data lifecycle", link: "/learn/data-lifecycle" },
+                { label: "Hypertables and chunks", link: "/learn/hypertables/understand-hypertables" },
+                { label: "Time buckets", link: "/learn/data-lifecycle/time-buckets/about-time-buckets" },
+                { label: "Continuous aggregates", link: "/learn/continuous-aggregates" },
+                { label: "Hypercore and the columnstore", link: "/learn/columnar-storage/understand-hypercore" },
+                { label: "Tiered storage", link: "/learn/data-lifecycle/storage/about-storage-tiers" },
+                { label: "Data retention", link: "/learn/data-lifecycle/data-retention/about-data-retention" },
               ],
             },
             {
@@ -535,6 +530,20 @@ export default defineConfig({
                   ],
                 },
                 { label: "Tiger Data cookbook", link: "/build/examples/cookbook" },
+              ],
+            },
+            // --- Data lifecycle how-tos (mirrors Learn > Data lifecycle) ---
+            {
+              label: "Data lifecycle",
+              collapsed: true,
+              items: [
+                { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
+                { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
+                { label: "Set up hypercore", link: "/build/columnar-storage/setup-hypercore" },
+                { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
+                { label: "Manage storage and tiering", link: "/build/data-management/storage/manage-storage" },
+                { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
+                { label: "Create and manage custom jobs", link: "/build/data-management/create-and-manage-jobs" },
               ],
             },
             // --- Write and query data (split from "Manage my time-series data") ---
@@ -1863,7 +1872,7 @@ export default defineConfig({
       "/learn/overview/tiger-cloud-feature-comparison":
         "/get-started/feature-comparison",
       "/learn/overview/tiger-cloud-feature-comparison/":
-        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison/",
+        "/learn/capabilities-and-comparison/feature-comparison",
       "/learn/about-tiger-data/understand-capabilities":
         "/learn/capabilities-and-comparison/understand-capabilities",
       "/learn/about-tiger-data/understand-capabilities/":
@@ -1871,16 +1880,49 @@ export default defineConfig({
       "/learn/about-tiger-data/tiger-cloud-feature-comparison":
         "/get-started/feature-comparison",
       "/learn/about-tiger-data/tiger-cloud-feature-comparison/":
-        "/learn/capabilities-and-comparison/tiger-cloud-feature-comparison/",
+        "/learn/capabilities-and-comparison/feature-comparison",
+      // Legacy /learn/data-management/ URLs (folder renamed to /learn/data-lifecycle/)
+      "/learn/data-management/data-lifecycle": "/learn/data-lifecycle",
+      "/learn/data-management/data-lifecycle/": "/learn/data-lifecycle/",
+      "/learn/data-management/time-buckets/about-time-buckets":
+        "/learn/data-lifecycle/time-buckets/about-time-buckets",
+      "/learn/data-management/time-buckets/about-time-buckets/":
+        "/learn/data-lifecycle/time-buckets/about-time-buckets/",
+      "/learn/data-management/time-buckets/use-time-buckets":
+        "/learn/data-lifecycle/time-buckets/use-time-buckets",
+      "/learn/data-management/time-buckets/use-time-buckets/":
+        "/learn/data-lifecycle/time-buckets/use-time-buckets/",
+      "/learn/data-management/data-retention":
+        "/learn/data-lifecycle/data-retention/about-data-retention",
+      "/learn/data-management/data-retention/":
+        "/learn/data-lifecycle/data-retention/",
+      "/learn/data-management/data-retention/about-data-retention":
+        "/learn/data-lifecycle/data-retention/about-data-retention",
+      "/learn/data-management/data-retention/about-data-retention/":
+        "/learn/data-lifecycle/data-retention/about-data-retention/",
+      "/learn/data-management/data-retention/manually-drop-chunks":
+        "/learn/data-lifecycle/data-retention/manually-drop-chunks",
+      "/learn/data-management/data-retention/manually-drop-chunks/":
+        "/learn/data-lifecycle/data-retention/manually-drop-chunks/",
+      "/learn/data-management/data-retention/data-retention-with-continuous-aggregates":
+        "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates",
+      "/learn/data-management/data-retention/data-retention-with-continuous-aggregates/":
+        "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates/",
+      "/learn/data-management/storage": "/learn/data-lifecycle/storage/about-storage-tiers",
+      "/learn/data-management/storage/": "/learn/data-lifecycle/storage/",
+      "/learn/data-management/storage/about-storage-tiers":
+        "/learn/data-lifecycle/storage/about-storage-tiers",
+      "/learn/data-management/storage/about-storage-tiers/":
+        "/learn/data-lifecycle/storage/about-storage-tiers/",
       // Conceptual docs canonical under /learn/; old /build/ URLs redirect (bookmarks, external links)
       "/build/data-management/time-buckets/about-time-buckets":
-        "/learn/data-management/time-buckets/about-time-buckets",
+        "/learn/data-lifecycle/time-buckets/about-time-buckets",
       "/build/data-management/time-buckets/about-time-buckets/":
-        "/learn/data-management/time-buckets/about-time-buckets/",
+        "/learn/data-lifecycle/time-buckets/about-time-buckets/",
       "/build/data-management/time-buckets/use-time-buckets":
-        "/learn/data-management/time-buckets/use-time-buckets",
+        "/learn/data-lifecycle/time-buckets/use-time-buckets",
       "/build/data-management/time-buckets/use-time-buckets/":
-        "/learn/data-management/time-buckets/use-time-buckets/",
+        "/learn/data-lifecycle/time-buckets/use-time-buckets/",
       "/build/data-management/about-jobs": "/build/data-management/about-automation",
       "/build/data-management/jobs": "/build/data-management/about-automation",
       "/build/data-management/jobs/": "/build/data-management/about-automation",
@@ -1888,28 +1930,28 @@ export default defineConfig({
       "/build/data-management/jobs/example-downsample-and-compress": "/build/data-management/example-downsample-and-compress",
       "/build/data-management/jobs/example-generic-retention": "/build/data-management/example-generic-retention",
       "/build/data-management/jobs/example-tiered-storage": "/build/data-management/example-tiered-storage",
-      "/build/data-management/data-retention": "/learn/data-management/data-retention/about-data-retention",
-      "/learn/data-management/data-retention": "/learn/data-management/data-retention/about-data-retention",
-      "/build/data-management/data-retention/": "/learn/data-management/data-retention/",
+      "/build/data-management/data-retention": "/learn/data-lifecycle/data-retention/about-data-retention",
+      "/learn/data-lifecycle/data-retention": "/learn/data-lifecycle/data-retention/about-data-retention",
+      "/build/data-management/data-retention/": "/learn/data-lifecycle/data-retention/",
       "/build/data-management/data-retention/about-data-retention":
-        "/learn/data-management/data-retention/about-data-retention",
+        "/learn/data-lifecycle/data-retention/about-data-retention",
       "/build/data-management/data-retention/about-data-retention/":
-        "/learn/data-management/data-retention/about-data-retention/",
+        "/learn/data-lifecycle/data-retention/about-data-retention/",
       "/build/data-management/data-retention/manually-drop-chunks":
-        "/learn/data-management/data-retention/manually-drop-chunks",
+        "/learn/data-lifecycle/data-retention/manually-drop-chunks",
       "/build/data-management/data-retention/manually-drop-chunks/":
-        "/learn/data-management/data-retention/manually-drop-chunks/",
+        "/learn/data-lifecycle/data-retention/manually-drop-chunks/",
       "/build/data-management/data-retention/data-retention-with-continuous-aggregates":
-        "/learn/data-management/data-retention/data-retention-with-continuous-aggregates",
+        "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates",
       "/build/data-management/data-retention/data-retention-with-continuous-aggregates/":
-        "/learn/data-management/data-retention/data-retention-with-continuous-aggregates/",
-      "/build/data-management/storage": "/learn/data-management/storage/about-storage-tiers",
-      "/learn/data-management/storage": "/learn/data-management/storage/about-storage-tiers",
-      "/build/data-management/storage/": "/learn/data-management/storage/",
+        "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates/",
+      "/build/data-management/storage": "/learn/data-lifecycle/storage/about-storage-tiers",
+      "/learn/data-lifecycle/storage": "/learn/data-lifecycle/storage/about-storage-tiers",
+      "/build/data-management/storage/": "/learn/data-lifecycle/storage/",
       "/build/data-management/storage/about-storage-tiers":
-        "/learn/data-management/storage/about-storage-tiers",
+        "/learn/data-lifecycle/storage/about-storage-tiers",
       "/build/data-management/storage/about-storage-tiers/":
-        "/learn/data-management/storage/about-storage-tiers/",
+        "/learn/data-lifecycle/storage/about-storage-tiers/",
       "/build/columnar-storage": "/learn/columnar-storage/understand-hypercore",
       "/build/columnar-storage/": "/learn/columnar-storage/understand-hypercore/",
       "/build/columnar-storage/understand-hypercore": "/learn/columnar-storage/understand-hypercore",
