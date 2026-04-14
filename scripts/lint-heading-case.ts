@@ -53,6 +53,7 @@ const PROPER_NOUNS = new Set(
     "Hypercore",
     "SageMaker", "DBeaver", "Fivetran", "Confluent",
     "PgBouncer", "Aiven", "GitLab", "Slack", "Outflux", "TimeWeightSummary", "Lambda",
+    "HighByte",
   ].map((s) => s.toLowerCase())
 );
 
