@@ -1,0 +1,51 @@
+diff --git a/entryToSimpleMarkdown.ts b/entryToSimpleMarkdown.ts
+index d0ce19a6abed550fe3a4eb09fa186815055daa15..4b9d82a5fe8e4ce1733a6bdd2e3b88fefa9a54a0 100644
+--- a/entryToSimpleMarkdown.ts
++++ b/entryToSimpleMarkdown.ts
+@@ -1,4 +1,5 @@
+ import mdxServer from '@astrojs/mdx/server.js';
++import reactServer from '@astrojs/react/server.js';
+ import type { APIContext } from 'astro';
+ import { experimental_AstroContainer } from 'astro/container';
+ import { render, type CollectionEntry } from 'astro:content';
+@@ -29,7 +30,10 @@ const selectors = [...minify.customSelectors];
+ if (minify.details) selectors.unshift('details');
+ 
+ const astroContainer = await experimental_AstroContainer.create({
+-	renderers: [{ name: 'astro:jsx', ssr: mdxServer }],
++	renderers: [
++		{ name: 'astro:jsx', ssr: mdxServer },
++		{ name: '@astrojs/react', ssr: reactServer },
++	],
+ });
+ 
+ const htmlToMarkdownPipeline = unified()
+@@ -179,6 +183,28 @@ export async function entryToSimpleMarkdown(
+ 		return entry.body || '';
+ 	}
+ 
++	// Provide a stub starlightRoute so components that read from
++	// Astro.locals.starlightRoute don't throw during container rendering.
++	try {
++		context.locals.starlightRoute = {
++			entry,
++			id: entry.id,
++			slug: entry.id,
++			hasSidebar: false,
++			sidebar: [],
++			editUrl: undefined,
++			pagination: { prev: undefined, next: undefined },
++			lastUpdated: undefined,
++			headings: [],
++			entryMeta: { dir: 'ltr', lang: 'en' },
++			locale: undefined,
++			labels: {},
++			toc: undefined,
++			siteTitle: '',
++		} as any;
++	} catch {
++		// locals.starlightRoute may already be defined as a non-writable property
++	}
+ 	const { Content } = await render(entry);
+ 	const html = await astroContainer.renderToString(Content, context);
+ 	const file = await htmlToMarkdownPipeline.process({
