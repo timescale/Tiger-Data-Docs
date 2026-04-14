@@ -196,7 +196,7 @@ const starlightLinksValidator = process.env.CHECK_LINKS
 export default defineConfig({
   site: 'https://www.tigerdata.com',
   base: BASE,
-  trailingSlash: "ignore",
+  trailingSlash: "never",
   markdown: {
     remarkPlugins: [remarkResolveConstantsInHeadings],
     rehypePlugins: [[rehypeBasePath, { base: BASE }]],
