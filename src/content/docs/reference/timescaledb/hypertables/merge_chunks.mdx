@@ -34,6 +34,11 @@ the second transaction locks out all other operations before swapping the old
 relations for the new one. The second operation completes quickly so it
 should not significantly affect other operations.
 
+If a concurrent merge fails or is aborted during the second transaction, the
+temporary relation might be left on disk. This could consume significant disk
+space. To clean up such non-completed merges, use the procedure
+[`chunk_rewrite_cleanup()`](/reference/timescaledb/hypertables/chunk_rewrite_cleanup).
+
 ## Samples
 
 - Merge two {C.CHUNK}s:
@@ -52,6 +57,12 @@ should not significantly affect other operations.
 
   ```sql
   CALL merge_chunks('_timescaledb_internal._hyper_1_1_chunk', '_timescaledb_internal._hyper_1_2_chunk', concurrently => true);
+  ```
+
+- Merge more than two {C.CHUNK}s concurrently using [`merge_chunks_concurrently()`](/reference/timescaledb/hypertables/merge_chunks_concurrently):
+
+  ```sql
+  CALL merge_chunks_concurrently('{_timescaledb_internal._hyper_1_1_chunk, _timescaledb_internal._hyper_1_2_chunk, _timescaledb_internal._hyper_1_3_chunk}');
   ```
 
 ## Arguments
