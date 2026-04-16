@@ -81,6 +81,28 @@ You can also set a global default for all new {C.HYPERTABLE}s:
 SET timescaledb.default_chunk_time_interval = '1 day';
 ```
 
+## When you need to retrofit the {C.CHUNK} interval
+
+[`set_chunk_time_interval()`](/reference/timescaledb/hypertables/set_chunk_time_interval) only
+affects **new** {C.CHUNK}s. If an undersized `chunk_interval` has already fragmented your
+{C.HYPERTABLE} into thousands of small {C.CHUNK}s, calling `set_chunk_time_interval()` alone
+does not heal historical data — the old fragments remain and keep dragging on planner time
+and memory.
+
+Watch for these symptoms, which indicate historical {C.CHUNK}s need to be rebuilt:
+
+- **Over 1,000 {C.CHUNK}s in a single {C.HYPERTABLE}**. Scanning {C.CHUNK} catalog metadata
+  starts to dominate query planning.
+- **Intermittent out-of-memory errors** on wide time-range scans, caused by the volume of
+  {C.CHUNK} metadata held in memory.
+- **Low {C.COLUMNSTORE} compression ratios** on historical data — very small {C.CHUNK}s
+  compress poorly because there is less data to find patterns in.
+
+When this happens, the fix is a table-swap migration: create a new {C.HYPERTABLE} with the
+correct `chunk_interval`, atomically swap names so ingestion is never blocked, then backfill
+historical data in batches. For a step-by-step walkthrough, see
+[Retrofit {C.CHUNK} intervals on a production {C.HYPERTABLE}](/build/performance-optimization/retrofit-chunk-intervals).
+
 ## Learn more
 
 - [Partition a {C.HYPERTABLE}](/learn/hypertables/partitioning-hypertables): Time and integer
@@ -89,6 +111,8 @@ SET timescaledb.default_chunk_time_interval = '1 day';
   `CREATE TABLE` options including `chunk_interval`.
 - [Improve {C.HYPERTABLE} and query performance](/build/performance-optimization/improve-hypertable-performance):
   Optimize {C.CHUNK} intervals and enable {C.CHUNK_SKIPPING}.
+- [Retrofit {C.CHUNK} intervals on a production {C.HYPERTABLE}](/build/performance-optimization/retrofit-chunk-intervals):
+  Rebuild historical {C.CHUNK}s when `set_chunk_time_interval()` alone is not enough.
 - [Chunk time intervals blog post](https://www.tigerdata.com/blog/timescale-cloud-tips-testing-your-chunk-size):
   Detailed analysis of choosing intervals.
 - [`set_chunk_time_interval()` reference](/reference/timescaledb/hypertables/set_chunk_time_interval):
