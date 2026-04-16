@@ -16,9 +16,9 @@ bar just isn't getting it"? That's because most search systems only do one thing
 Hybrid search fixes that by combining the best of both worlds:
 
 - **Full-text search** (BM25) excels at exact keyword matching and linguistic features
-  like stemming and ranking — it's the reliable friend who finds exactly what you asked for
+  like stemming and ranking. It's the reliable friend who finds exactly what you asked for.
 - **Vector similarity search** captures semantic meaning, finding results that are
-  conceptually related even without keyword overlap — it's the clever friend who knows
+  conceptually related even without keyword overlap. It's the clever friend who knows
   what you *meant*
 
 In this tutorial, you combine both approaches in {C.PG} using
@@ -60,13 +60,13 @@ By the end of this tutorial, you'll be able to:
 
 ## Step 1: Set up your database
 
-First things first — you need a {C.PG} database with `pg_textsearch` and
+First things first: you need a {C.PG} database with `pg_textsearch` and
 `pgvectorscale` installed. Pick your adventure:
 
 <details>
 <summary>**Option 1: Use {C.CLOUD_LONG} (recommended for beginners)**</summary>
 
-This is the fastest way to get started — no installation required. {C.CLOUD_LONG}
+This is the fastest way to get started, no installation required. {C.CLOUD_LONG}
 services running {C.PG} 17+ already have `pg_textsearch` and `pgvectorscale`
 installed and ready to use.
 
@@ -113,7 +113,7 @@ This creates a container named `hybrid-search`, maps port 5432 on your machine t
 database inside the container, and sets the `postgres` user password to `password`.
 
 <Callout variant="note">
-  The image supports `arm64`, so it runs natively on Apple Silicon Macs — no Rosetta
+  The image supports `arm64`, so it runs natively on Apple Silicon Macs. No Rosetta
   needed.
 </Callout>
 
@@ -191,7 +191,7 @@ shared_preload_libraries = 'pg_textsearch'
 If other extensions are already listed, add `pg_textsearch` to the comma-separated list.
 
 After saving the file, restart {C.PG} from your terminal. A config reload is not
-sufficient — a full restart is required:
+sufficient; a full restart is required:
 
 ```bash
 # Linux (systemd)
@@ -233,7 +233,7 @@ You should see three rows:
  vectorscale   | 0.7.0
 ```
 
-Your version numbers may differ — that's fine as long as all three appear.
+Your version numbers may differ, and that's fine as long as all three appear.
 
 </NumberedItem>
 </NumberedList>
@@ -245,7 +245,7 @@ For more details on configuring `pg_textsearch`, see the
 
 ## Step 2: Create a table with text and embeddings
 
-Now for the fun part — let's give your database something to search through.
+Now for the fun part: let's give your database something to search through.
 
 <Callout variant="tip">
   **Quick start:** To skip the manual steps in Steps 2–4 and run all the setup at once
@@ -285,7 +285,7 @@ CREATE TABLE episodes (
 ```
 
 The `embedding` column uses the `vector` type from pgvector to store 1536-dimensional
-vectors. This column starts empty — you populate it with embeddings in the next step.
+vectors. This column starts empty, and you populate it with embeddings in the next step.
 
 </NumberedItem>
 <NumberedItem title="Insert sample data">
@@ -323,7 +323,7 @@ INSERT INTO episodes (title, description, pub_date, url) VALUES
    'Grab your tissues, it''s our most guest filled episode ever. We also discuss what Conduit is, what it means to us, and how it has affected our lives.',
    '2025-05-01', 'https://www.relay.fm/conduit/100'),
   ('107: Bored as a Benefit',
-   'Jay and Kathy explore the idea that boredom isn''t the enemy of productivity — it might actually be the secret ingredient.',
+   'Jay and Kathy explore the idea that boredom isn''t the enemy of productivity - it might actually be the secret ingredient.',
    '2025-08-07', 'https://www.relay.fm/conduit/107'),
   ('115: Productivity Inside Systems You Don''t Control',
    'Kathy is joined by the Nameless of the Show, Nameless, to talk about how to be productive when the system is one you don''t control.',
@@ -340,7 +340,7 @@ INSERT INTO episodes (title, description, pub_date, url) VALUES
 
 Here's where things get interesting. An **embedding** is a list of numbers (a vector) that
 represents the *meaning* of a piece of text. Texts about similar topics end up with
-similar vectors — think of it as teaching your database to understand vibes, not just
+similar vectors. Think of it as teaching your database to understand vibes, not just
 vocabulary.
 
 The `embedding` column is currently empty. You use a Python script to generate embeddings
@@ -522,7 +522,7 @@ if __name__ == "__main__":
 <NumberedItem title="Configure your environment variables">
 
 Create a `.env` file in the same directory as `embed.py`. This file stores your secrets
-and database connection details — the embedding script reads these at runtime.
+and database connection details. The embedding script reads these at runtime.
 
 <Callout variant="warning">
   The `.env` file contains secrets like API keys and database passwords. Add `.env` to
@@ -571,7 +571,7 @@ Updating database...
 Done! Embedded 12 episodes.
 ```
 
-The script is idempotent — it only embeds episodes where `embedding IS NULL`, so you can
+The script is idempotent: it only embeds episodes where `embedding IS NULL`, so you can
 safely re-run it if you add more data later.
 
 ### Verify the embeddings
@@ -591,7 +591,7 @@ instead of `NULL`.
 
 ## Step 4: Create indexes
 
-You've got data and embeddings — but without indexes, every query scans every row. That's
+You've got data and embeddings, but without indexes, every query scans every row. That's
 fine for 12 episodes, but it won't scale. Let's teach {C.PG} to search smarter, not
 harder.
 
@@ -625,7 +625,7 @@ CREATE INDEX episodes_embedding_idx ON episodes
 
 This creates a `pgvectorscale` StreamingDiskANN index using cosine distance.
 Unlike pgvector's built-in HNSW index, DiskANN stores the graph on disk rather than
-requiring the entire index to fit in RAM — a big advantage for large embedding sets.
+requiring the entire index to fit in RAM, which is a big advantage for large embedding sets.
 
 For more on StreamingDiskANN index types and tuning, see the
 [`pgvectorscale` reference](/reference/pgvectorscale/).
@@ -641,7 +641,7 @@ on its own. `pg_textsearch` uses the
 that {C.PG}'s default ascending `ORDER BY` puts the most relevant results first (a score
 of -15.3 is more relevant than -8.2).
 
-**Basic keyword search** — run the following query in your SQL client to find episodes
+**Basic keyword search:** run the following query in your SQL client to find episodes
 that match "burnout productivity." The `<@>` operator scores each row against the search
 terms, and `ORDER BY` sorts the results by relevance:
 
@@ -653,9 +653,9 @@ LIMIT 10;
 ```
 
 You should see episodes like "The Conduit Burnout Candle" and "Happiness First,
-Productivity Second" near the top — they contain the words you searched for.
+Productivity Second" near the top because they contain the words you searched for.
 
-**Keyword search with a date filter** — run this query in your SQL client to search only
+**Keyword search with a date filter:** run this query in your SQL client to search only
 episodes from 2023 onward. {C.PG} detects the `<@>` operator and uses the BM25 index
 automatically, so you can freely combine it with `WHERE` clauses:
 
@@ -683,7 +683,7 @@ same topic have similar embeddings, even if they use completely different words.
 The `<=>` operator computes cosine distance between two vectors. Lower values mean more
 similar (0 = identical, 1 = completely unrelated).
 
-**Semantic search** — run the following query in your SQL client to find episodes closest
+**Semantic search:** run the following query in your SQL client to find episodes closest
 in meaning to a query vector. Replace `$1` with an embedding generated from your search
 text (see the note below). The `<=>` operator computes cosine distance, and `ORDER BY`
 sorts by closest match:
@@ -697,7 +697,7 @@ LIMIT 10;
 
 <Callout variant="note">
   To get a query vector, generate an embedding for your search text the same way you
-  embedded the episodes — by calling the OpenAI embeddings API. The
+  embedded the episodes, by calling the OpenAI embeddings API. The
   [`embed.py`](https://github.com/timescale/cookbook-search/blob/main/Hybrid-search/embed.py)
   script shows how. In a real application, your app generates the query embedding at
   search time and passes it as a parameter.
@@ -711,7 +711,7 @@ exact words don't appear anywhere in its description.
 searches for "episode 100," BM25 finds it instantly, but vector search might rank it
 lower because "episode 100" doesn't carry strong semantic meaning.
 
-Each method has blind spots — which is exactly why you combine them in the next step.
+Each method has blind spots, which is exactly why you combine them in the next step.
 
 ## Step 7: Combine results with hybrid search (RRF)
 
@@ -723,7 +723,7 @@ ranked #1 by *both* methods gets an even higher score.
 The formula for each result is `1 / (k + rank)`, where `k` is a smoothing constant
 (typically 60). You sum this across all the search methods and sort by the total.
 
-**Hybrid search query** — run the following query in your SQL client. It executes both
+**Hybrid search query:** run the following query in your SQL client. It executes both
 BM25 keyword search and vector similarity search as Common Table Expressions (CTEs), then
 joins and scores the results using the RRF formula. Replace `$1` with your query
 embedding vector:
@@ -763,11 +763,11 @@ LIMIT 10;
 
 **How it works:**
 
-1. **`bm25_results`** — runs a keyword search for "mental health boundaries" and assigns
+1. **`bm25_results`** runs a keyword search for "mental health boundaries" and assigns
    each result a rank (1 = best match)
-1. **`vector_results`** — runs a vector search using the query embedding and assigns
+1. **`vector_results`** runs a vector search using the query embedding and assigns
    ranks the same way
-1. **The final `SELECT`** — joins both result sets by episode ID and computes an RRF
+1. **The final `SELECT`** joins both result sets by episode ID and computes an RRF
    score for each. The `COALESCE(..., 0)` ensures that episodes found by only one method
    still get a score. The `60` is the standard smoothing constant that prevents
    top-ranked results from dominating too heavily
@@ -775,20 +775,20 @@ LIMIT 10;
 **An example to make it concrete:** imagine a user searches for "how do I deal with
 feeling like a fraud at work?"
 
-- **BM25 finds:** "Eating the Devil's Spaghetti: Combating Imposter Syndrome" — it
+- **BM25 finds:** "Eating the Devil's Spaghetti: Combating Imposter Syndrome" because it
   matches on "imposter" after stemming
-- **Vector search finds:** episodes about burnout, boundaries, and mental health —
+- **Vector search finds:** episodes about burnout, boundaries, and mental health  -
   semantically related even though the words are different
 - **RRF fuses both:** the imposter syndrome episode ranks highest (found by both
   methods), while related episodes about self-doubt and mental health also surface higher
   than they would with either method alone
 
-That's hybrid search — the precision of keywords and the recall of semantic similarity in
+That's hybrid search: the precision of keywords and the recall of semantic similarity in
 a single ranked list. Not bad for a SQL query, right?
 
 ## Going further
 
-You've got a working hybrid search system — congrats! But if you're the kind of person
+You've got a working hybrid search system, congrats! If you're the kind of person
 who reads the bonus chapters, here are tips and techniques for taking it into production.
 
 ### Search across multiple columns
@@ -829,7 +829,7 @@ tags (configurable), while the `<@>` operator handles the BM25 ranking.
 ### Filter out low-relevance results
 
 Use `to_bm25query()` with a threshold to discard results below a minimum relevance score.
-Run this query in your SQL client — it uses the `WHERE` clause to filter out weak matches
+Run this query in your SQL client. It uses the `WHERE` clause to filter out weak matches
 before returning results:
 
 ```sql
@@ -847,7 +847,7 @@ relevant). Adjust the threshold value to control how strict the filtering is.
 
 `pg_textsearch` 1.0 doesn't support native phrase queries (matching exact multi-word
 sequences). Work around this by over-fetching from the BM25 index and post-filtering with
-`ILIKE`. Run this query in your SQL client — the inner query uses BM25 to find the top
+`ILIKE`. Run this query in your SQL client. The inner query uses BM25 to find the top
 100 candidates, and the outer query filters down to rows containing the exact phrase:
 
 ```sql
@@ -908,7 +908,7 @@ SELECT bm25_force_merge('episodes_bm25_idx');
 ```
 
 Replace `'episodes_bm25_idx'` with your actual index name. This is a one-time
-operation — run it after large bulk loads, not after every insert.
+operation. Run it after large bulk loads, not after every insert.
 
 ## Current limitations
 
