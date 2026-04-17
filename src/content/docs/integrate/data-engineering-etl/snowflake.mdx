@@ -1,0 +1,277 @@
+---
+title: "Integrate Snowflake with Tiger Cloud"
+description: "Query Tiger Cloud time-series data from Snowflake via the Iceberg connector — no ETL pipelines, no data duplication"
+integrationCategory: "data-engineering-etl"
+integrationIndustry: ["energy", "manufacturing", "healthcare"]
+keywords: ["snowflake","iceberg","s3 tables","data lakehouse","analytics","catalog integration","cross-warehouse query"]
+integrationCardLogo: "snowflake.png"
+sidebar:
+  label: "Snowflake"
+---
+
+import * as C from "@constants";
+
+import { Callout } from '@stainless-api/docs/components';
+
+import PrereqCloud from '@partials/_integration-prereqs-cloud-only.mdx';
+
+[Snowflake](https://www.snowflake.com/) can query a {C.SERVICE_LONG} {C.HYPERTABLE} directly through the {C.LAKE_LONG}, with no ETL pipelines, no copy jobs, and no duplicated data. {C.CLOUD_LONG} continuously syncs your data to [Apache Iceberg](https://iceberg.apache.org/) tables on [AWS S3 Tables](https://aws.amazon.com/s3/features/tables/) in your AWS account, and Snowflake reads those tables in place via a Catalog Integration.
+
+This means you can keep using {C.CLOUD_LONG}'s strengths — real-time inserts, {C.HYPERTABLE}s, continuous aggregates — for operational workloads, while joining the same data with Snowflake-native reference tables and BI tools for cross-domain analytics.
+
+<Callout variant="info">
+  The Snowflake side is **read-only**. Snowflake can `SELECT` from the Iceberg tables but cannot `INSERT`, `UPDATE`, or `DELETE`. All writes go through {C.CLOUD_LONG}.
+</Callout>
+
+## Prerequisites
+
+<PrereqCloud />
+
+You also need:
+
+- **A Snowflake account with `ACCOUNTADMIN` access.** `CREATE CATALOG INTEGRATION` requires the `ACCOUNTADMIN` role specifically. If you don't have it on your primary account, sign up for a [free Snowflake trial](https://signup.snowflake.com/).
+- **An AWS account** with [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and authenticated, or use [AWS CloudShell](https://console.aws.amazon.com/cloudshell/) in the browser.
+- **The {C.LAKE_LONG} enabled** on your {C.SERVICE_LONG} — see [Integrate data lakes with {C.CLOUD_LONG}](/integrate/connectors/destination/tigerlake). You'll need the `S3TableBucketArn` from the connector setup.
+
+<Callout variant="warning">
+  Make sure your {C.SERVICE_LONG} and your S3 Table Bucket are in the **same AWS region**. Cross-region traffic incurs per-GB transfer fees.
+</Callout>
+
+## Find your namespace and account details
+
+When the {C.LAKE_LONG} is active, {C.CLOUD_LONG} creates a namespace inside your S3 Table Bucket. You'll need its name plus a few details from your `S3TableBucketArn`:
+
+```bash
+aws s3tables list-namespaces \
+  --table-bucket-arn <YOUR_S3_TABLE_BUCKET_ARN> \
+  --region <YOUR_AWS_REGION>
+```
+
+The output gives you a `namespace` value to use in the steps below. Note the placeholders you'll see throughout:
+
+| Placeholder | Source |
+|---|---|
+| `<YOUR_AWS_REGION>` | The segment after `s3tables:` in your `S3TableBucketArn` |
+| `<YOUR_AWS_ACCOUNT_ID>` | The 12-digit number after the region in your `S3TableBucketArn` |
+| `<YOUR_BUCKET_NAME>` | The name after `bucket/` in your `S3TableBucketArn` |
+| `<YOUR_NAMESPACE>` | The `namespace` value returned above |
+
+For example, if your `S3TableBucketArn` is `arn:aws:s3tables:us-east-1:111122223333:bucket/tiger-data`, then `<YOUR_AWS_REGION>` is `us-east-1`, `<YOUR_AWS_ACCOUNT_ID>` is `111122223333`, and `<YOUR_BUCKET_NAME>` is `tiger-data`.
+
+## Create the catalog integration in Snowflake
+
+A Catalog Integration tells Snowflake where to find your Iceberg tables and how to authenticate. {C.CLOUD_LONG} stores Iceberg metadata in [AWS Glue](https://aws.amazon.com/glue/), so Snowflake asks Glue what tables exist and reads the underlying files from S3.
+
+Open a Snowflake worksheet as the `ACCOUNTADMIN` role and run:
+
+```sql
+USE ROLE ACCOUNTADMIN;
+
+CREATE OR REPLACE CATALOG INTEGRATION tiger_s3tables_catalog
+  CATALOG_SOURCE = ICEBERG_REST
+  TABLE_FORMAT = ICEBERG
+  CATALOG_NAMESPACE = '<YOUR_NAMESPACE>'
+  REST_CONFIG = (
+    CATALOG_URI = 'https://glue.<YOUR_AWS_REGION>.amazonaws.com/iceberg'
+    CATALOG_API_TYPE = AWS_GLUE
+    WAREHOUSE = '<YOUR_AWS_ACCOUNT_ID>:s3tablescatalog/<YOUR_BUCKET_NAME>'
+    ACCESS_DELEGATION_MODE = VENDED_CREDENTIALS
+  )
+  REST_AUTHENTICATION = (
+    TYPE = SIGV4
+    SIGV4_IAM_ROLE = 'arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/snowflake-s3tables-reader'
+    SIGV4_SIGNING_REGION = '<YOUR_AWS_REGION>'
+  )
+  REFRESH_INTERVAL_SECONDS = 120
+  ENABLED = TRUE;
+```
+
+The `snowflake-s3tables-reader` IAM role doesn't exist yet — you'll create it in the next step. Snowflake just needs to know which role it should assume.
+
+Now retrieve the AWS identity Snowflake just generated:
+
+```sql
+DESC INTEGRATION tiger_s3tables_catalog;
+```
+
+Copy two values from the output: `API_AWS_IAM_USER_ARN` and `API_AWS_EXTERNAL_ID`. You'll paste them into the IAM trust policy in the next step.
+
+## Create a dedicated IAM role for Snowflake
+
+A separate read-only role keeps {C.CLOUD_LONG}'s write path completely independent from Snowflake's read path — least-privilege and easy to revoke.
+
+**Create the role.** Replace the two `<API_AWS_*>` placeholders with the values you just copied from Snowflake:
+
+```bash
+aws iam create-role \
+  --role-name snowflake-s3tables-reader \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": { "AWS": "<API_AWS_IAM_USER_ARN>" },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": { "sts:ExternalId": "<API_AWS_EXTERNAL_ID>" }
+      }
+    }]
+  }'
+```
+
+**Attach the read permissions** the role needs for Glue, Lake Formation, and your S3 Table Bucket:
+
+```bash
+aws iam put-role-policy \
+  --role-name snowflake-s3tables-reader \
+  --policy-name snowflake-s3tables-access \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "GlueAccess",
+        "Effect": "Allow",
+        "Action": ["glue:GetCatalog","glue:GetDatabase","glue:GetDatabases","glue:GetTable","glue:GetTables"],
+        "Resource": "*"
+      },
+      {
+        "Sid": "LakeFormationAccess",
+        "Effect": "Allow",
+        "Action": ["lakeformation:GetDataAccess"],
+        "Resource": "*"
+      },
+      {
+        "Sid": "S3TablesReadAccess",
+        "Effect": "Allow",
+        "Action": [
+          "s3tables:GetTableBucket","s3tables:GetNamespace","s3tables:ListNamespaces",
+          "s3tables:GetTable","s3tables:ListTables",
+          "s3tables:GetTableData","s3tables:GetTableMetadataLocation"
+        ],
+        "Resource": [
+          "arn:aws:s3tables:<YOUR_AWS_REGION>:<YOUR_AWS_ACCOUNT_ID>:bucket/<YOUR_BUCKET_NAME>",
+          "arn:aws:s3tables:<YOUR_AWS_REGION>:<YOUR_AWS_ACCOUNT_ID>:bucket/<YOUR_BUCKET_NAME>/table/*"
+        ]
+      }
+    ]
+  }'
+```
+
+## Grant Lake Formation permissions
+
+[AWS Lake Formation](https://aws.amazon.com/lake-formation/) sits on top of Glue and S3 as a table-level permissions layer — even with the IAM permissions above, Lake Formation can still block reads. Grant the Snowflake role `SELECT` and `DESCRIBE` on every table in your namespace:
+
+```bash
+aws lakeformation grant-permissions \
+  --region <YOUR_AWS_REGION> \
+  --principal DataLakePrincipalIdentifier=arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/snowflake-s3tables-reader \
+  --resource '{
+    "Table": {
+      "CatalogId": "<YOUR_AWS_ACCOUNT_ID>:s3tablescatalog/<YOUR_BUCKET_NAME>",
+      "DatabaseName": "<YOUR_NAMESPACE>",
+      "TableWildcard": {}
+    }
+  }' \
+  --permissions "SELECT" "DESCRIBE"
+```
+
+No output means success.
+
+## Verify the integration
+
+Back in your Snowflake worksheet:
+
+```sql
+SELECT SYSTEM$VERIFY_CATALOG_INTEGRATION('tiger_s3tables_catalog');
+```
+
+A successful response looks like:
+
+```json
+{ "success": true, "errorCode": "", "errorMessage": "" }
+```
+
+If you see an error, jump to [Troubleshooting](#troubleshooting).
+
+## Register the Iceberg table in Snowflake
+
+Snowflake now *can* read your Iceberg tables, but it doesn't know which ones to expose. Create a database and schema, then register each table you want to query.
+
+```sql
+CREATE DATABASE IF NOT EXISTS tiger_data;
+CREATE SCHEMA IF NOT EXISTS tiger_data.<YOUR_NAMESPACE>;
+```
+
+List the tables {C.CLOUD_LONG} has synced so far:
+
+```bash
+aws s3tables list-tables \
+  --table-bucket-arn arn:aws:s3tables:<YOUR_AWS_REGION>:<YOUR_AWS_ACCOUNT_ID>:bucket/<YOUR_BUCKET_NAME> \
+  --namespace <YOUR_NAMESPACE> \
+  --region <YOUR_AWS_REGION>
+```
+
+Then register each one in Snowflake:
+
+```sql
+CREATE ICEBERG TABLE tiger_data.<YOUR_NAMESPACE>.<YOUR_TABLE_NAME>
+  CATALOG = 'tiger_s3tables_catalog'
+  CATALOG_TABLE_NAME = '<YOUR_TABLE_NAME>'
+  AUTO_REFRESH = TRUE;
+```
+
+`AUTO_REFRESH = TRUE` combined with `REFRESH_INTERVAL_SECONDS = 120` from the Catalog Integration means new inserts in {C.CLOUD_LONG} are visible in Snowflake within about 2 minutes.
+
+<Callout variant="info">
+  When {C.CLOUD_LONG} syncs a brand-new table in the future, you'll need to run `CREATE ICEBERG TABLE` again for that table. Existing-table updates are automatic; new tables are not.
+</Callout>
+
+## Query your data
+
+Snowflake now treats the Iceberg table like any other table. Sanity check:
+
+```sql
+SELECT COUNT(*) FROM tiger_data.<YOUR_NAMESPACE>.<YOUR_TABLE_NAME>;
+SELECT * FROM tiger_data.<YOUR_NAMESPACE>.<YOUR_TABLE_NAME> LIMIT 10;
+```
+
+The real value is joining time-series data living in Iceberg with reference data living natively in Snowflake — no pipeline required. For example, given a `customers` table that already lives in Snowflake and a `sensor_readings` {C.HYPERTABLE} synced from {C.CLOUD_LONG}:
+
+```sql
+SELECT
+    c.customer_name,
+    DATE_TRUNC('hour', s.time) AS hour,
+    AVG(s.temperature)         AS avg_temp
+FROM tiger_data.<YOUR_NAMESPACE>.sensor_readings AS s
+JOIN snowflake_warehouse.public.customers AS c
+    ON s.customer_id = c.id
+WHERE s.time >= DATEADD(day, -7, CURRENT_TIMESTAMP())
+GROUP BY 1, 2
+ORDER BY 2 DESC;
+```
+
+The Snowflake query optimizer treats both tables as native — it has no idea one of them lives in your AWS account as Iceberg files.
+
+## Refresh metadata on demand
+
+If you've inserted new rows in {C.CLOUD_LONG} and don't want to wait the full 120 seconds for the auto-refresh:
+
+```sql
+ALTER CATALOG INTEGRATION tiger_s3tables_catalog REFRESH;
+```
+
+## Troubleshooting
+
+| Error | Fix |
+|---|---|
+| `sts:AssumeRole not authorized` | The `API_AWS_IAM_USER_ARN` or `API_AWS_EXTERNAL_ID` in the IAM role trust policy is incorrect or stale. Re-run `DESC INTEGRATION` and recreate the role with fresh values. |
+| `glue:GetCatalog not authorized` | The Snowflake role is missing Glue permissions. Re-attach the permissions policy. |
+| `Unable to retrieve credentials from Lake Formation` | The Snowflake role is missing `lakeformation:GetDataAccess`. Re-attach the permissions policy. |
+| `Insufficient Lake Formation permission on table` | The Lake Formation grant is missing. Re-run `aws lakeformation grant-permissions`. |
+| `Unmatched catalog api type PUBLIC and authentication type SIGV4` | `CATALOG_API_TYPE = AWS_GLUE` is missing from `REST_CONFIG`. Recreate the catalog integration. |
+| Table not visible after `list-tables` | The {C.CLOUD_LONG} sync hasn't completed a full cycle yet. Check the connector status in {C.CONSOLE}. |
+| Stale data in Snowflake | Run `ALTER CATALOG INTEGRATION tiger_s3tables_catalog REFRESH;` to force a metadata refresh. |
+| {C.CLOUD_LONG} write path failing | The {C.CLOUD_LONG} IAM role and the Snowflake IAM role (`snowflake-s3tables-reader`) are completely separate — confirm you haven't accidentally edited the {C.CLOUD_LONG} role. |
+
+## Want a runnable end-to-end example?
+
+The [Snowflake cookbook](https://github.com/timescale/cookbook-integrations/tree/start/integrations-cookbook/snowflake) walks through the full setup with a real dataset (NYC Film Permits) and an analytical join query that joins time-series data in Iceberg with a Snowflake-native borough population table.

@@ -53,6 +53,7 @@ const PROPER_NOUNS = new Set(
     "Hypercore",
     "SageMaker", "DBeaver", "Fivetran", "Confluent",
     "PgBouncer", "Aiven", "GitLab", "Slack", "Outflux", "TimeWeightSummary", "Lambda",
+    "Snowflake",
   ].map((s) => s.toLowerCase())
 );
 
@@ -91,6 +92,7 @@ const PROPER_NOUN_PHRASES = [
   "Aiven Client",
   "Aiven CLI",
   "GitLab authentication",
+  "Lake Formation",
 ];
 
 /**
