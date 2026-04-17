@@ -51,7 +51,7 @@ const PROPER_NOUNS = new Set(
     "Microsoft", "Google", "Grafana", "Alertmanager", "Looker", "Datadog", "OpenTelemetry", "MacPorts", "Compose", "macOS",
     "Telegraf", "Supabase", "Decodable", "Debezium", "Node", "Apache", "Airflow",
     "Hypercore",
-    "SageMaker", "DBeaver", "Fivetran", "Confluent",
+    "SageMaker", "DBeaver", "Fivetran", "Confluent","Ignition",
     "PgBouncer", "Aiven", "GitLab", "Slack", "Outflux", "TimeWeightSummary", "Lambda",
   ].map((s) => s.toLowerCase())
 );
@@ -91,6 +91,7 @@ const PROPER_NOUN_PHRASES = [
   "Aiven Client",
   "Aiven CLI",
   "GitLab authentication",
+  "Inductive Automation",
 ];
 
 /**
