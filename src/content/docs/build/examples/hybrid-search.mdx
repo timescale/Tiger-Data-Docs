@@ -1,0 +1,998 @@
+---
+title: Build hybrid search with BM25 and vector similarity
+description: Combine keyword search and semantic vector search in PostgreSQL using pg_textsearch and pgvectorscale, fused with Reciprocal Rank Fusion.
+products: [cloud, self_hosted]
+keywords: [tutorials, search, hybrid search, BM25, vector search, pg_textsearch, pgvectorscale, embeddings, RRF, semantic search, full-text search]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+import { Prerequisites } from "@components/Prerequisites";
+
+Ever searched for something and thought "I *know* it's in here somewhere, but the search
+bar just isn't getting it"? That's because most search systems only do one thing well.
+Hybrid search fixes that by combining the best of both worlds:
+
+- **Full-text search** (BM25) excels at exact keyword matching and linguistic features
+  like stemming and ranking. It's the reliable friend who finds exactly what you asked for.
+- **Vector similarity search** captures semantic meaning, finding results that are
+  conceptually related even without keyword overlap. It's the clever friend who knows
+  what you *meant*.
+
+In this tutorial, you combine both approaches in {C.PG} using
+[`pg_textsearch`](/learn/search/using-pg-textsearch) and
+[`pgvectorscale`](/learn/search/pgvector-pgvectorsearch), then fuse the results with
+Reciprocal Rank Fusion (RRF). The result? Search that's both precise *and* smart.
+
+By the end of this tutorial, you'll be able to:
+
+- Create a {C.PG} table with both text and vector embedding columns
+- Generate embeddings using OpenAI's API
+- Run BM25 keyword search with `pg_textsearch`
+- Run vector similarity search with `pgvectorscale`'s StreamingDiskANN index
+- Combine both methods into a single ranked list using Reciprocal Rank Fusion
+
+<Prerequisites>
+- A [{C.CLOUD_LONG} service](/get-started/quickstart/create-service) running {C.PG} 17+,
+  or a [self-hosted {C.PG} instance](/get-started/choose-your-path/install-timescaledb)
+  with `pg_textsearch` and `pgvectorscale` installed
+- [Docker](https://docs.docker.com/get-started/get-docker/) installed and running, if
+  you plan to use the Docker setup option. Install
+  [Docker Desktop](https://docs.docker.com/desktop/) (macOS, Windows, Linux GUI) or
+  [Docker Engine](https://docs.docker.com/engine/install/) (Linux server)
+- [Python 3.9+](https://www.python.org/downloads/) with a package manager
+  ([uv](https://docs.astral.sh/uv/), [pip](https://pip.pypa.io/en/stable/installation/), or [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html))
+- An [OpenAI API key](https://platform.openai.com/api-keys) for generating embeddings
+- A SQL client such as `psql`, pgAdmin, or the {C.CLOUD_EDITOR}
+</Prerequisites>
+
+---
+
+<Callout variant="tip">
+  The complete source code, setup scripts, and sample data for this tutorial are
+  available in the
+  [cookbook-search repository on GitHub](https://github.com/timescale/cookbook-search/tree/main/Hybrid-search).
+  You can clone the repository to get started quickly, or follow this tutorial step by
+  step to build everything from scratch.
+</Callout>
+
+## Step 1: Set up your database
+
+First things first: you need a {C.PG} database with `pg_textsearch` and
+`pgvectorscale` installed. Pick your adventure:
+
+<details>
+<summary>**Option 1: Use {C.CLOUD_LONG} (recommended for beginners)**</summary>
+
+This is the fastest way to get started, no installation required. {C.CLOUD_LONG}
+services running {C.PG} 17+ already have `pg_textsearch` and `pgvectorscale`
+installed and ready to use.
+
+You can manage your {C.CLOUD_LONG} service through the web console, the {C.CLI_LONG}, or
+the {C.MCP_LONG} from your AI assistant. The steps below cover all three options.
+
+<NumberedList>
+<NumberedItem title={`Install the ${C.CLI_LONG} (optional but recommended)`}>
+
+The {C.CLI_LONG} lets you manage {C.CLOUD_LONG} resources from your terminal. Install it
+with the following command:
+
+```bash
+# macOS
+brew install timescale/tap/tiger
+
+# Linux / WSL
+curl -sL https://assets.tigerdata.com/releases/install-tiger-cli.sh | sh
+```
+
+After installing, authenticate with your {C.CLOUD_LONG} account:
+
+```bash
+tiger auth login
+```
+
+This opens a browser window for you to log in. Once authorized, verify the connection by
+listing your services:
+
+```bash
+tiger service list
+```
+
+For the full setup guide, see
+[Get started with the command line](/get-started/quickstart/cli-rest-api).
+
+</NumberedItem>
+<NumberedItem title={`Set up ${C.MCP_LONG} for your AI assistant (optional)`}>
+
+{C.MCP_LONG} gives your AI assistant (Claude Code, Cursor, Windsurf, and others) direct
+access to {C.CLOUD_LONG} so you can manage services and run queries using natural
+language. It's bundled with the {C.CLI_LONG} you just installed.
+
+Run the following in your terminal:
+
+```bash
+tiger mcp install
+```
+
+Choose your AI assistant from the list (for example, `claude-code`, `cursor`, `windsurf`)
+and press Enter. After installation, start your AI assistant and ask: _"Is the
+{C.MCP_LONG} server active?"_ to confirm it's connected.
+
+For the full setup guide, see
+[Integrate Tiger Cloud with your AI assistant](/get-started/quickstart/mcp-cli).
+
+</NumberedItem>
+<NumberedItem title={`Create or select a ${C.SERVICE_LONG}`}>
+
+Sign up or log in at the [{C.CLOUD_LONG} console](https://console.cloud.timescale.com)
+and [create a new service](/get-started/quickstart/create-service), or use an existing
+one running {C.PG} 17+.
+
+Alternatively, if you installed the {C.CLI_LONG}, create a service from your terminal:
+
+```bash
+tiger service create
+```
+
+</NumberedItem>
+<NumberedItem title="Connect to your database">
+
+Run queries directly in the {C.CLOUD_EDITOR}, or connect with `psql` using your service
+credentials. If you're using the {C.CLI_LONG}, you can also connect directly:
+
+```bash
+tiger service connect <service-id>
+```
+
+Replace `<service-id>` with the ID shown in `tiger service list`.
+
+</NumberedItem>
+</NumberedList>
+
+</details>
+
+<details>
+<summary>**Option 2: Use Docker (recommended for local development)**</summary>
+
+Run everything locally with the
+[`timescaledb-docker-ha`](https://github.com/timescale/timescaledb-docker-ha) image. It
+ships with {C.PG}, {C.TIMESCALE_DB}, pgvector, `pgvectorscale`, and `pg_textsearch`
+pre-installed.
+
+<NumberedList>
+<NumberedItem title="Pull and run the container">
+
+Run the following command in your terminal to download the Docker image and start a
+{C.PG} 17 container with the extensions pre-installed:
+
+```bash
+docker run -d --name hybrid-search \
+  -p 5432:5432 \
+  -e POSTGRES_PASSWORD=password \
+  timescale/timescaledb-ha:pg17
+```
+
+This creates a container named `hybrid-search`, maps port 5432 on your machine to the
+database inside the container, and sets the `postgres` user password to `password`.
+
+<Callout variant="note">
+  The image supports `arm64`, so it runs natively on Apple Silicon Macs. No Rosetta
+  needed.
+</Callout>
+
+</NumberedItem>
+<NumberedItem title="Connect to your database">
+
+In your terminal, use `psql` to connect to the {C.PG} instance running inside the
+container:
+
+```bash
+psql -h localhost -U postgres
+```
+
+Enter the password you set in the previous step (`password`) when prompted.
+
+</NumberedItem>
+<NumberedItem title="Create the extensions">
+
+Once connected to `psql`, run the following two SQL statements to enable `pg_textsearch`
+for keyword search and `pgvectorscale` for vector search:
+
+```sql
+CREATE EXTENSION pg_textsearch;
+CREATE EXTENSION vectorscale CASCADE;
+```
+
+You should see `CREATE EXTENSION` printed after each command. The `CASCADE` keyword in
+the second statement automatically installs pgvector as a dependency.
+
+<Callout variant="tip">
+  `shared_preload_libraries` is already configured in the Docker image, so there's no
+  need to edit `postgresql.conf` or restart the server.
+</Callout>
+
+</NumberedItem>
+</NumberedList>
+
+</details>
+
+<details>
+<summary>**Option 3: Manual install**</summary>
+
+If you prefer to run {C.PG} locally without Docker, install the extensions yourself.
+
+<NumberedList>
+<NumberedItem title="Download the extensions">
+
+Download the pre-built packages from GitHub:
+
+- `pg_textsearch`:
+  [GitHub releases](https://github.com/timescale/pg_textsearch/releases)
+- `pgvectorscale`:
+  [GitHub releases](https://github.com/timescale/pgvectorscale/releases)
+
+Follow the installation instructions included with each release for your operating
+system.
+
+</NumberedItem>
+<NumberedItem title={`Update your ${C.PG} configuration`}>
+
+`pg_textsearch` needs to be loaded when {C.PG} starts up. First, find the location of
+your `postgresql.conf` file by running this query in your SQL client:
+
+```sql
+SHOW config_file;
+```
+
+Open the `postgresql.conf` file in a text editor and find the `shared_preload_libraries`
+line. Update it to include `pg_textsearch`:
+
+```ini
+shared_preload_libraries = 'pg_textsearch'
+```
+
+If other extensions are already listed, add `pg_textsearch` to the comma-separated list.
+
+After saving the file, restart {C.PG} from your terminal. A config reload is not
+sufficient; a full restart is required:
+
+```bash
+# Linux (systemd)
+sudo systemctl restart postgresql
+
+# macOS (Homebrew)
+brew services restart postgresql@17
+```
+
+</NumberedItem>
+<NumberedItem title="Create the extensions">
+
+Connect to your database using `psql` or any SQL client and run the following two
+statements to enable `pg_textsearch` and `pgvectorscale`:
+
+```sql
+CREATE EXTENSION pg_textsearch;
+CREATE EXTENSION vectorscale CASCADE;
+```
+
+The `CASCADE` keyword automatically installs pgvector as a dependency.
+
+To confirm everything is installed correctly, run this verification query in the same SQL
+session:
+
+```sql
+SELECT extname, extversion
+FROM pg_extension
+WHERE extname IN ('pg_textsearch', 'vectorscale', 'vector');
+```
+
+You should see three rows:
+
+```
+   extname     | extversion
+---------------+------------
+ vector        | 0.8.0
+ pg_textsearch | 1.0.0
+ vectorscale   | 0.7.0
+```
+
+Your version numbers may differ, and that's fine as long as all three appear.
+
+</NumberedItem>
+</NumberedList>
+
+</details>
+
+For more details on configuring `pg_textsearch`, see the
+[pg_textsearch deploy guide](/deploy/tiger-cloud/tiger-cloud-AWS/tiger-cloud-extensions/pg-textsearch).
+
+## Step 2: Create a table with text and embeddings
+
+Now for the fun part: let's give your database something to search through.
+
+<Callout variant="tip">
+  **Quick start:** To skip the manual steps in Steps 2–4 and run all the setup at once
+  (extensions, table, data, and indexes), run the following command in your terminal. It
+  executes the
+  [`setup.sql`](https://github.com/timescale/cookbook-search/blob/main/Hybrid-search/setup.sql)
+  file from the repository against your database:
+
+  ```bash
+  psql -h localhost -U postgres -f setup.sql
+  ```
+
+  If you use this shortcut, skip ahead to [Step 3: Generate embeddings](#step-3-generate-embeddings)
+  to create the embedding vectors.
+</Callout>
+
+This tutorial uses episode data from [Conduit](https://www.relay.fm/conduit), a
+productivity podcast by Jay Miller and Kathy Campbell on Relay FM. Transcripts are from
+the [conduit-transcripts](https://github.com/kjaymiller/conduit-transcripts) repository
+(MIT License, Jay Miller).
+
+<NumberedList>
+<NumberedItem title="Create the episodes table">
+
+Run the following SQL in your SQL client (the {C.CLOUD_EDITOR}, `psql`, or pgAdmin) to
+create a table that stores podcast episode metadata alongside a vector embedding column:
+
+```sql
+CREATE TABLE episodes (
+  id bigserial PRIMARY KEY,
+  title text,
+  description text,
+  pub_date date,
+  url text,
+  embedding vector(1536)  -- OpenAI text-embedding-3-small dimensions
+);
+```
+
+The `embedding` column uses the `vector` type from pgvector to store 1536-dimensional
+vectors. This column starts empty, and you populate it with embeddings in the next step.
+
+</NumberedItem>
+<NumberedItem title="Insert sample data">
+
+Run this `INSERT` statement in the same SQL session to load 12 sample episodes into the
+table. Each row includes a title, description, publication date, and URL:
+
+```sql
+INSERT INTO episodes (title, description, pub_date, url) VALUES
+  ('1: Our Systems: The Unicorn & Silk Sonic Methods',
+   'For most people, productivity starts with their system. Jay and Kathy talk about their own brand of productivity and what their personal systems look like.',
+   '2021-07-15', 'https://www.relay.fm/conduit/1'),
+  ('5: Sustained Progress: Over Being Overwhelmed',
+   'Millennial Falcon wants to know how to make SUSTAINED progress on projects that feel more like a marathon, not a sprint. Kathy just made a big move and gives us some of the tips that she used to make this challenge a bit more manageable.',
+   '2021-09-09', 'https://www.relay.fm/conduit/5'),
+  ('13: Happiness First, Productivity Second',
+   'Kathy has lots to be thankful for, Jay is unfortunately unwell, but Rosemary was on standby! Time to review the end of the year and how you finish things or let them go, before getting started on the next new adventure.',
+   '2021-12-30', 'https://www.relay.fm/conduit/13'),
+  ('19: Eating the Devil''s Spaghetti: Combating Imposter Syndrome',
+   'How do we learn to shut up and take the compliment? How about with a fresh bowl of imp-pasta!',
+   '2022-03-24', 'https://www.relay.fm/conduit/19'),
+  ('48: Long Projects: Remove the Concept of Time',
+   'We''ve got a longer than usual period between our next live recording so we''re taking the time to think about some longer connections. Tune in to hear how we''re going about it and longer projects in general.',
+   '2023-05-04', 'https://www.relay.fm/conduit/48'),
+  ('57: I Need Help to Get the Help',
+   'Kathy and Jay need help to meet the demands of those around them. They need help getting help!',
+   '2023-09-07', 'https://www.relay.fm/conduit/57'),
+  ('61: The Conduit Burnout Candle',
+   'Kathy and Jay are feeling the burn(out) well maybe the steps before the burnout. We''ve taken blowtorches to our candles and now we''re telling you the warning signs we see that this next season might be a little tough.',
+   '2023-11-02', 'https://www.relay.fm/conduit/61'),
+  ('81: Brett''s Mental Health (and Tech) Corner',
+   'Kathy is still on a secret mission so Jay is joined by Brett Terpstra the Internet''s mad scientist to talk mental health''s link to productivity.',
+   '2024-08-08', 'https://www.relay.fm/conduit/81'),
+  ('100: It''s Episode 100!!',
+   'Grab your tissues, it''s our most guest filled episode ever. We also discuss what Conduit is, what it means to us, and how it has affected our lives.',
+   '2025-05-01', 'https://www.relay.fm/conduit/100'),
+  ('107: Bored as a Benefit',
+   'Jay and Kathy explore the idea that boredom isn''t the enemy of productivity - it might actually be the secret ingredient.',
+   '2025-08-07', 'https://www.relay.fm/conduit/107'),
+  ('115: Productivity Inside Systems You Don''t Control',
+   'Kathy is joined by the Nameless of the Show, Nameless, to talk about how to be productive when the system is one you don''t control.',
+   '2025-11-21', 'https://www.relay.fm/conduit/115'),
+  ('117: The Year to be Selfish',
+   'Kathy and Jay discuss end-of-year planning. Kathy''s 2026 theme: "The Year to Be Selfish." Jay commits to boundaries and self-preservation. They cover nonprofit transitions and preparing for the annual systems check.',
+   '2025-12-18', 'https://www.relay.fm/conduit/117');
+```
+
+</NumberedItem>
+</NumberedList>
+
+## Step 3: Generate embeddings
+
+Here's where things get interesting. An **embedding** is a list of numbers (a vector) that
+represents the *meaning* of a piece of text. Texts about similar topics end up with
+similar vectors. Think of it as teaching your database to understand vibes, not just
+vocabulary.
+
+The `embedding` column is currently empty. You use a Python script to generate embeddings
+for each episode using OpenAI's `text-embedding-3-small` model and write them back to
+the database.
+
+<details>
+<summary>**Already cloned the cookbook repository?** Skip ahead to run the script</summary>
+
+If you cloned the
+[cookbook-search repository](https://github.com/timescale/cookbook-search) earlier, you
+already have all the files you need. Run the following commands in your terminal to set up
+and run the embedding script:
+
+```bash
+cd cookbook-search/Hybrid-search
+uv venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+uv pip install -r requirements.txt
+cd ..
+cp .env.example .env
+cd Hybrid-search
+```
+
+Open the `.env` file, add your `OPENAI_API_KEY` and any database connection variables,
+then skip to [Run the embedding script](#run-the-embedding-script) below.
+
+</details>
+
+Follow the steps below to create the embedding script and its dependencies from scratch.
+
+<NumberedList>
+<NumberedItem title="Install uv (if you don't have it)">
+
+Run the appropriate command in your terminal to install `uv`, a fast Python package
+manager:
+
+```bash
+# macOS / Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+<Callout variant="note">
+  Using a different package manager? Substitute the `uv` commands below:
+  - **pip:** `pip install -r requirements.txt`
+  - **conda:** `conda install openai psycopg2-binary python-dotenv`
+</Callout>
+
+</NumberedItem>
+<NumberedItem title="Create your project directory">
+
+Run the following in your terminal to create a working directory and navigate into it:
+
+```bash
+mkdir hybrid-search-tutorial
+cd hybrid-search-tutorial
+```
+
+</NumberedItem>
+<NumberedItem title="Create the requirements file">
+
+Create a file named `requirements.txt` in your project directory with the Python
+dependencies. These three packages handle the OpenAI API calls, database connections, and
+environment variable loading:
+
+```txt
+openai>=1.0.0
+psycopg2-binary>=2.9.0
+python-dotenv>=1.0.0
+```
+
+</NumberedItem>
+<NumberedItem title="Install dependencies">
+
+Run the following commands in your terminal to create a virtual environment and install
+the packages listed in `requirements.txt`:
+
+```bash
+uv venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+uv pip install -r requirements.txt
+```
+
+</NumberedItem>
+<NumberedItem title="Create the embedding script">
+
+Create a file named `embed.py` in the same directory with the following Python code. This
+script connects to your database, fetches episodes that don't have embeddings yet,
+generates embeddings using OpenAI's API, and writes the vectors back to the `embedding`
+column:
+
+```python
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+import psycopg2
+from openai import OpenAI
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
+EMBEDDING_MODEL = "text-embedding-3-small"  # 1536 dimensions
+
+DB_CONFIG = {
+    "host": os.getenv("PGHOST", "localhost"),
+    "port": os.getenv("PGPORT", "5432"),
+    "user": os.getenv("PGUSER", "postgres"),
+    "password": os.getenv("PGPASSWORD", "password"),
+    "dbname": os.getenv("PGDATABASE", "postgres"),
+}
+
+
+def get_episodes_without_embeddings(conn):
+    """Fetch episodes that don't have embeddings yet."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, title, description FROM episodes WHERE embedding IS NULL"
+        )
+        return cur.fetchall()
+
+
+def generate_embeddings(texts):
+    """Call OpenAI to generate embeddings for a list of texts."""
+    client = OpenAI()
+    response = client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
+    return [item.embedding for item in response.data]
+
+
+def update_embeddings(conn, episode_ids, embeddings):
+    """Write embeddings back to the database."""
+    with conn.cursor() as cur:
+        for episode_id, embedding in zip(episode_ids, embeddings):
+            cur.execute(
+                "UPDATE episodes SET embedding = %s WHERE id = %s",
+                (str(embedding), episode_id),
+            )
+    conn.commit()
+
+
+def main():
+    if not os.getenv("OPENAI_API_KEY"):
+        print("Error: OPENAI_API_KEY is not set.")
+        print("Create a .env file and add your key:")
+        print("  OPENAI_API_KEY=your-key-here")
+        raise SystemExit(1)
+
+    conn = psycopg2.connect(**DB_CONFIG)
+
+    try:
+        episodes = get_episodes_without_embeddings(conn)
+
+        if not episodes:
+            print("All episodes already have embeddings. Nothing to do.")
+            return
+
+        print(f"Found {len(episodes)} episodes without embeddings.")
+
+        ids = [row[0] for row in episodes]
+        texts = [f"{row[1]}: {row[2]}" for row in episodes]
+
+        print(f"Generating embeddings with {EMBEDDING_MODEL}...")
+        embeddings = generate_embeddings(texts)
+
+        print("Updating database...")
+        update_embeddings(conn, ids, embeddings)
+
+        print(f"Done! Embedded {len(embeddings)} episodes.")
+    finally:
+        conn.close()
+
+
+if __name__ == "__main__":
+    main()
+```
+
+</NumberedItem>
+<NumberedItem title="Configure your environment variables">
+
+Create a `.env` file in the same directory as `embed.py`. This file stores your secrets
+and database connection details. The embedding script reads these at runtime.
+
+<Callout variant="warning">
+  The `.env` file contains secrets like API keys and database passwords. Add `.env` to
+  your `.gitignore` file so it is never committed to version control.
+</Callout>
+
+At minimum, add your OpenAI API key. The embedding script reads this variable to
+authenticate with the OpenAI API:
+
+```ini
+OPENAI_API_KEY=your-key-here
+```
+
+If you are connecting to a {C.CLOUD_LONG} service or a non-default {C.PG} instance, also
+add the following database connection variables to the same `.env` file. The embedding
+script uses these to connect to your database and write the generated vectors:
+
+```ini
+PGHOST=your-host
+PGPORT=5432
+PGUSER=tsdbadmin
+PGPASSWORD=your-password
+PGDATABASE=tsdb
+```
+
+</NumberedItem>
+</NumberedList>
+
+### Run the embedding script
+
+From your project directory in your terminal, run the Python script. It reads each
+episode's title and description from the database, sends them to OpenAI's
+`text-embedding-3-small` model, and writes the resulting 1536-dimensional vectors back to
+the `embedding` column:
+
+```bash
+python embed.py
+```
+
+You should see output like:
+
+```
+Found 12 episodes without embeddings.
+Generating embeddings with text-embedding-3-small...
+Updating database...
+Done! Embedded 12 episodes.
+```
+
+The script is idempotent: it only embeds episodes where `embedding IS NULL`, so you can
+safely re-run it if you add more data later.
+
+### Verify the embeddings
+
+Switch back to your SQL client and run the following query to confirm the embeddings were
+written. It selects the first 3 episodes and truncates the embedding vector to 40
+characters for readability:
+
+```sql
+SELECT id, title, left(embedding::text, 40) AS embedding_preview
+FROM episodes
+LIMIT 3;
+```
+
+You should see a truncated vector (a string of numbers starting with `[`) for each row
+instead of `NULL`.
+
+## Step 4: Create indexes
+
+You've got data and embeddings, but without indexes, every query scans every row. That's
+fine for 12 episodes, but it won't scale. Let's teach {C.PG} to search smarter, not
+harder.
+
+<NumberedList>
+<NumberedItem title="Create a BM25 index for keyword search">
+
+Run the following SQL in your SQL client to create a BM25 index on the `description`
+column. This powers the keyword search queries in later steps:
+
+```sql
+CREATE INDEX episodes_bm25_idx ON episodes
+  USING bm25(description) WITH (text_config = 'english');
+```
+
+The `text_config = 'english'` setting enables English stemming (so "productivity" also
+matches "productive") and removes common stopwords like "the" and "is."
+
+For more on BM25 index configuration, see
+[Understand pg_textsearch and BM25 search](/learn/search/using-pg-textsearch).
+
+</NumberedItem>
+<NumberedItem title="Create a StreamingDiskANN index for vector search">
+
+Run the following SQL in the same session to create a vector similarity index on the
+`embedding` column. This powers the semantic search queries in later steps:
+
+```sql
+CREATE INDEX episodes_embedding_idx ON episodes
+  USING diskann (embedding vector_cosine_ops);
+```
+
+This creates a `pgvectorscale` StreamingDiskANN index using cosine distance.
+Unlike pgvector's built-in HNSW index, DiskANN stores the graph on disk rather than
+requiring the entire index to fit in RAM, which is a big advantage for large embedding sets.
+
+For more on StreamingDiskANN index types and tuning, see the
+[`pgvectorscale` reference](/reference/pgvectorscale/).
+
+</NumberedItem>
+</NumberedList>
+
+## Step 5: Try keyword search (BM25)
+
+Time to take your new indexes for a spin. Start with keyword search to see how BM25 works
+on its own. `pg_textsearch` uses the
+`<@>` operator to score how well a row matches your search terms. Scores are negative so
+that {C.PG}'s default ascending `ORDER BY` puts the most relevant results first (a score
+of -15.3 is more relevant than -8.2).
+
+**Basic keyword search:** run the following query in your SQL client to find episodes
+that match "burnout productivity." The `<@>` operator scores each row against the search
+terms, and `ORDER BY` sorts the results by relevance:
+
+```sql
+SELECT title, description <@> 'burnout productivity' AS score
+FROM episodes
+ORDER BY description <@> 'burnout productivity'
+LIMIT 10;
+```
+
+You should see episodes like "The Conduit Burnout Candle" and "Happiness First,
+Productivity Second" near the top because they contain the words you searched for.
+
+**Keyword search with a date filter:** run this query in your SQL client to search only
+episodes from 2023 onward. {C.PG} detects the `<@>` operator and uses the BM25 index
+automatically, so you can freely combine it with `WHERE` clauses:
+
+```sql
+SELECT title, description <@> 'help' AS score
+FROM episodes
+WHERE pub_date >= '2023-01-01'
+ORDER BY description <@> 'help'
+LIMIT 10;
+```
+
+**What BM25 is good at:** finding exact keyword matches. If someone searches for
+"imposter syndrome," BM25 finds it.
+
+**Where it falls short:** if someone searches for "feeling like a fraud at work," BM25
+won't match the imposter syndrome episode because none of those exact words appear in its
+description. That's where vector search comes in.
+
+## Step 6: Try vector search (semantic similarity)
+
+Now let's see the other side of the coin. Vector search uses the embeddings you generated
+earlier to find episodes by *meaning* rather than keywords. Two pieces of text about the
+same topic have similar embeddings, even if they use completely different words.
+
+The `<=>` operator computes cosine distance between two vectors. Lower values mean more
+similar (0 = identical, 1 = completely unrelated).
+
+**Semantic search:** run the following query in your SQL client to find episodes closest
+in meaning to a query vector. Replace `$1` with an embedding generated from your search
+text (see the note below). The `<=>` operator computes cosine distance, and `ORDER BY`
+sorts by closest match:
+
+```sql
+SELECT title, embedding <=> $1 AS distance
+FROM episodes
+ORDER BY embedding <=> $1
+LIMIT 10;
+```
+
+<Callout variant="note">
+  To get a query vector, generate an embedding for your search text the same way you
+  embedded the episodes, by calling the OpenAI embeddings API. The
+  [`embed.py`](https://github.com/timescale/cookbook-search/blob/main/Hybrid-search/embed.py)
+  script shows how. In a real application, your app generates the query embedding at
+  search time and passes it as a parameter.
+</Callout>
+
+**What vector search is good at:** finding semantically related content. A search for
+"feeling like a fraud at work" surfaces the imposter syndrome episode, even though those
+exact words don't appear anywhere in its description.
+
+**Where it falls short:** it can miss results that match on specific terms. If someone
+searches for "episode 100," BM25 finds it instantly, but vector search might rank it
+lower because "episode 100" doesn't carry strong semantic meaning.
+
+Each method has blind spots, which is exactly why you combine them in the next step.
+
+## Step 7: Combine results with hybrid search (RRF)
+
+This is the grand finale. Instead of trying to compare raw scores across
+different systems (which use different scales), **Reciprocal Rank Fusion** only looks at
+**rank position**. An episode ranked #1 by either method gets a high score. An episode
+ranked #1 by *both* methods gets an even higher score.
+
+The formula for each result is `1 / (k + rank)`, where `k` is a smoothing constant
+(typically 60). You sum this across all the search methods and sort by the total.
+
+**Hybrid search query:** run the following query in your SQL client. It executes both
+BM25 keyword search and vector similarity search as Common Table Expressions (CTEs), then
+joins and scores the results using the RRF formula. Replace `$1` with your query
+embedding vector:
+
+```sql
+-- Get the top 20 BM25 keyword matches
+WITH bm25_results AS (
+  SELECT id, ROW_NUMBER() OVER (
+    ORDER BY description <@> 'mental health boundaries'
+  ) AS rank
+  FROM episodes
+  ORDER BY description <@> 'mental health boundaries'
+  LIMIT 20
+),
+-- Get the top 20 vector similarity matches
+vector_results AS (
+  SELECT id, ROW_NUMBER() OVER (
+    ORDER BY embedding <=> $1  -- $1 is the query embedding vector
+  ) AS rank
+  FROM episodes
+  ORDER BY embedding <=> $1
+  LIMIT 20
+)
+-- Fuse the two ranked lists using RRF
+SELECT
+  d.id,
+  d.title,
+  COALESCE(1.0 / (60 + b.rank), 0)
+    + COALESCE(1.0 / (60 + v.rank), 0) AS rrf_score
+FROM episodes d
+LEFT JOIN bm25_results b ON d.id = b.id
+LEFT JOIN vector_results v ON d.id = v.id
+WHERE b.id IS NOT NULL OR v.id IS NOT NULL
+ORDER BY rrf_score DESC
+LIMIT 10;
+```
+
+**How it works:**
+
+1. **`bm25_results`** runs a keyword search for "mental health boundaries" and assigns
+   each result a rank (1 = best match)
+1. **`vector_results`** runs a vector search using the query embedding and assigns
+   ranks the same way
+1. **The final `SELECT`** joins both result sets by episode ID and computes an RRF
+   score for each. The `COALESCE(..., 0)` ensures that episodes found by only one method
+   still get a score. The `60` is the standard smoothing constant that prevents
+   top-ranked results from dominating too heavily.
+
+**An example to make it concrete:** imagine a user searches for "how do I deal with
+feeling like a fraud at work?"
+
+- **BM25 finds:** "Eating the Devil's Spaghetti: Combating Imposter Syndrome" because it
+  matches on "imposter" after stemming
+- **Vector search finds:** episodes about burnout, boundaries, and mental health  -
+  semantically related even though the words are different
+- **RRF fuses both:** the imposter syndrome episode ranks highest (found by both
+  methods), while related episodes about self-doubt and mental health also surface higher
+  than they would with either method alone
+
+That's hybrid search: the precision of keywords and the recall of semantic similarity in
+a single ranked list. Not bad for a SQL query, right?
+
+## Going further
+
+You've got a working hybrid search system, congrats! If you're the kind of person
+who reads the bonus chapters, here are tips and techniques for taking it into production.
+
+### Search across multiple columns
+
+Each BM25 index covers a single text column. To search across both title and description,
+run the following two SQL statements in your SQL client. The first adds a generated column
+that automatically concatenates the title and description. The second creates a BM25 index
+on that combined column:
+
+```sql
+ALTER TABLE episodes ADD COLUMN search_text text
+  GENERATED ALWAYS AS (title || ' ' || description) STORED;
+
+CREATE INDEX ON episodes USING bm25(search_text)
+  WITH (text_config = 'english');
+```
+
+Now queries against `search_text` match words in either the title or description.
+
+### Highlight matched terms in results
+
+Use {C.PG}'s built-in `ts_headline()` to show which words matched, with surrounding
+context. This is useful for building search result snippets in a UI. Run this query in
+your SQL client to see highlighted results for the term "productivity":
+
+```sql
+SELECT title,
+  ts_headline('english', description, to_tsquery('english', 'productivity')),
+  description <@> 'productivity' AS score
+FROM episodes
+ORDER BY description <@> 'productivity'
+LIMIT 10;
+```
+
+The `ts_headline()` function returns the description with matching terms wrapped in `<b>`
+tags (configurable), while the `<@>` operator handles the BM25 ranking.
+
+### Phrase search workaround
+
+`pg_textsearch` 1.0 doesn't support native phrase queries (matching exact multi-word
+sequences). Work around this by over-fetching from the BM25 index and post-filtering with
+`ILIKE`. Run this query in your SQL client. The inner query uses BM25 to find the top
+100 candidates, and the outer query filters down to rows containing the exact phrase:
+
+```sql
+SELECT * FROM (
+  SELECT * FROM episodes
+  ORDER BY description <@> 'year end planning'
+  LIMIT 100  -- over-fetch to compensate for the post-filter
+) sub
+WHERE description ILIKE '%end-of-year%'
+LIMIT 10;
+```
+
+### Tune vector search accuracy
+
+`pgvectorscale`'s StreamingDiskANN index uses smart defaults. If you need higher
+accuracy at the cost of slightly slower queries, run the following in your SQL client to
+increase the rescore parameter for the current transaction, then execute your vector
+search query:
+
+```sql
+SET LOCAL diskann.query_rescore = 150;
+
+SELECT * FROM episodes
+ORDER BY embedding <=> $1
+LIMIT 10;
+```
+
+Higher `query_rescore` values mean more candidates are re-scored for accuracy. The
+`SET LOCAL` scope means this setting only applies to the current transaction.
+
+### Speed up index builds for large tables
+
+For tables with millions of rows, run the following session-level settings in your SQL
+client before creating indexes. These tell {C.PG} to use 4 parallel workers and allocate
+256 MB of memory for the index build, significantly reducing build time:
+
+```sql
+SET max_parallel_maintenance_workers = 4;
+SET maintenance_work_mem = '256MB';
+
+CREATE INDEX ON large_table USING bm25(content)
+  WITH (text_config = 'english');
+
+CREATE INDEX ON large_table
+  USING diskann (embedding vector_cosine_ops);
+```
+
+Replace `large_table` and `content`/`embedding` with your actual table and column names.
+
+### Compact the BM25 index after bulk inserts
+
+If you bulk-insert a lot of data, the BM25 index may have multiple segments from repeated
+writes. Run the following in your SQL client to merge them into a single segment for
+faster query performance:
+
+```sql
+SELECT bm25_force_merge('episodes_bm25_idx');
+```
+
+Replace `'episodes_bm25_idx'` with your actual index name. This is a one-time
+operation. Run it after large bulk loads, not after every insert.
+
+## Current limitations
+
+No tool is perfect (yet). Here's what to be aware of in `pg_textsearch` 1.0:
+
+- **No phrase queries**: the index stores term frequencies but not positions. Use the
+  over-fetch + post-filter pattern shown above
+- **OR-only query semantics**: all query terms are implicitly OR'd. AND/OR/NOT operators
+  are planned for a post-1.0 release
+- **No highlighting from the index**: use {C.PG}'s built-in `ts_headline()` on the result
+  set
+- **Single column per index**: use a generated column to combine multiple fields
+- **PL/pgSQL requires explicit index names**: use
+  `to_bm25query('query', 'index_name')` inside PL/pgSQL, DO blocks, or stored procedures
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Understand pg_textsearch and BM25 search"
+    description="Learn why BM25 full-text search matters, how pg_textsearch ranks results, and when to use it"
+    href="/learn/search/using-pg-textsearch"
+  />
+  <RelatedContentCard
+    title="Understand pgvector and pgvectorscale"
+    description={`Learn how vector embeddings power semantic search with pgvector and pgvectorscale on ${C.CLOUD_LONG}`}
+    href="/learn/search/pgvector-pgvectorsearch"
+  />
+  <RelatedContentCard
+    title="pgvectorscale reference"
+    description="StreamingDiskANN index types, filtered search, and build or query parameters"
+    href="/reference/pgvectorscale/"
+  />
+  <RelatedContentCard
+    title="pg_textsearch deploy guide"
+    description={`Install, configure, and optimize pg_textsearch on ${C.CLOUD_LONG}`}
+    href="/deploy/tiger-cloud/tiger-cloud-AWS/tiger-cloud-extensions/pg-textsearch"
+  />
+</RelatedContentCards>
