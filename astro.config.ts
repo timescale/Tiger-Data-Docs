@@ -513,6 +513,7 @@ export default defineConfig({
                   collapsed: true,
                   items: [
                     { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
+                    { label: "Build hybrid search with BM25 and vectors", link: "/build/examples/hybrid-search" },
                     { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
                   ],
                 },
