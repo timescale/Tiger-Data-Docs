@@ -142,7 +142,7 @@ src/content/docs/
 │   ├── data-ingestion-streaming/
 │   ├── connectors/        # Source and destination connectors
 │   │   ├── source/        # Kafka, Postgres, S3
-│   │   └── destination/   # Tigerlake
+│   │   └── destination/   # Tiger Lake
 │   ├── code/
 │   ├── query-administration/
 │   ├── secure-connectivity/
