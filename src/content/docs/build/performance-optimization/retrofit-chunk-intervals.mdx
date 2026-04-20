@@ -1,0 +1,293 @@
+---
+title: Retrofit chunk intervals on a production hypertable
+description: Increase the chunk_interval of an existing hypertable without blocking ingestion, using a table-swap migration and batched backfill.
+products: [cloud, mst, self_hosted]
+keywords: [hypertables, chunks, chunk_interval, performance, migration]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+Selecting the optimal `chunk_interval` before your system reaches production scale is a hard
+architectural decision. As a rule of thumb, it is safer to provision larger {C.CHUNK}s than
+smaller ones: larger {C.CHUNK}s compress better in the {C.COLUMNSTORE} and reduce planner
+overhead.
+
+If you find yourself operating a {C.HYPERTABLE} with an undersized interval, this page provides
+a production-ready methodology for retrofitting the `chunk_interval` in hindsight, without
+blocking ongoing ingestion.
+
+<Callout variant="warning">
+This is a generalized approach. It does not account for every schema — particularly the full
+lifecycle of constraints. Apply your own technical diligence to adapt these steps safely and
+test in a staging environment first.
+</Callout>
+
+## Identify the symptoms of undersized {C.CHUNK}s
+
+When a {C.HYPERTABLE} is fragmented into too many tiny {C.CHUNK}s, the {C.PG} planner works
+exponentially harder. You typically see:
+
+- **Degrading query performance**: maintaining over 1,000 {C.CHUNK}s per {C.HYPERTABLE} is an
+  anti-pattern. Beyond that threshold, scanning catalog tables adds significant planning overhead.
+- **Increased OOM errors**: out-of-memory errors occur more frequently due to the volume of
+  {C.CHUNK} metadata the database must hold in memory during wide time-series scans.
+
+For background on why {C.CHUNK} sizing matters, see
+[Size {C.HYPERTABLE} {C.CHUNK}s](/learn/hypertables/sizing-hypertable-chunks).
+
+<Callout variant="warning">
+The table-swap methodology is **unsafe** for {C.HYPERTABLE}s that enforce unique constraints.
+Because the new table's index starts empty, incoming live data is not checked against historical
+tuples in the temporary table, causing fatal duplicate-key violations during backfill. To
+maintain data integrity, pause all ingestion until the historical migration is complete.
+</Callout>
+
+## The scenario
+
+Consider a system storing temperatures from 100 distinct sensors, configured with a
+`chunk_interval` of 15 minutes:
+
+```sql
+CREATE TABLE temperature_readings (
+  time TIMESTAMPTZ NOT NULL,
+  sensor_id INTEGER NOT NULL,
+  temperature DOUBLE PRECISION NULL
+) WITH (
+  tsdb.hypertable,
+  tsdb.segmentby='sensor_id',
+  tsdb.chunk_interval='15 minutes'
+);
+```
+
+Each sensor emits a reading every 5 minutes, creating tiny {C.CHUNK}s holding merely 300 tuples
+each. Three months in, the {C.HYPERTABLE} has accumulated nearly 3,000 {C.CHUNK}s, causing
+noticeable performance degradation:
+
+```sql
+SELECT show_chunks('temperature_readings');
+-- 2,977 chunks
+```
+
+To resolve this, drastically reduce the {C.CHUNK} count by increasing the `chunk_interval`.
+The rest of this page walks through a "table swap" strategy: create a new {C.HYPERTABLE},
+swap the underlying relations, and backfill historical data.
+
+## Retrofit the {C.CHUNK} interval
+
+<NumberedList>
+
+<NumberedItem title="Provision the target hypertable">
+
+Create a structurally identical table, appending a `_new` suffix to the name. Define this table
+with your newly optimized `chunk_interval` — in this case, **1 day**:
+
+```sql
+CREATE TABLE temperature_readings_new (
+  time TIMESTAMPTZ NOT NULL,
+  sensor_id INTEGER NOT NULL,
+  temperature DOUBLE PRECISION NULL
+) WITH (
+  tsdb.hypertable,
+  tsdb.segmentby='sensor_id',
+  tsdb.chunk_interval='1 day'
+);
+```
+
+To preserve referential integrity, transfer all constraints — foreign keys, primary keys,
+unique, check, and exclusion — from `temperature_readings` to the new {C.HYPERTABLE}:
+
+```sql
+DO $$
+DECLARE
+    constraint_record RECORD;
+    drop_stmt TEXT;
+    add_stmt TEXT;
+
+    -- Define your tables here
+    source_table TEXT := 'temperature_readings';
+    target_table TEXT := 'temperature_readings_new';
+BEGIN
+    -- Loop through ALL constraints on the source table
+    FOR constraint_record IN
+        SELECT
+            conname AS constraint_name,
+            pg_get_constraintdef(oid) AS constraint_definition
+        FROM pg_constraint
+        WHERE conrelid = source_table::regclass
+        -- No contype filter: captures 'p', 'u', 'c', 'f', and 'x' constraint types
+    LOOP
+        drop_stmt := format('ALTER TABLE %I DROP CONSTRAINT %I;', source_table, constraint_record.constraint_name);
+        EXECUTE drop_stmt;
+        RAISE NOTICE 'Dropped: %', drop_stmt;
+
+        add_stmt := format('ALTER TABLE %I ADD CONSTRAINT %I %s;', target_table, constraint_record.constraint_name, constraint_record.constraint_definition);
+        EXECUTE add_stmt;
+        RAISE NOTICE 'Added: %', add_stmt;
+    END LOOP;
+END $$;
+```
+
+</NumberedItem>
+
+<NumberedItem title="Swap the tables">
+
+To avoid blocking ingestion, swap the table names inside a single transaction. This guarantees
+that any new incoming data is immediately routed to the optimized {C.HYPERTABLE}:
+
+```sql
+BEGIN;
+ALTER TABLE temperature_readings RENAME TO temperature_readings_temp;
+ALTER TABLE temperature_readings_new RENAME TO temperature_readings;
+COMMIT;
+```
+
+<Callout variant="note">
+The moment this transaction commits, the active `temperature_readings` table is empty. Live
+ingestion continues uninterrupted, but historical queries return no data until the backfill
+completes. If downstream dependencies rely on strict historical read consistency, run this
+during a scheduled maintenance window.
+</Callout>
+
+</NumberedItem>
+
+<NumberedItem title="Backfill the historical data">
+
+Migrate historical data from the temporary table into the new {C.HYPERTABLE}. To avoid
+overwhelming memory or the transaction log, use a `PL/pgSQL` block to move data in manageable
+1-day batches:
+
+```sql
+DO $$
+DECLARE
+  start_time timestamptz;
+  end_time timestamptz;
+  batch_interval interval := INTERVAL '1 day'; -- Adjust batch size as needed
+  min_time timestamptz;
+  max_time timestamptz;
+BEGIN
+  -- Find the total time range of your historical data
+  SELECT min(time), max(time) INTO min_time, max_time FROM temperature_readings_temp;
+
+  start_time := min_time;
+
+  WHILE start_time <= max_time LOOP
+    end_time := start_time + batch_interval;
+
+    RAISE NOTICE 'Moving data from % to %', start_time, end_time;
+
+    INSERT INTO temperature_readings
+    SELECT * FROM temperature_readings_temp
+    WHERE time >= start_time AND time < end_time
+    ORDER BY time ASC;
+
+    -- Commit the current batch to the database immediately
+    COMMIT;
+
+    start_time := end_time;
+  END LOOP;
+END $$;
+```
+
+</NumberedItem>
+
+<NumberedItem title={`Verify the new ${C.CHUNK} count`}>
+
+Once the backfill completes, verify the new {C.CHUNK} count. The {C.HYPERTABLE} should now
+reflect a significantly healthier architecture — for example, dropping from ~3,000 {C.CHUNK}s
+to roughly 32:
+
+```sql
+SELECT show_chunks('temperature_readings');
+```
+
+Optionally, force compression of newly generated {C.CHUNK}s into the {C.COLUMNSTORE} rather
+than waiting for the next scheduled run of your compression policy:
+
+```sql
+SELECT compress_chunk(i) FROM show_chunks('temperature_readings', older_than => INTERVAL '1 day') i;
+```
+
+See [`show_chunks()`](/reference/timescaledb/hypertables/show_chunks) and
+[`compress_chunk()`](/reference/timescaledb/hypercore/compress_chunk) for details.
+
+</NumberedItem>
+
+<NumberedItem title="Clean up the legacy table">
+
+Once you have verified that all data is present and the application is functioning as expected,
+drop the legacy temporary table to reclaim disk space:
+
+```sql
+DROP TABLE temperature_readings_temp;
+```
+
+</NumberedItem>
+
+</NumberedList>
+
+## Testing resources
+
+To rehearse this migration in a staging environment, use the following scripts to generate a
+mock dataset.
+
+### Generate 3 months of historical data
+
+```sql
+INSERT INTO temperature_readings (time, sensor_id, temperature)
+SELECT
+  t.time,
+  s.sensor_id,
+  -- Generates a random temperature between 10.0 and 40.0
+  random() * 30 + 10 AS temperature
+FROM
+  -- Generate a timestamp every 5 minutes for the last 3 months
+  generate_series(
+    NOW() - INTERVAL '3 month',
+    NOW(),
+    INTERVAL '5 minutes'
+  ) AS t(time)
+CROSS JOIN
+  -- Generate sensor IDs from 1 to 100
+  generate_series(1, 100) AS s(sensor_id);
+
+-- Run the compression policy, compress everything older than one day
+SELECT compress_chunk(i) FROM show_chunks('temperature_readings', older_than => INTERVAL '1 day') i;
+```
+
+### Simulate continuous ingestion
+
+Use this `bash` script to continuously trickle live data into the database while you rehearse
+the migration:
+
+```bash
+#!/bin/bash
+
+CONN_STR="<connection string>" # Change to your connection string
+SENSOR_ID=1
+
+echo "Starting data generation... (Press Ctrl+C to stop)"
+
+while true; do
+  TEMP=$(awk -v min=10 -v max=40 'BEGIN{srand(); print min+rand()*(max-min)}')
+
+  psql $CONN_STR -c "INSERT INTO temperature_readings (time, sensor_id, temperature) VALUES (NOW(), $SENSOR_ID, $TEMP);" > /dev/null 2>&1
+  echo "Inserted: Sensor $SENSOR_ID | Temp $TEMP °C"
+
+  SENSOR_ID=$(( (SENSOR_ID % 100) + 1 ))
+
+  sleep 5
+done
+```
+
+## Learn more
+
+- [Size {C.HYPERTABLE} {C.CHUNK}s](/learn/hypertables/sizing-hypertable-chunks): conceptual
+  background on why {C.CHUNK} sizing matters.
+- [Improve {C.HYPERTABLE} and query performance](/build/performance-optimization/improve-hypertable-performance):
+  tune {C.CHUNK} intervals on new {C.CHUNK}s and enable {C.CHUNK_SKIPPING}.
+- [`set_chunk_time_interval()`](/reference/timescaledb/hypertables/set_chunk_time_interval):
+  change the {C.CHUNK} interval for newly created {C.CHUNK}s.
+- [`show_chunks()`](/reference/timescaledb/hypertables/show_chunks): inspect existing
+  {C.CHUNK}s and their ranges.
