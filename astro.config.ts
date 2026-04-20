@@ -665,6 +665,7 @@ export default defineConfig({
                 { label: "Enforce constraints with unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
                 { label: "Improve query and upsert performance", link: "/build/performance-optimization/secondary-indexes" },
                 { label: "Improve hypertable performance", link: "/build/performance-optimization/improve-hypertable-performance" },
+                { label: "Retrofit chunk intervals", link: "/build/performance-optimization/retrofit-chunk-intervals" },
                 { label: "Improve storage performance using tablespaces", link: "/build/performance-optimization/manage-tablespaces" },
                 { label: "Automate tasks with triggers", link: "/build/performance-optimization/automate-tasks-with-triggers" },
               ],
