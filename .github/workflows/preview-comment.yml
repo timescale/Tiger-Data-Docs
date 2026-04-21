@@ -1,0 +1,92 @@
+name: Preview Comment
+
+on:
+  deployment_status:
+
+permissions:
+  pull-requests: write
+  deployments: read
+
+jobs:
+  post-preview-comment:
+    if: |
+      github.event.deployment_status.state == 'success' &&
+      startsWith(github.event.deployment.environment, 'Preview') &&
+      contains(github.event.deployment_status.target_url, 'vercel.app')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find PR for this deployment
+        id: pr
+        uses: actions/github-script@v8
+        env:
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+        with:
+          script: |
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: process.env.DEPLOY_SHA,
+            });
+            const pr = prs.find(p => p.state === 'open');
+            if (!pr) {
+              core.info('No open PR for this deployment; skipping.');
+              return;
+            }
+            core.setOutput('number', pr.number);
+
+      - name: Post or update preview comment
+        if: steps.pr.outputs.number
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          DEPLOY_URL: ${{ github.event.deployment_status.target_url }}
+          BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        with:
+          script: |
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            const deployUrl = process.env.DEPLOY_URL;
+            const secret = process.env.BYPASS_SECRET || '';
+
+            const bypassUrl = secret
+              ? `${deployUrl}?x-vercel-protection-bypass=${secret}&x-vercel-set-bypass-cookie=true`
+              : deployUrl;
+
+            const marker = '<!-- docs-preview-comment -->';
+            const body = [
+              marker,
+              `### Docs preview ready`,
+              ``,
+              `**[Open preview](${bypassUrl})**`,
+              ``,
+              `Public link — no Vercel account required. Safe to share with external reviewers (SMEs, PMs, writers).`,
+              ``,
+              `<details><summary>Troubleshooting</summary>`,
+              ``,
+              `- If the link redirects to a Vercel login page, open it in a fresh incognito window.`,
+              `- If you bookmarked an older preview URL, use the link above instead — the bypass params must be present on first visit to set the access cookie.`,
+              `- Direct deployment URL (no bypass params): ${deployUrl}`,
+              ``,
+              `</details>`,
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
