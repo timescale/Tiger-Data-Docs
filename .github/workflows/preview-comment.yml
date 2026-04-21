@@ -40,31 +40,45 @@ jobs:
         env:
           PR_NUMBER: ${{ steps.pr.outputs.number }}
           DEPLOY_URL: ${{ github.event.deployment_status.target_url }}
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
           BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         with:
           script: |
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
             const deployUrl = process.env.DEPLOY_URL;
+            const deploySha = process.env.DEPLOY_SHA;
             const secret = process.env.BYPASS_SECRET || '';
 
             const bypassUrl = secret
               ? `${deployUrl}?x-vercel-protection-bypass=${secret}&x-vercel-set-bypass-cookie=true`
               : deployUrl;
 
+            const iconUrl = `https://raw.githubusercontent.com/${context.repo.owner}/${context.repo.repo}/${deploySha}/.github/assets/tiger-review-icon-256.jpg`;
+
             const marker = '<!-- docs-preview-comment -->';
             const body = [
               marker,
+              `<img src="${iconUrl}" width="72" align="left" alt="Tiger review bot"/>`,
+              ``,
               `### Docs preview ready`,
               ``,
-              `**[Open preview](${bypassUrl})**`,
+              `**[🔗 Open preview](${bypassUrl})**`,
               ``,
-              `Public link — no Vercel account required. Safe to share with external reviewers (SMEs, PMs, writers).`,
+              `_Public — share with reviewers, SMEs, or stakeholders. No Vercel login required._`,
+              ``,
+              `#### What to check`,
+              ``,
+              `- **Rendered output** — headings, callouts, code, tables, images, brand constants ({C.PG} etc.)`,
+              `- **Every link** you added or touched — click them all`,
+              `- **Neighbors** — pages linking in, partials consumers, adjacent sidebar items`,
+              `- **Mobile** — DevTools responsive mode or a real phone`,
+              `- **Search** — try terms or page names you introduced`,
               ``,
               `<details><summary>Troubleshooting</summary>`,
               ``,
-              `- If the link redirects to a Vercel login page, open it in a fresh incognito window.`,
-              `- If you bookmarked an older preview URL, use the link above instead — the bypass params must be present on first visit to set the access cookie.`,
-              `- Direct deployment URL (no bypass params): ${deployUrl}`,
+              `- Hit a Vercel login page? Open in a fresh incognito window.`,
+              `- Bookmarked an older URL? Use the fresh link above.`,
+              `- Plain deployment URL: ${deployUrl}`,
               ``,
               `</details>`,
             ].join('\n');
