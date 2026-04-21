@@ -1,0 +1,97 @@
+---
+/**
+ * ThemeImage — renders a pair of images and swaps between them based on the
+ * active theme. Uses Starlight's `[data-theme]` attribute for manual toggles
+ * and `prefers-color-scheme` as a fallback when no preference is stored.
+ *
+ * Usage:
+ *   import lifecycleLight from "../../../../assets/images/learn/data-lifecycle/Main-Light.png";
+ *   import lifecycleDark from "../../../../assets/images/learn/data-lifecycle/Main-Dark.png";
+ *
+ *   <ThemeImage
+ *     light={lifecycleLight}
+ *     dark={lifecycleDark}
+ *     alt="The five phases of the data lifecycle"
+ *   />
+ */
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+import type { HTMLAttributes } from "astro/types";
+
+interface Props extends Omit<HTMLAttributes<"img">, "src" | "srcset"> {
+  light: ImageMetadata;
+  dark: ImageMetadata;
+  alt: string;
+  class?: string;
+  loading?: "eager" | "lazy";
+}
+
+const {
+  light,
+  dark,
+  alt,
+  class: className,
+  loading = "lazy",
+  ...rest
+} = Astro.props;
+---
+
+<span class:list={["theme-image", className]}>
+  <Image
+    {...rest}
+    src={light}
+    alt={alt}
+    loading={loading}
+    class="theme-image__light"
+  />
+  <Image
+    {...rest}
+    src={dark}
+    alt={alt}
+    loading={loading}
+    class="theme-image__dark"
+    aria-hidden="true"
+  />
+</span>
+
+<style>
+  .theme-image {
+    display: block;
+  }
+  .theme-image :global(img) {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Default: show light, hide dark */
+  .theme-image :global(.theme-image__light) {
+    display: block;
+  }
+  .theme-image :global(.theme-image__dark) {
+    display: none;
+  }
+
+  /* System preference fallback when no explicit theme is set */
+  @media (prefers-color-scheme: dark) {
+    .theme-image :global(.theme-image__light) {
+      display: none;
+    }
+    .theme-image :global(.theme-image__dark) {
+      display: block;
+    }
+  }
+
+  /* Starlight's manual theme toggle — wins over the media query */
+  :global([data-theme="light"]) .theme-image :global(.theme-image__light) {
+    display: block;
+  }
+  :global([data-theme="light"]) .theme-image :global(.theme-image__dark) {
+    display: none;
+  }
+  :global([data-theme="dark"]) .theme-image :global(.theme-image__light) {
+    display: none;
+  }
+  :global([data-theme="dark"]) .theme-image :global(.theme-image__dark) {
+    display: block;
+  }
+</style>
