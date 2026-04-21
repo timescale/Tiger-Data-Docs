@@ -8,6 +8,19 @@ keywords: [data lifecycle, data management, data retention, continuous aggregate
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+import ThemeImage from "@components/ThemeImage.astro";
+import lifecycleMainLight from "../../../../assets/images/learn/data-lifecycle/2026-04-Lifecycle-Main-Light.png";
+import lifecycleMainDark from "../../../../assets/images/learn/data-lifecycle/2026-04-Lifecycle-Main-Dark.png";
+import lifecyclePhase1Light from "../../../../assets/images/learn/data-lifecycle/2026-04-Lifecycle-Phase-1-Light.png";
+import lifecyclePhase1Dark from "../../../../assets/images/learn/data-lifecycle/2026-04-Lifecycle-Phase-1-Dark.png";
+import lifecyclePhase2Light from "../../../../assets/images/learn/data-lifecycle/2026-04-Lifecycle-Phase-2-Light.png";
+import lifecyclePhase2Dark from "../../../../assets/images/learn/data-lifecycle/2026-04-Lifecycle-Phase-2-Dark.png";
+import lifecyclePhase3Light from "../../../../assets/images/learn/data-lifecycle/2026-04-Lifecycle-Phase-3-Light.png";
+import lifecyclePhase3Dark from "../../../../assets/images/learn/data-lifecycle/2026-04-Lifecycle-Phase-3-Dark.png";
+import lifecyclePhase4Light from "../../../../assets/images/learn/data-lifecycle/2026-04-Lifecycle-Phase-4-Light.png";
+import lifecyclePhase4Dark from "../../../../assets/images/learn/data-lifecycle/2026-04-Lifecycle-Phase-4-Dark.png";
+import lifecyclePhase5Light from "../../../../assets/images/learn/data-lifecycle/2026-04-Lifecycle-Phase-5-Light.png";
+import lifecyclePhase5Dark from "../../../../assets/images/learn/data-lifecycle/2026-04-Lifecycle-Phase-5-Dark.png";
 
 Time-series data is relentless. It grows at an ever-increasing rate and quickly
 becomes expensive and unwieldy to store and query. Managing your time-series data
@@ -22,7 +35,7 @@ maintenance — without building custom pipelines or relying on external tools.
 
 For definitions of all terms used in this guide, see the [glossary](/learn/glossary).
 
-## The five phases
+## The Five phases
 
 The data lifecycle describes the journey your data takes as it ages. Each phase
 maps to a set of {C.TIMESCALE_DB} features that help you manage that stage
@@ -36,9 +49,19 @@ efficiently:
 | **4. Compress and archive** | Compress and move aging data to cheaper storage | [{C.COLUMNSTORE_CAP}](/learn/columnar-storage/compression-methods), [tiered storage](/learn/data-lifecycle/storage/about-storage-tiers) |
 | **5. Drop old data** | Remove data that is no longer valuable | [Retention policies](/learn/data-lifecycle/data-retention/about-data-retention), [`drop_chunks`](/reference/timescaledb/hypertables/drop_chunks) |
 
-{/* TODO: Insert lifecycle diagram here */}
+<ThemeImage
+  light={lifecycleMainLight}
+  dark={lifecycleMainDark}
+  alt="The five phases of the Tiger Data lifecycle: ingest and store, query recent data, create aggregated rollups, compress and archive, and drop old data"
+/>
 
-## Phase 1: ingest and store data efficiently
+## Phase 1: Ingest and store data efficiently
+
+<ThemeImage
+  light={lifecyclePhase1Light}
+  dark={lifecyclePhase1Dark}
+  alt="Phase 1 of the data lifecycle: incoming time-series data is written to a hypertable, which automatically partitions it into chunks by time range for fast ingest"
+/>
 
 When it comes to time-series data, storing data as quickly and as efficiently as
 possible is the foundation of everything else. {C.TIMESCALE_DB} achieves this
@@ -61,7 +84,13 @@ Key considerations at this stage:
   [{C.COLUMNSTORE}](/learn/columnar-storage/compression-methods) for significant
   storage savings. See [Phase 4](#phase-4-compress-and-archive-older-data).
 
-## Phase 2: query recent data
+## Phase 2: Query recent data
+
+<ThemeImage
+  light={lifecyclePhase2Light}
+  dark={lifecyclePhase2Dark}
+  alt="Phase 2 of the data lifecycle: queries against recent data use chunk exclusion and time_bucket aggregations to read only the relevant hot chunks"
+/>
 
 Once data is stored, you need to query it efficiently. {C.TIMESCALE_DB} extends
 the {C.PG} query planner with time-series-aware optimizations. Queries on recent
@@ -88,7 +117,13 @@ ORDER BY bucket DESC;
 As your dataset grows and queries over longer time ranges slow down, it is time
 to move to the next phase.
 
-## Phase 3: create aggregated rollups
+## Phase 3: Create aggregated rollups
+
+<ThemeImage
+  light={lifecyclePhase3Light}
+  dark={lifecyclePhase3Dark}
+  alt="Phase 3 of the data lifecycle: a continuous aggregate incrementally summarizes raw hypertable data into pre-computed rollups that refresh automatically on a schedule"
+/>
 
 As data ages, individual data points often matter less than statistical
 summaries. [{C.CAGG_CAP}s](/learn/continuous-aggregates) solve this. A
@@ -127,7 +162,13 @@ You can also create
 where one {C.CAGG} reads from another instead of from raw data, to build
 multi-resolution rollup pipelines (for example, hourly to daily to monthly).
 
-## Phase 4: compress and archive older data
+## Phase 4: Compress and archive older data
+
+<ThemeImage
+  light={lifecyclePhase4Light}
+  dark={lifecyclePhase4Dark}
+  alt="Phase 4 of the data lifecycle: aging chunks are converted to the columnstore for compression and then tiered to low-cost object storage while remaining queryable"
+/>
 
 As {C.CHUNK}s age past their "hot" query window, you can dramatically reduce
 storage costs in two ways: convert {C.CHUNK}s to the {C.COLUMNSTORE} for
@@ -183,7 +224,13 @@ with the [`move_chunk`](/reference/timescaledb/hypertables/move_chunk) function
 to relocate {C.CHUNK}s to slower, cheaper disks. You can automate this with a
 [custom {C.JOB}](/build/data-management/example-tiered-storage).
 
-## Phase 5: drop old data
+## Phase 5: Drop old data
+
+<ThemeImage
+  light={lifecyclePhase5Light}
+  dark={lifecyclePhase5Dark}
+  alt="Phase 5 of the data lifecycle: a scheduled retention policy automatically drops entire chunks older than a defined threshold to reclaim storage"
+/>
 
 At some point, raw data is no longer valuable. Keeping it around slows down
 queries, inflates storage costs, and adds maintenance overhead.
