@@ -921,8 +921,9 @@ export default defineConfig({
                         { label: "Manage data security in your service", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/read-only-role" },
                         { label: "SAML authentication", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/saml" },
                         { label: "Connect with a stricter SSL mode", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/strict-ssl" },
-                        { label: "VPC Peering and AWS PrivateLink", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/vpc" },
+                        { label: "VPC Peering", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/vpc" },
                         { label: "AWS Transit Gateway", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/transit-gateway" },
+                        { label: "AWS PrivateLink", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/aws-privatelink" },
                       ],
                     },
                     {
