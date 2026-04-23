@@ -83,7 +83,7 @@ The card uses local `--lm-*` CSS variables that cascade from project tokens (`sr
 | `--lm-bg` | `--step-card-bg` | Card background |
 | `--lm-border` | `--step-card-border` | Card border |
 | `--lm-fg-strong` | `--toc-title-active` | Title, section heads, icons |
-| `--lm-fg-muted` | `--toc-title-inactive` | Link text and icons |
+| `--lm-fg-muted` | `--tiger-fg-emphasized` | Link text and icons (chosen over `--toc-title-inactive` so 14px body copy clears WCAG AA at 4.5:1 in both themes) |
 | `--lm-cta-bg` / `--lm-cta-fg` / `--lm-cta-border` | `--button-secondary-*` | Outlined CTA (default state) |
 | `--lm-cta-hover-bg` / `--lm-cta-hover-fg` | `--stl-button-primary-*` | CTA on hover/focus |
 
