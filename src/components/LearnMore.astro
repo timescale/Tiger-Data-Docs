@@ -1,0 +1,320 @@
+---
+/**
+ * LearnMore — right-rail card showing tutorial links, related blog posts, and an optional CTA.
+ * Figma 3588-7875 / -7948 (light) / -7974 / -8047 (dark).
+ *
+ * Driven entirely by page frontmatter (see `learnMoreSchema` in `src/content.config.ts`).
+ * Hidden automatically when no tutorials / relatedPosts / cta are provided.
+ */
+
+interface LearnMoreLink {
+  label: string;
+  href: string;
+}
+
+export interface Props {
+  title?: string;
+  tutorials?: LearnMoreLink[];
+  tutorialsHeading?: string;
+  relatedPosts?: LearnMoreLink[];
+  relatedPostsHeading?: string;
+  cta?: { label: string; href: string };
+}
+
+const {
+  title = "Learn more",
+  tutorials,
+  tutorialsHeading = "Tutorials",
+  relatedPosts,
+  relatedPostsHeading = "Related blog posts",
+  cta,
+} = Astro.props;
+
+const hasTutorials = Array.isArray(tutorials) && tutorials.length > 0;
+const hasRelated = Array.isArray(relatedPosts) && relatedPosts.length > 0;
+const hasCta = !!(cta && cta.label && cta.href);
+const hasContent = hasTutorials || hasRelated || hasCta;
+
+function isExternal(href: string) {
+  return /^https?:\/\//i.test(href);
+}
+---
+
+{hasContent && (
+  <aside class="learn-more" aria-labelledby="learn-more-title">
+    <div class="learn-more__header">
+      <svg class="learn-more__title-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="M22 10 12 5 2 10l10 5 10-5Z" />
+        <path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5" />
+        <path d="M22 10v6" />
+      </svg>
+      <h2 id="learn-more-title" class="learn-more__title">{title}</h2>
+    </div>
+
+    {hasTutorials && (
+      <section class="learn-more__section">
+        <div class="learn-more__section-head">
+          <svg class="learn-more__section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+          </svg>
+          <span>{tutorialsHeading}</span>
+        </div>
+        <ul class="learn-more__list">
+          {tutorials!.map((item) => (
+            <li>
+              <a
+                class="learn-more__link"
+                href={item.href}
+                {...(isExternal(item.href)
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
+              >
+                <svg class="learn-more__link-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
+                <span>{item.label}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {hasRelated && (
+      <section class="learn-more__section">
+        <div class="learn-more__section-head">
+          <svg class="learn-more__section-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+          <span>{relatedPostsHeading}</span>
+        </div>
+        <ul class="learn-more__list">
+          {relatedPosts!.map((item) => (
+            <li>
+              <a
+                class="learn-more__link"
+                href={item.href}
+                {...(isExternal(item.href)
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
+              >
+                <svg class="learn-more__link-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+                <span>{item.label}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {hasCta && (
+      <a
+        class="learn-more__cta"
+        href={cta!.href}
+        {...(isExternal(cta!.href)
+          ? { target: "_blank", rel: "noopener noreferrer" }
+          : {})}
+      >
+        <svg class="learn-more__cta-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <path d="M12 3v12" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="5" y1="21" x2="19" y2="21" />
+        </svg>
+        <span>{cta!.label}</span>
+      </a>
+    )}
+  </aside>
+)}
+
+<style is:global>
+  /*
+   * LearnMore card — fully self-contained styles. Figma 3588-7875 / -7948 / -7974 / -8047.
+   *
+   * All selectors chain off `.learn-more` so these rules don't leak, and all
+   * descendants use `.learn-more .learn-more__X` for specificity (0,2,0) — this
+   * beats the Starlight right-sidebar defaults like `.right-sidebar-panel :where(a)`
+   * (specificity 0,1,0) without needing !important or scope-breaking rules in
+   * PageSidebar.astro. Every property is explicit: no `inherit`, no reliance on
+   * ambient sidebar styles.
+   *
+   * Design tokens used come from `src/styles/tokens.css` and flip for dark mode there:
+   *   --lm-bg, --lm-border, --lm-fg-strong, --lm-fg-muted (defined below with fallbacks).
+   */
+
+  .learn-more {
+    --lm-bg: var(--step-card-bg, #ffffff);
+    --lm-border: var(--step-card-border, #dddde3);
+    --lm-fg-strong: var(--toc-title-active, #15151e);
+    /* Link text: uses `--tiger-fg-emphasized` (#555570 light / grey-200 dark)
+       instead of the lighter `--toc-title-inactive` so body copy clears WCAG AA
+       (4.5:1) for 14px text. The TOC can get away with a lighter inactive color
+       because active items stand out by contrast; every link here needs to be
+       equally readable. */
+    --lm-fg-muted: var(--tiger-fg-emphasized, #555570);
+    /* CTA — Figma 3245-9622: outlined (secondary tokens) by default,
+       flips to solid (primary tokens) on hover/focus. */
+    --lm-cta-border: var(--button-secondary-border, #15151e);
+    --lm-cta-bg: var(--button-secondary-bg-default, #ffffff);
+    --lm-cta-fg: var(--button-secondary-fg, #15151e);
+    --lm-cta-hover-bg: var(--stl-button-primary-bg, #0b0b0f);
+    --lm-cta-hover-fg: var(--stl-button-primary-fg, #ffffff);
+
+    display: flex;
+    flex-direction: column;
+    /* Compact card. Figma 3588-7948 uses 24/16 at wide canvas — at right-rail
+       width that reads airy, so we pull down to 12/4 with 16px padding. */
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--lm-border);
+    border-radius: var(--tiger-radius-md, 8px);
+    background: var(--lm-bg);
+    font-family: var(--stl-font-family, inherit);
+
+    /* Pin the card to the bottom of the right rail. `margin-top: auto` pushes
+       it to the end of the PageSidebar's flex column (`.sl-container` is sized
+       ~= viewport height), and since that column lives inside Starlight's own
+       viewport-sticky rail container, the card ends up at the viewport bottom
+       on any page longer than the viewport. On short pages it simply sits at
+       the bottom of the rail — which is what we want either way.
+       A 2.5rem bottom margin keeps it off the prev/next footer on short pages. */
+    margin-top: auto;
+    margin-bottom: 1.5rem;
+  }
+
+  /* Header: 18x18 graduation cap + "Learn more" title (18px / 600). */
+  .learn-more .learn-more__header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .learn-more .learn-more__title-icon {
+    flex-shrink: 0;
+    color: var(--lm-fg-strong);
+  }
+
+  .learn-more .learn-more__title {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--lm-fg-strong);
+  }
+
+  /* Tutorials / Related blog posts section — 14px / 600 heading + list.
+     4px gap binds the section heading tight to its list. */
+  .learn-more .learn-more__section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .learn-more .learn-more__section-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--lm-fg-strong);
+  }
+
+  .learn-more .learn-more__section-icon {
+    flex-shrink: 0;
+    color: var(--lm-fg-strong);
+  }
+
+  .learn-more .learn-more__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .learn-more .learn-more__list > li {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Link rows: 14px / 450 / underlined / muted — wins over right-sidebar `:where(a)`
+     defaults (font-size:xs, color:gray-3, display:block) via the (0,2,0) specificity. */
+  .learn-more .learn-more__link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 450;
+    line-height: 1.5;
+    color: var(--lm-fg-muted);
+    text-decoration: underline;
+    text-decoration-color: currentColor;
+    text-underline-offset: 2px;
+    overflow-wrap: anywhere;
+    transition: color 0.15s ease;
+  }
+
+  .learn-more .learn-more__link:hover,
+  .learn-more .learn-more__link:focus-visible {
+    color: var(--lm-fg-strong);
+  }
+
+  .learn-more .learn-more__link-icon {
+    flex-shrink: 0;
+    color: var(--lm-fg-muted);
+    transition: color 0.15s ease;
+  }
+
+  .learn-more .learn-more__link:hover .learn-more__link-icon,
+  .learn-more .learn-more__link:focus-visible .learn-more__link-icon {
+    color: var(--lm-fg-strong);
+  }
+
+  /* CTA — Figma 3245-9622: outlined button with download icon, full card width,
+     12px padding, 16px / 500 Medium, 4px radius. Hovers to solid (primary). */
+  .learn-more .learn-more__cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 100px;
+    padding: 12px;
+    border: 1px solid var(--lm-cta-border);
+    border-radius: var(--tiger-radius-sm, 4px);
+    background: var(--lm-cta-bg);
+    color: var(--lm-cta-fg);
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: center;
+    text-decoration: none;
+    transition: background-color 0.15s ease, color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .learn-more .learn-more__cta-icon {
+    flex-shrink: 0;
+    color: currentColor;
+  }
+
+  .learn-more .learn-more__cta:hover,
+  .learn-more .learn-more__cta:focus-visible {
+    background: var(--lm-cta-hover-bg);
+    color: var(--lm-cta-hover-fg);
+    border-color: var(--lm-cta-hover-bg);
+  }
+</style>
