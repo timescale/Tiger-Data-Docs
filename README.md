@@ -210,6 +210,12 @@ Examples:
 
 The database name is intentionally centralized: use `{C.PG}` or `{C.POSTGRESQL}` instead of literal "PostgreSQL" or "Postgres" in prose and headings. The lint script `pnpm run lint:postgresql-variable` (and the CI workflow) enforce this. **Exceptions:** literal "PostgreSQL"/"Postgres" is allowed inside URLs (e.g. `https://postgresql.org`) and inside backticks (UI elements, code, file paths, commands).
 
+## Right-rail Learn more card
+
+Any page can surface a "Learn more" card in the right rail (tutorials, related blog posts, and an optional CTA button) by adding a `learnMore` block to its frontmatter. No imports or per-page wiring required — the card renders automatically when the key is present and hides itself when it isn't.
+
+See **[`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md)** for the full frontmatter schema, field reference, architecture, and theming notes.
+
 ## Want to learn more?
 
 - [Stainless Docs Platform documentation](https://stainless.com/docs/docs-platform/)
