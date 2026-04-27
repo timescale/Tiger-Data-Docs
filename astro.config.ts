@@ -296,6 +296,7 @@ export default defineConfig({
             Header: "./src/components/Header.astro",
             MobileMenuToggle: "./src/components/MobileMenuToggle.astro",
             PageTitle: "./src/components/PageTitle.astro",
+            PageSidebar: "./src/components/PageSidebar.astro",
             Pagination: "./src/components/PageNavigation.astro",
             Callout: "./src/components/Callout.astro",
             Footer: "./src/components/Footer.astro",
