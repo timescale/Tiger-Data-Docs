@@ -7,21 +7,30 @@ keywords: [real-time analytics, Tiger Cloud, timescaledb, time-series, whitepape
 
 import { Image } from "astro:assets";
 import * as C from "@constants";
+import ThemeImage from "@components/ThemeImage.astro";
 
-import imgHypertable from "../../../../assets/images/learn/deep-dive/hypertable.png";
-import imgHypertableHypercore from "../../../../assets/images/learn/deep-dive/hypertable-with-hypercore-enabled.png";
-import imgColumnstore from "../../../../assets/images/learn/deep-dive/columnstore.png";
-import imgColumnstoreSegmentby from "../../../../assets/images/learn/deep-dive/columnstore-segmentby.png";
-import imgMutation from "../../../../assets/images/learn/deep-dive/mutation.png";
+import imgHypertableLight from "../../../../assets/images/learn/deep-dive/hypertable-light.png";
+import imgHypertableDark from "../../../../assets/images/learn/deep-dive/hypertable-dark.png";
+import imgHypertableHypercoreLight from "../../../../assets/images/learn/deep-dive/hypertable-with-hypercore-enabled-light.png";
+import imgHypertableHypercoreDark from "../../../../assets/images/learn/deep-dive/hypertable-with-hypercore-enabled-dark.png";
+import imgColumnstoreLight from "../../../../assets/images/learn/deep-dive/columnstore-light.png";
+import imgColumnstoreDark from "../../../../assets/images/learn/deep-dive/columnstore-dark.png";
+import imgColumnstoreSegmentbyLight from "../../../../assets/images/learn/deep-dive/columnstore-segmentby-light.png";
+import imgColumnstoreSegmentbyDark from "../../../../assets/images/learn/deep-dive/columnstore-segmentby-dark.png";
+import imgMutationLight from "../../../../assets/images/learn/deep-dive/hypercore-data-mutability-light.png";
+import imgMutationDark from "../../../../assets/images/learn/deep-dive/hypercore-data-mutability-dark.png";
 import imgConstraintExclusion from "../../../../assets/images/learn/deep-dive/constraint-exclusion-partitioning-column.png";
 import imgChunkSkippingSecondary from "../../../../assets/images/learn/deep-dive/chunk-skipping-on-secondary-columns.png";
 import imgRowstoreIndexes from "../../../../assets/images/learn/deep-dive/rowstore-indexes.png";
 import imgBatchSkipping from "../../../../assets/images/learn/deep-dive/batch-skipping-indexes.png";
 import imgSegmentAndOrder from "../../../../assets/images/learn/deep-dive/segment-and-order.png";
 import imgSimd from "../../../../assets/images/learn/deep-dive/simd.png";
-import imgCaggs from "../../../../assets/images/learn/deep-dive/caggs.png";
-import imgComputeSeparation from "../../../../assets/images/learn/deep-dive/compute-compute-seperation.png";
-import imgTiering from "../../../../assets/images/learn/deep-dive/tiering.png";
+import imgCaggsLight from "../../../../assets/images/learn/deep-dive/continuous-aggregates-light.png";
+import imgCaggsDark from "../../../../assets/images/learn/deep-dive/continuous-aggregates-dark.png";
+import imgHorizontalReadScalingLight from "../../../../assets/images/learn/deep-dive/horizontal-read-scaling-in-tiger-cloud-light.png";
+import imgHorizontalReadScalingDark from "../../../../assets/images/learn/deep-dive/horizontal-read-scaling-in-tiger-cloud-dark.png";
+import imgTieringLight from "../../../../assets/images/learn/deep-dive/tiered-storage-light.png";
+import imgTieringDark from "../../../../assets/images/learn/deep-dive/tiered-storage-dark.png";
 
 {C.COMPANY} has created a powerful application database for real-time analytics on time-series data. It integrates seamlessly
 with the {C.PG} ecosystem and enhances it with automatic time-based partitioning, hybrid row-columnar storage, and vectorized execution, enabling high-ingest performance, sub-second queries, and full SQL support at scale.
@@ -92,7 +101,7 @@ At ingest time, {C.HYPERTABLE}s ensure that {C.PG} can deal with a constant stre
 
 At query time, {C.HYPERTABLE}s efficiently exclude irrelevant {C.CHUNK}s from the execution plan when the partitioning column is used in a `WHERE` clause. This architecture ensures fast query execution, avoiding the gradual slowdowns that affect non-partitioned tables as they accumulate millions of rows. {C.CHUNK_CAP}-local indexes keep indexing overhead minimal, ensuring index operations scans remain efficient regardless of dataset size.
 
-<Image src={imgHypertable} alt="Hypertable architecture: automatic time-based partitioning into chunks" />
+<ThemeImage light={imgHypertableLight} dark={imgHypertableDark} alt="Tiger Data hypertable architecture: a normal Postgres table is automatically partitioned by time into chunks based on the chunk_time_interval setting" />
 
 {C.HYPERTABLE_CAP}s are the foundation for all of {C.TIMESCALE_DB}'s real-time analytics capabilities. They enable seamless data ingestion, high-throughput writes, optimized query execution, and {C.CHUNK}-based lifecycle management, including automated data retention (drop a {C.CHUNK}) and data tiering (move a {C.CHUNK} to object storage).
 
@@ -115,7 +124,7 @@ Unlike traditional columnar databases, {C.HYPERCORE} allows data to be inserted 
 {C.TIMESCALE_DB}'s columnar storage layout optimizes analytical query performance by structuring data efficiently on disk, reducing scan times, and maximizing compression rates. Unlike traditional row-based storage, where data is stored sequentially by row, columnar storage organizes and compresses data by column, allowing queries to retrieve only the necessary fields in batches rather than scanning entire rows. But unlike many column store implementations, {C.TIMESCALE_DB}'s {C.COLUMNSTORE} supports full mutability, inserts, upserts, updates, and deletes, even at the individual record level, with transactional guarantees. Data is also immediately visible to queries as soon as it is written.
 
 
-<Image src={imgHypertableHypercore} alt="Hypertable with hypercore: rowstore and columnstore chunks" />
+<ThemeImage light={imgHypertableHypercoreLight} dark={imgHypertableHypercoreDark} alt="Hypertable with hypercore enabled: incoming rows are stored in the rowstore and automatically columnized into the columnstore in batches of up to 1000 values per column" />
 
 
 #### Columnar batches
@@ -123,7 +132,7 @@ Unlike traditional columnar databases, {C.HYPERCORE} allows data to be inserted 
 {C.TIMESCALE_DB} uses columnar collocation and columnar compression within row-based storage to optimize analytical query performance while maintaining full {C.PG} compatibility. This approach ensures efficient storage, high compression ratios, and rapid query execution.
 
 
-<Image src={imgColumnstore} alt="Columnstore batch structure: rows grouped and compressed by column" />
+<ThemeImage light={imgColumnstoreLight} dark={imgColumnstoreDark} alt="Tiger Data automatic conversion of a rowstore chunk into a columnstore chunk, where rows are grouped into batches and stored as compressed column arrays ordered by time" />
 
 A {C.ROWSTORE} {C.CHUNK} is converted to a {C.COLUMNSTORE} {C.CHUNK} by successfully grouping together sets of rows (typically up to 1000) into a single batch, then converting the batch into columnar form.
 
@@ -143,7 +152,7 @@ This architecture provides the benefits of columnar storage, optimized scans, re
 To optimize query performance, {C.TIMESCALE_DB} allows explicit control over how data is physically organized within columnar storage. By structuring data effectively, queries can minimize disk reads and execute more efficiently, using vectorized execution for parallel batch processing where possible.
 
 
-<Image src={imgColumnstoreSegmentby} alt="Segmenting and ordering data in columnstore with SEGMENTBY and ORDERBY" />
+<ThemeImage light={imgColumnstoreSegmentbyLight} dark={imgColumnstoreSegmentbyDark} alt="Columnstore chunk organized with SEGMENTBY and ORDERBY: rows grouped into batches per segment key and ordered by time within each batch" />
 
 
 
@@ -161,7 +170,7 @@ Traditional databases force a trade-off between fast updates and efficient analy
 {C.HYPERCORE_CAP} navigates these trade-offs with a hybrid approach that enables immediate updates without modifying compressed {C.COLUMNSTORE} data in place. By staging changes in an interim {C.ROWSTORE} {C.CHUNK}, {C.HYPERCORE} allows updates and deletes to happen efficiently while preserving the analytical performance of columnar storage.
 
 
-<Image src={imgMutation} alt="Data mutability in hypercore: staging changes in rowstore before recompression" />
+<ThemeImage light={imgMutationLight} dark={imgMutationDark} alt="Data mutability in hypercore: inserts, updates, and deletes are routed to an interim rowstore chunk that periodically recompresses into the columnstore, supporting full mutability without rewriting compressed data" />
 
 
 #### Real-time writes without delays
@@ -262,7 +271,7 @@ Aggregating large datasets in real time can be expensive, requiring repeated sca
 by shifting computation from every query run to a single, asynchronous step after data is ingested. Only the {C.TIME_BUCKET}s that receive new or modified data are updated, and queries read precomputed results instead of scanning raw data, dramatically improving performance and efficiency.
 
 
-<Image src={imgCaggs} alt="Continuous aggregates: incremental materialization of time-bucketed data" />
+<ThemeImage light={imgCaggsLight} dark={imgCaggsDark} alt="How a continuous aggregate incrementally materializes time-bucketed rollups from a raw hypertable, with a real-time aggregate query reading both pre-computed and recent raw data" />
 
 When you know the types of queries you'll need ahead of time, {C.CAGG}s allow you to pre-aggregate data along meaningful time intervals, such as per-minute, hourly, or daily summaries, delivering instant results without on-the-fly computation.
 
@@ -310,7 +319,7 @@ Balancing high-ingest rates and low-latency analytical queries on the same syste
 * {C.READ_REPLICA_CAP}s scale query performance separately, ensuring fast analytics even under heavy workloads.
 
 
-<Image src={imgComputeSeparation} alt="Workload isolation: primary handles ingestion while read replicas serve analytical queries" />
+<ThemeImage light={imgHorizontalReadScalingLight} dark={imgHorizontalReadScalingDark} alt="Horizontal read scaling in Tiger Cloud: writes go to a primary, while reads are distributed across read replicas through a single load-balanced endpoint" />
 
 This separation ensures that frequent queries on fresh data don't interfere with ingestion, making it easier to support live monitoring, anomaly detection, interactive dashboards, and alerting systems.
 
@@ -320,7 +329,7 @@ This separation ensures that frequent queries on fresh data don't interfere with
 Not all real-time data is equally valuable, recent data is queried constantly, while older data is accessed less frequently. {C.CLOUD_LONG} can be configured to automatically tier data to cheaper bottomless object storage, ensuring that hot data remains instantly accessible, while historical data is still available.
 
 
-<Image src={imgTiering} alt="Data tiering: recent data in high-performance storage, older data in object storage" />
+<ThemeImage light={imgTieringLight} dark={imgTieringDark} alt="Tiered storage in Tiger Cloud: a hypertable's rowstore and columnstore chunks live on high-performance block storage, while older chunks tier to low-cost bottomless object storage and remain transparently queryable" />
 
 * **Recent, high-velocity data** stays in high-performance storage for ultra-fast queries.
 * **Older, less frequently accessed data** is automatically moved to cost-efficient object storage but remains queryable and available for building {C.CAGG}s.
