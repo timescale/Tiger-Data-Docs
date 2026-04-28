@@ -1,0 +1,108 @@
+---
+title: "Integrate Ignition with Tiger Cloud"
+description: "Connect Ignition SCADA to Tiger Cloud and store tag history"
+integrationCategory: "data-ingestion-streaming"
+integrationIndustry: ["iot", "manufacturing", "energy"]
+keywords: ["opc ua", "scada", "industrial data", "operational technology", "data streaming", "hmi"]
+integrationCardLogo: "ignition.png"
+sidebar:
+  label: "Ignition"
+---
+
+import * as C from "@constants";
+import { Callout } from '@stainless-api/ui-primitives';
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+[Ignition][ignition] is a SCADA system used to connect data, design industrial systems, and monitor automated processes in real time.
+
+This page shows you how to connect Ignition to your {C.SERVICE_LONG} to stream industrial data into {C.TIMESCALE_DB}.
+
+<Prerequisites>
+- A [target {C.SERVICE_LONG}](/get-started/quickstart/create-service) (this procedure also works for [{C.SELF_LONG}](/get-started/choose-your-path/install-timescaledb))
+- An [Ignition][ignition-download] instance with admin access
+</Prerequisites>
+
+<NumberedList heading="Create a Tiger Cloud service connection in Ignition">
+  <NumberedItem title="Sign in to the Ignition Gateway">
+    Navigate your browser to the Ignition Gateway screen and sign in with an admin account. Open **Connections** / **Database Connections** and select **Create Database Connection +**.
+  </NumberedItem>
+  <NumberedItem title="Select the PostgreSQL driver">
+    Select **PostgreSQL** as the driver (included in every standard Ignition install).
+  </NumberedItem>
+  <NumberedItem title="Configure the database connection">
+    Give the database connection a name. Add the **username**, **password**, and **connection url** that was downloaded during Tiger Data service setup. Select **Create Database Connection**.
+  </NumberedItem>
+  <NumberedItem title="Verify the connection">
+    Verify that the database connection was created and status is valid. If any errors appear, consult the [Ignition manual][ignition-manual].
+  </NumberedItem>
+</NumberedList>
+
+<NumberedList heading="Set up Tiger Cloud service as a historian">
+  <NumberedItem title="Create a historian">
+    On the Ignition Gateway, select **Services** / **Historians** and **Create Historian +**.
+  </NumberedItem>
+  <NumberedItem title="Select SQL Historian">
+    Select **SQL Historian**.
+  </NumberedItem>
+  <NumberedItem title="Name the historian and disable partitioning">
+    Add a name for the historian, and select the {C.SERVICE_LONG} database connected in section 1 as the Data Source. Disable Partitioning.
+
+    <Callout variant="warning">
+    If you don’t disable partitioning during the initial setup, and actively use the historian beyond the partition length, Ignition will create multiple history tables. This will make setting up Tiger Data optimizations more difficult and reduce the convenience of having all historical data in one table.
+    </Callout>
+  </NumberedItem>
+  <NumberedItem title="Verify the historian is running">
+    Verify the new historian is enabled and running.
+  </NumberedItem>
+  <NumberedItem title="Start data flowing into the historian">
+    Before proceeding to the next section, make sure there is data flowing into the historian. This can be done by creating any tag and setting **History Enabled** to **True**. That will guarantee that the historian table is created.
+  </NumberedItem>
+</NumberedList>
+
+Ignition will automatically create the table in {C.SERVICE_LONG}, but will not set it up as a {C.HYPERTABLE}. The following instructions can be performed within Ignition's [SQL Editor][ignition-sql-editor], the [{C.CLOUD_LONG} Console][tiger console], or any other SQL editor.
+
+<NumberedList heading="Optimize TimescaleDB for Ignition workloads">
+  <NumberedItem title="Convert the auto-created historian table to a hypertable">
+    ```sql
+    SELECT create_hypertable(
+       'sqlth_1_data','t_stamp',
+       migrate_data => 'true',
+       chunk_time_interval => 86400000
+    );
+    ```
+
+    <Callout variant="note">
+    Chunk size must be defined in milliseconds. Recommended chunk size should aim for about 1-20 million records per chunk. That's about 1 day (86,400,000ms) for 10,000 tags/min or 1 hour (3,600,000ms) for 300,000 tags/min.
+    </Callout>
+  </NumberedItem>
+  <NumberedItem title="Optional: add compression, and set the compression policy">
+    ```sql
+    ALTER TABLE sqlth_1_data SET (
+    timescaledb.compress,
+    timescaledb.compress_segmentby = 'tagid',
+    timescaledb.compress_orderby = 't_stamp DESC'
+    );
+    SELECT add_compression_policy('sqlth_1_data', INTERVAL '7 days');
+    ```
+  </NumberedItem>
+  <NumberedItem title="Optional: add retention policy">
+    ```sql
+    SELECT add_retention_policy('tag_table', INTERVAL '1 year');
+    ```
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated Ignition with {C.CLOUD_LONG}.
+
+[tiger console]: /docs/build/data-management/run-queries-from-tiger-console
+
+[services-portal]: https://console.cloud.tigerdata.com/dashboard/services
+
+[ignition]: https://inductiveautomation.com/
+
+[ignition-download]: https://inductiveautomation.com/downloads/
+
+[ignition-manual]: https://www.docs.inductiveautomation.com/
+
+[ignition-sql-editor]:https://www.docs.inductiveautomation.com/docs/7.9/sql-in-ignition/common-sql-tasks/simple-database-editor

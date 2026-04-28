@@ -296,6 +296,7 @@ export default defineConfig({
             Header: "./src/components/Header.astro",
             MobileMenuToggle: "./src/components/MobileMenuToggle.astro",
             PageTitle: "./src/components/PageTitle.astro",
+            PageSidebar: "./src/components/PageSidebar.astro",
             Pagination: "./src/components/PageNavigation.astro",
             Callout: "./src/components/Callout.astro",
             Footer: "./src/components/Footer.astro",
@@ -513,6 +514,7 @@ export default defineConfig({
                   collapsed: true,
                   items: [
                     { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
+                    { label: "Build hybrid search with BM25 and vectors", link: "/build/examples/hybrid-search" },
                     { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
                   ],
                 },
@@ -664,6 +666,7 @@ export default defineConfig({
                 { label: "Enforce constraints with unique indexes", link: "/build/performance-optimization/hypertables-and-unique-indexes" },
                 { label: "Improve query and upsert performance", link: "/build/performance-optimization/secondary-indexes" },
                 { label: "Improve hypertable performance", link: "/build/performance-optimization/improve-hypertable-performance" },
+                { label: "Retrofit chunk intervals", link: "/build/performance-optimization/retrofit-chunk-intervals" },
                 { label: "Improve storage performance using tablespaces", link: "/build/performance-optimization/manage-tablespaces" },
                 { label: "Automate tasks with triggers", link: "/build/performance-optimization/automate-tasks-with-triggers" },
               ],

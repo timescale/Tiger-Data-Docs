@@ -39,6 +39,40 @@ const pageLabelsSchema = z.object({
 });
 
 /**
+ * Right-rail "Learn more" card (Figma 3588-7875, -7948, -7974, -8047).
+ * All fields optional — card is hidden if nothing is set. Href accepts relative
+ * (`/build/foo/`) or absolute URLs; absolute ones open in a new tab.
+ */
+const learnMoreLinkSchema = z.object({
+  label: z.string(),
+  href: z.string(),
+});
+
+const learnMoreSchema = z.object({
+  learnMore: z
+    .object({
+      /** Card heading. Defaults to "Learn more". */
+      title: z.string().optional(),
+      /** Tutorial-style links (internal, shown with right-arrow icon). */
+      tutorials: z.array(learnMoreLinkSchema).optional(),
+      /** Section heading for tutorials list. Defaults to "Tutorials". */
+      tutorialsHeading: z.string().optional(),
+      /** Related blog posts or external references (shown with external-link icon). */
+      relatedPosts: z.array(learnMoreLinkSchema).optional(),
+      /** Section heading for related posts list. Defaults to "Related blog posts". */
+      relatedPostsHeading: z.string().optional(),
+      /** Optional primary CTA button at the bottom of the card. */
+      cta: z
+        .object({
+          label: z.string(),
+          href: z.string(),
+        })
+        .optional(),
+    })
+    .optional(),
+});
+
+/**
  * Integration-specific frontmatter for the Integrate section.
  * Used to power the integrate index views: by category, by industry, Tiger Data connectors, and external tools.
  */
@@ -94,7 +128,8 @@ export const collections = {
       extend: overviewDescriptionSchema
         .merge(seoDescriptionSchema)
         .merge(integrationSchema)
-        .merge(pageLabelsSchema),
+        .merge(pageLabelsSchema)
+        .merge(learnMoreSchema),
     }),
   }),
 };

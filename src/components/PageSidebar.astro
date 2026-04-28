@@ -1,0 +1,102 @@
+---
+/**
+ * Custom PageSidebar: renders Starlight's default TOC and mobile TOC, then appends
+ * a frontmatter-driven `<LearnMore />` card when the page declares `learnMore` in
+ * frontmatter. Hidden automatically when the frontmatter key is absent.
+ *
+ * The <style> block below is a verbatim copy of Starlight's upstream
+ * `@astrojs/starlight/components/PageSidebar.astro` to preserve default TOC
+ * sizing and colors. Do not add LearnMore-specific rules here — all LearnMore
+ * styles live inside LearnMore.astro (is:global, BEM-style) so this override
+ * and the card cannot mutate each other's cascade.
+ *
+ * See `learnMoreSchema` in `src/content.config.ts` and `LearnMore.astro`.
+ */
+import MobileTableOfContents from "virtual:starlight/components/MobileTableOfContents";
+import TableOfContents from "virtual:starlight/components/TableOfContents";
+import LearnMore from "./LearnMore.astro";
+
+interface LearnMoreFrontmatter {
+  title?: string;
+  tutorials?: Array<{ label: string; href: string }>;
+  tutorialsHeading?: string;
+  relatedPosts?: Array<{ label: string; href: string }>;
+  relatedPostsHeading?: string;
+  cta?: { label: string; href: string };
+}
+const data = Astro.locals.starlightRoute?.entry?.data as
+  | { learnMore?: LearnMoreFrontmatter }
+  | undefined;
+const learnMore = data?.learnMore;
+const hasToc = !!Astro.locals.starlightRoute?.toc;
+const hasLearnMore =
+  !!learnMore &&
+  (!!learnMore.tutorials?.length ||
+    !!learnMore.relatedPosts?.length ||
+    !!learnMore.cta);
+---
+
+{
+  hasToc && (
+    <div class="lg:sl-hidden">
+      <MobileTableOfContents />
+    </div>
+  )
+}
+
+{
+  (hasToc || hasLearnMore) && (
+    <div class="right-sidebar-panel sl-hidden lg:sl-block">
+      <div class="sl-container">
+        {hasToc && <TableOfContents />}
+        {hasLearnMore && <LearnMore {...learnMore!} />}
+      </div>
+    </div>
+  )
+}
+
+<style>
+  @layer starlight.core {
+    .right-sidebar-panel {
+      padding: 1rem var(--sl-sidebar-pad-x);
+    }
+    .sl-container {
+      width: calc(var(--sl-sidebar-width) - 2 * var(--sl-sidebar-pad-x));
+      /* Give the column enough height for LearnMore's position:sticky bottom
+         to "float" above the page scroll. On pages without the card this
+         just adds harmless empty space below the TOC. */
+      display: flex;
+      flex-direction: column;
+      min-height: calc(100dvh - var(--sl-nav-height, 4rem) - 2rem);
+    }
+    .right-sidebar-panel :global(h2) {
+      color: var(--sl-color-white);
+      font-size: var(--sl-text-h5);
+      font-weight: 600;
+      line-height: var(--sl-line-height-headings);
+      margin-bottom: 0.5rem;
+    }
+    .right-sidebar-panel :global(:where(a)) {
+      display: block;
+      font-size: var(--sl-text-xs);
+      text-decoration: none;
+      color: var(--sl-color-gray-3);
+      overflow-wrap: anywhere;
+    }
+    .right-sidebar-panel :global(:where(a):hover) {
+      color: var(--sl-color-white);
+    }
+    @media (min-width: 72rem) {
+      .sl-container {
+        max-width: calc(
+          (
+              (
+                  100vw - var(--sl-sidebar-width) - 2 * var(--sl-content-pad-x) - 2 *
+                    var(--sl-sidebar-pad-x)
+                ) * 0.25
+            )
+        );
+      }
+    }
+  }
+</style>
