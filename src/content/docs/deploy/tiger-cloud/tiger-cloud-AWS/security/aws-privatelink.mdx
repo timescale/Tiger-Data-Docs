@@ -1,0 +1,97 @@
+---
+title: Private endpoints
+description: Connect your services to AWS PrivateLink endpoints to eliminate public internet exposure
+products: [cloud]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import PrereqsCloud from "@partials/_prereqs-cloud-no-connection.mdx";
+
+import { Image } from "astro:assets";
+import imgPrivateEndpointTigerCloud from "../../../../../../assets/images/deploy/tiger-cloud/private-endpoint-tiger-cloud.png";
+import imgPrivateEndpointConnectionAuthorized from "../../../../../../assets/images/deploy/tiger-cloud/private-endpoint-connection-authorized.png";
+import imgAwsPrivateEndpointSettings from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-settings.png";
+import imgAwsPrivateEndpointServiceSettings from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-service-settings.png";
+import imgPrivateLinkAuthorizationComplete from "../../../../../../assets/images/deploy/tiger-cloud/private-link-authorization-complete.png";
+
+With {C.CLOUD_LONG}, you can connect your {C.SERVICE_SHORT}s to AWS PrivateLink endpoints. A private endpoint in your {C.VPC} routes traffic to your {C.SERVICE_SHORT} over the AWS backbone, without crossing the public internet or requiring {C.VPC} peering. This page describes how to authorize your AWS account in {C.CONSOLE_LONG}, create a private endpoint on the AWS side, and attach a {C.SERVICE_SHORT} to it.
+
+## Prerequisites
+
+<PrereqsCloud />
+
+* Create an [AWS account](https://signin.aws.amazon.com/signup?request_type=register) with a [VPC](https://docs.aws.amazon.com/vpc/latest/userguide/create-vpc.html) and a subnet for the resources you will connect to {C.CLOUD_LONG}.
+* Configure [IAM permissions](https://docs.aws.amazon.com/vpc/latest/privatelink/identity-access-management.html) to create VPC endpoints.
+
+## Set up a private endpoint connection
+
+<Callout variant="note">
+
+Private endpoint connections in {C.CLOUD_LONG} are currently in private preview. To request access in {C.CONSOLE_LONG}, go to `Security` > `Private Endpoints` and click `Request access`. Then refresh the page and follow the steps below.
+
+</Callout>
+
+Take the following steps to connect your {C.SERVICE_LONG} to a PrivateLink endpoint.
+
+<NumberedList>
+
+<NumberedItem title="Create an AWS account authorization">
+
+1. In [{C.CONSOLE_LONG}](https://console.cloud.tigerdata.com/dashboard/aws-privatelink), select `Security` > `Private Endpoints` > `Configure Private Endpoint Connection`.
+
+   <Image src={imgPrivateEndpointTigerCloud} alt="Configure private endpoint connection in Tiger Cloud" />
+
+1. In `Cloud provider`, select `AWS`.
+
+1. In `Principal ID`, enter your AWS account ID. Give your authorization a name, for convenience.
+
+   <Callout variant="warning">
+
+   Click the checkmark next to `Connection name` to save your authorization. Otherwise, your input is discarded.
+
+   </Callout>
+
+1. Under `Alias`, copy the alias for the region in which you need to create the connection. Choose the region of your AWS resources.
+1. Click `Done`. {C.CLOUD_LONG} confirms your authorization. Once it is confirmed, you can connect multiple endpoints from the same authorized account.
+
+</NumberedItem>
+
+<NumberedItem title="Create a VPC endpoint in AWS">
+
+1. In [AWS Console](https://console.aws.amazon.com/), go to `VPC` > `Endpoints` > `Create endpoint`.
+1. Optionally provide a name tag for your endpoint.
+1. Under `Type`, select `PrivateLink Ready partner services`.
+
+   <Image src={imgAwsPrivateEndpointSettings} alt="AWS create endpoint settings" />
+
+1. Under `Service settings` > `Service name`, paste in the alias your copied in {C.CONSOLE} and click `Verify service`. Wait for the `Service name verified.` success message.
+
+   <Image src={imgAwsPrivateEndpointServiceSettings} alt="AWS endpoint service settings" />
+
+1. Select the VPC that contains the resources you want to connect to {C.CLOUD_LONG}, then choose one or more Availability Zones and subnets where the endpoint's private IPs will be created. For lowest latency and no cross-AZ data transfer charges, match the Availability Zones of your workloads; select multiple AZs for high availability.
+1. Optionally configure the security groups and tags, then click `Create endpoint`.
+1. Go to `EC2` > `Network interfaces` and copy the primary private IPv4 address of your endpoint.
+
+</NumberedItem>
+
+<NumberedItem title="Sync the connection">
+
+1. In [{C.CONSOLE_LONG}](https://console.cloud.tigerdata.com/dashboard/aws-privatelink) > `Security` > `Private Endpoints`, click `Refresh`. {C.CLOUD_LONG} automatically approves connections from authorized accounts. Your connection appears in the list.
+
+   <Image src={imgPrivateEndpointConnectionAuthorized} alt="Authorized Private Endpoint connection in Tiger Cloud" />
+
+1. Under `IP Address` click `Add IP` and paste the private endpoint IP address you have copied from AWS.
+1. Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the dropdown and click `Attach`. You can attach a {C.SERVICE_SHORT} to one private endpoint.
+1. From an EC2 instance inside your VPC, connect to your {C.SERVICE_SHORT} using a connection string with your [connection details](/integrate/find-connection-details). You should be able to connect successfully.
+
+</NumberedItem>
+
+</NumberedList>
+
+## Manage connections
+
+- To detach a {C.SERVICE_SHORT} from a private endpoint connection, go to `Security` > `Private Endpoints`, expand the arrow in the `Services` column, and click the trash icon next to the {C.SERVICE_SHORT} connection string.
+- To edit or remove an endpoint connection, go to `Security` > `Private Endpoints` and click the three dots next to the connection in the list. Select `Edit` or `Disconnect`, respectively. You need to detach all {C.SERVICE_SHORT}s from a private endpoint connection before deleting it.
+- To remove an authorization, click `Manage Authorizations` > trash bin icon. You need to disconnect all relevant endpoint connections before removing an authorization.
