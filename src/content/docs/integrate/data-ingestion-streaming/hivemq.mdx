@@ -1,0 +1,179 @@
+---
+title: "Integrate HiveMQ with Tiger Cloud"
+description: "Connect HiveMQ to Tiger Cloud and stream MQTT messages into a hypertable"
+integrationCategory: "data-ingestion-streaming"
+integrationIndustry: ["iot", "manufacturing", "energy"]
+keywords: ["mqtt", "broker", "iot", "industrial data", "operational technology", "data streaming"]
+integrationCardLogo: "hivemq.png"
+sidebar:
+  label: "HiveMQ"
+---
+
+import * as C from "@constants";
+import { Callout } from '@stainless-api/ui-primitives';
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+[HiveMQ](https://www.hivemq.com/) is an enterprise MQTT broker used to move data between IoT devices, applications, and backend systems in real time.
+
+This page shows you how to connect HiveMQ to your {C.SERVICE_LONG} using the [HiveMQ Enterprise Extension for {C.PG}](https://docs.hivemq.com/hivemq-postgresql-extension/latest/) to stream MQTT messages into {C.TIMESCALE_DB}.
+
+<Prerequisites>
+- A [target {C.SERVICE_LONG}](/get-started/quickstart/create-service) (this procedure also works for [{C.SELF_LONG}](/get-started/choose-your-path/install-timescaledb))
+- A [HiveMQ Enterprise](https://www.hivemq.com/downloads/) broker with file system access on the host
+- The [HiveMQ Enterprise Extension for {C.PG}](https://docs.hivemq.com/hivemq-postgresql-extension/latest/) downloaded
+</Prerequisites>
+
+## Create a target table in {C.CONSOLE}
+
+<NumberedList>
+  <NumberedItem title="Connect to your service">
+    Use the [{C.CONSOLE}](/build/data-management/run-queries-from-tiger-console), `psql`, or any other SQL editor to connect to your {C.SERVICE_LONG}.
+  </NumberedItem>
+  <NumberedItem title="Create a hypertable for MQTT messages">
+    Create a {C.HYPERTABLE} that matches the columns you want HiveMQ to populate from each MQTT message. Partition on `ts` so the table scales as message volume grows:
+
+    ```sql
+    CREATE TABLE mqtt_messages (
+       ts          TIMESTAMPTZ NOT NULL,
+       topic       TEXT        NOT NULL,
+       client_id   TEXT,
+       qos         SMALLINT,
+       payload     JSONB
+    ) WITH (
+       tsdb.hypertable = true,
+       tsdb.partition_column = 'ts',
+       tsdb.chunk_interval = '1 day',
+       tsdb.columnstore = true,
+       tsdb.segmentby = 'topic',
+       tsdb.orderby = 'ts DESC'
+    );
+    ```
+
+    <Callout variant="note">
+    The columns on this table must match the fields you map in the HiveMQ extension routes in the next section. Use `JSONB` for `payload` if your devices publish JSON, or `BYTEA` for raw binary payloads.
+    </Callout>
+
+    <Callout variant="note">
+    Aim for 1–20 million rows per chunk. That's roughly 1 day for 10,000 messages/min, or 1 hour for 300,000 messages/min. Adjust `tsdb.chunk_interval` to match your broker's throughput.
+    </Callout>
+
+    <Callout variant="note">
+    Setting `tsdb.columnstore = true` automatically adds a {C.COLUMNSTORE} policy that compresses {C.CHUNK}s once they reach `tsdb.chunk_interval` (1 day above). To use a different interval, [remove the auto-created policy](/reference/timescaledb/hypercore/remove_columnstore_policy) and call [`add_columnstore_policy`](/reference/timescaledb/hypercore/add_columnstore_policy) with your preferred `after` value, for example `INTERVAL '7 days'`.
+    </Callout>
+  </NumberedItem>
+</NumberedList>
+
+## Install and configure the HiveMQ Enterprise Extension for {C.PG}
+
+<NumberedList>
+  <NumberedItem title="Install the extension">
+    Unpack the extension into the `extensions` directory of your HiveMQ installation:
+
+    ```bash
+    unzip hivemq-postgresql-extension-<version>.zip -d <HIVEMQ_HOME>/extensions/
+    ```
+
+    The extension folder is disabled by default. Remove the `DISABLED` marker file once you have finished configuring it in the next steps:
+
+    ```bash
+    rm <HIVEMQ_HOME>/extensions/hivemq-postgresql-extension/DISABLED
+    ```
+  </NumberedItem>
+  <NumberedItem title="Configure the database connection">
+    Edit `<HIVEMQ_HOME>/extensions/hivemq-postgresql-extension/conf/config.xml` and add a {C.PG} connection that points to your {C.SERVICE_LONG}. Use the **username**, **password**, **host**, and **port** from your service connection details:
+
+    ```xml
+    <hivemq-postgresql-extension>
+        <postgresqls>
+            <postgresql>
+                <id>tiger-cloud</id>
+                <host>YOUR_SERVICE_HOST.tsdb.cloud.timescale.com</host>
+                <port>5432</port>
+                <database>tsdb</database>
+                <username>tsdbadmin</username>
+                <password>YOUR_PASSWORD</password>
+                <tls>
+                    <enabled>true</enabled>
+                </tls>
+            </postgresql>
+        </postgresqls>
+    </hivemq-postgresql-extension>
+    ```
+
+    <Callout variant="warning">
+    {C.CLOUD_LONG} requires TLS. Make sure the `<tls><enabled>true</enabled></tls>` block is present, otherwise the extension will not be able to connect.
+    </Callout>
+  </NumberedItem>
+  <NumberedItem title="Define a route from MQTT topics to your table">
+    Still in `config.xml`, add an MQTT-to-{C.PG} route that maps incoming messages to the columns on `mqtt_messages`:
+
+    ```xml
+    <mqtt-to-postgresql-routes>
+        <mqtt-to-postgresql-route>
+            <id>mqtt-to-tiger-cloud</id>
+            <postgresql-id>tiger-cloud</postgresql-id>
+            <mqtt-topic-filters>
+                <mqtt-topic-filter>#</mqtt-topic-filter>
+            </mqtt-topic-filters>
+            <processor>
+                <insert-statement>
+                    <table>mqtt_messages</table>
+                    <columns>
+                        <column>
+                            <name>ts</name>
+                            <value>${mqtt-message.timestamp}</value>
+                        </column>
+                        <column>
+                            <name>topic</name>
+                            <value>${mqtt-message.topic}</value>
+                        </column>
+                        <column>
+                            <name>client_id</name>
+                            <value>${mqtt-message.client-id}</value>
+                        </column>
+                        <column>
+                            <name>qos</name>
+                            <value>${mqtt-message.qos}</value>
+                        </column>
+                        <column>
+                            <name>payload</name>
+                            <value>${mqtt-message.payload-utf8}</value>
+                        </column>
+                    </columns>
+                </insert-statement>
+            </processor>
+        </mqtt-to-postgresql-route>
+    </mqtt-to-postgresql-routes>
+    ```
+
+    Narrow the `<mqtt-topic-filter>` to the topics you want to persist. Use `#` only if you want to capture every message on the broker. See the [HiveMQ extension reference](https://docs.hivemq.com/hivemq-postgresql-extension/latest/) for the full list of available placeholders.
+  </NumberedItem>
+  <NumberedItem title="Start HiveMQ and verify the extension is loaded">
+    Start (or restart) HiveMQ and check the broker log for a line confirming the extension is started and the route is active:
+
+    ```bash
+    tail -f <HIVEMQ_HOME>/log/hivemq.log
+    ```
+
+    Publish a test message to a topic that matches your filter, then query the table to confirm rows are arriving:
+
+    ```sql
+    SELECT * FROM mqtt_messages ORDER BY ts DESC LIMIT 10;
+    ```
+  </NumberedItem>
+</NumberedList>
+
+With messages flowing into `mqtt_messages`, add a retention policy to cap how long historical data is kept. The step below can be performed in the [{C.CONSOLE}](/build/data-management/run-queries-from-tiger-console) or any other SQL editor.
+
+## Optimize {C.TIMESCALE_DB} for HiveMQ workloads
+
+<NumberedList>
+  <NumberedItem title="Optional: add a retention policy">
+    ```sql
+    SELECT add_retention_policy('mqtt_messages', INTERVAL '1 year');
+    ```
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated HiveMQ with {C.CLOUD_LONG}.
