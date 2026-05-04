@@ -4,54 +4,38 @@ import { NumberedList, NumberedItem } from "@components/NumberedList";
 <NumberedList>
 <NumberedItem title={`Ensure that the source and target databases are running the same version of ${C.TIMESCALE_DB}`}>
 
-<ol type="a">
-<li>
+1. Check the version of {C.TIMESCALE_DB} running on your {C.SERVICE_LONG}:
 
-Check the version of {C.TIMESCALE_DB} running on your {C.SERVICE_LONG}:
+   ```bash
+   psql $TARGET -c "SELECT extversion FROM pg_extension WHERE extname = 'timescaledb';"
+   ```
 
-```bash
-psql $TARGET -c "SELECT extversion FROM pg_extension WHERE extname = 'timescaledb';"
-```
+1. Update the {C.TIMESCALE_DB} extension in your source database to match the target service:
 
-</li>
-<li>
+   If the {C.TIMESCALE_DB} extension is the same version on the source database and target service,
+   you do not need to do this.
 
-Update the {C.TIMESCALE_DB} extension in your source database to match the target service:
+   ```bash
+   psql $SOURCE -c "ALTER EXTENSION timescaledb UPDATE TO '<version here>';"
+   ```
 
-If the {C.TIMESCALE_DB} extension is the same version on the source database and target service,
-you do not need to do this.
+   For more information and guidance, see [Upgrade TimescaleDB](/deploy/self-hosted/upgrades/).
 
-```bash
-psql $SOURCE -c "ALTER EXTENSION timescaledb UPDATE TO '<version here>';"
-```
-
-For more information and guidance, see [Upgrade TimescaleDB](/deploy/self-hosted/upgrades/).
-
-</li>
-</ol>
 </NumberedItem>
 
 <NumberedItem title={`Ensure that the ${C.SERVICE_LONG} is running the ${C.PG} extensions used in your source database`}>
 
-<ol type="a">
-<li>
+1. Check the extensions on the source database:
 
-Check the extensions on the source database:
+   ```bash
+   psql $SOURCE -c "SELECT * FROM pg_extension;"
+   ```
 
-```bash
-psql $SOURCE -c "SELECT * FROM pg_extension;"
-```
+1. For each extension, enable it on your target {C.SERVICE_LONG}:
 
-</li>
-<li>
+   ```bash
+   psql $TARGET -c "CREATE EXTENSION IF NOT EXISTS <extension name> CASCADE;"
+   ```
 
-For each extension, enable it on your target {C.SERVICE_LONG}:
-
-```bash
-psql $TARGET -c "CREATE EXTENSION IF NOT EXISTS <extension name> CASCADE;"
-```
-
-</li>
-</ol>
 </NumberedItem>
 </NumberedList>
