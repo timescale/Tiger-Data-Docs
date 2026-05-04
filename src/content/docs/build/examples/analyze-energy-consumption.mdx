@@ -71,54 +71,46 @@ To visually monitor the volume of energy consumption over time:
 <NumberedList>
 <NumberedItem title="Create the dashboard">
 
-<ol type="a">
-<li>On the `Dashboards` page, click `New` and select `New dashboard`.</li>
-<li>
+1. On the `Dashboards` page, click `New` and select `New dashboard`.
 
-Click `Add visualization`, then select the data source that connects to your {C.SERVICE_LONG} and the `Bar chart`
-visualization type in the top right.
+1. Click `Add visualization`, then select the data source that connects to your {C.SERVICE_LONG} and the `Bar chart`
+   visualization type in the top right.
 
-<Image src={imgUseCaseRtaGrafanaTimescaleConfigureDashboard} alt="Configuring a Grafana dashboard with a TimescaleDB data source" />
+   <Image src={imgUseCaseRtaGrafanaTimescaleConfigureDashboard} alt="Configuring a Grafana dashboard with a TimescaleDB data source" />
 
-</li>
-<li>
+1. In the `Queries` section, select `Code` on the right, then run the following query based on your {C.CAGG}:
 
-In the `Queries` section, select `Code` on the right, then run the following query based on your {C.CAGG}:
+   ```sql
+   WITH per_hour AS (
+   SELECT
+   time,
+   value
+   FROM kwh_hour_by_hour
+   WHERE "time" at time zone 'Europe/Berlin' > date_trunc('month', time) - interval '1 year'
+   ORDER BY 1
+   ), hourly AS (
+    SELECT
+         extract(HOUR FROM time) * interval '1 hour' as hour,
+         value
+    FROM per_hour
+   )
+   SELECT
+       hour,
+       approx_percentile(0.50, percentile_agg(value)) as median,
+       max(value) as maximum
+   FROM hourly
+   GROUP BY 1
+   ORDER BY 1;
+   ```
 
-```sql
-WITH per_hour AS (
-SELECT
-time,
-value
-FROM kwh_hour_by_hour
-WHERE "time" at time zone 'Europe/Berlin' > date_trunc('month', time) - interval '1 year'
-ORDER BY 1
-), hourly AS (
- SELECT
-      extract(HOUR FROM time) * interval '1 hour' as hour,
-      value
- FROM per_hour
-)
-SELECT
-    hour,
-    approx_percentile(0.50, percentile_agg(value)) as median,
-    max(value) as maximum
-FROM hourly
-GROUP BY 1
-ORDER BY 1;
-```
+   This query averages the results for households in a specific time zone by hour and orders them by time.
+   Because you use a {C.CAGG}, this data is always correct in real time.
 
-This query averages the results for households in a specific time zone by hour and orders them by time.
-Because you use a {C.CAGG}, this data is always correct in real time.
+   <Image src={imgUseCaseRtaGrafanaTimescaleEnergyCagg} alt="Grafana dashboard showing energy consumption data from a continuous aggregate" />
 
-<Image src={imgUseCaseRtaGrafanaTimescaleEnergyCagg} alt="Grafana dashboard showing energy consumption data from a continuous aggregate" />
-
-You see that energy consumption is highest in the evening and at breakfast time. You also know that the wind
-drops off in the evening. This data proves that you need to supply a supplementary power source for peak times,
-or plan to store energy during the day for peak times.
-
-</li>
-</ol>
+   You see that energy consumption is highest in the evening and at breakfast time. You also know that the wind
+   drops off in the evening. This data proves that you need to supply a supplementary power source for peak times,
+   or plan to store energy during the day for peak times.
 
 </NumberedItem>
 
