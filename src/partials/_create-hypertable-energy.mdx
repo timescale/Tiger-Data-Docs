@@ -12,64 +12,49 @@ import HypertableIntro from "./_tutorials_hypertable_intro.mdx";
 
 <NumberedItem title={`Import time-series data into a ${C.HYPERTABLE}`}>
 
-<ol type="a">
-<li>
+1. Unzip [metrics.csv.gz](https://assets.timescale.com/docs/downloads/metrics.csv.gz) to a `<local folder>`.
 
-Unzip [metrics.csv.gz](https://assets.timescale.com/docs/downloads/metrics.csv.gz) to a `<local folder>`.
+   This test dataset contains energy consumption data.
 
-This test dataset contains energy consumption data.
+   To import up to 100GB of data directly from your current {C.PG} based database,
+   [migrate with downtime](/migrate/migrate-with-downtime). To seamlessly import 100GB-10TB+
+   of data, use the [live migration](/migrate/live-migration) tooling supplied by {C.COMPANY}. To add data from non-{C.PG}
+   data sources, see [Import and ingest data](/migrate/import-terminal).
 
-To import up to 100GB of data directly from your current {C.PG} based database,
-[migrate with downtime](/migrate/migrate-with-downtime). To seamlessly import 100GB-10TB+
-of data, use the [live migration](/migrate/live-migration) tooling supplied by {C.COMPANY}. To add data from non-{C.PG}
-data sources, see [Import and ingest data](/migrate/import-terminal).
+1. In the terminal, navigate to `<local folder>` and update the following string with [your connection details](/integrate/find-connection-details)
+   to connect to your {C.SERVICE_SHORT}.
 
-</li>
-<li>
+   ```bash
+   psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>?sslmode=require"
+   ```
 
-In Terminal, navigate to `<local folder>` and update the following string with [your connection details](/integrate/find-connection-details)
-to connect to your {C.SERVICE_SHORT}.
+1. Create an optimized {C.HYPERTABLE} for your time-series data.
 
-```bash
-psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>?sslmode=require"
-```
+   Create a [{C.HYPERTABLE}](/learn/hypertables/understand-hypertables) with [{C.HYPERCORE}](/learn/columnar-storage/understand-hypercore) enabled by default for your
+   time-series data using [CREATE TABLE](/reference/timescaledb/). For [efficient queries](/build/performance-optimization/secondary-indexes)
+   on data in the {C.COLUMNSTORE}, remember to `segmentby` the column you will use most often to filter your data.
 
-</li>
-<li>
+   In your SQL client, run the following command:
 
-Create an optimized {C.HYPERTABLE} for your time-series data.
+   ```sql
+   CREATE TABLE "metrics"(
+       created timestamp with time zone default now() not null,
+       type_id integer                                not null,
+       value   double precision                       not null
+   ) WITH (
+       tsdb.hypertable,
+       tsdb.segmentby = 'type_id',
+       tsdb.orderby = 'created DESC'
+   );
+   ```
 
-Create a [{C.HYPERTABLE}](/learn/hypertables/understand-hypertables) with [{C.HYPERCORE}](/learn/columnar-storage/understand-hypercore) enabled by default for your
-time-series data using [CREATE TABLE](/reference/timescaledb/). For [efficient queries](/build/performance-optimization/secondary-indexes)
-on data in the {C.COLUMNSTORE}, remember to `segmentby` the column you will use most often to filter your data.
+   <CreateHypertablePolicyNote />
 
-In your SQL client, run the following command:
+1. Upload the dataset to your {C.SERVICE_SHORT}:
 
-```sql
-CREATE TABLE "metrics"(
-    created timestamp with time zone default now() not null,
-    type_id integer                                not null,
-    value   double precision                       not null
-) WITH (
-    tsdb.hypertable,
-    tsdb.segmentby = 'type_id',
-    tsdb.orderby = 'created DESC'
-);
-```
-
-<CreateHypertablePolicyNote />
-
-</li>
-<li>
-
-Upload the dataset to your {C.SERVICE_SHORT}:
-
-```sql
-\COPY metrics FROM metrics.csv CSV;
-```
-
-</li>
-</ol>
+   ```sql
+   \COPY metrics FROM metrics.csv CSV;
+   ```
 
 </NumberedItem>
 
