@@ -19,7 +19,7 @@ The gate exposure lets you measure metric lifts (DAU, WAU, stickiness, etc.) for
 | Inline script | `astro.config.ts` — search for `BEGIN STATSIG` |
 | Env var | `PUBLIC_STATSIG_CLIENT_KEY` in `.env.local` and Vercel env settings |
 | Env var docs | `.env.example` lines 10-12 |
-| Statsig gate | [new_docs_site_rollout](https://console.statsig.com/2aVMoalsJmTVASIsy8WxBu/gates/new_docs_site_rollout) |
+| Statsig gate | `new_docs_site_rollout` (Statsig Console → Feature Gates) |
 
 ## Using metrics
 
@@ -32,9 +32,9 @@ The gate has `measureMetricLifts: true` enabled, with these monitoring metrics a
 
 ### Adding custom metrics
 
-1. Go to [Statsig Console > Metrics](https://console.statsig.com/2aVMoalsJmTVASIsy8WxBu/metrics)
+1. Go to Statsig Console > Metrics
 2. Create or select a metric (e.g. page views, search usage)
-3. Open the [new_docs_site_rollout gate](https://console.statsig.com/2aVMoalsJmTVASIsy8WxBu/gates/new_docs_site_rollout) > **Monitoring Metrics** tab
+3. Open the `new_docs_site_rollout` gate in Statsig Console > **Monitoring Metrics** tab
 4. Add your metric — it will start tracking lifts for gate-exposed users
 
 ### Viewing results
@@ -47,7 +47,7 @@ When you're ready to archive the Statsig integration:
 
 ### 1. Archive the gate in Statsig Console
 
-- Open [new_docs_site_rollout](https://console.statsig.com/2aVMoalsJmTVASIsy8WxBu/gates/new_docs_site_rollout)
+- Open the `new_docs_site_rollout` gate in Statsig Console
 - Click **Archive** (or disable it first, wait a cycle, then archive)
 - Export any metric results you want to keep before archiving
 

@@ -41,29 +41,20 @@ Before you set up a {C.COLUMNSTORE} policy on a {C.CAGG}, you first set the [ref
 prevent refresh policies from failing, set the {C.COLUMNSTORE} policy interval so that actively
 refreshed regions are not compressed. For example:
 
-<ol type="a">
-<li>
+1. Set the refresh policy:
 
-Set the refresh policy:
+   ```sql
+   SELECT add_continuous_aggregate_policy('<cagg_name>',
+     start_offset => INTERVAL '30 days',
+     end_offset => INTERVAL '1 day',
+     schedule_interval => INTERVAL '1 hour');
+   ```
 
-```sql
-SELECT add_continuous_aggregate_policy('<cagg_name>',
-  start_offset => INTERVAL '30 days',
-  end_offset => INTERVAL '1 day',
-  schedule_interval => INTERVAL '1 hour');
-```
+1. Set the {C.COLUMNSTORE} policy. The `after` parameter must be greater than the value of
+   `start_offset` in the refresh policy:
 
-</li>
-<li>
-
-Set the {C.COLUMNSTORE} policy. The `after` parameter must be greater than the value of
-`start_offset` in the refresh policy:
-
-```sql
-CALL add_columnstore_policy('<cagg_name>', after => INTERVAL '45 days');
-```
-
-</li>
-</ol>
+   ```sql
+   CALL add_columnstore_policy('<cagg_name>', after => INTERVAL '45 days');
+   ```
 </NumberedItem>
 </NumberedList>
