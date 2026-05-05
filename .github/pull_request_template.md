@@ -2,11 +2,9 @@
 
 What did you change? Why did you change it?
 
-<!-- affected-pages:start -->
 ## Affected pages
 
 _Once you open the PR and the build runs, links to changed pages will appear here automatically. Please review them to make sure everything is OK, including rendered output, links, code blocks, and images._
-<!-- affected-pages:end -->
 
 ## Related Issues
 

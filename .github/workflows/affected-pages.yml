@@ -87,9 +87,11 @@ jobs:
         with:
           script: |
             const fs = require("fs");
-            const start = "<!-- affected-pages:start -->";
-            const end   = "<!-- affected-pages:end -->";
-            const re = new RegExp(`\\n*${start}[\\s\\S]*?${end}\\n*`);
+            // Detect the Affected pages section by its heading. We capture
+            // everything from the heading up to (but not including) the next
+            // `## ` heading or end of body, so the workflow can refresh the
+            // content in place without leaving any HTML comment markers behind.
+            const sectionRe = /## Affected pages[ \t]*\n[\s\S]*?(?=\n## |$)/;
 
             const pull_number = parseInt(process.env.PR_NUMBER, 10);
             const { data: pr } = await github.rest.pulls.get({
@@ -98,14 +100,14 @@ jobs:
               pull_number,
             });
             const original = pr.body || "";
-            const section = fs.readFileSync(process.env.BODY_PATH, "utf8").trim();
-            const block = `${start}\n## Affected pages\n${section}\n${end}`;
+            const content = fs.readFileSync(process.env.BODY_PATH, "utf8").trim();
+            const block = `## Affected pages\n\n${content}\n`;
 
             let next;
-            if (re.test(original)) {
-              // Marker block already present (template default or previous run) —
+            if (sectionRe.test(original)) {
+              // Section already present (template default or previous run) —
               // refresh content in place.
-              next = original.replace(re, `\n\n${block}\n\n`);
+              next = original.replace(sectionRe, block);
             } else {
               // PR was opened without the template; insert before Related Issues
               // or fall back to appending.
@@ -114,9 +116,9 @@ jobs:
               if (idx >= 0) {
                 const before = original.slice(0, idx).trimEnd();
                 const after  = original.slice(idx);
-                next = `${before}\n\n${block}\n\n${after}`;
+                next = `${before}\n\n${block}\n${after}`;
               } else {
-                next = `${original.trim()}\n\n${block}\n`;
+                next = `${original.trim()}\n\n${block}`;
               }
             }
 
