@@ -79,13 +79,22 @@ for (const file of changed) {
 const sorted = [...allUrls].sort();
 
 if (sorted.length === 0) {
-  // Restore the template placeholder so the section stays useful even when
-  // the PR doesn't touch any MDX content.
-  writeFileSync(
-    "pages-comment.md",
-    "_No content pages affected by this PR. Once you push changes that touch MDX content or partials, links will appear here automatically. Please review them to make sure everything is OK, including rendered output, links, code blocks, and images._\n",
-  );
-  console.log("No content pages affected; wrote placeholder.");
+  // Even with no MDX content changes, surface the preview root so reviewers
+  // can confirm the build deployed successfully.
+  let placeholder;
+  if (previewBase) {
+    const previewLink = bypassSecret
+      ? `${previewBase}?x-vercel-protection-bypass=${encodeURIComponent(
+          bypassSecret,
+        )}&x-vercel-set-bypass-cookie=true`
+      : previewBase;
+    placeholder = `_No content pages affected by this PR. [Open the preview](${previewLink}) to confirm the build deployed successfully._`;
+  } else {
+    placeholder =
+      "_No content pages affected by this PR. Once you push changes that touch MDX content or partials, links will appear here automatically._";
+  }
+  writeFileSync("pages-comment.md", placeholder + "\n");
+  console.log("No content pages affected; wrote placeholder with preview link.");
   process.exit(0);
 }
 
