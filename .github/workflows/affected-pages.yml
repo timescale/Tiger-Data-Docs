@@ -1,0 +1,89 @@
+name: Affected pages
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+concurrency:
+  group: affected-pages-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  affected-pages:
+    # Skip self-triggered runs (the workflow edits the PR body, which fires
+    # another `edited` event under the github-actions[bot] identity).
+    if: github.event.sender.login != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed MDX files
+        id: changed
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            src/content/**/*.mdx
+            src/partials/**/*.mdx
+
+      - name: Compute affected page URLs
+        if: steps.changed.outputs.any_changed == 'true'
+        env:
+          CHANGED_FILES: ${{ steps.changed.outputs.all_changed_files }}
+          # Optional: set to your Vercel preview origin (e.g.
+          # ${{ steps.vercel.outputs.preview-url }}) to emit fully-qualified
+          # preview URLs instead of relative paths.
+          PREVIEW_URL: ""
+        run: node scripts/affected-pages.mjs
+
+      - name: Update PR description
+        if: steps.changed.outputs.any_changed == 'true'
+        uses: actions/github-script@v7
+        env:
+          BODY_PATH: pages-comment.md
+        with:
+          script: |
+            const fs = require("fs");
+            const section = fs.readFileSync(process.env.BODY_PATH, "utf8").trim();
+            const start = "<!-- affected-pages:start -->";
+            const end   = "<!-- affected-pages:end -->";
+            const block = `${start}\n## Affected pages\n${section}\n${end}`;
+
+            const pull_number = context.payload.pull_request.number;
+            const { data: pr } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number,
+            });
+            const original = pr.body || "";
+            const re = new RegExp(`${start}[\\s\\S]*?${end}`);
+
+            let next;
+            if (re.test(original)) {
+              // Existing block — refresh content, keep position.
+              next = original.replace(re, block);
+            } else {
+              // First run: insert before the checklist heading; fall back to append.
+              const heading = "## Checklist before requesting a review";
+              const idx = original.indexOf(heading);
+              if (idx >= 0) {
+                const before = original.slice(0, idx).trimEnd();
+                const after  = original.slice(idx);
+                next = `${before}\n\n${block}\n\n${after}`;
+              } else {
+                next = `${original.trim()}\n\n${block}\n`;
+              }
+            }
+
+            if (next !== original) {
+              await github.rest.pulls.update({
+                ...context.repo,
+                pull_number,
+                body: next,
+              });
+              console.log("PR description updated.");
+            } else {
+              console.log("No change to PR description.");
+            }
