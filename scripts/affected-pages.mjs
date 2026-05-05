@@ -73,10 +73,12 @@ for (const file of changed) {
 }
 
 const sorted = [...allUrls].sort();
-const lines =
-  sorted.length === 0
-    ? ["_No content pages affected by this PR._"]
-    : sorted.map((u) => `- ${previewBase}${u}`);
 
+if (sorted.length === 0) {
+  console.log("No content pages affected by this PR — nothing to write.");
+  process.exit(0);
+}
+
+const lines = sorted.map((u) => `- ${previewBase}${u}`);
 writeFileSync("pages-comment.md", lines.join("\n") + "\n");
 console.log(`Wrote pages-comment.md with ${sorted.length} URL(s).`);
