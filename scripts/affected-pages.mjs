@@ -3,12 +3,15 @@
 //
 // Inputs (env):
 //   CHANGED_FILES   Whitespace-separated list of changed file paths.
-//   PREVIEW_URL     Optional URL prefix (e.g. a Vercel preview origin).
-//                   When set, every emitted URL is "<PREVIEW_URL><path>".
+//   PREVIEW_URL     Optional URL prefix (a Vercel preview origin, no trailing slash).
+//                   When set, every emitted URL becomes a clickable markdown link
+//                   pointing at "<PREVIEW_URL><path>".
+//   BYPASS_SECRET   Optional Vercel deployment-protection bypass token. Combined
+//                   with PREVIEW_URL, the link becomes
+//                   "<PREVIEW_URL><path>?x-vercel-protection-bypass=<secret>&x-vercel-set-bypass-cookie=true".
 //
 // Output:
-//   pages-comment.md  Markdown bullet list of affected URLs (or an empty-state
-//                     line when no MDX content/partials changed).
+//   pages-comment.md  Markdown bullet list (created only when there are URLs).
 //
 // Logic:
 //   - src/content/docs/<...>.mdx  → "/<...>"  (lowercased; "index" stripped)
@@ -25,6 +28,7 @@ const changed = (process.env.CHANGED_FILES || "")
   .filter(Boolean);
 
 const previewBase = (process.env.PREVIEW_URL || "").replace(/\/$/, "");
+const bypassSecret = process.env.BYPASS_SECRET || "";
 
 function fileToUrl(file) {
   const m = file.match(/^src\/content\/docs\/(.+)\.mdx$/);
@@ -79,6 +83,17 @@ if (sorted.length === 0) {
   process.exit(0);
 }
 
-const lines = sorted.map((u) => `- ${previewBase}${u}`);
+function buildLine(urlPath) {
+  if (!previewBase) return `- ${urlPath}`;
+  let target = `${previewBase}${urlPath}`;
+  if (bypassSecret) {
+    target += `?x-vercel-protection-bypass=${encodeURIComponent(
+      bypassSecret,
+    )}&x-vercel-set-bypass-cookie=true`;
+  }
+  return `- [${urlPath}](${target})`;
+}
+
+const lines = sorted.map(buildLine);
 writeFileSync("pages-comment.md", lines.join("\n") + "\n");
 console.log(`Wrote pages-comment.md with ${sorted.length} URL(s).`);

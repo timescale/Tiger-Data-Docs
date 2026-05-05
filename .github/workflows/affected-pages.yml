@@ -1,49 +1,89 @@
 name: Affected pages
 
 on:
-  pull_request:
-    types: [opened, edited, synchronize]
+  deployment_status:
+
+permissions:
+  pull-requests: write
+  deployments: read
+  contents: read
 
 concurrency:
-  group: affected-pages-${{ github.event.pull_request.number }}
+  group: affected-pages-${{ github.event.deployment.sha }}
   cancel-in-progress: true
 
 jobs:
   affected-pages:
-    # Skip self-triggered runs (the workflow edits the PR body, which fires
-    # another `edited` event under the github-actions[bot] identity).
-    if: github.event.sender.login != 'github-actions[bot]'
+    if: |
+      github.event.deployment_status.state == 'success' &&
+      startsWith(github.event.deployment.environment, 'Preview') &&
+      contains(github.event.deployment_status.target_url, 'vercel.app')
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Find PR for this deployment
+        id: pr
+        uses: actions/github-script@v8
+        env:
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
         with:
-          fetch-depth: 0
+          script: |
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: process.env.DEPLOY_SHA,
+            });
+            const pr = prs.find((p) => p.state === "open");
+            if (!pr) {
+              core.info("No open PR for this deployment; skipping.");
+              return;
+            }
+            core.setOutput("number", pr.number);
 
-      - name: Get changed MDX files
-        id: changed
-        uses: tj-actions/changed-files@v45
+      - name: Checkout repo at deploy SHA
+        if: steps.pr.outputs.number
+        uses: actions/checkout@v4
         with:
-          files: |
-            src/content/**/*.mdx
-            src/partials/**/*.mdx
+          ref: ${{ github.event.deployment.sha }}
+
+      - name: Collect changed MDX files
+        id: changed
+        if: steps.pr.outputs.number
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        with:
+          script: |
+            const pull_number = parseInt(process.env.PR_NUMBER, 10);
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number,
+            });
+            const matching = files
+              .filter((f) => f.status !== "removed")
+              .map((f) => f.filename)
+              .filter(
+                (n) =>
+                  (n.startsWith("src/content/") || n.startsWith("src/partials/")) &&
+                  n.endsWith(".mdx"),
+              );
+            core.setOutput("any", matching.length > 0 ? "true" : "false");
+            core.setOutput("files", matching.join("\n"));
 
       - name: Compute affected page URLs
-        if: steps.changed.outputs.any_changed == 'true'
+        if: steps.changed.outputs.any == 'true'
         env:
-          CHANGED_FILES: ${{ steps.changed.outputs.all_changed_files }}
-          # Optional: set to your Vercel preview origin (e.g.
-          # ${{ steps.vercel.outputs.preview-url }}) to emit fully-qualified
-          # preview URLs instead of relative paths.
-          PREVIEW_URL: ""
+          CHANGED_FILES: ${{ steps.changed.outputs.files }}
+          PREVIEW_URL: ${{ github.event.deployment_status.target_url }}
+          BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: node scripts/affected-pages.mjs
 
       - name: Update PR description
-        if: steps.changed.outputs.any_changed == 'true'
-        uses: actions/github-script@v7
+        if: steps.pr.outputs.number
+        uses: actions/github-script@v8
         env:
           BODY_PATH: pages-comment.md
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
         with:
           script: |
             const fs = require("fs");
@@ -51,9 +91,10 @@ jobs:
             const end   = "<!-- affected-pages:end -->";
             const re = new RegExp(`\\n*${start}[\\s\\S]*?${end}\\n*`);
 
-            const pull_number = context.payload.pull_request.number;
+            const pull_number = parseInt(process.env.PR_NUMBER, 10);
             const { data: pr } = await github.rest.pulls.get({
-              ...context.repo,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
               pull_number,
             });
             const original = pr.body || "";
@@ -66,10 +107,8 @@ jobs:
               const section = fs.readFileSync(process.env.BODY_PATH, "utf8").trim();
               const block = `${start}\n## Affected pages\n${section}\n${end}`;
               if (re.test(original)) {
-                // Existing block — refresh content, keep position.
                 next = original.replace(re, `\n\n${block}\n\n`);
               } else {
-                // First run: insert before the Related Issues heading; fall back to append.
                 const heading = "## Related Issues";
                 const idx = original.indexOf(heading);
                 if (idx >= 0) {
@@ -89,7 +128,8 @@ jobs:
 
             if (next !== original) {
               await github.rest.pulls.update({
-                ...context.repo,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
                 pull_number,
                 body: next,
               });
