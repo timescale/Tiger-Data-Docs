@@ -71,7 +71,7 @@ jobs:
             core.setOutput("files", matching.join("\n"));
 
       - name: Compute affected page URLs
-        if: steps.changed.outputs.any == 'true'
+        if: steps.pr.outputs.number
         env:
           CHANGED_FILES: ${{ steps.changed.outputs.files }}
           PREVIEW_URL: ${{ github.event.deployment_status.target_url }}
@@ -98,32 +98,26 @@ jobs:
               pull_number,
             });
             const original = pr.body || "";
-            const hasFile =
-              fs.existsSync(process.env.BODY_PATH) &&
-              fs.statSync(process.env.BODY_PATH).size > 0;
+            const section = fs.readFileSync(process.env.BODY_PATH, "utf8").trim();
+            const block = `${start}\n## Affected pages\n${section}\n${end}`;
 
             let next;
-            if (hasFile) {
-              const section = fs.readFileSync(process.env.BODY_PATH, "utf8").trim();
-              const block = `${start}\n## Affected pages\n${section}\n${end}`;
-              if (re.test(original)) {
-                next = original.replace(re, `\n\n${block}\n\n`);
-              } else {
-                const heading = "## Related Issues";
-                const idx = original.indexOf(heading);
-                if (idx >= 0) {
-                  const before = original.slice(0, idx).trimEnd();
-                  const after  = original.slice(idx);
-                  next = `${before}\n\n${block}\n\n${after}`;
-                } else {
-                  next = `${original.trim()}\n\n${block}\n`;
-                }
-              }
-            } else if (re.test(original)) {
-              // No URLs this run; clean up the previously-injected block.
-              next = original.replace(re, "\n\n").replace(/\n{3,}/g, "\n\n");
+            if (re.test(original)) {
+              // Marker block already present (template default or previous run) —
+              // refresh content in place.
+              next = original.replace(re, `\n\n${block}\n\n`);
             } else {
-              next = original;
+              // PR was opened without the template; insert before Related Issues
+              // or fall back to appending.
+              const heading = "## Related Issues";
+              const idx = original.indexOf(heading);
+              if (idx >= 0) {
+                const before = original.slice(0, idx).trimEnd();
+                const after  = original.slice(idx);
+                next = `${before}\n\n${block}\n\n${after}`;
+              } else {
+                next = `${original.trim()}\n\n${block}\n`;
+              }
             }
 
             if (next !== original) {

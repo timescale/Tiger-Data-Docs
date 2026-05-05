@@ -79,7 +79,13 @@ for (const file of changed) {
 const sorted = [...allUrls].sort();
 
 if (sorted.length === 0) {
-  console.log("No content pages affected by this PR — nothing to write.");
+  // Restore the template placeholder so the section stays useful even when
+  // the PR doesn't touch any MDX content.
+  writeFileSync(
+    "pages-comment.md",
+    "_No content pages affected by this PR. Once you push changes that touch MDX content or partials, links will appear here automatically. Please review them to make sure everything is OK, including rendered output, links, code blocks, and images._\n",
+  );
+  console.log("No content pages affected; wrote placeholder.");
   process.exit(0);
 }
 
