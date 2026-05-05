@@ -11,28 +11,31 @@ Updating parameters on a {C.PG} instance will cause an outage. Choose a time tha
 
 <NumberedItem title={`Tune the Write Ahead Log (WAL) on the RDS/Aurora ${C.PG} source database`}>
 
-<ol type="a">
-<li>In <a href="https://console.aws.amazon.com/rds/home#databases:">RDS console</a>, select the RDS instance to migrate.</li>
-<li>Click <code>Configuration</code>, scroll down and note the <code>DB instance parameter group</code>, then click <code>Parameter Groups</code>.</li>
-</ol>
+1. In [RDS console](https://console.aws.amazon.com/rds/home#databases:), select the RDS instance to migrate.
 
-<Image src={imgParameterGroups} alt="RDS parameter groups in the AWS console" />
+1. Click `Configuration`, scroll down and note the `DB instance parameter group`, then click `Parameter Groups`.
 
-<ol type="a" start="3">
+   <Image src={imgParameterGroups} alt="RDS parameter groups in the AWS console" />
 
-<li>Click <code>Create parameter group</code>, fill in the form with the following values, then click <code>Create</code>:<br />
-• <code>Parameter group name</code>, whatever suits your fancy.<br />
-• <code>Description</code>, knock yourself out with this one.<br />
-• <code>Engine type</code>, <code>{C.PG}</code><br />
-• <code>Parameter group family</code>, the same as <code>DB instance parameter group</code> in your <code>Configuration</code>.</li>
-<li>In <code>Parameter groups</code>, select the parameter group you created, then click <code>Edit</code>.</li>
-<li>Update the following parameters, then click <code>Save changes</code>:<br />
-<code>rds.logical_replication</code> set to <code>1</code>: record the information needed for logical decoding.<br />
-<code>wal_sender_timeout</code> set to <code>0</code>: disable the timeout for the sender process.</li>
-<li>In RDS, navigate back to your <a href="https://console.aws.amazon.com/rds/home#databases:">databases</a>, select the RDS instance to migrate, and click <code>Modify</code>.</li>
-<li>Scroll down to <code>Database options</code>, select your new parameter group, and click <code>Continue</code>.</li>
-<li>Click <code>Apply immediately</code> or choose a maintenance window, then click <code>Modify DB instance</code>.</li>
-</ol>
+1. Click `Create parameter group`, fill in the form with the following values, then click `Create`:
+
+   - `Parameter group name`, whatever suits your fancy.
+   - `Description`, knock yourself out with this one.
+   - `Engine type`, `{C.PG}`
+   - `Parameter group family`, the same as `DB instance parameter group` in your `Configuration`.
+
+1. In `Parameter groups`, select the parameter group you created, then click `Edit`.
+
+1. Update the following parameters, then click `Save changes`:
+
+   - `rds.logical_replication` set to `1`: record the information needed for logical decoding.
+   - `wal_sender_timeout` set to `0`: disable the timeout for the sender process.
+
+1. In RDS, navigate back to your [databases](https://console.aws.amazon.com/rds/home#databases:), select the RDS instance to migrate, and click `Modify`.
+
+1. Scroll down to `Database options`, select your new parameter group, and click `Continue`.
+
+1. Click `Apply immediately` or choose a maintenance window, then click `Modify DB instance`.
 
 Changing parameters will cause an outage. Wait for the database instance to reboot before continuing. After it comes back up, verify that the new settings are in effect on your database.
 
@@ -40,63 +43,53 @@ Changing parameters will cause an outage. Wait for the database instance to rebo
 
 <NumberedItem title={`Create a user for the ${C.PG_CONNECTOR} and assign permissions`}>
 
-<ol type="a">
-<li>Create <code>&lt;pg connector username&gt;</code>:</li>
-</ol>
+1. Create `<pg connector username>`:
 
-```bash
-psql $SOURCE -c "CREATE USER <pg connector username> PASSWORD '<password>'"
-```
+   ```bash
+   psql $SOURCE -c "CREATE USER <pg connector username> PASSWORD '<password>'"
+   ```
 
-You can use an existing user. However, you must ensure that the user has the following permissions.
+   You can use an existing user. However, you must ensure that the user has the following permissions.
 
-<ol type="a" start="2">
-<li>Grant permissions to create a replication slot:</li>
-</ol>
+1. Grant permissions to create a replication slot:
 
-```bash
-psql $SOURCE -c "GRANT rds_replication TO <pg connector username>"
-```
+   ```bash
+   psql $SOURCE -c "GRANT rds_replication TO <pg connector username>"
+   ```
 
-<ol type="a" start="3">
-<li>Grant permissions to create a publication:</li>
-</ol>
+1. Grant permissions to create a publication:
 
-```bash
-psql $SOURCE -c "GRANT CREATE ON DATABASE <database name> TO <pg connector username>"
-```
+   ```bash
+   psql $SOURCE -c "GRANT CREATE ON DATABASE <database name> TO <pg connector username>"
+   ```
 
-<ol type="a" start="4">
-<li>Assign the user permissions on the source database:</li>
-</ol>
+1. Assign the user permissions on the source database:
 
-```bash
-psql $SOURCE <<EOF
-GRANT USAGE ON SCHEMA "public" TO <pg connector username>;
-GRANT SELECT ON ALL TABLES IN SCHEMA "public" TO <pg connector username>;
-ALTER DEFAULT PRIVILEGES IN SCHEMA "public" GRANT SELECT ON TABLES TO <pg connector username>;
-EOF
-```
+   ```bash
+   psql $SOURCE <<EOF
+   GRANT USAGE ON SCHEMA "public" TO <pg connector username>;
+   GRANT SELECT ON ALL TABLES IN SCHEMA "public" TO <pg connector username>;
+   ALTER DEFAULT PRIVILEGES IN SCHEMA "public" GRANT SELECT ON TABLES TO <pg connector username>;
+   EOF
+   ```
 
-If the tables you are syncing are not in the <code>public</code> schema, grant the user permissions for each schema you are syncing:
+   If the tables you are syncing are not in the `public` schema, grant the user permissions for each schema you are syncing:
 
-```bash
-psql $SOURCE <<EOF
-GRANT USAGE ON SCHEMA <schema> TO <pg connector username>;
-GRANT SELECT ON ALL TABLES IN SCHEMA <schema> TO <pg connector username>;
-ALTER DEFAULT PRIVILEGES IN SCHEMA <schema> GRANT SELECT ON TABLES TO <pg connector username>;
-EOF
-```
+   ```bash
+   psql $SOURCE <<EOF
+   GRANT USAGE ON SCHEMA <schema> TO <pg connector username>;
+   GRANT SELECT ON ALL TABLES IN SCHEMA <schema> TO <pg connector username>;
+   ALTER DEFAULT PRIVILEGES IN SCHEMA <schema> GRANT SELECT ON TABLES TO <pg connector username>;
+   EOF
+   ```
 
-<ol type="a" start="5">
-<li>On each table you want to sync, make <code>&lt;pg connector username&gt;</code> the owner:</li>
-</ol>
+1. On each table you want to sync, make `<pg connector username>` the owner:
 
-```bash
-psql $SOURCE -c 'ALTER TABLE <table name> OWNER TO <pg connector username>;'
-```
+   ```bash
+   psql $SOURCE -c 'ALTER TABLE <table name> OWNER TO <pg connector username>;'
+   ```
 
-You can skip this step if the replicating user is already the owner of the tables.
+   You can skip this step if the replicating user is already the owner of the tables.
 
 </NumberedItem>
 

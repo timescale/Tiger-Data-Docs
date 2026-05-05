@@ -90,37 +90,25 @@ pg_dump -d "$SOURCE" --no-owner -Fc -v -f dump.bak
 
 <NumberedItem title="Restore the data to your target service">
 
-<ol type="a">
-<li>
+1. Put your target {C.MST_SERVICE_SHORT} in the right state for restoring:
 
-Put your target {C.MST_SERVICE_SHORT} in the right state for restoring:
+   ```bash
+   psql -d "$TARGET" -c "SELECT timescaledb_pre_restore();"
+   ```
 
-```bash
-psql -d "$TARGET" -c "SELECT timescaledb_pre_restore();"
-```
+1. Upload your data to the target {C.MST_SERVICE_SHORT}:
 
-</li>
-<li>
+   ```bash
+   pg_restore -d "$TARGET" --jobs 4 -Fc dump.bak
+   ```
 
-Upload your data to the target {C.MST_SERVICE_SHORT}:
+   The `--jobs` option specifies the number of CPUs to use to dump and restore the database concurrently.
 
-```bash
-pg_restore -d "$TARGET" --jobs 4 -Fc dump.bak
-```
+1. Return your target {C.MST_SERVICE_SHORT} to normal operations:
 
-The `--jobs` option specifies the number of CPUs to use to dump and restore the database concurrently.
-
-</li>
-<li>
-
-Return your target {C.MST_SERVICE_SHORT} to normal operations:
-
-```bash
-psql -d "$TARGET" -c "SELECT timescaledb_post_restore();"
-```
-
-</li>
-</ol>
+   ```bash
+   psql -d "$TARGET" -c "SELECT timescaledb_post_restore();"
+   ```
 
 </NumberedItem>
 
