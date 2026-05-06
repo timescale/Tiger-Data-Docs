@@ -1784,11 +1784,15 @@ export default defineConfig({
         })]
       : [])],
 
+    // Note: Vercel normalizes trailing slashes on incoming URLs (vercel.json
+    // `trailingSlash: false`) before applying these rules, so source keys here
+    // should be no-trailing-slash only. Defining both forms causes static-route
+    // collisions during the Astro build (Astro will hard-error on this in a
+    // future release).
     redirects: withBase({
       ...(DOCS_LOCAL_WITHOUT_STAINLESS
         ? {
             "/reference/tiger-cloud-rest": "/reference/tiger-cloud-rest-local-preview",
-            "/reference/tiger-cloud-rest/": "/reference/tiger-cloud-rest-local-preview",
           }
         : {}),
       "/api": "/reference/tiger-cloud-rest",
@@ -1819,7 +1823,6 @@ export default defineConfig({
         "/get-started/choose-your-path/install-timescaledb",
       // Content moved from Learn → Build (same pages; old URLs redirect)
       "/learn/examples": "/build/examples",
-      "/learn/examples/": "/build/examples/",
       "/learn/examples/simulate-iot-sensor-data": "/build/examples/simulate-iot-sensor-data",
       "/learn/examples/analyze-financial-tick-data": "/build/examples/analyze-financial-tick-data",
       "/learn/examples/ingest-real-time-financial-data": "/build/examples/ingest-real-time-financial-data",
@@ -1827,23 +1830,18 @@ export default defineConfig({
       "/learn/examples/analyze-energy-consumption": "/build/examples/analyze-energy-consumption",
       "/learn/examples/analyze-transport-data": "/build/examples/analyze-transport-data",
       "/learn/examples/aggregate-organizational-data-with-ai": "/build/examples/aggregate-organizational-data-with-ai",
-      "/learn/examples/aggregate-organizational-data-with-ai/": "/build/examples/aggregate-organizational-data-with-ai/",
       "/learn/examples/cookbook": "/build/examples/cookbook",
       "/learn/examples/create-services-with-terraform": "/build/examples/create-services-with-terraform",
       "/learn/examples/00-template-tutorial-render": "/build/examples/",
       "/learn/examples/aggregate-organizational-data-with-ai-2": "/build/examples/aggregate-organizational-data-with-ai",
       "/learn/production-patterns": "/build/",
-      "/learn/production-patterns/": "/build/",
       "/build/production-patterns": "/build/",
-      "/build/production-patterns/": "/build/",
       // Tiger Cloud operational guide (moved out of Learn → Search)
       "/learn/search/vectorizer-deprecation": "/deploy/tiger-cloud/vectorizer-deprecation",
-      "/learn/search/vectorizer-deprecation/": "/deploy/tiger-cloud/vectorizer-deprecation/",
       "/learn/fundamentals/your-first-hypertable": "/build/how-to/your-first-hypertable",
       "/learn/fundamentals/basic-compression": "/build/how-to/basic-compression",
       // Learn IA: /learn/hypertables/*, /learn/chunks/*, /learn/capabilities-and-comparison/*. Keep legacy URLs working.
       "/learn/fundamentals": "/learn/",
-      "/learn/fundamentals/": "/learn/",
       "/learn/fundamentals/understand-hypertables": "/learn/hypertables/understand-hypertables",
       "/learn/fundamentals/understanding-chunks": "/learn/chunks/understanding-chunks",
       "/learn/fundamentals/understand-capabilities":
@@ -1854,9 +1852,7 @@ export default defineConfig({
       "/learn/fundamentals/tiger-cloud-feature-comparison":
         "/get-started/feature-comparison",
       "/learn/concepts": "/learn",
-      "/learn/concepts/": "/learn/",
       "/learn/topics": "/learn",
-      "/learn/topics/": "/learn/",
       "/learn/concepts/understand-hypertables": "/learn/hypertables/understand-hypertables",
       "/learn/concepts/optimize-data-in-hypertables": "/learn/hypertables/optimize-data-in-hypertables",
       "/learn/hypertables/hypertable-operations": "/learn/hypertables/optimize-data-in-hypertables",
@@ -1871,148 +1867,81 @@ export default defineConfig({
         "/get-started/feature-comparison",
       "/learn/overview/understand-capabilities":
         "/learn/capabilities-and-comparison/understand-capabilities",
-      "/learn/overview/understand-capabilities/":
-        "/learn/capabilities-and-comparison/understand-capabilities/",
       "/learn/overview/tiger-cloud-feature-comparison":
         "/get-started/feature-comparison",
-      "/learn/overview/tiger-cloud-feature-comparison/":
-        "/learn/capabilities-and-comparison/feature-comparison",
       "/learn/about-tiger-data/understand-capabilities":
         "/learn/capabilities-and-comparison/understand-capabilities",
-      "/learn/about-tiger-data/understand-capabilities/":
-        "/learn/capabilities-and-comparison/understand-capabilities/",
       "/learn/about-tiger-data/tiger-cloud-feature-comparison":
         "/get-started/feature-comparison",
-      "/learn/about-tiger-data/tiger-cloud-feature-comparison/":
-        "/learn/capabilities-and-comparison/feature-comparison",
       // Legacy /learn/data-management/ URLs (folder renamed to /learn/data-lifecycle/)
       "/learn/data-management/data-lifecycle": "/learn/data-lifecycle",
-      "/learn/data-management/data-lifecycle/": "/learn/data-lifecycle/",
       "/learn/data-management/time-buckets/about-time-buckets":
         "/learn/data-lifecycle/time-buckets/about-time-buckets",
-      "/learn/data-management/time-buckets/about-time-buckets/":
-        "/learn/data-lifecycle/time-buckets/about-time-buckets/",
       "/learn/data-management/time-buckets/use-time-buckets":
         "/learn/data-lifecycle/time-buckets/use-time-buckets",
-      "/learn/data-management/time-buckets/use-time-buckets/":
-        "/learn/data-lifecycle/time-buckets/use-time-buckets/",
       "/learn/data-management/data-retention":
         "/learn/data-lifecycle/data-retention/about-data-retention",
-      "/learn/data-management/data-retention/":
-        "/learn/data-lifecycle/data-retention/",
       "/learn/data-management/data-retention/about-data-retention":
         "/learn/data-lifecycle/data-retention/about-data-retention",
-      "/learn/data-management/data-retention/about-data-retention/":
-        "/learn/data-lifecycle/data-retention/about-data-retention/",
       "/learn/data-management/data-retention/manually-drop-chunks":
         "/learn/data-lifecycle/data-retention/manually-drop-chunks",
-      "/learn/data-management/data-retention/manually-drop-chunks/":
-        "/learn/data-lifecycle/data-retention/manually-drop-chunks/",
       "/learn/data-management/data-retention/data-retention-with-continuous-aggregates":
         "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates",
-      "/learn/data-management/data-retention/data-retention-with-continuous-aggregates/":
-        "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates/",
       "/learn/data-management/storage": "/learn/data-lifecycle/storage/about-storage-tiers",
-      "/learn/data-management/storage/": "/learn/data-lifecycle/storage/",
       "/learn/data-management/storage/about-storage-tiers":
         "/learn/data-lifecycle/storage/about-storage-tiers",
-      "/learn/data-management/storage/about-storage-tiers/":
-        "/learn/data-lifecycle/storage/about-storage-tiers/",
       // Conceptual docs canonical under /learn/; old /build/ URLs redirect (bookmarks, external links)
       "/build/data-management/time-buckets/about-time-buckets":
         "/learn/data-lifecycle/time-buckets/about-time-buckets",
-      "/build/data-management/time-buckets/about-time-buckets/":
-        "/learn/data-lifecycle/time-buckets/about-time-buckets/",
       "/build/data-management/time-buckets/use-time-buckets":
         "/learn/data-lifecycle/time-buckets/use-time-buckets",
-      "/build/data-management/time-buckets/use-time-buckets/":
-        "/learn/data-lifecycle/time-buckets/use-time-buckets/",
       "/build/data-management/about-jobs": "/build/data-management/about-automation",
       "/build/data-management/jobs": "/build/data-management/about-automation",
-      "/build/data-management/jobs/": "/build/data-management/about-automation",
       "/build/data-management/jobs/create-and-manage-jobs": "/build/data-management/create-and-manage-jobs",
       "/build/data-management/jobs/example-downsample-and-compress": "/build/data-management/example-downsample-and-compress",
       "/build/data-management/jobs/example-generic-retention": "/build/data-management/example-generic-retention",
       "/build/data-management/jobs/example-tiered-storage": "/build/data-management/example-tiered-storage",
       "/build/data-management/data-retention": "/learn/data-lifecycle/data-retention/about-data-retention",
       "/learn/data-lifecycle/data-retention": "/learn/data-lifecycle/data-retention/about-data-retention",
-      "/build/data-management/data-retention/": "/learn/data-lifecycle/data-retention/",
       "/build/data-management/data-retention/about-data-retention":
         "/learn/data-lifecycle/data-retention/about-data-retention",
-      "/build/data-management/data-retention/about-data-retention/":
-        "/learn/data-lifecycle/data-retention/about-data-retention/",
       "/build/data-management/data-retention/manually-drop-chunks":
         "/learn/data-lifecycle/data-retention/manually-drop-chunks",
-      "/build/data-management/data-retention/manually-drop-chunks/":
-        "/learn/data-lifecycle/data-retention/manually-drop-chunks/",
       "/build/data-management/data-retention/data-retention-with-continuous-aggregates":
         "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates",
-      "/build/data-management/data-retention/data-retention-with-continuous-aggregates/":
-        "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates/",
       "/build/data-management/storage": "/learn/data-lifecycle/storage/about-storage-tiers",
       "/learn/data-lifecycle/storage": "/learn/data-lifecycle/storage/about-storage-tiers",
-      "/build/data-management/storage/": "/learn/data-lifecycle/storage/",
       "/build/data-management/storage/about-storage-tiers":
         "/learn/data-lifecycle/storage/about-storage-tiers",
-      "/build/data-management/storage/about-storage-tiers/":
-        "/learn/data-lifecycle/storage/about-storage-tiers/",
       "/build/columnar-storage": "/learn/columnar-storage/understand-hypercore",
-      "/build/columnar-storage/": "/learn/columnar-storage/understand-hypercore/",
       "/build/columnar-storage/understand-hypercore": "/learn/columnar-storage/understand-hypercore",
-      "/build/columnar-storage/understand-hypercore/": "/learn/columnar-storage/understand-hypercore/",
       "/build/columnar-storage/compression-methods": "/learn/columnar-storage/compression-methods",
-      "/build/columnar-storage/compression-methods/": "/learn/columnar-storage/compression-methods/",
       "/build/continuous-aggregates": "/learn/continuous-aggregates",
-      "/build/continuous-aggregates/": "/learn/continuous-aggregates/",
       "/build/continuous-aggregates/about-continuous-aggregates":
         "/learn/continuous-aggregates",
-      "/build/continuous-aggregates/about-continuous-aggregates/":
-        "/learn/continuous-aggregates/",
       "/learn/continuous-aggregates/about-continuous-aggregates":
         "/learn/continuous-aggregates",
-      "/learn/continuous-aggregates/about-continuous-aggregates/":
-        "/learn/continuous-aggregates/",
       "/build/continuous-aggregates/time-and-continuous-aggregates":
         "/learn/continuous-aggregates/time-and-continuous-aggregates",
-      "/build/continuous-aggregates/time-and-continuous-aggregates/":
-        "/learn/continuous-aggregates/time-and-continuous-aggregates/",
       "/build/continuous-aggregates/hierarchical-continuous-aggregates":
         "/learn/continuous-aggregates/hierarchical-continuous-aggregates",
-      "/build/continuous-aggregates/hierarchical-continuous-aggregates/":
-        "/learn/continuous-aggregates/hierarchical-continuous-aggregates/",
       "/build/continuous-aggregates/materialized-hypertables":
         "/learn/continuous-aggregates/materialized-hypertables",
-      "/build/continuous-aggregates/materialized-hypertables/":
-        "/learn/continuous-aggregates/materialized-hypertables/",
       "/learn/performance-optimization/improve-hypertable-performance":
         "/build/performance-optimization/improve-hypertable-performance",
-      "/learn/performance-optimization/improve-hypertable-performance/":
-        "/build/performance-optimization/improve-hypertable-performance/",
       "/learn/performance-optimization/hypertables-and-unique-indexes":
         "/build/performance-optimization/hypertables-and-unique-indexes",
-      "/learn/performance-optimization/hypertables-and-unique-indexes/":
-        "/build/performance-optimization/hypertables-and-unique-indexes/",
       // Old Timescale docs used /migrate/latest/* — redirect to current paths
       "/migrate/latest": "/migrate",
-      "/migrate/latest/": "/migrate/",
       "/migrate/latest/pg-dump-and-restore": "/migrate/migrate-with-downtime",
-      "/migrate/latest/pg-dump-and-restore/": "/migrate/migrate-with-downtime/",
       "/migrate/latest/troubleshooting": "/migrate/troubleshooting",
-      "/migrate/latest/troubleshooting/": "/migrate/troubleshooting/",
       "/migrate/latest/live-migration": "/migrate/live-migration",
-      "/migrate/latest/live-migration/": "/migrate/live-migration/",
       "/migrate/latest/livesync-for-postgresql": "/migrate/livesync-for-postgresql",
-      "/migrate/latest/livesync-for-postgresql/": "/migrate/livesync-for-postgresql/",
       "/migrate/latest/livesync-for-s3": "/migrate/livesync-for-s3",
-      "/migrate/latest/livesync-for-s3/": "/migrate/livesync-for-s3/",
       "/migrate/latest/livesync-for-kafka": "/migrate/livesync-for-kafka",
-      "/migrate/latest/livesync-for-kafka/": "/migrate/livesync-for-kafka/",
       "/migrate/latest/dual-write-and-backfill": "/migrate/dual-write-and-backfill",
-      "/migrate/latest/dual-write-and-backfill/": "/migrate/dual-write-and-backfill/",
       "/migrate/latest/timescaledb-backfill": "/migrate/dual-write-and-backfill/timescaledb-backfill",
-      "/migrate/latest/timescaledb-backfill/": "/migrate/dual-write-and-backfill/timescaledb-backfill/",
       // Tiger Cloud overview removed; send old URL to AWS service management entry
       "/deploy/tiger-cloud": "/deploy/tiger-cloud/tiger-cloud-aws/service-management",
-      "/deploy/tiger-cloud/": "/deploy/tiger-cloud/tiger-cloud-aws/service-management/",
     }),
 });
