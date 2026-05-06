@@ -1,0 +1,43 @@
+---
+title: Speed up queries by rewriting them to use continuous aggregates
+description: Have TimescaleDB transparently route matching queries to a continuous aggregate instead of the raw hypertable
+products: [cloud, mst, self_hosted]
+---
+
+import * as C from "@constants";
+import SinceRelease from "@components/SinceRelease.astro";
+import Experimental from "../../../../partials/_experimental.mdx";
+
+<SinceRelease version="2.27.0" product="tsdb" />
+
+<Experimental />
+
+When you enable `timescaledb.enable_cagg_rewrites`, {C.TIMESCALE_DB} can transparently rewrite a query against a {C.HYPERTABLE} to read from a matching {C.CAGG} instead. If a {C.CAGG} aggregates exactly the columns and time buckets the query asks for, {C.TIMESCALE_DB} replaces the {C.HYPERTABLE} scan with a {C.CAGG} scan, which is much faster on large datasets.
+
+## How {C.CAGG} query rewrites work
+
+When you query a {C.HYPERTABLE} with `SELECT … GROUP BY time_bucket(…)`, {C.TIMESCALE_DB} looks for a {C.CAGG} on that {C.HYPERTABLE} whose definition matches the query's grouping columns, `time_bucket` width, and aggregates. If one matches, the planner replaces the {C.HYPERTABLE} scan with a scan of the {C.CAGG}'s materialization — the rewrite is invisible to the application.
+
+The match must be exact. {C.TIMESCALE_DB} does not reaggregate (for example, it does not roll up 1-hour {C.CAGG} buckets into 2-hour query buckets).
+
+## Use {C.CAGG} query rewrites
+
+Turn the rewriting on:
+
+```sql
+SET timescaledb.enable_cagg_rewrites = on;
+```
+
+A second setting controls diagnostics:
+
+```sql
+SET timescaledb.cagg_rewrites_debug_info = on;
+```
+
+With `cagg_rewrites_debug_info` on, {C.TIMESCALE_DB} prints whether each query is eligible for rewriting and, if not, why. Set this on while `enable_cagg_rewrites` is off to inspect which queries would be rewritten without changing plans.
+
+## Limitations
+
+- **Exact match required.** The query must aggregate the same columns with the same `time_bucket` width as the target {C.CAGG}. {C.TIMESCALE_DB} does not roll up smaller buckets into larger ones to match a query.
+- **Real-time {C.CAGG}s only.** A {C.CAGG} with the default `timescaledb.materialized_only = true` is not eligible. Set `materialized_only = false` on the {C.CAGG} you want the rewriter to use.
+- **{C.PG} 16 or later.** Rewrites are not supported on {C.PG} 15.

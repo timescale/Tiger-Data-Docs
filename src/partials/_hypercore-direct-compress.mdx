@@ -1,28 +1,25 @@
 import { Callout } from "@stainless-api/docs/components";
 
-When you set `timescaledb.enable_direct_compress_copy` your data gets compressed in memory during ingestion with `COPY` statements. 
-By writing the compressed batches immediately in the columnstore, the IO footprint is significantly lower.
-Also, the [columnstore policy](/reference/timescaledb/hypercore/add_columnstore_policy) you set is less important, `INSERT` already produces compressed chunks. 
+When you set `timescaledb.enable_direct_compress_insert` or `timescaledb.enable_direct_compress_copy`, {C.TIMESCALE_DB} compresses data in memory during ingestion and writes the compressed batches directly to the {C.COLUMNSTORE}. This significantly reduces the I/O footprint, and `INSERT` and `COPY` produce {C.COLUMNSTORE} {C.CHUNK}s on the spot — the [{C.COLUMNSTORE} policy](/reference/timescaledb/hypercore/add_columnstore_policy) is less important.
 
 <Callout variant="note">
 
-Please note that this feature is a **tech preview** and not production-ready.
-Using this feature could lead to regressed query performance and/or storage ratio, if the ingested batches are not 
-correctly ordered or are of too high cardinality.
+This feature is a **tech preview** and not production-ready. Using direct compress can regress query performance or storage ratio if the ingested rows are not sorted by the table's `orderby` columns or if the data has very high cardinality.
 
 </Callout>
 
-To enable in-memory data compression during ingestion:
+To enable in-memory compression during ingestion, set the appropriate GUC:
 
 ```sql
-SET timescaledb.enable_direct_compress_copy=on;
+SET timescaledb.enable_direct_compress_insert = on;
+-- or
+SET timescaledb.enable_direct_compress_copy = on;
 ```
 
 **Important facts**
-- High cardinality use cases do not produce good batches and lead to degreaded query performance.
-- The columnstore is optimized to store 1000 records per batch, which is the optimal format for ingestion per segment by.
+- High cardinality data does not produce good batches and degrades query performance.
+- The {C.COLUMNSTORE} is optimized for 1000 rows per batch per `segmentby` value.
 - WAL records are written for the compressed batches rather than the individual tuples.
-- Currently only `COPY` is support, `INSERT` will eventually follow.
-- Best results are achieved for batch ingestion with 1000 records or more, upper boundary is 10.000 records.
-- Continous Aggregates are **not** supported at the moment.
-
+- Best results are achieved for batch ingestion with 1000 rows or more.
+- Tables with unique constraints cannot use direct compress.
+- Since 2.27.0, if your {C.HYPERTABLE} has no `segmentby` configured, {C.TIMESCALE_DB} analyzes the buffered rows on the first flush and selects one automatically. Disable with `SET timescaledb.enable_direct_compress_auto_segmentby = off`.
