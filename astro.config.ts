@@ -1795,7 +1795,6 @@ export default defineConfig({
       "/api": "/reference/tiger-cloud-rest",
       "/api/api-reference": "/reference/tiger-cloud-rest",
       "/build/data-management/query-data/skipscan": "/build/performance-optimization/skipscan",
-      "/build/data-management/query-data/skipscan/": "/build/performance-optimization/skipscan/",
       "/api-reference/timescaledb-toolkit": "/reference/toolkit",
       "/api-reference/timescaledb": "/reference/timescaledb",
       "/api-reference": "/reference",
