@@ -87,11 +87,12 @@ jobs:
         with:
           script: |
             const fs = require("fs");
-            // Detect the Affected pages section by its heading. We capture
-            // everything from the heading up to (but not including) the next
-            // `## ` heading or end of body, so the workflow can refresh the
-            // content in place without leaving any HTML comment markers behind.
-            const sectionRe = /## Affected pages[ \t]*\n[\s\S]*?(?=\n## |$)/;
+            // Match any "## Affected pages" section: from the heading up to (but
+            // not including) the next `## ` heading or end of body. The `\r?`
+            // tolerates GitHub's CRLF line endings in PR bodies, and the `g`
+            // flag lets us strip duplicate sections left behind by earlier runs
+            // that hit the line-ending bug.
+            const sectionRe = /## Affected pages[ \t]*\r?\n[\s\S]*?(?=\r?\n## |$)/g;
 
             const pull_number = parseInt(process.env.PR_NUMBER, 10);
             const { data: pr } = await github.rest.pulls.get({
@@ -103,23 +104,22 @@ jobs:
             const content = fs.readFileSync(process.env.BODY_PATH, "utf8").trim();
             const block = `## Affected pages\n\n${content}\n`;
 
+            // Strip every existing Affected pages section, then reinsert one
+            // fresh copy in the canonical spot. This is idempotent and also
+            // cleans up any duplicates accumulated by previous runs.
+            const stripped = original
+              .replace(sectionRe, "")
+              .replace(/(\r?\n){3,}/g, "$1$1");
+
             let next;
-            if (sectionRe.test(original)) {
-              // Section already present (template default or previous run) —
-              // refresh content in place.
-              next = original.replace(sectionRe, block);
+            const heading = "## Related Issues";
+            const idx = stripped.indexOf(heading);
+            if (idx >= 0) {
+              const before = stripped.slice(0, idx).trimEnd();
+              const after  = stripped.slice(idx);
+              next = `${before}\n\n${block}\n${after}`;
             } else {
-              // PR was opened without the template; insert before Related Issues
-              // or fall back to appending.
-              const heading = "## Related Issues";
-              const idx = original.indexOf(heading);
-              if (idx >= 0) {
-                const before = original.slice(0, idx).trimEnd();
-                const after  = original.slice(idx);
-                next = `${before}\n\n${block}\n${after}`;
-              } else {
-                next = `${original.trim()}\n\n${block}`;
-              }
+              next = `${stripped.trim()}\n\n${block}`;
             }
 
             if (next !== original) {
