@@ -660,7 +660,7 @@ export default defineConfig({
                 { label: "Performance optimization", link: "/build/performance-optimization" },
                 { label: "Accelerate queries using indexes", link: "/build/performance-optimization/indexing" },
                 { label: "Get faster DISTINCT queries with SkipScan", link: "/build/performance-optimization/skipscan" },
-                { label: "Accelerate queries with continuous aggregates", link: "/build/performance-optimization/cagg-query-rewrites" },
+                { label: "Automatically route queries to continuous aggregates", link: "/build/performance-optimization/cagg-query-rewrites" },
                 { label: "Ensure data integrity with constraints", link: "/build/performance-optimization/ensure-data-integrity-with-constraints" },
                 { label: "Alter and update table schemas", link: "/build/performance-optimization/alter-update-table-schema" },
                 { label: "Handle semi-structured data with JSON", link: "/build/performance-optimization/handle-semi-structured-data-with-json" },
