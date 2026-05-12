@@ -208,7 +208,7 @@ Once {C.CHUNK}s are converted to the {C.COLUMNSTORE}, regular B-tree indexes don
 
 Two index types are available:
 
-- **`bloom(<column>)`** — probabilistic filter for equality predicates. Lets the engine answer "could this batch contain `column = X`?" without inspecting the batch's compressed data.
+- **`bloom(<column>, ...)`** — probabilistic filter for equality predicates. Lets the engine answer "could this batch contain `column = X`?" without inspecting the batch's compressed data. Accepts one or more columns; a [composite bloom](#composite-bloom-filters) tests combined equality predicates across the listed columns.
 - **`minmax(<column>)`** — stores per-batch min and max for the column. Lets the engine answer range and equality predicates by comparing the predicate against the batch's bounds.
 
 Sparse indexes accelerate `SELECT`, `UPSERT`, `UPDATE`, and `DELETE` on {C.COLUMNSTORE} data. For DML, when a batch can't contain matching rows, {C.TIMESCALE_DB} skips it without moving it back to the {C.ROWSTORE} for checking — this is what delivers the headline speedups (more than 2× for upserts, up to 160× for `UPDATE`/`DELETE` with selective bloom matches).
@@ -219,7 +219,7 @@ By default ([`timescaledb.auto_sparse_indexes`](/reference/timescaledb/configura
 
 ### Configure sparse indexes
 
-Configure sparse indexes when you [`CREATE TABLE`](/reference/timescaledb/hypertables/create_table#arguments) or via [`ALTER TABLE`](/reference/timescaledb/hypercore/alter_table#arguments). Use `tsdb.sparse_index` with a comma-separated list:
+Configure sparse indexes when you [`CREATE TABLE`](/reference/timescaledb/hypertables/create_table#arguments), and change them at any time with [`ALTER TABLE`](/reference/timescaledb/hypercore/alter_table#arguments). Use `tsdb.sparse_index` with a comma-separated list:
 
 ```sql
 CREATE TABLE metrics (
