@@ -1,6 +1,6 @@
 ---
 title: Accelerate queries using indexes
-description: Add indexes to speed up queries on your hypertables and learn best practices for creating them
+description: Add indexes to speed up queries and DML on your hypertables — different mechanisms apply to the rowstore and the columnstore
 products: [cloud, mst, self_hosted]
 ---
 
@@ -8,12 +8,17 @@ import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import CreateHypertablePolicyNote from "../../../../partials/_create-hypertable-columnstore-policy-note.mdx";
 
-Indexes shrink scan work for point lookups and selective filters on recent, non-compressed {C.CHUNK}s in the rowstore (compressed chunks rely on [columnar indexing](/learn/columnar-storage/compression-methods) instead).
+Indexes shrink scan work for point lookups and selective filters. {C.TIMESCALE_DB} uses two complementary mechanisms:
 
-You can create an index on any combination of columns. To define an index as a `UNIQUE` or `PRIMARY KEY` index, it must include the partitioning column (this is usually the time column).
+- **Regular {C.PG} indexes on the {C.ROWSTORE}** — B-tree indexes on recent, non-{C.COLUMNSTORE} {C.CHUNK}s, configured the same way as on a regular {C.PG} table.
+- **Sparse indexes on the {C.COLUMNSTORE}** — `bloom` and `minmax` summaries per {C.COLUMNSTORE} batch that let the engine skip batches that can't match a query. See [Sparse indexes on the {C.COLUMNSTORE}](#sparse-indexes-on-the-columnstore).
 
-Which column you choose to create your
-index on depends on what kind of data you have stored.
+For background on how the {C.COLUMNSTORE} stores compressed data, see [Compression methods](/learn/columnar-storage/compression-methods).
+
+## Indexes on the {C.ROWSTORE}
+
+You can create an index on any combination of columns. To define an index as `UNIQUE` or `PRIMARY KEY`, it must include the partitioning column (this is usually the time column).
+
 When you create a {C.HYPERTABLE}, set the datatype for the `time` column as
 `timestamptz` and not `timestamp`.
 For more information, see [{C.PG} timestamp best practices](https://wiki.postgresql.org/wiki/Don't_Do_This#Don.27t_use_timestamp_.28without_time_zone.29).
@@ -25,6 +30,8 @@ doing so results in very slow ingest speeds. For time-series data, indexing
 on the time column allows one index to be created per chunk.
 
 </Callout>
+
+### Choose effective index columns
 
 Consider a simple example with temperatures collected from two locations named
 `office` and `garage`:
@@ -57,6 +64,8 @@ A good rule of thumb with indexes is to think in layers. Start by choosing the
 columns that you typically want to run equality operators on, such as
 `location = garage`. Then finish by choosing columns you want to use range
 operators on, such as `time > 0930`.
+
+### Composite indexes
 
 As a more complex example, imagine you have a number of devices tracking
 1,000 different retail stores. You have 100 devices per store, and 5 different
@@ -125,10 +134,10 @@ The index in the example is useless for this query, because the data for
 SELECT * FROM devices WHERE store_id = M AND device_id = M AND time > 10
 ```
 
-This is an accurate query for this index. It narrows down the list to a very
+This is an effective query for this index. It narrows down the list to a very
 specific portion.
 
-## Creating indexes
+### Create indexes
 
 You can create an index using the `CREATE INDEX` command. For example, to create
 an index that sorts first by `location`, then by `time`, in descending order:
@@ -137,16 +146,20 @@ an index that sorts first by `location`, then by `time`, in descending order:
 CREATE INDEX ON conditions (location, time DESC);
 ```
 
-You can run this command before or after you convert a regular {C.PG} table
-to a hypertable.
+<Callout variant="tip">
+
+Monitor index creation progress on a {C.HYPERTABLE} through {C.PG}'s [`pg_stat_progress_create_index`](https://www.postgresql.org/docs/current/progress-reporting.html#CREATE-INDEX-PROGRESS-REPORTING) view. Since 2.27.0, {C.TIMESCALE_DB} reports per-{C.CHUNK} progress so you can track long-running builds.
+
+</Callout>
+
+If you do not want to lock the entire {C.HYPERTABLE} for the duration of the build, use
+[`CREATE INDEX … WITH (timescaledb.transaction_per_chunk)`](/reference/timescaledb/hypertables/create_index),
+which creates the index in a separate transaction per {C.CHUNK}. Other operations on the
+{C.HYPERTABLE} can run concurrently between {C.CHUNK} transactions.
 
 ### Default indexes
 
-Some indexes are created by default when you perform certain actions on your
-database.
-
-When you create a hypertable with a call to [`CREATE TABLE`](/reference/timescaledb/hypertables/create_table), a time index
-is created on your data. If you want to manually create a time index, you can use this command:
+When you create a {C.HYPERTABLE} with [`CREATE TABLE`](/reference/timescaledb/hypertables/create_table), {C.TIMESCALE_DB} creates a time index automatically. If you want to create the time index manually, run:
 
 ```sql
 CREATE INDEX ON conditions (time DESC);
@@ -158,10 +171,7 @@ You can also create an additional index on another column and time. For example:
 CREATE INDEX ON conditions (location, time DESC);
 ```
 
-{C.TIMESCALE_DB} also creates sparse indexes per {C.COLUMNSTORE} {C.CHUNK} for optimization, including bloom indexes for equality filters and min/max indexes for range filters. You can manually configure these indexes when you call [`CREATE TABLE`](/reference/timescaledb/hypertables/create_table) or [`ALTER TABLE`](/reference/timescaledb/hypercore/alter_table).
-
-If you do not want to create default indexes, you can set
-`create_default_indexes` to `false` when you create a hypertable. For example:
+To opt out of default index creation, set `tsdb.create_default_indexes` to `false` when you create the {C.HYPERTABLE}:
 
 ```sql
 CREATE TABLE conditions (
@@ -178,7 +188,7 @@ CREATE TABLE conditions (
 
 <CreateHypertablePolicyNote />
 
-### Best practices for indexing
+### Best practices
 
 If you have sparse data, with columns that are often NULL, you can add a clause
 to the index, saying `WHERE column IS NOT NULL`. This prevents the index from
@@ -190,23 +200,73 @@ CREATE INDEX ON conditions (time DESC, humidity)
   WHERE humidity IS NOT NULL;
 ```
 
-To define an index as a `UNIQUE` or `PRIMARY KEY` index, the index must include
-the time column and the partitioning column, if you are using one. For example,
-a unique index must include at least the `(time, location)` columns, in addition
-to any other columns you want to use. Generally,
-time-series data uses `UNIQUE` indexes more rarely than relational data.
+Time-series data uses `UNIQUE` indexes more rarely than relational data. When you do need one, the index must include the partitioning column. For example, on a {C.HYPERTABLE} partitioned only on `time`, a `UNIQUE` index on `(time, location)` is valid; a `UNIQUE` index on `(location)` alone is not.
 
-If you do not want to create an index in a single transaction, you can use the
-[`CREATE_INDEX`](/reference/timescaledb/hypertables/create_index)
-function. This uses a separate function to create an index on each chunk,
-instead of a single transaction for the entire hypertable. This means that you
-can perform other actions on the table while the index is being created, rather
-than having to wait until index creation is complete.
+## Sparse indexes on the {C.COLUMNSTORE}
 
-<Callout variant="note">
+Once {C.CHUNK}s are converted to the {C.COLUMNSTORE}, regular B-tree indexes don't apply. Instead, {C.TIMESCALE_DB} maintains *sparse indexes* — small per-batch summaries that let the engine skip batches that can't match the query before reading or moving them back to the {C.ROWSTORE}.
 
-You can also use the
-[{C.PG} `WITH` clause](https://www.postgresql.org/docs/current/queries-with.html)
-to perform indexing transactions on an individual chunk.
+Two index types are available:
 
-</Callout>
+- **`bloom(<column>, ...)`** — probabilistic filter for equality predicates. Lets the engine answer "could this batch contain `column = X`?" without inspecting the batch's compressed data. Accepts one or more columns; a [composite bloom](#composite-bloom-filters) tests combined equality predicates across the listed columns.
+- **`minmax(<column>)`** — stores per-batch min and max for the column. Lets the engine answer range and equality predicates by comparing the predicate against the batch's bounds.
+
+Sparse indexes accelerate `SELECT`, `UPSERT`, `UPDATE`, and `DELETE` on {C.COLUMNSTORE} data. For DML, when a batch can't contain matching rows, {C.TIMESCALE_DB} skips it without moving it back to the {C.ROWSTORE} for checking — this is what delivers the headline speedups (more than 2× for upserts, up to 160× for `UPDATE`/`DELETE` with selective bloom matches).
+
+### Default sparse indexes
+
+By default ([`timescaledb.auto_sparse_indexes`](/reference/timescaledb/configuration/gucs)), {C.TIMESCALE_DB} picks suitable sparse indexes automatically based on the {C.HYPERTABLE}'s existing B-tree indexes and column data types. Setting `tsdb.orderby` always creates an implicit `minmax` index on the orderby column.
+
+### Configure sparse indexes
+
+Configure sparse indexes when you [`CREATE TABLE`](/reference/timescaledb/hypertables/create_table#arguments), and change them at any time with [`ALTER TABLE`](/reference/timescaledb/hypercore/alter_table#arguments). Use `tsdb.sparse_index` with a comma-separated list:
+
+```sql
+CREATE TABLE metrics (
+  time TIMESTAMPTZ NOT NULL,
+  device_id INT NOT NULL,
+  region TEXT,
+  cpu DOUBLE PRECISION,
+  PRIMARY KEY (time, device_id)
+) WITH (
+  tsdb.hypertable,
+  tsdb.orderby = 'time DESC',
+  tsdb.segmentby = 'region',
+  tsdb.sparse_index = 'bloom(device_id), minmax(cpu)'
+);
+```
+
+### Restrictions
+
+- **Bloom on `tsdb.segmentby` columns**: not allowed, single-column or composite. A bloom whose column list includes any segmentby column is rejected.
+- **Single-column bloom on a `tsdb.orderby` column**: not allowed. The orderby column gets an implicit `minmax` automatically; use that for range filters. A composite `bloom(orderby_col, other_col)` that includes the orderby column **is** allowed.
+- **Minmax on `tsdb.segmentby` columns**: not allowed.
+- **Minmax on a `tsdb.orderby` column**: redundant — an implicit `minmax` is already added; configuring one explicitly has the same effect.
+- **One single-column sparse index per column**: you cannot have two indexes on the same single column (`bloom(region), minmax(region)` is rejected). Composite indexes are not affected by this rule (`bloom(region, dev), bloom(dev)` is valid).
+
+### Composite bloom filters
+
+When a query filters on multiple columns that have `bloom` indexes, {C.TIMESCALE_DB} automatically combines the per-column bloom checks at query time — no extra configuration needed.
+
+For known multi-column query patterns, you can also configure an explicit composite bloom by listing the columns inside a single `bloom()` call. This stores one combined bloom per batch, which can be tighter than separate per-column blooms:
+
+```sql
+ALTER TABLE metrics SET (
+  timescaledb.sparse_index = 'bloom(region, device)'
+);
+```
+
+You can mix single-column and composite bloom indexes on the same {C.HYPERTABLE}. When multiple bloom indexes apply to a query, the planner picks the most-selective one.
+
+### Verify with EXPLAIN
+
+`EXPLAIN ANALYZE` exposes counters for sparse-index pruning. For `SELECT`, `UPDATE`, and `DELETE`:
+
+- **Compressed batches filtered** — batches skipped by sparse indexes without moving them back to the {C.ROWSTORE}.
+- **Batches filtered after decompression** — batches that had to be processed before being filtered out.
+
+For `UPSERT`, additional bloom-specific counters:
+
+- **Batches checked by bloom**, **Batches pruned by bloom**, **Batches without bloom**, **Batches bloom false positives**.
+
+Use these to confirm bloom and minmax indexes are doing useful work for your workload. If `Compressed batches filtered` stays at zero on selective queries, your sparse indexes are not on the right columns.
