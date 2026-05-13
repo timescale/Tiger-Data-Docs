@@ -12,9 +12,8 @@ import SinceRelease from "@components/SinceRelease.astro";
 <SinceRelease version="2.20.0" product="tsdb" />
 
 To save on storage costs, you use {C.HYPERCORE} to downsample historical data stored in {C.CAGG}s. After you
-[enable {C.COLUMNSTORE}](/reference/timescaledb/continuous-aggregates/alter_materialized_view) on a `MATERIALIZED VIEW`, you set a
-[{C.COLUMNSTORE} policy](/reference/timescaledb/hypercore/add_columnstore_policy). This policy defines the intervals when {C.CHUNK}s in a {C.CAGG}
-are compressed as they are converted from the {C.ROWSTORE} to the {C.COLUMNSTORE}.
+[enable {C.HYPERCORE}](/reference/timescaledb/continuous-aggregates/alter_materialized_view) on a `MATERIALIZED VIEW`, you set a
+[{C.COLUMNSTORE} policy](/reference/timescaledb/hypercore/add_columnstore_policy). This policy defines the intervals when {C.TIMESCALE_DB} converts {C.CHUNK}s in a {C.CAGG} from the {C.ROWSTORE} to the {C.COLUMNSTORE}.
 
 {C.COLUMNSTORE_CAP} works in the same way on [{C.HYPERTABLE}s and {C.CAGG}s](/learn/columnar-storage/understand-hypercore). When you enable
 {C.COLUMNSTORE} with no other options, your data is [segmented by](/reference/timescaledb/continuous-aggregates/alter_materialized_view#arguments) the `groupby` columns
@@ -26,20 +25,20 @@ is disabled by default.
 For an [existing {C.CAGG}](/build/continuous-aggregates/create-a-continuous-aggregate):
 
 <NumberedList>
-<NumberedItem title={`Enable ${C.COLUMNSTORE} on a ${C.CAGG}`}>
+<NumberedItem title={`Enable ${C.HYPERCORE} on a ${C.CAGG}`}>
 Set `timescaledb.enable_columnstore = true` when you alter the view:
 
 ```sql
 ALTER MATERIALIZED VIEW <cagg_name> set (timescaledb.enable_columnstore = true);
 ```
 
-To disable the {C.COLUMNSTORE}, set `timescaledb.enable_columnstore = false`.
+To disable {C.HYPERCORE}, set `timescaledb.enable_columnstore = false`.
 </NumberedItem>
 
-<NumberedItem title={`Set ${C.COLUMNSTORE} policies on the ${C.CAGG}`}>
+<NumberedItem title={`Set the ${C.COLUMNSTORE} policy on the ${C.CAGG}`}>
 Before you set up a {C.COLUMNSTORE} policy on a {C.CAGG}, you first set the [refresh policy](/build/continuous-aggregates/refresh-policies). To
-prevent refresh policies from failing, set the {C.COLUMNSTORE} policy interval so that actively
-refreshed regions are not compressed. For example:
+prevent refresh policies from failing, set the {C.COLUMNSTORE} policy interval so that {C.TIMESCALE_DB} does not convert
+actively refreshed regions to the {C.COLUMNSTORE}. For example:
 
 1. Set the refresh policy:
 
@@ -50,7 +49,7 @@ refreshed regions are not compressed. For example:
      schedule_interval => INTERVAL '1 hour');
    ```
 
-1. Set the {C.COLUMNSTORE} policy. The `after` parameter must be greater than the value of
+1. Set the {C.COLUMNSTORE} policy. The `after` parameter should be greater than the value of
    `start_offset` in the refresh policy:
 
    ```sql
@@ -58,3 +57,22 @@ refreshed regions are not compressed. For example:
    ```
 </NumberedItem>
 </NumberedList>
+
+## Convert refreshed {C.CHUNK}s to the {C.COLUMNSTORE} during refresh
+
+<SinceRelease version="2.27.0" product="tsdb" />
+
+As an alternative to a separate {C.COLUMNSTORE} policy, you can configure the refresh policy itself to move {C.CAGG} {C.CHUNK}s into the {C.COLUMNSTORE} after each refresh. Use this when you want refreshed data to land in the {C.COLUMNSTORE} on the same schedule as the refresh, with no gap between the two windows.
+
+When you enable `compress_after_refresh` on the refresh policy job, {C.TIMESCALE_DB} converts the {C.CAGG} {C.CHUNK}s in the refresh window to the {C.COLUMNSTORE} at the end of each scheduled refresh. {C.TIMESCALE_DB} processes each {C.CHUNK} in its own transaction, so the job resumes from the last completed {C.CHUNK} if interrupted.
+
+`compress_after_refresh` is a JSONB key on the refresh policy job's `config` and defaults to `false`. Set it with [`alter_job`](/reference/timescaledb/jobs-automation/alter_job):
+
+```sql
+SELECT alter_job(<job_id>,
+    config => jsonb_set(
+        (SELECT config FROM _timescaledb_catalog.bgw_job WHERE id = <job_id>),
+        '{compress_after_refresh}', 'true'));
+```
+
+You must enable {C.HYPERCORE} on the {C.CAGG} first. Otherwise, {C.TIMESCALE_DB} skips the conversion.
