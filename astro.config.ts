@@ -4,7 +4,6 @@ import { join } from "node:path";
 import { defineConfig } from "astro/config";
 import type { AstroIntegration } from "astro";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
-import aiChat from "@stainless-api/docs-ai-chat/plugin";
 import starlightLlmsTxt from "starlight-llms-txt";
 import rehypeBasePath from "./src/plugins/rehype-base-path";
 import remarkResolveConstantsInHeadings from "./src/plugins/remark-resolve-constants-in-headings";
@@ -289,7 +288,6 @@ export default defineConfig({
       // ],
       experimental: {
         ...(DOCS_LOCAL_WITHOUT_STAINLESS ? { disableStainlessProseIndexing: true } : {}),
-        aiChat: aiChat(),
           starlightCompat: {
           components: {
             Head: "./src/components/Head.astro",
