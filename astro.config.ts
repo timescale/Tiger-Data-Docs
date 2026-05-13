@@ -569,7 +569,6 @@ export default defineConfig({
                   collapsed: true,
                   items: [
                     { label: "SELECT data", link: "/build/data-management/query-data/select" },
-                    { label: "SkipScan for DISTINCT queries", link: "/build/data-management/query-data/skipscan" },
                     { label: "Advanced analytic queries", link: "/build/data-management/query-data/advanced-analytic-queries" },
                     { label: "Query external data sources with FDW", link: "/build/performance-optimization/query-external-data-sources-with-fdw" },
                   ],
@@ -660,6 +659,8 @@ export default defineConfig({
               items: [
                 { label: "Performance optimization", link: "/build/performance-optimization" },
                 { label: "Accelerate queries using indexes", link: "/build/performance-optimization/indexing" },
+                { label: "Get faster DISTINCT queries with SkipScan", link: "/build/performance-optimization/skipscan" },
+                { label: "Automatically route queries to continuous aggregates", link: "/build/performance-optimization/cagg-query-rewrites" },
                 { label: "Ensure data integrity with constraints", link: "/build/performance-optimization/ensure-data-integrity-with-constraints" },
                 { label: "Alter and update table schemas", link: "/build/performance-optimization/alter-update-table-schema" },
                 { label: "Handle semi-structured data with JSON", link: "/build/performance-optimization/handle-semi-structured-data-with-json" },
@@ -1797,6 +1798,7 @@ export default defineConfig({
         : {}),
       "/api": "/reference/tiger-cloud-rest",
       "/api/api-reference": "/reference/tiger-cloud-rest",
+      "/build/data-management/query-data/skipscan": "/build/performance-optimization/skipscan",
       "/api-reference/timescaledb-toolkit": "/reference/toolkit",
       "/api-reference/timescaledb": "/reference/timescaledb",
       "/api-reference": "/reference",
