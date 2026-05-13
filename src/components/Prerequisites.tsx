@@ -1,22 +1,71 @@
 import type { ReactNode } from "react";
 
 /**
- * Prerequisites – success-styled banner for "Prerequisites for this tutorial" (Figma 3492-619).
- * Renders a green-tinted box with checkmark icon, title, optional intro line, and body (lists/paragraphs).
+ * Prerequisites – success-styled banner shown above a list of things the reader needs before
+ * starting (Figma 3492-619). Renders a green-tinted box with checkmark icon, a title,
+ * an intro line, and a body (lists/paragraphs passed as children).
  *
- * Usage in MDX:
+ * --------------------------------------------------------------------------
+ * How to pick the `context` prop (controls the noun in the title)
+ * --------------------------------------------------------------------------
+ * The component renders its title as: `Prerequisites for this {noun}`. Pick the value of
+ * `context` based on what kind of doc the reader is on:
+ *
+ *   context="procedure"   → "Prerequisites for this procedure"
+ *                           Use for short, focused how-to page sections that walk through one task
+ *                           (e.g. enabling a feature, configuring a setting). DEFAULT.
+ *
+ *   context="page"        → "Prerequisites for this page"
+ *                           Use for reference / explanatory pages that aren't a single
+ *                           ordered task — e.g. cookbooks, conceptual overviews with
+ *                           multiple independent examples.
+ *
+ *   context="tutorial"    → "Prerequisites for this tutorial"
+ *                           Use for end-to-end learning content under /build/examples/
+ *                           and similar (multi-step tutorials, full walkthroughs).
+ *
+ *   context="integration" → "Prerequisites for this integration guide"
+ *                           Use for pages under /integrate/ that show how to connect a
+ *                           third-party tool to Tiger Cloud / TimescaleDB.
+ *
+ * If none of these fit, pass `title="..."` to override the heading entirely. The intro
+ * line ("To follow these steps, you'll need:") is the same for every context and is
+ * supplied by this component — partials/children should NOT include their own intro.
+ * Pass `intro={false}` if you really need to hide it (rare).
+ *
+ * --------------------------------------------------------------------------
+ * Usage in MDX
+ * --------------------------------------------------------------------------
  *   import { Prerequisites } from "@components/Prerequisites";
- *   <Prerequisites>
- *     - Prerequisite 1 (e.g. [Tiger Cloud account](/link))
- *     - Prerequisite 2
+ *
+ *   <Prerequisites context="tutorial">
+ *     - A [Tiger Cloud account](/get-started/quickstart/quickstart-5-minutes)
+ *     - [Python 3.9+](https://www.python.org/) installed
  *   </Prerequisites>
  *
- * Optional props: title, intro (set to false to hide the default intro line).
+ * Bullets should be NOUN PHRASES ("A Tiger Cloud service", "Docker installed"), not verb
+ * phrases ("Create a service", "Install Docker") — they read as completions of the intro
+ * "you'll need: ___".
  */
+export type PrerequisitesContext = "procedure" | "page" | "tutorial" | "integration";
+
+const CONTEXT_NOUN: Record<PrerequisitesContext, string> = {
+  procedure: "procedure",
+  page: "page",
+  tutorial: "tutorial",
+  integration: "integration guide",
+};
+
 export interface PrerequisitesProps {
-  /** Heading text; default "Prerequisites for this tutorial" */
+  /**
+   * Selects the noun used in the default title: "Prerequisites for this {noun}".
+   * Pick by content type — see the component-level JSDoc above for guidance.
+   * Default: "procedure".
+   */
+  context?: PrerequisitesContext;
+  /** Full heading text override; replaces the context-derived title. Use only if no `context` fits. */
   title?: string;
-  /** Intro sentence above the list; default "To follow the procedure on this page, you'll need to:". Set to false to hide. */
+  /** Intro sentence above the list; default "To follow these steps, you'll need:". Set to false to hide. */
   intro?: string | false;
   children?: ReactNode;
 }
@@ -45,15 +94,17 @@ function SuccessCheckIcon() {
 }
 
 export function Prerequisites({
-  title = "Prerequisites for this tutorial",
-  intro = "To follow the procedure on this page, you'll need:",
+  context = "procedure",
+  title,
+  intro = "To follow these steps, you'll need:",
   children,
 }: PrerequisitesProps) {
+  const heading = title ?? `Prerequisites for this ${CONTEXT_NOUN[context]}`;
   return (
     <div className="prerequisites">
       <div className="prerequisites__header">
         <SuccessCheckIcon />
-        <h2 className="prerequisites__title">{title}</h2>
+        <h2 className="prerequisites__title">{heading}</h2>
       </div>
       <div className="prerequisites__body">
         {intro !== false && <p className="prerequisites__intro">{intro}</p>}
