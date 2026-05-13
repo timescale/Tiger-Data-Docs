@@ -288,7 +288,7 @@ export default defineConfig({
       // ],
       experimental: {
         ...(DOCS_LOCAL_WITHOUT_STAINLESS ? { disableStainlessProseIndexing: true } : {}),
-          starlightCompat: {
+        starlightCompat: {
           components: {
             Head: "./src/components/Head.astro",
             Header: "./src/components/Header.astro",
