@@ -1,68 +1,68 @@
 import * as C from "@constants";
 
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
-1. **Configure your self-hosted {C.PG} deployment**
+<NumberedList>
+  <NumberedItem title={`Configure your ${C.SELF_LONG} deployment`}>
+    1. Open `postgresql.conf`.
 
-   1. Open `postgresql.conf`.
+       The {C.PG} configuration files are usually located in:
 
-      The {C.PG} configuration files are usually located in:
+       - Docker: `/home/postgres/pgdata/data/`
+       - Linux: `/etc/postgresql/<version>/main/` or `/var/lib/pgsql/<version>/data/`
+       - MacOS: `/opt/homebrew/var/postgresql@<version>/`
+       - Windows: `C:\Program Files\PostgreSQL\<version>\data\`
 
-      - Docker: `/home/postgres/pgdata/data/`
-      - Linux: `/etc/postgresql/<version>/main/` or `/var/lib/pgsql/<version>/data/`
-      - MacOS: `/opt/homebrew/var/postgresql@<version>/`
-      - Windows: `C:\Program Files\{C.PG}\<version>\data\`
+    1. Enable logical replication.
 
-   1. Enable logical replication.
+       Modify the following settings in `postgresql.conf`:
 
-      Modify the following settings in `postgresql.conf`:
+       ```ini
+       wal_level = logical
+       max_replication_slots = 10
+       max_wal_senders = 10
+       ```
 
-      ```ini
-      wal_level = logical
-      max_replication_slots = 10
-      max_wal_senders = 10
-      ```
+    1. Open `pg_hba.conf` and enable host replication.
 
-   1. Open `pg_hba.conf` and enable host replication.
+       To allow replication connections, add the following:
 
-      To allow replication connections, add the following:
+       ```
+       local replication debezium                         trust
+       ```
 
-      ```
-      local replication debezium                         trust
-      ```
-      This permission is for the `debezium` {C.PG} user running on a local or Docker deployment. For more about replication
-      permissions, see [Configuring {C.PG} to allow replication with the Debezium connector host](https://debezium.io/documentation/reference/3.2/connectors/postgresql.html#postgresql-host-replication-permissions).
+       This permission is for the `debezium` {C.PG} user running on a local or Docker deployment. For more about replication
+       permissions, see [Configuring {C.PG} to allow replication with the Debezium connector host](https://debezium.io/documentation/reference/3.2/connectors/postgresql.html#postgresql-host-replication-permissions).
 
-   1. Restart {C.PG}.
-
-
-1. **Connect to your {C.SELF_LONG} instance**
-
-   Use [`psql`](/integrate/query-administration/psql/#connect-to-your-service).
-
-1. **Create a Debezium user in {C.PG}**
-
-   Create a user with the `LOGIN` and `REPLICATION` permissions:
+    1. Restart {C.PG}.
+  </NumberedItem>
+  <NumberedItem title={`Connect to your ${C.SELF_LONG} instance`}>
+    Use [`psql`](/integrate/query-administration/psql/#connect-to-your-service).
+  </NumberedItem>
+  <NumberedItem title={`Create a Debezium user in ${C.PG}`}>
+    Create a user with the `LOGIN` and `REPLICATION` permissions:
 
     ```sql
     CREATE ROLE debezium WITH LOGIN REPLICATION PASSWORD '<debeziumpassword>';
     ```
+  </NumberedItem>
+  <NumberedItem title="Enable a replication spot for Debezium">
+    1. Create a {C.HYPERTABLE} for Debezium to listen to:
 
-1. **Enable a replication spot for Debezium**
+       ```sql
+       CREATE TABLE accounts (
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        name TEXT,
+        city TEXT
+       ) WITH (tsdb.hypertable);
+       ```
 
-   1. Create a hypertable for Debezium to listen to:
+       Debezium also works with [{C.CAGG}s](/build/continuous-aggregates/create-a-continuous-aggregate).
 
-      ```sql
-      CREATE TABLE accounts (
-       created_at TIMESTAMPTZ DEFAULT NOW(),
-       name TEXT,
-       city TEXT
-      ) WITH (tsdb.hypertable);
-      ```
+    1. Create a publication and enable a replication slot:
 
-      Debezium also works with [{C.CAGG}s](/build/continuous-aggregates/create-a-continuous-aggregate).
-
-   1. Create a publication and enable a replication slot:
-
-      ```sql
-      CREATE PUBLICATION dbz_publication FOR ALL TABLES WITH (publish = 'insert, update');
-      ```
+       ```sql
+       CREATE PUBLICATION dbz_publication FOR ALL TABLES WITH (publish = 'insert, update');
+       ```
+  </NumberedItem>
+</NumberedList>
