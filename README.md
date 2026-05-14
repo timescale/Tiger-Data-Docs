@@ -214,7 +214,22 @@ The database name is intentionally centralized: use `{C.PG}` or `{C.POSTGRESQL}`
 
 Any page can surface a "Learn more" card in the right rail (tutorials, related blog posts, and an optional CTA button) by adding a `learnMore` block to its frontmatter. No imports or per-page wiring required — the card renders automatically when the key is present and hides itself when it isn't.
 
-See **[`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md)** for the full frontmatter schema, field reference, architecture, and theming notes.
+**Minimal example (drop this into any page's frontmatter):**
+
+```yaml
+learnMore:
+  tutorials:
+    - label: Your first hypertable
+      href: /build/how-to/your-first-hypertable/
+  relatedPosts:
+    - label: Why use hypertables
+      href: https://www.timescale.com/blog/why-hypertables/
+  cta:
+    label: Try for free
+    href: https://console.cloud.tigerdata.com/signup
+```
+
+**→ See [`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md)** for the full authoring guide: 8 copy-paste recipes (tutorial pages, concept pages, quickstarts, reference pages, custom headings, external links, CTA-only, etc.), field reference, troubleshooting, architecture, and theming notes.
 
 ## Want to learn more?
 

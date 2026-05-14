@@ -50,9 +50,14 @@ Then use `{C.CLOUD_LONG}`, `{C.PG}`, `{C.TIMESCALE_DB}`, etc. in MDX content. **
 Key overrides of Starlight defaults in `src/components/`:
 - `Callout.astro` — custom styled callout (overrides Stainless default)
 - `Header.astro`, `Footer.astro`, `PageTitle.astro`, `PageNavigation.astro`
+- `PageSidebar.astro` + `LearnMore.astro` — right-rail "Learn more" card driven by per-page frontmatter (`learnMore:` block). See [`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md) for the full authoring guide with copy-paste recipes for tutorials, concept pages, quickstarts, and reference pages.
 - `IntegrateOverview.astro`, `BuildToc/`, `IntegrateToc/`, `Glossary/` — section-specific components
 
 React components (`.tsx`) are used for interactive pieces like `CopyToClipboard`, `Prerequisites`.
+
+### Per-page right-rail card
+
+Authors can add a `learnMore:` block to any MDX page's frontmatter to surface a tutorials / related posts / CTA card in the right rail. No imports needed. Full schema, 8 variations, and troubleshooting are in **[`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md)** — start there before suggesting per-page related-content patterns.
 
 ### Custom Plugins
 
