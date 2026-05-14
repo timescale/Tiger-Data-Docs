@@ -1,47 +1,48 @@
 import { Image } from "astro:assets";
 import * as C from "@constants";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 import imgAddPeeringVpc from "../assets/images/deploy/tiger-cloud/add-peering-vpc-tiger-cloud.png";
 import imgConfigurePeeringVpc from "../assets/images/deploy/tiger-cloud/configure-peering-vpc-tiger-cloud.png";
 import imgAddPeering from "../assets/images/deploy/tiger-cloud/add-peering-tiger-cloud.png";
 
-1. **Create a Peering {C.VPC} in [{C.CONSOLE}](https://console.cloud.tigerdata.com/)**
+<NumberedList>
+  <NumberedItem title={`Create a Peering ${C.VPC} in Tiger Cloud Console`}>
+    Open [{C.CONSOLE}](https://console.cloud.tigerdata.com/), then:
 
-   1. In `Security` > `VPC`, click `Create a VPC`:
+    1. In `Security` > `VPC`, click `Create a VPC`:
 
-      <Image src={imgAddPeeringVpc} alt="Creating a new peering VPC in Tiger Console" />
+       <Image src={imgAddPeeringVpc} alt="Creating a new peering VPC in Tiger Console" />
+    1. Choose your region and IP range, name your VPC, then click `Create VPC`:
 
-   1.  Choose your region and IP range, name your VPC, then click `Create VPC`:
-
-       <Image src={imgConfigurePeeringVpc} alt="Configuring VPC region, IP range, and name" />
+        <Image src={imgConfigurePeeringVpc} alt="Configuring VPC region, IP range, and name" />
 
        Your {C.SERVICE_SHORT} and Peering {C.VPC} must be in the same AWS region. The number of Peering {C.VPC}s you can create in your project depends on your [{C.PRICING_PLAN}](/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management). If you need another Peering {C.VPC}, either contact [support@tigerdata.com](mailto:support@tigerdata.com) or change your plan in [{C.CONSOLE}](https://console.cloud.tigerdata.com/).
-
-   1.  Add a peering connection:
+    1. Add a peering connection:
 
        1. In the `VPC Peering` column, click `Add`.
-       1. Provide your AWS account ID, Transit Gateway ID, CIDR ranges, and AWS region. {C.CLOUD_LONG} creates a new isolated connection for every unique Transit Gateway ID. 
-       
-         <Image src={imgAddPeering} alt="Adding a peering connection with AWS account ID and Transit Gateway details" />
- 
+       1. Provide your AWS account ID, Transit Gateway ID, CIDR ranges, and AWS region. {C.CLOUD_LONG} creates a new isolated connection for every unique Transit Gateway ID.
+
+          <Image src={imgAddPeering} alt="Adding a peering connection with AWS account ID and Transit Gateway details" />
        1. Click `Add connection`.
+  </NumberedItem>
+  <NumberedItem title="Accept and configure peering connection in your AWS account">
+    Once your peering connection appears as `Processing`, you can accept and configure it in AWS:
 
-1. **Accept and configure peering connection in your AWS account**
+    1. Accept the peering request coming from {C.CLOUD_LONG}. The request can take up to 5 min to arrive. Within 5 more minutes after accepting, the peering should appear as `Connected` in {C.CONSOLE}.
+    1. Configure at least the following in your AWS account networking:
 
-   Once your peering connection appears as `Processing`, you can accept and configure it in AWS:
+       - Your subnet route table to route traffic to your Transit Gateway for the Peering VPC CIDRs.
+       - Your Transit Gateway route table to route traffic to the newly created Transit Gateway peering attachment for the Peering VPC CIDRs.
+       - Security groups to allow outbound TCP 5432.
+  </NumberedItem>
+  <NumberedItem title={`Attach a ${C.CLOUD_LONG} service to the Peering VPC`}>
+    In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services):
 
-   1. Accept the peering request coming from {C.CLOUD_LONG}. The request can take up to 5 min to arrive. Within 5 more minutes after accepting, the peering should appear as `Connected` in {C.CONSOLE}.
+    1. Select the {C.SERVICE_SHORT} you want to connect to the Peering VPC.
+    1. Click `Operations` > `Security` > `VPC`.
+    1. Select the VPC, then click `Attach VPC`.
 
-   1. Configure at least the following in your AWS account networking:
-
-      - Your subnet route table to route traffic to your Transit Gateway for the Peering VPC CIDRs.
-      - Your Transit Gateway route table to route traffic to the newly created Transit Gateway peering attachment for the Peering VPC CIDRs.
-      - Security groups to allow outbound TCP 5432.
-
-1. **Attach a {C.CLOUD_LONG} service to the Peering VPC In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services)**
-
-   1. Select the {C.SERVICE_SHORT} you want to connect to the Peering VPC.
-   1. Click `Operations` > `Security` > `VPC`.
-   1. Select the VPC, then click `Attach VPC`.
-
-   You cannot attach a {C.SERVICE_LONG} to multiple {C.CLOUD_LONG} {C.VPC}s at the same time.
+    You cannot attach a {C.SERVICE_LONG} to multiple {C.CLOUD_LONG} {C.VPC}s at the same time.
+  </NumberedItem>
+</NumberedList>
