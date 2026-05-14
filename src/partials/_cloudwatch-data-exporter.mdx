@@ -38,120 +38,101 @@ import imgWebIdentityRole from "../assets/images/integrate/observability-alertin
 
 <TabItem label="IAM role">
 
-<NumberedList>
+<ol type="a">
+  <li>In AWS, navigate to IAM > Identity providers, then click `Add provider`.</li>
+  <li>
+    Update the new identity provider with your details. Set `Provider URL` to the [region where you are creating your exporter](/integrate/observability-alerting/cloudwatch#reference).
 
-<NumberedItem title="In AWS, navigate to IAM > Identity providers, then click `Add provider`."></NumberedItem>
+    <Image src={imgOidcProvider} alt="Creating an IAM OIDC identity provider in AWS" />
+  </li>
+  <li>Click `Add provider`.</li>
+  <li>In AWS, navigate to IAM > Roles, then click `Create role`.</li>
+  <li>
+    Add your identity provider as a Web identity role and click `Next`.
 
-<NumberedItem title="Update the new identity provider with your details:">
+    <Image src={imgWebIdentityRole} alt="Creating a web identity IAM role in AWS" />
+  </li>
+  <li>
+    Set the following permission and trust policies:
 
-Set `Provider URL` to the [region where you are creating your exporter](/integrate/observability-alerting/cloudwatch#reference).
+    - Permission policy:
 
-<Image src={imgOidcProvider} alt="Creating an IAM OIDC identity provider in AWS" />
+      ```json
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+           {
+               "Effect": "Allow",
+               "Action": [
+                   "logs:PutLogEvents",
+                   "logs:CreateLogGroup",
+                   "logs:CreateLogStream",
+                   "logs:DescribeLogStreams",
+                   "logs:DescribeLogGroups",
+                   "logs:PutRetentionPolicy",
+                   "xray:PutTraceSegments",
+                   "xray:PutTelemetryRecords",
+                   "xray:GetSamplingRules",
+                   "xray:GetSamplingTargets",
+                   "xray:GetSamplingStatisticSummaries",
+                   "ssm:GetParameters"
+               ],
+               "Resource": "*"
+           }
+       ]
+      }
+      ```
+    - Role with a Trust Policy:
 
-</NumberedItem>
-
-<NumberedItem title="Click `Add provider`."></NumberedItem>
-
-<NumberedItem title="In AWS, navigate to IAM > Roles, then click `Create role`."></NumberedItem>
-
-<NumberedItem title="Add your identity provider as a Web identity role and click `Next`.">
-
-<Image src={imgWebIdentityRole} alt="Creating a web identity IAM role in AWS" />
-
-</NumberedItem>
-
-<NumberedItem title="Set the following permission and trust policies:">
-
-- Permission policy:
-
-  ```json
-  {
-    "Version": "2012-10-17",
-    "Statement": [
-       {
-           "Effect": "Allow",
-           "Action": [
-               "logs:PutLogEvents",
-               "logs:CreateLogGroup",
-               "logs:CreateLogStream",
-               "logs:DescribeLogStreams",
-               "logs:DescribeLogGroups",
-               "logs:PutRetentionPolicy",
-               "xray:PutTraceSegments",
-               "xray:PutTelemetryRecords",
-               "xray:GetSamplingRules",
-               "xray:GetSamplingTargets",
-               "xray:GetSamplingStatisticSummaries",
-               "ssm:GetParameters"
-           ],
-           "Resource": "*"
-       }
-   ]
-  }      
-  ```
-- Role with a Trust Policy:
-
-  ```json
-  {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {
-                "Federated": "arn:aws:iam::12345678910:oidc-provider/irsa-oidc-discovery-prod.s3.us-east-1.amazonaws.com"
-            },
-            "Action": "sts:AssumeRoleWithWebIdentity",
-            "Condition": {
-                "StringEquals": {
-                    "irsa-oidc-discovery-prod.s3.us-east-1.amazonaws.com:aud": "sts.amazonaws.com"
+      ```json
+      {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": {
+                    "Federated": "arn:aws:iam::12345678910:oidc-provider/irsa-oidc-discovery-prod.s3.us-east-1.amazonaws.com"
+                },
+                "Action": "sts:AssumeRoleWithWebIdentity",
+                "Condition": {
+                    "StringEquals": {
+                        "irsa-oidc-discovery-prod.s3.us-east-1.amazonaws.com:aud": "sts.amazonaws.com"
+                    }
                 }
-            }
-        },
-        {
-            "Sid": "Statement1",
-            "Effect": "Allow",
-            "Principal": {
-                "AWS": "arn:aws:iam::12345678910:role/my-exporter-role"
             },
-            "Action": "sts:AssumeRole"
-        }
-    ]
-  }        
-  ```      
-1. Click `Add role`.
+            {
+                "Sid": "Statement1",
+                "Effect": "Allow",
+                "Principal": {
+                    "AWS": "arn:aws:iam::12345678910:role/my-exporter-role"
+                },
+                "Action": "sts:AssumeRole"
+            }
+        ]
+      }
+      ```
+  </li>
+  <li>Click `Add role`.</li>
+</ol>
 
-</NumberedItem>
+</TabItem>
 
-</NumberedList>
+<TabItem label="CloudWatch credentials">
 
- </TabItem>
+When you use CloudWatch credentials, you link an Identity and Access Management (IAM) user with access to CloudWatch only with your {C.SERVICE_LONG}:
 
- <TabItem label="CloudWatch credentials">
+<ol type="a">
+  <li>
+    Retrieve the user information from IAM > Users in AWS console. If you do not have an AWS user with access restricted to CloudWatch only, [create one](https://console.aws.amazon.com/iam/home#/users/create). For more information, see [Creating IAM users (console)](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html#id_users_create_console).
+  </li>
+  <li>
+    Enter the credentials for the AWS IAM user. AWS keys give access to your AWS services. To keep your AWS account secure, restrict users to the minimum required permissions. Always store your keys in a safe location. To avoid this issue, use the IAM role authentication method.
+  </li>
+</ol>
 
- When you use CloudWatch credentials, you link an Identity and Access Management (IAM)
- user with access to CloudWatch only with your {C.SERVICE_LONG}:
+</TabItem>
 
-<NumberedList>
-
-<NumberedItem title="Retrieve the user information from IAM > Users in AWS console.">
-
-If you do not have an AWS user with access restricted to CloudWatch only,
-[create one](https://console.aws.amazon.com/iam/home#/users/create).
-For more information, see [Creating IAM users (console)](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_users_create.html#id_users_create_console).
-
-</NumberedItem>
-
-<NumberedItem title="Enter the credentials for the AWS IAM user.">
-
-AWS keys give access to your AWS services. To keep your AWS account secure, restrict users to the minimum required permissions. Always store your keys in a safe location. To avoid this issue, use the IAM role authentication method.
-
-</NumberedItem>
-
-</NumberedList>
-
- </TabItem>
-
- </Tabs>
+</Tabs>
 
 </NumberedItem>
 
