@@ -751,37 +751,95 @@ export default defineConfig({
                 {
                   label: "Data engineering & ETL",
                   collapsed: true,
-                  autogenerate: { directory: "integrate/data-engineering-etl" },
+                  items: [
+                    { label: "Overview", link: "/integrate/data-engineering-etl" },
+                    { label: "Amazon SageMaker", link: "/integrate/data-engineering-etl/amazon-sagemaker" },
+                    { label: "Apache Airflow", link: "/integrate/data-engineering-etl/apache-airflow" },
+                    { label: "Apache Kafka", link: "/integrate/data-engineering-etl/apache-kafka" },
+                    { label: "AWS Lambda", link: "/integrate/data-engineering-etl/aws-lambda" },
+                    { label: "Debezium", link: "/integrate/data-engineering-etl/debezium" },
+                    { label: "Decodable", link: "/integrate/data-engineering-etl/decodable" },
+                    { label: "Supabase", link: "/integrate/data-engineering-etl/supabase" },
+                  ],
                 },
                 {
                   label: "Data ingestion & streaming",
                   collapsed: true,
-                  autogenerate: { directory: "integrate/data-ingestion-streaming" },
+                  items: [
+                    { label: "Overview", link: "/integrate/data-ingestion-streaming" },
+                    { label: "Fivetran", link: "/integrate/data-ingestion-streaming/fivetran" },
+                    { label: "HighByte", link: "/integrate/data-ingestion-streaming/highbyte" },
+                    { label: "HiveMQ", link: "/integrate/data-ingestion-streaming/hivemq" },
+                    { label: "Ignition", link: "/integrate/data-ingestion-streaming/ignition" },
+                  ],
                 },
                 {
                   label: "BI & visualization",
                   collapsed: true,
-                  autogenerate: { directory: "integrate/bi-vizualization" },
+                  items: [
+                    { label: "Overview", link: "/integrate/bi-vizualization" },
+                    { label: "Power BI", link: "/integrate/bi-vizualization/power-bi" },
+                    { label: "Tableau", link: "/integrate/bi-vizualization/tableau" },
+                  ],
                 },
                 {
                   label: "Connectors",
                   collapsed: true,
-                  autogenerate: { directory: "integrate/connectors" },
+                  items: [
+                    { label: "Overview", link: "/integrate/connectors" },
+                    {
+                      label: "Source",
+                      collapsed: true,
+                      items: [
+                        { label: "Apache Kafka", link: "/integrate/connectors/source/sync-from-kafka" },
+                        { label: "PostgreSQL", link: "/integrate/connectors/source/sync-from-postgres" },
+                        { label: "Amazon S3", link: "/integrate/connectors/source/sync-from-s3" },
+                      ],
+                    },
+                    {
+                      label: "Destination",
+                      collapsed: true,
+                      items: [
+                        {
+                          label: "Amazon Iceberg",
+                          link: "/integrate/connectors/destination/tigerlake",
+                          attrs: { "data-no-flatten": "true" },
+                        },
+                      ],
+                    },
+                  ],
                 },
                 {
                   label: "Code & libraries",
                   collapsed: true,
-                  autogenerate: { directory: "integrate/code" },
+                  items: [
+                    { label: "Overview", link: "/integrate/code" },
+                    { label: "Connect your app", link: "/integrate/code/connect-your-app" },
+                  ],
                 },
                 {
                   label: "Query & administration",
                   collapsed: true,
-                  autogenerate: { directory: "integrate/query-administration" },
+                  items: [
+                    { label: "Overview", link: "/integrate/query-administration" },
+                    { label: "Azure Data Studio", link: "/integrate/query-administration/azure-data-studio" },
+                    { label: "DBeaver", link: "/integrate/query-administration/dbeaver" },
+                    { label: "pgAdmin", link: "/integrate/query-administration/pgadmin" },
+                    { label: "PostgreSQL", link: "/integrate/query-administration/postgresql" },
+                    { label: "psql", link: "/integrate/query-administration/psql" },
+                    { label: "qStudio", link: "/integrate/query-administration/qstudio" },
+                  ],
                 },
                 {
                   label: "Secure connectivity",
                   collapsed: true,
-                  autogenerate: { directory: "integrate/secure-connectivity" },
+                  items: [
+                    { label: "Overview", link: "/integrate/secure-connectivity" },
+                    { label: "Amazon Web Services", link: "/integrate/secure-connectivity/aws" },
+                    { label: "Corporate data center", link: "/integrate/secure-connectivity/corporate-data-center" },
+                    { label: "Google Cloud", link: "/integrate/secure-connectivity/google-cloud" },
+                    { label: "Microsoft Azure", link: "/integrate/secure-connectivity/microsoft-azure" },
+                  ],
                 },
                 {
                   label: "Observability & alerting",
@@ -800,7 +858,11 @@ export default defineConfig({
                 {
                   label: "Configuration & deployment",
                   collapsed: true,
-                  autogenerate: { directory: "integrate/configuration-deployment" },
+                  items: [
+                    { label: "Overview", link: "/integrate/configuration-deployment" },
+                    { label: "Kubernetes", link: "/integrate/configuration-deployment/kubernetes" },
+                    { label: "Terraform", link: "/integrate/configuration-deployment/terraform" },
+                  ],
                 },
               ],
             },
@@ -1804,6 +1866,7 @@ export default defineConfig({
       "/get-started/quickstart-5-minutes": "/get-started/quickstart/quickstart-5-minutes",
       "/get-started/create-service": "/get-started/quickstart/create-service",
       "/get-started/connect-your-app": "/get-started/quickstart/connect-your-app",
+      "/integrate/code/start-coding-with-tigerdata": "/integrate/code/connect-your-app",
       "/get-started/next-steps": "/get-started/quickstart/next-steps",
       "/get-started/create-mst-service": "/deploy/mst/create-mst-service",
       "/get-started/install-timescaledb": "/get-started/choose-your-path/install-timescaledb",
