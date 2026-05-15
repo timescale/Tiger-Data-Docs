@@ -144,18 +144,15 @@ Follow the steps below to build from scratch.
 
 ## Constants — CRITICAL
 
-Import and use constants for all product/brand names. **Never hardcode these in prose:**
+Import constants once at the top of every tutorial:
 
-| Constant | Renders as |
-|----------|-----------|
-| `{C.PG}` | PostgreSQL |
-| `{C.CLOUD_LONG}` | Tiger Cloud |
-| `{C.TIMESCALE_DB}` | TimescaleDB |
-| `{C.SERVICE_LONG}` | Tiger Cloud service |
-| `{C.CLOUD_EDITOR}` | Tiger Cloud SQL editor |
-| `{C.PGVECTORSCALE}` | pgvectorscale |
-| `{C.COMPANY}` | Tiger Data |
-| `{C.SELF_LONG}` | self-hosted TimescaleDB |
+```tsx
+import * as C from "@constants";
+```
+
+Then use the matching constant for every product, brand, or term it covers. **The full list of available constants lives in `src/constants.ts` — read it directly when you need to find the right key, and treat that file as the source of truth.** Common ones include `{C.PG}` (PostgreSQL), `{C.CLOUD_LONG}` (Tiger Cloud), `{C.TIMESCALE_DB}`, `{C.SERVICE_LONG}` (Tiger Cloud service), `{C.SELF_LONG}` (self-hosted TimescaleDB), `{C.CLOUD_EDITOR}` (Tiger Cloud SQL editor), `{C.PGVECTORSCALE}`, and `{C.COMPANY}` (Tiger Data) — but any constant defined in `constants.ts` is fair game when it matches what you're writing.
+
+**Never hardcode** a product or brand name in prose when a constant exists for it. The `lint:postgresql-variable` CI check specifically enforces `{C.PG}`.
 
 **Exception:** Inside backticks or URLs, use the literal string. Extension names that appear as code (`pg_textsearch`, `pgvectorscale`) should be in backticks in prose for consistent formatting.
 
