@@ -156,6 +156,12 @@ Then use the matching constant for every product, brand, or term it covers. **Th
 
 **Exception:** Inside backticks or URLs, use the literal string. Extension names that appear as code (`pg_textsearch`, `pgvectorscale`) should be in backticks in prose for consistent formatting.
 
+## Use current columnstore/hypercore APIs
+
+TimescaleDB 2.18.0 renamed the compression API to columnstore/hypercore (`compress_chunk` → `convert_to_columnstore`, `*_compression_policy` → `*_columnstore_policy`, `timescaledb.compress` → `timescaledb.enable_columnstore`, etc.). The old names still work as backwards-compat aliases but **must not appear in new tutorials** — in prose, SQL, GitHub repo code excerpts, or screenshots. If you're adapting from a cookbook, blog post, or vendor doc that uses the old names, translate as you write.
+
+Full mapping table, carve-outs (`compress_chunk_time_interval` and `compress_sparse_index` are NOT deprecated), and verification grep one-liner live in `.claude/references/deprecated-compression-apis.md`. Read that file before writing SQL or pasting code from a source repo, and again before saving the tutorial.
+
 ## .env file handling
 
 When a tutorial involves environment variables:
@@ -221,3 +227,4 @@ You MUST also:
 - [ ] Glossary entries for new terms
 - [ ] `pnpm build` passes cleanly
 - [ ] Headings are sentence case
+- [ ] No deprecated compression APIs anywhere on the page — `compress_chunk` / `decompress_chunk` / `recompress_chunk` / `*_compression_policy` / `*_compression_stats` / `*_compression_settings` views / `timescaledb.compress(_orderby|_segmentby)` are all replaced with their columnstore/hypercore equivalents (see [the mapping](#use-current-columnstorehypercore-apis))
