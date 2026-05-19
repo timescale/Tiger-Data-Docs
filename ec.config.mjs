@@ -1,15 +1,18 @@
 /**
- * Expressive Code config: use a dark Shiki theme so syntax tokens are light-on-dark
- * and readable on our #333 code block background (Figma 3388-1893).
+ * Expressive Code config: bundles light + dark Shiki themes so syntax tokens
+ * adapt to the active mode. Starlight switches between them via
+ * `:root[data-theme="dark"]`. The wrapper background/foreground are driven by
+ * `--tiger-code-block-bg` / `--tiger-code-block-fg` in `src/styles/tokens.css`.
  * See https://expressive-code.com/reference/configuration/
  */
 import { defineEcConfig } from "@astrojs/starlight/expressive-code";
 
 export default defineEcConfig({
-  // Include both themes so the bundle has github-light (required by API reference/markdown) and github-dark (our code blocks).
-  themes: ["github-dark", "github-light"],
+  themes: ["github-light", "github-dark"],
   styleOverrides: {
-    codeBackground: "#333",
-    codeForeground: "#ffffff",
-  },
+    codeBackground: ({ theme }) =>
+      theme.type === "dark" ? "#333" : "#f5f5f5",
+    codeForeground: ({ theme }) =>
+      theme.type === "dark" ? "#ffffff" : "#262626"
+  }
 });
