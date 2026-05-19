@@ -76,6 +76,7 @@ Defined in `src/content.config.ts`. Extends Starlight's docsSchema with custom f
 - **Headings must be sentence case.** CI enforces this via `lint:headings`. Proper nouns and acronyms are excepted.
 - **Use constants for product names.** `{C.PG}`, `{C.CLOUD_LONG}`, `{C.TIMESCALE_DB}`, etc. CI enforces PostgreSQL constant usage.
 - **Partials use underscore prefix:** `_partial-name.mdx`
+- **No deprecated compression APIs.** TimescaleDB 2.18.0 renamed the compression API to columnstore/hypercore (`compress_chunk` → `convert_to_columnstore`, `*_compression_policy` → `*_columnstore_policy`, `timescaledb.compress` → `timescaledb.enable_columnstore`, etc.). Old names still work as backwards-compat aliases but must not appear in new docs. Full mapping, carve-outs, and verification grep: `.claude/references/deprecated-compression-apis.md`.
 
 ## CI Checks
 
