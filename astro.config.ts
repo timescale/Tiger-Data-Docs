@@ -771,6 +771,7 @@ export default defineConfig({
                     { label: "HighByte", link: "/integrate/data-ingestion-streaming/highbyte" },
                     { label: "HiveMQ", link: "/integrate/data-ingestion-streaming/hivemq" },
                     { label: "Ignition", link: "/integrate/data-ingestion-streaming/ignition" },
+                    { label: "Litmus Edge", link: "/integrate/data-ingestion-streaming/litmus-edge" },
                   ],
                 },
                 {
