@@ -225,6 +225,8 @@ export default defineConfig({
         : {
             stainlessProject: "tiger-cloud",
             basePath: "/reference/tiger-cloud-rest",
+            // Workaround to hide default TypeScript reference in the API reference page. It's showing the TypeScript lib even without have a Typescript SDK published.
+            excludeLanguages: ["typescript"],
             propertySettings: {
               collapseDescription: false,
               expandDepth: 2,
