@@ -44,7 +44,6 @@ pnpm build         # Build for production
 pnpm build:local   # Build with DOCS_LOCAL_WITHOUT_STAINLESS (no Stainless API for REST reference)
 pnpm dev:local     # Dev server without Stainless API (same as DOCS_LOCAL_WITHOUT_STAINLESS=1)
 pnpm preview       # Preview production build
-pnpm sync          # Sync docs from source repos (timescaledb, pgai, pgvectorscale)
 pnpm format        # Format code
 ```
 
