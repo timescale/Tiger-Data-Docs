@@ -16,7 +16,6 @@ pnpm format           # Prettier formatting
 pnpm lint:headings    # Enforce sentence case headings (--fix available)
 pnpm lint:postgresql-variable  # Enforce {C.PG} constant usage
 pnpm lint:links       # Build with link checking (CHECK_LINKS=true)
-pnpm sync             # Sync docs from external repos (TimescaleDB, pgai, pgvectorscale)
 ```
 
 **Node requirement:** >=22.12.0. Uses pnpm.
