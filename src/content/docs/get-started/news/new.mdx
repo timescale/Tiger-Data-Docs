@@ -117,6 +117,76 @@ import imgHighPerformanceStorageTigerConsole from "../../../../assets/images/bui
 
 <div class="changelog-page-toc">
 
+## {C.TIMESCALE_DB} v2.27 now on {C.CLOUD_LONG}
+
+<ChangelogEntry
+  title="TimescaleDB v2.27 now on Tiger Cloud"
+  date="2026-05-19"
+  tags={["new-feature"]}
+>
+<h2 slot="heading" class="changelog-entry__title">{C.TIMESCALE_DB} v2.27 now on {C.CLOUD_LONG}</h2>
+
+{C.TIMESCALE_DB} 2.27.0 is a performance-focused release that extends bloom filter pruning into the write path so `UPDATE`, `DELETE`, and `UPSERT` can now skip decompressing batches that can't match, broadens vectorized execution on the {C.COLUMNSTORE} to cover more analytical query patterns, and introduces an opt-in query rewriter that transparently routes matching queries to existing continuous aggregates. {C.TIMESCALE_DB} 2.27.0 was released on May 12, 2026, and is available on GitHub and on {C.CLOUD_LONG} as of May 19, 2026.
+
+### Highlighted features in {C.TIMESCALE_DB} v2.27
+
+- **Bloom filter pruning now applies to writes**
+
+    This release extends bloom filter pruning — previously only used by `SELECT` — to `UPDATE`, `DELETE`, and `UPSERT` on compressed {C.CHUNK}s.
+
+    - **Bloom filter pruning for `UPDATE` and `DELETE`:** Statements with equality predicates now use bloom filters to skip decompressing batches whose compressed rows can't possibly match. When multiple bloom filters apply, the most selective one (by column count) is tried first. Benchmark examples show up to **160x faster** execution on selective workloads. `EXPLAIN` now reports new "Compressed batches filtered" and "Batches filtered after decompression" counters.
+    - **Bloom filter pruning for `UPSERT`:** `UPSERT` queries now leverage bloom filters — including the composite bloom filters introduced in 2.26 — to skip decompressing batches when the arbiter values are guaranteed not to be present. The most selective filter is chosen automatically when multiple apply. `EXPLAIN` adds new statistics for visibility into pruning effectiveness (batches checked, batches pruned, batches without bloom, false positives).
+
+- **More queries on the vectorized {C.COLUMNSTORE} path**
+
+    This release expands the set of queries that stay on the high-performance columnar execution engine instead of falling back to row-based processing.
+
+    - **Vectorized filters via the standard {C.PG} function path:** The {C.COLUMNSTORE} engine now supports vectorized evaluation of filters inline through the standard {C.PG} function path. This broadens the class of queries that can take the fast columnar path — including continuous aggregate refreshes — with benchmarks showing speedups from **30% up to 2x** on affected workloads.
+    - **Vectorized aggregation with more `WHERE` filters:** Vectorized aggregation now applies in cases where the `WHERE` clause contains filters not handled through the Vectorized Filters facility, including filters on `time_bucket()`.
+    - **Scalar array operation pushdown:** Predicates of the form `col IN (…)` and `col = ANY(…)` are now pushed down into the columnar metadata scan as `OR`/`AND` clauses, so each value can be evaluated against compressed-{C.CHUNK} metadata before any rows are expanded.
+
+- **Continuous aggregates**
+
+    - **Automatic query rewriting with continuous aggregates (experimental, opt-in):** A new planner optimization transparently rewrites user queries to use eligible continuous aggregates when the query's aggregation exactly matches a CAgg's definition — so applications get pre-materialized performance without referencing the CAgg directly. This feature is experimental in 2.27 and off by default. Only real-time CAggs are eligible, and CAggs with active invalidations or pending materialization ranges are excluded. {C.PG} 16+ only. Enable with the `timescaledb.enable_cagg_rewrites` GUC; `timescaledb.cagg_rewrites_debug_info` prints eligibility diagnostics.
+    - **Compress as part of the continuous aggregate refresh policy:** The CAgg refresh policy can now compress {C.CHUNK}s of the materialization hypertable that fall within the refresh window as part of the same job, consolidating what used to require a separate {C.COLUMNSTORE} policy.
+
+        Example:
+
+        ```sql
+        SELECT add_continuous_aggregate_policy(
+          continuous_aggregate => 'metrics_hourly',
+          start_offset => INTERVAL '30 days',
+          end_offset   => INTERVAL '1 hour',
+          schedule_interval => INTERVAL '1 hour',
+          config => '{"compress_after_refresh": true}'::jsonb
+        );
+        ```
+
+- **Smarter {C.CHUNK} exclusion**
+
+    - **{C.CHUNK_CAP} exclusion for `IN` / `ANY` on open time dimensions:** Queries that filter the time dimension with `IN` or `= ANY(...)` clauses now benefit from {C.CHUNK} pruning — the planner derives a bounding min/max range from the values so irrelevant {C.CHUNK}s can be excluded earlier.
+    - **Faster `ORDER BY … LIMIT` on more compressed data:** Batch Sorted Merge — which returns ordered results from compressed {C.CHUNK}s without fully decompressing and sorting them — now applies to {C.CHUNK}s with no `segmentby`, and to {C.CHUNK}s where the query pins every `segmentby` column to a constant.
+
+- **Quality of life and operability**
+
+    - **Index creation progress reporting:** Hypertable index builds now populate {C.PG}'s built-in `pg_stat_progress_create_index` view, so long-running builds can be monitored the same way as on plain {C.PG}.
+    - **Automatic `segmentby` for direct compress:** Direct compress now analyzes buffered tuples at flush time to pick an appropriate `segmentby` when one isn't explicitly configured, replacing the previous static heuristic.
+    - **`ALTER TABLE … RESET` on materialization hypertables:** Materialization hypertables now accept `ALTER TABLE … RESET (...)`, in line with regular hypertables.
+    - **`ENABLE` / `DISABLE TRIGGER` on hypertables:** Standard {C.PG} trigger-state commands now work directly on hypertables and propagate to every underlying {C.CHUNK} (including `ENABLE ALWAYS`, `ENABLE REPLICA`, and `DISABLE TRIGGER USER`/`ALL`).
+    - **Notice when compression settings change:** A SQL-level notice is now emitted when compression settings change so behavior shifts are visible at run time.
+
+### Backward-incompatible changes worth flagging
+
+- A bug in bloom filter sparse indexes on compressed `int2` columns could cause `SELECT` to miss matching rows. Upgrades are blocked for affected databases until the incorrect indexes are dropped manually.
+- 2.27 uses a new naming convention for composite bloom filter metadata. Queries continue to work, but composite bloom filters created in 2.26 won't be used until a lightweight, catalog-only [migration script](https://github.com/timescale/timescaledb-extras/blob/main/utils/2.27.x-fix-composite-bloom-columns.sql) renames the legacy columns (no data recompression required).
+
+### Upcoming {C.PG} 15 EOL
+
+As announced in the [v2.23.0 changelog](https://github.com/timescale/timescaledb/releases/tag/2.23.0) on October 29, 2025, the upcoming {C.TIMESCALE_DB} release in June 2026 will be the last version supporting {C.PG} 15. If you are still on {C.PG} 15, plan an upgrade to {C.PG} 16 or higher to maintain access to new features, bug fixes, and performance improvements.
+
+For complete details, refer to the [{C.TIMESCALE_DB} 2.27.0 release notes](https://github.com/timescale/timescaledb/releases/tag/2.27.0).
+</ChangelogEntry>
+
 ## New I/O Boost options and extended storage capacity
 
 <ChangelogEntry
