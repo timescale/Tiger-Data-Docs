@@ -45,9 +45,19 @@
     }
     function rebuildList(list, isMobile) {
       if (!list) return;
+      // Honor the page's `tableOfContents` frontmatter. Starlight emits the resolved
+      // min/max heading levels as data attributes on `<starlight-toc>`; mirror that
+      // filter here so pages that opt out of h3 in the TOC stay opted out.
+      var tocEl = document.querySelector("starlight-toc");
+      var minH = parseInt((tocEl && tocEl.getAttribute("data-min-h")) || "2", 10);
+      var maxH = parseInt((tocEl && tocEl.getAttribute("data-max-h")) || "3", 10);
+      var selectorParts = [];
+      if (minH <= 2 && 2 <= maxH) selectorParts.push("main h2[id]");
+      if (minH <= 3 && 3 <= maxH) selectorParts.push("main h3[id]");
+      if (selectorParts.length === 0) return;
       // Inactive Starlight tab panels carry `role="tabpanel" hidden`; their headings
       // exist in the DOM but aren't visible, so exclude them from the TOC.
-      var headings = Array.from(document.querySelectorAll("main h2[id], main h3[id]")).filter(
+      var headings = Array.from(document.querySelectorAll(selectorParts.join(", "))).filter(
         function (h) {
           if (!h.id || h.id === "_top" || h.id.indexOf("starlight__") === 0) return false;
           if (h.closest('[role="tabpanel"][hidden]')) return false;
