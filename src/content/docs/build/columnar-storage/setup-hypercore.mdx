@@ -61,7 +61,7 @@ To set up your {C.HYPERCORE} automation:
 
 </NumberedList>
 
-## Enable {C.HYPERCORE} on an existing {C.HYPERTABLE}
+## Migrate an existing {C.HYPERTABLE} to {C.HYPERCORE}
 
 If you already have a {C.HYPERTABLE} with data in the {C.ROWSTORE}, you have two paths to convert existing {C.CHUNK}s to the {C.COLUMNSTORE}. Both start with the same step: enable the {C.COLUMNSTORE} and set `segmentby` and `orderby` on the {C.HYPERTABLE}.
 
@@ -107,13 +107,20 @@ Each call takes an exclusive lock on the {C.CHUNK} it is converting. Different {
 
 <Callout variant="warning">
 
-Conversion contends on locks with any concurrent write to the same {C.CHUNK}. If you are backfilling old data while a {C.COLUMNSTORE} policy or a manual `convert_to_columnstore` call is running, the two operations wait on each other and one can fail or stall. For a clean migration, pause the {C.COLUMNSTORE} policy while backfilling:
+Conversion contends on locks with any concurrent write to the same {C.CHUNK}. If you are backfilling old data while a {C.COLUMNSTORE} policy or a manual `convert_to_columnstore` call is running, the two operations wait on each other and one can fail or stall. For a clean migration, pause the {C.COLUMNSTORE} policy while backfilling. Find the `job_id` first:
+
+```sql
+SELECT job_id FROM timescaledb_information.jobs
+WHERE proc_name = 'policy_compression' AND hypertable_name = 'metrics';
+```
+
+Then pause it:
 
 ```sql
 SELECT alter_job(<JOB_ID>, scheduled => false);
 ```
 
-Finish the backfill, convert the affected {C.CHUNK}s, then re-enable the policy. For the full pause-backfill-reconvert workflow, see [convert_to_rowstore](/reference/timescaledb/hypercore/convert_to_rowstore).
+Finish the backfill, convert the affected {C.CHUNK}s, then re-enable the policy with `alter_job(<JOB_ID>, scheduled => true)`. For the full pause-backfill-reconvert workflow, see [convert_to_rowstore](/reference/timescaledb/hypercore/convert_to_rowstore).
 
 </Callout>
 
