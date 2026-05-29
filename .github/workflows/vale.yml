@@ -1,9 +1,10 @@
 name: Vale prose lint
 
 # Lints docs against the Google developer documentation style guide plus the
-# custom TigerData rules. reviewdog reports findings inline on the lines you
-# changed (filter_mode: added), and only errors fail the check — warnings and
-# suggestions show up as non-blocking review comments.
+# custom TigerData rules. reviewdog reports findings as check annotations on the
+# lines you changed (filter_mode: added), and only errors fail the check.
+# github-pr-check (vs github-pr-review) posts annotations rather than review
+# comments, so re-runs don't accumulate stale comments.
 
 on:
   pull_request:
@@ -17,6 +18,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  checks: write
 
 jobs:
   vale:
@@ -31,7 +33,7 @@ jobs:
         with:
           # Reads .vale.ini, runs `vale sync` to fetch the Google package,
           # then lints. reviewdog filters reporting to added lines.
-          reporter: github-pr-review
+          reporter: github-pr-check
           filter_mode: added
           fail_on_error: true
           version: 3.14.2
