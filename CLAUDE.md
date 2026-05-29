@@ -13,12 +13,13 @@ pnpm dev              # Start dev server at localhost:4321
 pnpm build            # Production build (runs astro sync as prebuild)
 pnpm preview          # Preview production build
 pnpm format           # Prettier formatting
-pnpm lint:headings    # Enforce sentence case headings (--fix available)
-pnpm lint:postgresql-variable  # Enforce {C.PG} constant usage
+pnpm lint:prose       # Vale prose lint on changed *.md/*.mdx (--all for everything)
 pnpm lint:links       # Build with link checking (CHECK_LINKS=true)
 ```
 
 **Node requirement:** >=22.12.0. Uses pnpm.
+
+**Prose linting (Vale):** `pnpm lint:prose` runs [Vale](https://vale.sh) against the Google developer documentation style guide plus the custom `TigerData` rules in `.github/styles/`. Requires Vale locally (`brew install vale`). Config is `.vale.ini`; the Google package is fetched by `vale sync` (gitignored). CI runs the same rules via `.github/workflows/vale.yml`, reporting inline on changed lines and gating on errors only.
 
 **Stainless auth:** Requires `stl auth login` or STAINLESS_API_KEY in .env for API reference generation.
 
@@ -72,13 +73,16 @@ Defined in `src/content.config.ts`. Extends Starlight's docsSchema with custom f
 
 ## Content Conventions
 
-- **Headings must be sentence case.** CI enforces this via `lint:headings`. Proper nouns and acronyms are excepted.
-- **Use constants for product names.** `{C.PG}`, `{C.CLOUD_LONG}`, `{C.TIMESCALE_DB}`, etc. CI enforces PostgreSQL constant usage.
+- **Headings must be sentence case.** Vale's `Google.Headings` enforces this (gating error). Proper nouns/acronyms live in the `TigerData` vocabulary (`.github/styles/config/vocabularies/TigerData/accept.txt`).
+- **Use constants for product names.** `{C.PG}`, `{C.CLOUD_LONG}`, `{C.TIMESCALE_DB}`, etc. `TigerData.ProductConstants` nudges literal names toward their constant (suggestion). It covers **every** string constant in `src/constants.ts` and is generated — run `pnpm generate:vale-constants` after editing `constants.ts`. Enforced terms must never be added to the Vale vocabulary (the generator warns if they are).
+- **No Latinisms.** `Google.Latin` flags `e.g.`/`i.e.` (gating error). Write them out.
+- **No em dashes.** `TigerData.NoEmDash` flags `—` in prose (warning); rewrite the sentence.
+- **UI elements in code font, not bold.** `TigerData.UIElementsCodeFont` flags ``**Bold**`` UI labels after action verbs (warning).
 - **Partials use underscore prefix:** `_partial-name.mdx`
-- **No deprecated compression APIs.** TimescaleDB 2.18.0 renamed the compression API to columnstore/hypercore (`compress_chunk` → `convert_to_columnstore`, `*_compression_policy` → `*_columnstore_policy`, `timescaledb.compress` → `timescaledb.enable_columnstore`, etc.). Old names still work as backwards-compat aliases but must not appear in new docs. Full mapping, carve-outs, and verification grep: `.claude/references/deprecated-compression-apis.md`.
+- **No deprecated compression APIs.** TimescaleDB 2.18.0 renamed the compression API to columnstore/hypercore (`compress_chunk` → `convert_to_columnstore`, `*_compression_policy` → `*_columnstore_policy`, `timescaledb.compress` → `timescaledb.enable_columnstore`, etc.). Old names still work as backwards-compat aliases but must not appear in new docs. `TigerData.CompressionAPIs` enforces this (gating error, scans SQL too). Full mapping, carve-outs, and verification grep: `.claude/references/deprecated-compression-apis.md`.
 
 ## CI Checks
 
-- **lint-headings.yml** — Validates sentence case on all headings
-- **lint-postgresql-variable.yml** — Validates `{C.PG}` usage instead of literal PostgreSQL/Postgres
+- **vale.yml** — Lints prose against the Google style guide + custom `TigerData` rules (see `.vale.ini`). reviewdog reports inline on changed lines; only errors gate the check. Replaces the former heading/PostgreSQL lint scripts.
 - **pr-checklist-check.yml** — Ensures PR checklist items are addressed
+- **affected-pages.yml** — Posts preview links for changed pages on successful deploy

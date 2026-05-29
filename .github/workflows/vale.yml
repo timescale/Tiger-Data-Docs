@@ -1,0 +1,39 @@
+name: Vale prose lint
+
+# Lints docs against the Google developer documentation style guide plus the
+# custom TigerData rules. reviewdog reports findings inline on the lines you
+# changed (filter_mode: added), and only errors fail the check — warnings and
+# suggestions show up as non-blocking review comments.
+
+on:
+  pull_request:
+    paths:
+      - "**/*.md"
+      - "**/*.mdx"
+      - ".vale.ini"
+      - ".github/styles/**"
+      - ".github/workflows/vale.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  vale:
+    name: Vale
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Run Vale
+        uses: errata-ai/vale-action@reviewdog
+        with:
+          # Reads .vale.ini, runs `vale sync` to fetch the Google package,
+          # then lints. reviewdog filters reporting to added lines.
+          reporter: github-pr-review
+          filter_mode: added
+          fail_on_error: true
+          version: 3.14.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

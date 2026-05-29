@@ -1,0 +1,30 @@
+extends: substitution
+message: "Deprecated compression API: use '%s' instead of '%s' (renamed to columnstore in TimescaleDB 2.18.0)."
+link: https://github.com/timescale/Tiger-Data-Docs/blob/main/.claude/references/deprecated-compression-apis.md
+level: error
+ignorecase: false
+# scope: raw scans the whole file, including SQL code blocks and `backticks`,
+# because deprecated names appear in SQL/CLI examples, not just prose.
+scope: raw
+# nonword: true stops Vale from wrapping each pattern in word boundaries. Patterns
+# ending in '(' or '=' need this, otherwise they never match (the trailing \b can't
+# sit next to a quote/space). We add our own \b anchors where overlap is possible.
+nonword: true
+# Mapping verified against the TimescaleDB source; see the linked reference.
+# Carve-outs left untouched (still current): timescaledb.compress_chunk_time_interval,
+# timescaledb.compress_sparse_index. The leading \b plus the `\s*=` anchor keep the
+# interval option and the recompress/compress overlap safe.
+swap:
+  '\bcompress_chunk\(': 'convert_to_columnstore('
+  '\bdecompress_chunk\(': 'convert_to_rowstore('
+  '\brecompress_chunk\(': 'convert_to_columnstore('
+  '\badd_compression_policy\b': 'add_columnstore_policy'
+  '\bremove_compression_policy\b': 'remove_columnstore_policy'
+  '\bchunk_compression_stats\b': 'chunk_columnstore_stats'
+  '\bhypertable_compression_stats\b': 'hypertable_columnstore_stats'
+  '\bchunk_compression_settings\b': 'chunk_columnstore_settings'
+  '\bhypertable_compression_settings\b': 'hypertable_columnstore_settings'
+  '\bcompression_settings\b': 'columnstore_settings'
+  '\btimescaledb\.compress\s*=': 'timescaledb.enable_columnstore ='
+  '\btimescaledb\.compress_orderby\b': 'timescaledb.orderby'
+  '\btimescaledb\.compress_segmentby\b': 'timescaledb.segmentby'
