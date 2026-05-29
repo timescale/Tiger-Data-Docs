@@ -37,18 +37,29 @@ function sh(cmd) {
   }
 }
 
+// Vale only lints docs content (see the path-scoped section in .vale.ini), so
+// limit the pathspecs to those dirs to match.
+const PATHSPECS = [
+  "src/content/**/*.md",
+  "src/content/**/*.mdx",
+  "src/partials/**/*.md",
+  "src/partials/**/*.mdx",
+]
+  .map((p) => `'${p}'`)
+  .join(" ");
+
 let files = [];
 if (all) {
-  files = sh("git ls-files 'src/**/*.md' 'src/**/*.mdx'").split("\n");
+  files = sh(`git ls-files ${PATHSPECS}`).split("\n");
 } else {
   // Prefer the merge-base with the upstream main; fall back to local main.
   const base =
     sh("git merge-base HEAD origin/main") || sh("git merge-base HEAD main");
   const ranged = base
-    ? sh(`git diff --name-only --diff-filter=ACMR ${base} -- '*.md' '*.mdx'`)
+    ? sh(`git diff --name-only --diff-filter=ACMR ${base} -- ${PATHSPECS}`)
     : "";
   // Also include staged + unstaged changes not yet committed.
-  const working = sh("git diff --name-only --diff-filter=ACMR HEAD -- '*.md' '*.mdx'");
+  const working = sh(`git diff --name-only --diff-filter=ACMR HEAD -- ${PATHSPECS}`);
   files = [...new Set([...ranged.split("\n"), ...working.split("\n")])];
 }
 
