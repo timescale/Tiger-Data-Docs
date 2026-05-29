@@ -2,69 +2,92 @@ import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import CreateHypertablePolicyNote from "./_create-hypertable-columnstore-policy-note.mdx";
 
+### Convert automatically with a {C.COLUMNSTORE} policy
+
+A [columnstore policy](/reference/timescaledb/hypercore/add_columnstore_policy) runs as a background {C.JOB} and converts eligible {C.CHUNK}s to the {C.COLUMNSTORE} on a schedule. This is the best path for most workloads.
+
+<NumberedList>
+
 <NumberedItem title={`Connect to your ${C.SERVICE_LONG}`}>
 
 In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services) open an [SQL editor](/build/data-management/run-queries-from-tiger-console). You can also connect to your {C.SERVICE_SHORT} using [psql](/integrate/query-administration/psql/#connect-to-your-service).
 
 </NumberedItem>
 
-<NumberedItem title={`Enable ${C.COLUMNSTORE} on a ${C.HYPERTABLE}`}>
+<NumberedItem title={`Enable the ${C.COLUMNSTORE} and add a policy`}>
 
-For [efficient queries](/build/performance-optimization/secondary-indexes), remember to `segmentby` the column you will
-use most often to filter your data. For example:
+For [efficient queries](/build/performance-optimization/secondary-indexes), `segmentby` the column you filter on most often, and `orderby` your time column. How you enable {C.HYPERCORE} depends on what you start from:
 
-* **{C.HYPERTABLE_CAP}s**:
+* **New {C.HYPERTABLE}**
 
-  [Use `CREATE TABLE` for a {C.HYPERTABLE}](/reference/timescaledb/hypertables/create_table)
+  Use [`CREATE TABLE`](/reference/timescaledb/hypertables/create_table) to create a {C.HYPERTABLE} with {C.HYPERCORE} enabled by default:
 
-   ```sql
-   CREATE TABLE crypto_ticks (
-     "time" TIMESTAMPTZ,
-     symbol TEXT,
-     price DOUBLE PRECISION,
-     day_volume NUMERIC
-   ) WITH (
-     timescaledb.hypertable,
-     timescaledb.segmentby='symbol',
-     timescaledb.orderby='time DESC'
-   );
-   ```
-   <CreateHypertablePolicyNote />
+  ```sql
+  CREATE TABLE crypto_ticks (
+    "time" TIMESTAMPTZ,
+    symbol TEXT,
+    price DOUBLE PRECISION,
+    day_volume NUMERIC
+  ) WITH (
+    timescaledb.hypertable,
+    timescaledb.segmentby='symbol',
+    timescaledb.orderby='time DESC'
+  );
+  ```
 
-* **{C.CAGG_CAP}s**:
+  <CreateHypertablePolicyNote />
 
-  [Use `ALTER MATERIALIZED VIEW` for a {C.CAGG}](/reference/timescaledb/continuous-aggregates/alter_materialized_view):
+* **Existing {C.HYPERTABLE}**
 
-   ```sql
-   ALTER MATERIALIZED VIEW assets_candlestick_daily set (
-      timescaledb.enable_columnstore = true,
-      timescaledb.segmentby = 'symbol');
-   ```
-   Before you say `huh`, a {C.CAGG} is a specialized {C.HYPERTABLE}.
+  Enable the {C.COLUMNSTORE} on a {C.HYPERTABLE} that already holds data in the {C.ROWSTORE}:
 
-   Add a policy to convert {C.CHUNK}s to the {C.COLUMNSTORE} at a specific time interval.
-   Create a [columnstore_policy](/reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts {C.CHUNK}s in a {C.HYPERTABLE} to
-   the {C.COLUMNSTORE}. For example:
+  ```sql
+  ALTER TABLE crypto_ticks SET (
+    timescaledb.enable_columnstore,
+    timescaledb.segmentby = 'symbol',
+    timescaledb.orderby = 'time DESC'
+  );
+  ```
 
-   ```sql
-   CALL add_columnstore_policy('assets_candlestick_daily', after => INTERVAL '1d');
-   ```
+  These settings apply to {C.CHUNK}s that have not yet been converted to the {C.COLUMNSTORE}. For a {C.HYPERTABLE} that has never used {C.HYPERCORE}, that means every {C.CHUNK}. Then add a policy:
 
-{C.TIMESCALE_DB} is optimized for fast updates on compressed data in the {C.COLUMNSTORE}. To modify data in the
-{C.COLUMNSTORE}, use standard SQL.
+  ```sql
+  CALL add_columnstore_policy('crypto_ticks', after => INTERVAL '7d');
+  ```
+
+  The {C.JOB} runs single-threaded, so for a large backlog the initial conversion can take a while to catch up. To convert a backlog faster, [convert {C.CHUNK}s manually](#convert-chunks-manually).
+
+* **Existing {C.CAGG}**
+
+  A {C.CAGG} is a specialized {C.HYPERTABLE}. Use [`ALTER MATERIALIZED VIEW`](/reference/timescaledb/continuous-aggregates/alter_materialized_view):
+
+  ```sql
+  ALTER MATERIALIZED VIEW assets_candlestick_daily set (
+     timescaledb.enable_columnstore = true,
+     timescaledb.segmentby = 'symbol');
+  ```
+
+  The {C.CAGG} must already have a [refresh policy](/build/continuous-aggregates/refresh-policies) before you add a {C.COLUMNSTORE} policy. Then add the policy:
+
+  ```sql
+  CALL add_columnstore_policy('assets_candlestick_daily', after => INTERVAL '1d');
+  ```
+
+{C.TIMESCALE_DB} is optimized for fast updates on compressed data in the {C.COLUMNSTORE}. To modify data in the {C.COLUMNSTORE}, use standard SQL.
 
 </NumberedItem>
 
 <NumberedItem title={`Check the ${C.COLUMNSTORE} policy`}>
 
-View your data space saving. When you convert data to the {C.COLUMNSTORE}, as well as being optimized for analytics, it is compressed by more than 90%. This helps you save on storage costs and keeps your queries operating at lightning speed. To see the amount of space saved:
+When you convert data to the {C.COLUMNSTORE}, as well as being optimized for analytics, it is compressed by more than 90%. This helps you save on storage costs and keeps your queries operating at lightning speed. To see the amount of space saved:
 
-``` sql
+```sql
 SELECT
   pg_size_pretty(before_compression_total_bytes) as before,
   pg_size_pretty(after_compression_total_bytes) as after
 FROM hypertable_columnstore_stats('crypto_ticks');
 ```
+
 You see something like:
 
 | before	 | after  |
@@ -73,53 +96,110 @@ You see something like:
 
 View the policies that you set or that already exist:
 
-``` sql
+```sql
 SELECT * FROM timescaledb_information.jobs
 WHERE proc_name='policy_compression';
 ```
+
 See [timescaledb_information.jobs](/reference/timescaledb/informational-views/jobs).
 
 </NumberedItem>
 
-<NumberedItem title={`Pause a ${C.COLUMNSTORE} policy`}>
+<NumberedItem title={`Remove a policy or disable the ${C.COLUMNSTORE}`}>
 
-``` sql
-SELECT * FROM timescaledb_information.jobs where
-   proc_name = 'policy_compression' AND relname = 'crypto_ticks'
+To remove a {C.COLUMNSTORE} policy while keeping existing {C.CHUNK}s in the {C.COLUMNSTORE}:
 
--- Select the JOB_ID from the results
-
-SELECT alter_job(JOB_ID, scheduled => false);
-```
-See [alter_job](/reference/timescaledb/jobs-automation/alter_job).
-
-</NumberedItem>
-
-<NumberedItem title={`Restart a ${C.COLUMNSTORE} policy`}>
-
-``` sql
-SELECT alter_job(JOB_ID, scheduled => true);
-```
-See [alter_job](/reference/timescaledb/jobs-automation/alter_job).
-
-</NumberedItem>
-
-<NumberedItem title={`Remove a ${C.COLUMNSTORE} policy`}>
-
-``` sql
+```sql
 CALL remove_columnstore_policy('crypto_ticks');
 ```
-See [remove_columnstore_policy](/reference/timescaledb/hypercore/remove_columnstore_policy).
 
-</NumberedItem>
+See [remove_columnstore_policy](/reference/timescaledb/hypercore/remove_columnstore_policy). To disable the {C.COLUMNSTORE} entirely, first [convert the {C.CHUNK}s back to the {C.ROWSTORE}](/reference/timescaledb/hypercore/convert_to_rowstore), then:
 
-<NumberedItem title={`Disable ${C.COLUMNSTORE}`}>
-
-If your table has {C.CHUNK}s in the {C.COLUMNSTORE}, you have to
-[convert the {C.CHUNK}s back to the {C.ROWSTORE}](/reference/timescaledb/hypercore/convert_to_rowstore) before you disable the {C.COLUMNSTORE}.
-``` sql
+```sql
 ALTER TABLE crypto_ticks SET (timescaledb.enable_columnstore = false);
 ```
+
 See [alter_table_hypercore](/reference/timescaledb/hypercore/alter_table).
 
 </NumberedItem>
+
+</NumberedList>
+
+### Convert {C.CHUNK}s manually
+
+Call [convert_to_columnstore](/reference/timescaledb/hypercore/convert_to_columnstore) on individual {C.CHUNK}s when you want finer control than a policy gives you — for example, to convert a large backlog faster than the single-threaded policy {C.JOB} can. The {C.COLUMNSTORE} settings that you set with `ALTER TABLE` still apply.
+
+<NumberedList>
+
+<NumberedItem title={`List the ${C.CHUNK}s to convert`}>
+
+```sql
+SELECT show_chunks('crypto_ticks', older_than => INTERVAL '7d');
+```
+
+</NumberedItem>
+
+<NumberedItem title={`Convert the ${C.CHUNK}s`}>
+
+{C.CHUNK_CAP}s are converted independently, so you can run `convert_to_columnstore` on distinct {C.CHUNK}s from multiple sessions in parallel:
+
+```sql
+-- Session 1
+CALL convert_to_columnstore('_timescaledb_internal._hyper_1_2_chunk');
+
+-- Session 2 (concurrent)
+CALL convert_to_columnstore('_timescaledb_internal._hyper_1_3_chunk');
+```
+
+Each call takes an exclusive lock on the {C.CHUNK} it is converting. Different {C.CHUNK}s do not block each other, so parallel sessions speed up an initial migration. Match the degree of parallelism to your service's available CPU and I/O.
+
+</NumberedItem>
+
+</NumberedList>
+
+### Backfill while converting
+
+This applies whether you convert with a policy or manually. Conversion contends on locks with any concurrent write to the same {C.CHUNK}. If you backfill old data while a {C.COLUMNSTORE} policy or a manual `convert_to_columnstore` call is running, the two operations wait on each other and one can fail or stall. For a clean migration:
+
+<NumberedList>
+
+<NumberedItem title={`Pause the ${C.COLUMNSTORE} policy`}>
+
+Find the `job_id`:
+
+```sql
+SELECT job_id FROM timescaledb_information.jobs
+WHERE proc_name = 'policy_compression' AND hypertable_name = 'crypto_ticks';
+```
+
+Then pause the policy:
+
+```sql
+SELECT alter_job(<JOB_ID>, scheduled => false);
+```
+
+</NumberedItem>
+
+<NumberedItem title={`Backfill your data`}>
+
+Run your backfill while the policy is paused, so it does not contend with conversion for locks.
+
+</NumberedItem>
+
+<NumberedItem title={`Convert the affected ${C.CHUNK}s`}>
+
+Convert the {C.CHUNK}s you backfilled into the {C.COLUMNSTORE}. See [Convert {C.CHUNK}s manually](#convert-chunks-manually).
+
+</NumberedItem>
+
+<NumberedItem title={`Re-enable the policy`}>
+
+```sql
+SELECT alter_job(<JOB_ID>, scheduled => true);
+```
+
+</NumberedItem>
+
+</NumberedList>
+
+For the full pause-backfill-reconvert workflow, see [convert_to_rowstore](/reference/timescaledb/hypercore/convert_to_rowstore).
