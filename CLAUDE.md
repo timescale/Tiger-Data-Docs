@@ -73,9 +73,9 @@ Defined in `src/content.config.ts`. Extends Starlight's docsSchema with custom f
 
 ## Content Conventions
 
-- **Headings must be sentence case.** Vale's `Google.Headings` enforces this (gating error). Proper nouns/acronyms live in the `TigerData` vocabulary (`.github/styles/config/vocabularies/TigerData/accept.txt`).
+House prose style follows the Google developer documentation style guide, enforced by Vale (`.vale.ini`), plus the TigerData-specific rules below. Accepted product/brand/feature spellings live in the `TigerData` vocabulary (`.github/styles/config/vocabularies/TigerData/accept.txt`).
+
 - **Use constants for product names.** `{C.PG}`, `{C.CLOUD_LONG}`, `{C.TIMESCALE_DB}`, etc. `TigerData.ProductConstants` nudges literal names toward their constant (suggestion). It covers only the **product/brand-name** constants — those under the `// General` and `// Products` sections of `src/constants.ts` (PostgreSQL, Tiger Cloud, TimescaleDB, Tiger CLI, and so on). Feature, service, project, and pricing common-nouns (hypertable, chunk, service, job, columnstore, and the like) are deliberately not enforced; they're accepted in the Vale vocabulary instead. The rule is hand-maintained at `.github/styles/TigerData/ProductConstants.yml` — when you add or rename a product/brand name in `constants.ts`, update the swap list there too. Enforced terms must never be added to the Vale vocabulary (it would globally suppress the nudge).
-- **No Latinisms.** `Google.Latin` flags `e.g.`/`i.e.` (gating error). Write them out.
 - **No em dashes.** `TigerData.NoEmDash` flags `—` in prose (warning); rewrite the sentence.
 - **UI elements in code font, not bold.** `TigerData.UIElementsCodeFont` flags ``**Bold**`` UI labels after action verbs (warning).
 - **Partials use underscore prefix:** `_partial-name.mdx`
@@ -83,6 +83,6 @@ Defined in `src/content.config.ts`. Extends Starlight's docsSchema with custom f
 
 ## CI Checks
 
-- **vale.yml** — Lints prose against the Google style guide + custom `TigerData` rules (see `.vale.ini`). reviewdog reports inline on changed lines; only errors gate the check. Replaces the former heading/PostgreSQL lint scripts.
+- **vale.yml** — Lints prose against the Google style guide + custom `TigerData` rules (see `.vale.ini`). reviewdog reports inline on changed lines; only errors gate the check, and `TigerData.CompressionAPIs` is the only rule set to error (everything else is advisory). Replaces the former heading/PostgreSQL lint scripts.
 - **pr-checklist-check.yml** — Ensures PR checklist items are addressed
 - **affected-pages.yml** — Posts preview links for changed pages on successful deploy
