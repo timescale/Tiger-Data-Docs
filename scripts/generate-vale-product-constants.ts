@@ -2,9 +2,15 @@
 /**
  * Generate the TigerData.ProductConstants Vale rule from src/constants.ts.
  *
- * Every string constant becomes a swap entry mapping its literal value to the
- * {C.X} constant authors should use instead. Regenerate whenever constants.ts
- * changes:
+ * Only product/brand-name constants are enforced: those declared under the
+ * `// General` and `// Products` section headers in constants.ts (General
+ * contributes PostgreSQL and the company name; URLs and the bare `Tiger`
+ * prefix are skipped). Feature, service, project, and pricing common-nouns
+ * (hypertable, chunk, service, job, replica, time bucket, ...) are deliberately
+ * left out — they read as ordinary prose and are accepted in the vocabulary
+ * instead. Each enforced constant becomes a swap entry mapping its literal
+ * value to the {C.X} constant authors should use. Regenerate whenever
+ * constants.ts changes:
  *
  *   npx tsx scripts/generate-vale-product-constants.ts
  *
@@ -37,6 +43,28 @@ const SKIP_KEYS = new Set(["PRODUCT_PREFIX"]);
 const isUrlOrEmail = (v: string) =>
   /https?:\/\/|@|\bwww\.|\.com\b|\.org\b/.test(v);
 
+// Map each exported constant to the `// Section` header it's declared under, so
+// we can enforce only product/brand names. Section headers are full-line,
+// single-word comments (`// Products`); inline and sentence comments are
+// ignored. Enforce the General and Products sections only.
+const SRC = path.resolve(__dirname, "../src/constants.ts");
+const ENFORCE_SECTIONS = new Set(["General", "Products"]);
+const keyToSection = new Map<string, string>();
+{
+  let section = "";
+  for (const line of fs.readFileSync(SRC, "utf8").split("\n")) {
+    const sec = line.match(/^\/\/\s*([A-Z][A-Za-z]+)\s*$/);
+    if (sec) {
+      section = sec[1];
+      continue;
+    }
+    const decl = line.match(/^export const (\w+)\s*=/);
+    if (decl) keyToSection.set(decl[1], section);
+  }
+}
+const isEnforced = (key: string) =>
+  ENFORCE_SECTIONS.has(keyToSection.get(key) ?? "");
+
 /** Escape regex metacharacters so a literal value is matched literally. */
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -60,10 +88,13 @@ function canonicalKey(keys: string[]): string {
   return [...keys].sort((a, b) => a.length - b.length || a.localeCompare(b))[0];
 }
 
-// Longest values first so compound names win over their substrings
-// ("Tiger Cloud service" before "Tiger Cloud" before "service").
+// Keep only values that have at least one enforced (product/brand) key, and
+// pick the canonical name from those keys. Longest values first so compound
+// names win over their substrings ("Tiger Cloud service" before "Tiger Cloud").
 const entries = [...byValue.entries()]
-  .map(([value, keys]) => ({ value, key: canonicalKey(keys) }))
+  .map(([value, keys]) => ({ value, keys: keys.filter(isEnforced) }))
+  .filter(({ keys }) => keys.length > 0)
+  .map(({ value, keys }) => ({ value, key: canonicalKey(keys) }))
   .sort((a, b) => b.value.length - a.value.length || a.value.localeCompare(b.value));
 
 const header = `# GENERATED FILE — do not edit by hand.
