@@ -39,6 +39,16 @@ const pageLabelsSchema = z.object({
 });
 
 /**
+ * Which Tiger Data products this page applies to. Drives Pagefind search weighting
+ * (see `src/components/MarkdownContent.astro`): cloud-only pages boost, self-hosted /
+ * MST pages demote — so `{C.CLOUD_LONG}` content ranks above TimescaleDB content for
+ * cross-cutting queries.
+ */
+const productsSchema = z.object({
+  products: z.array(z.enum(["cloud", "mst", "self_hosted"])).optional(),
+});
+
+/**
  * Right-rail "Learn more" card (Figma 3588-7875, -7948, -7974, -8047).
  * All fields optional — card is hidden if nothing is set. Href accepts relative
  * (`/build/foo/`) or absolute URLs; absolute ones open in a new tab.
@@ -129,6 +139,7 @@ export const collections = {
         .merge(seoDescriptionSchema)
         .merge(integrationSchema)
         .merge(pageLabelsSchema)
+        .merge(productsSchema)
         .merge(learnMoreSchema),
     }),
   }),

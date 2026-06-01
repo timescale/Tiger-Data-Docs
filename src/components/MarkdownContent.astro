@@ -1,0 +1,29 @@
+---
+/**
+ * Override of Starlight's MarkdownContent: wraps the page body in a Pagefind
+ * weight multiplier so {C.CLOUD_LONG} content ranks above TimescaleDB / MST
+ * content for cross-cutting search queries.
+ *
+ * Signal: the `products` frontmatter array, already maintained across most pages.
+ * Mirrors the weighting scheme from the old Gatsby docs site (which boosted
+ * `products: [cloud]` and demoted legacy / self-hosted content in Algolia via
+ * `customRanking: asc(weight)`). Here we apply the same idea to Pagefind via
+ * `data-pagefind-weight` — a multiplier on the body text's term scores.
+ */
+import "@astrojs/starlight/style/markdown.css";
+
+const products = Astro.locals.starlightRoute?.entry?.data?.products ?? [];
+const hasCloud = products.includes("cloud");
+const cloudOnly = hasCloud && products.length === 1;
+const noCloud = products.length > 0 && !hasCloud;
+
+const weight = cloudOnly
+  ? "2"
+  : hasCloud
+    ? "1.5"
+    : noCloud
+      ? "0.4"
+      : "1";
+---
+
+<div class="sl-markdown-content" data-pagefind-weight={weight}><slot /></div>
