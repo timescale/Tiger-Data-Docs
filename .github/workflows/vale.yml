@@ -1,8 +1,13 @@
 name: Vale prose lint
 
 # Lints docs against the Google developer documentation style guide plus the
-# custom TigerData rules. reviewdog reports findings as check annotations on the
-# lines you changed (filter_mode: added), and only errors fail the check.
+# custom TigerData rules.
+#
+# Scope: only the Markdown/MDX files changed in the PR are linted (computed from
+# the PR's file list), mirroring the local `pnpm lint:prose`. This keeps the
+# gate from failing on pre-existing violations elsewhere in the repo that the PR
+# never touched. Within those files, reviewdog still reports and fails only on
+# the lines you changed (filter_mode: added), and only errors fail the check.
 # github-pr-check (vs github-pr-review) posts annotations rather than review
 # comments, so re-runs don't accumulate stale comments.
 
@@ -28,11 +33,34 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
+      - name: Collect changed docs
+        id: changed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # List the .md/.mdx files this PR adds or modifies (skip removed) as a
+          # comma-separated list to hand to Vale as explicit paths (consumed via
+          # the action's `separator` input).
+          files=$(gh api \
+            "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+            --paginate -q '.[] | select(.status != "removed") | .filename' \
+            | grep -E '\.(md|mdx)$' | paste -sd, - || true)
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+          if [ -z "$files" ]; then
+            echo "No changed Markdown/MDX files to lint."
+          else
+            echo "Linting: $files"
+          fi
+
       - name: Run Vale
+        if: steps.changed.outputs.files != ''
         uses: errata-ai/vale-action@reviewdog
         with:
-          # Reads .vale.ini, runs `vale sync` to fetch the Google package,
-          # then lints. reviewdog filters reporting to added lines.
+          # Reads .vale.ini, runs `vale sync` to fetch the Google package, then
+          # lints only the changed files (split on the comma separator).
+          # reviewdog filters reporting to added lines.
+          files: ${{ steps.changed.outputs.files }}
+          separator: ","
           reporter: github-pr-check
           filter_mode: added
           fail_on_error: true
