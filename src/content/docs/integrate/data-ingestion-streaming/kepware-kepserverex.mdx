@@ -1,0 +1,128 @@
+---
+title: Integrate Kepware KEPServerEX with Tiger Data
+description: Stream OPC data from Kepware DataLogger into Tiger Data using an ODBC DSN.
+integrationCategory: "data-ingestion-streaming"
+integrationPlatforms: ["aws", "azure", "self-hosted"]
+integrationIndustry: ["manufacturing", "energy", "industrial automation"]
+keywords: ["Kepware KEPServerEX", "Kepware DataLogger", "OPC data logger", "ODBC data ingestion", "industrial IoT", "sensor data pipeline"]
+integrationCardLogo: kepware-kepserverex.png
+sidebar:
+  label: "Kepware KEPServerEX"
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import IntegrationPrereqs from '@partials/_prereqs-cloud-or-self.mdx';
+import ConnectionDetails from '@partials/_prereqs-connection-details.mdx';
+
+[Kepware KEPServerEX](https://www.kepware.com/en-us/products/kepserverex/) is an industrial connectivity platform that logs OPC tag data to ODBC-compliant databases using Kepware DataLogger.
+
+This page shows you how to use Kepware DataLogger to stream OPC data into Tiger Data from both Tiger Cloud and self-hosted TimescaleDB.
+
+In this integration guide, you:
+
+- create an ODBC DSN for your Tiger Data database
+- configure a Kepware DataLogger log group to use that DSN
+- verify OPC data is written to your Tiger Data database
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+- A [Kepware KEPServerEX](https://www.kepware.com/en-us/products/kepserverex/) installation with the DataLogger add-on.
+- The PostgreSQL ODBC driver installed on the Kepware host.
+- A Tiger Data database instance with remote ODBC access enabled.
+</Prerequisites>
+
+## Create a Tiger Data ODBC DSN
+
+DataLogger uses an ODBC DSN to connect to Tiger Data. On Windows, configure the DSN with the 32-bit ODBC Data Source Administrator because DataLogger runs as a 32-bit application.
+
+<Callout variant="note">
+Configure the DSN from the 32-bit ODBC Data Source Administrator on Windows. The 64-bit administrator does not list the drivers used by DataLogger.
+</Callout>
+
+<NumberedList>
+  <NumberedItem title="Open or create a log group">
+
+    In DataLogger, open your configuration and either select `Add a new log group` or edit an existing log group.
+
+    You will use the log group settings to point DataLogger at the Tiger Data ODBC source.
+  </NumberedItem>
+  <NumberedItem title="Configure the DSN">
+
+    In the log group configuration, click the browse button for the `DSN` field, then select `Configure DSN…` to open the Microsoft ODBC Data Source Administrator.
+
+    On the System DSN tab, click `Add`, choose the PostgreSQL ODBC driver for your Tiger Data database, and complete the driver wizard.
+  </NumberedItem>
+  <NumberedItem title="Test the DSN connection">
+
+    If the wizard offers a `Test` button, use it to verify the DSN can connect to Tiger Data. The DSN should be available in the log group `DSN` drop-down after configuration.
+  </NumberedItem>
+</NumberedList>
+
+## Configure Kepware DataLogger
+
+After the DSN exists, set the log group to send OPC data to Tiger Data and choose how DataLogger writes tables.
+
+<NumberedList>
+  <NumberedItem title="Select the Tiger Data DSN">
+
+    In the log group settings, choose the ODBC DSN you created for the Tiger Data database.
+
+    If the database requires it, enter the database `Username` and `Password` for the DSN.
+  </NumberedItem>
+  <NumberedItem title="Choose the target table mode">
+
+    Set `TableSelection` to `Create a new table once and always append to this table` and enter a table name such as `kepware_telemetry`.
+
+    This makes DataLogger create the table the first time the log group is enabled and append subsequent rows to the same table.
+  </NumberedItem>
+  <NumberedItem title="Add OPC tags to the log group">
+
+    Add the server items or OPC tags that you want DataLogger to log.
+
+    Use the `Narrow` or `Wide` table format based on how you want the data mapped to columns.
+  </NumberedItem>
+  <NumberedItem title="Enable the log group">
+
+    Disable the log group while you configure it, then set `Enabled` to `Yes` after saving.
+
+    DataLogger will begin logging data to Tiger Data when the log group is enabled and the trigger conditions are met.
+  </NumberedItem>
+</NumberedList>
+
+## Verify the integration
+
+To confirm Kepware DataLogger is writing to Tiger Data:
+
+<NumberedList>
+  <NumberedItem title="Trigger the log group">
+
+    In Kepware, enable the log group and generate an OPC tag update or wait for the configured polling interval.
+
+    The log group should record the tag values through the ODBC DSN.
+  </NumberedItem>
+  <NumberedItem title="Query the target table in Tiger Data">
+
+    In {C.CONSOLE} or your self-hosted query tool, run:
+
+    ```sql
+    SELECT *
+    FROM kepware_telemetry
+    ORDER BY time DESC
+    LIMIT 10;
+    ```
+
+    You should see recent rows from the Kepware log group, including the timestamp and value columns.
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated Kepware KEPServerEX with Tiger Data.
+
+## Troubleshooting
+
+- **The DSN driver is not listed:** install the PostgreSQL ODBC driver and open the 32-bit ODBC Data Source Administrator on Windows.
+- **DataLogger cannot create the table:** verify the database user has table creation and insert permissions on the Tiger Data database.
+- **No rows appear in the target table:** make sure the log group is enabled and the configured trigger conditions are firing.
