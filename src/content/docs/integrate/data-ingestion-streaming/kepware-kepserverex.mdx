@@ -11,36 +11,37 @@ sidebar:
 ---
 
 import * as C from "@constants";
-import { Callout } from "@stainless-api/docs/components";
 import { Prerequisites } from "@components/Prerequisites";
+import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
-import IntegrationPrereqs from '@partials/_prereqs-cloud-or-self.mdx';
-import ConnectionDetails from '@partials/_prereqs-connection-details.mdx';
+import IntegrationPrereqs from "@partials/_prereqs-cloud-and-self.mdx";
+import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
 
 [Kepware KEPServerEX](https://www.kepware.com/en-us/products/kepserverex/) is an industrial connectivity platform that logs OPC tag data from controllers and sensors to ODBC-compliant databases using Kepware DataLogger.
 
-This page shows you how to configure Kepware DataLogger to stream OPC data into Tiger Data and store it in a {C.HYPERTABLE}.
+This page shows you how to configure Kepware DataLogger to stream OPC data into {C.COMPANY} and store it in a {C.HYPERTABLE}.
 
 In this integration guide, you:
 
-- prepare your Tiger Data service for OPC ingestion
-- configure a Kepware DataLogger log group and ODBC DSN
-- verify data flows into the target hypertable
+- Create a target {C.HYPERTABLE} in your {C.SERVICE_LONG}.
+- Configure a Kepware DataLogger log group and ODBC DSN.
+- Verify data flows into the target hypertable.
 
 <Prerequisites context="integration">
 <IntegrationPrereqs />
 <ConnectionDetails />
-- A [Kepware KEPServerEX](https://www.kepware.com/en-us/products/kepserverex/) installation with the DataLogger add-on.
-- The PostgreSQL ODBC driver installed on the Kepware host.
-- A Tiger Data database instance with remote ODBC access enabled.
+- A running [Kepware Server EX](https://www.ptc.com/en/products/kepware/kepserverex) installation with the DataLogger add-on. 
+- The PostgreSQL ODBC driver installed on the Kepware host. 
+- Your Tiger Cloud service configured with remote ODBC access enabled.
+
 </Prerequisites>
 
-## Prepare your service
+## Prepare your {C.SERVICE_SHORT_CAP}
 
-Create the target table in Tiger Data before DataLogger begins writing. Convert that table to a {C.HYPERTABLE} so your OPC time-series data is partitioned and chunked correctly.
+Create the target table in {C.COMPANY} before DataLogger begins writing. Convert that table to a {C.HYPERTABLE} so your OPC time-series data is partitioned and chunked correctly.
 
 <Callout variant="note">
-If Kepware DataLogger creates the table for you, convert it to a hypertable before you enable the log group.
+If Kepware DataLogger creates the table for you, convert it to a {C.HYPERTABLE} before you enable the log group.
 </Callout>
 
 <NumberedList>
@@ -50,7 +51,7 @@ If Kepware DataLogger creates the table for you, convert it to a hypertable befo
   </NumberedItem>
   <NumberedItem title={`Create the target ${C.HYPERTABLE}`}>
 
-    Create a table with a timestamp column named `time`, then convert it to a hypertable:
+    Create the table directly as a hypertable partitioned on the `time` column:
 
     ```sql
     CREATE TABLE kepware_telemetry (
@@ -58,18 +59,18 @@ If Kepware DataLogger creates the table for you, convert it to a hypertable befo
         tag_name  varchar(128),
         value     varchar,
         quality   varchar(32)
+    ) WITH (
+        timescaledb.hypertable,
+        timescaledb.chunk_interval = '7 days'
     );
-
-    SELECT create_hypertable('kepware_telemetry', 'time');
     ```
-
-    Converting the table to a {C.HYPERTABLE} improves query performance and enables time-series chunking.
+    The `chunk_interval` setting controls how much data each hypertable chunk holds. A 7-day interval works well for most OPC ingestion workloads. If you have high-throughput tag updates, consider a shorter interval like 1 day. You can adjust this later with `set_chunk_time_interval()`.
   </NumberedItem>
 </NumberedList>
 
 ## Configure Kepware DataLogger
 
-Point DataLogger at your Tiger Data hypertable and choose a table write mode that preserves data.
+Point DataLogger at your {C.COMPANY} {C.HYPERTABLE} and choose a table write mode that preserves data.
 
 <NumberedList>
   <NumberedItem title="Open the log group configuration">
@@ -80,13 +81,13 @@ Point DataLogger at your Tiger Data hypertable and choose a table write mode tha
 
     In the log group settings, click the browse button for `DSN`, then select `Configure DSN…` to open the Microsoft ODBC Data Source Administrator.
 
-    On the System DSN tab, click `Add`, choose the PostgreSQL ODBC driver for Tiger Data, and complete the driver wizard.
+    On the System DSN tab, click `Add`, choose the {C.POSTGRESQL} ODBC driver for {C.COMPANY}, and complete the driver wizard.
   </NumberedItem>
-  <NumberedItem title="Select the Tiger Data DSN">
+  <NumberedItem title={`Select the ${C.COMPANY} DSN`}>
 
-    In the log group settings, choose the DSN you created for Tiger Data.
+    In the log group settings, choose the DSN you created for {C.COMPANY}.
 
-    If required, enter the DSN `Username` and `Password` for the Tiger Data database.
+    If required, enter the DSN `Username` and `Password` for the {C.COMPANY} database.
   </NumberedItem>
   <NumberedItem title="Point the log group at the hypertable">
 
@@ -104,7 +105,7 @@ Point DataLogger at your Tiger Data hypertable and choose a table write mode tha
 
     Save the log group and set `Enabled` to `Yes`.
 
-    DataLogger begins sending OPC updates to your Tiger Data hypertable when the log group is enabled.
+    DataLogger begins sending OPC updates to your {C.COMPANY} {C.HYPERTABLE} when the log group is enabled.
   </NumberedItem>
 </NumberedList>
 
@@ -117,7 +118,7 @@ A configured log group will only move data after an OPC tag update occurs.
 
     Trigger a value change on the configured OPC tag or wait for the polling interval so DataLogger logs a row.
   </NumberedItem>
-  <NumberedItem title="Confirm the data landed in Tiger Data">
+  <NumberedItem title={`Confirm the data landed in ${C.COMPANY}`}>
 
     Run the following query in {C.CONSOLE} or another SQL editor:
 
@@ -132,7 +133,7 @@ A configured log group will only move data after an OPC tag update occurs.
   </NumberedItem>
 </NumberedList>
 
-You have successfully integrated Kepware KEPServerEX with Tiger Data.
+You have successfully integrated Kepware KEPServerEX with {C.COMPANY}.
 
 ## Troubleshooting
 
