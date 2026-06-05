@@ -6,6 +6,7 @@ import type { AstroIntegration } from "astro";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
 import starlightLlmsTxt from "starlight-llms-txt";
 import rehypeBasePath from "./src/plugins/rehype-base-path";
+import rehypePagefindWeight from "./src/plugins/rehype-pagefind-weight";
 import remarkResolveConstantsInHeadings from "./src/plugins/remark-resolve-constants-in-headings";
 
 import sentry from "@sentry/astro";
@@ -198,7 +199,7 @@ export default defineConfig({
   trailingSlash: "never",
   markdown: {
     remarkPlugins: [remarkResolveConstantsInHeadings],
-    rehypePlugins: [[rehypeBasePath, { base: BASE }]],
+    rehypePlugins: [[rehypeBasePath, { base: BASE }], rehypePagefindWeight],
   },
     vite: {
       plugins: [vite7CompatPlugin()] as any,
