@@ -1,6 +1,6 @@
 ---
-title: Integrate Kepware KEPServerEX with Tiger Data
-description: Stream OPC tag data from Kepware DataLogger into Tiger Data and store it in a hypertable.
+title: Integrate Kepware KEPServerEX with Tiger Cloud
+description: Stream OPC tag data from Kepware DataLogger into Tiger Cloud and store it in a hypertable
 integrationCategory: data-ingestion-streaming
 integrationPlatforms: [aws, azure, self-hosted]
 integrationIndustry: [manufacturing, energy, industrial automation]
@@ -19,7 +19,7 @@ import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
 
 [Kepware KEPServerEX](https://www.kepware.com/en-us/products/kepserverex/) is an industrial connectivity platform that logs OPC tag data from controllers and sensors to ODBC-compliant databases using Kepware DataLogger.
 
-This page shows you how to configure Kepware DataLogger to stream OPC data into {C.COMPANY} and store it in a {C.HYPERTABLE}.
+This page shows you how to configure Kepware DataLogger to stream OPC data into {C.CLOUD_LONG} and store it in a {C.HYPERTABLE}.
 
 In this integration guide, you:
 
@@ -31,14 +31,14 @@ In this integration guide, you:
 <IntegrationPrereqs />
 <ConnectionDetails />
 - A running [Kepware Server EX](https://www.ptc.com/en/products/kepware/kepserverex) installation with the DataLogger add-on. 
-- The PostgreSQL ODBC driver installed on the Kepware host. 
-- Your Tiger Cloud service configured with remote ODBC access enabled.
+- The {C.PG} ODBC driver installed on the Kepware host. 
+- Your {C.SERVICE_LONG} configured with remote ODBC access enabled.
 
 </Prerequisites>
 
-## Prepare your {C.SERVICE_SHORT_CAP}
+## Prepare your {C.SERVICE_SHORT}
 
-Create the target table in {C.COMPANY} before DataLogger begins writing. Convert that table to a {C.HYPERTABLE} so your OPC time-series data is partitioned and chunked correctly.
+Create the target table in {C.CLOUD_LONG} before DataLogger begins writing. Convert that table to a {C.HYPERTABLE} so your OPC time-series data is partitioned and chunked correctly.
 
 <Callout variant="note">
 If Kepware DataLogger creates the table for you, convert it to a {C.HYPERTABLE} before you enable the log group.
@@ -51,7 +51,7 @@ If Kepware DataLogger creates the table for you, convert it to a {C.HYPERTABLE} 
   </NumberedItem>
   <NumberedItem title={`Create the target ${C.HYPERTABLE}`}>
 
-    Create the table directly as a hypertable partitioned on the `time` column:
+    Create the table directly as a {C.HYPERTABLE} partitioned on the `time` column:
 
     ```sql
     CREATE TABLE kepware_telemetry (
@@ -64,13 +64,13 @@ If Kepware DataLogger creates the table for you, convert it to a {C.HYPERTABLE} 
         timescaledb.chunk_interval = '7 days'
     );
     ```
-    The `chunk_interval` setting controls how much data each hypertable chunk holds. A 7-day interval works well for most OPC ingestion workloads. If you have high-throughput tag updates, consider a shorter interval like 1 day. You can adjust this later with `set_chunk_time_interval()`.
+    The `chunk_interval` setting controls how much data each {C.HYPERTABLE} chunk holds. A 7-day interval works well for most OPC ingestion workloads. If you have high-throughput tag updates, consider a shorter interval like 1 day. You can adjust this later with `set_chunk_time_interval()`.
   </NumberedItem>
 </NumberedList>
 
 ## Configure Kepware DataLogger
 
-Point DataLogger at your {C.COMPANY} {C.HYPERTABLE} and choose a table write mode that preserves data.
+Point DataLogger at your {C.CLOUD_LONG} {C.HYPERTABLE} and choose a table write mode that preserves data.
 
 <NumberedList>
   <NumberedItem title="Open the log group configuration">
@@ -83,11 +83,11 @@ Point DataLogger at your {C.COMPANY} {C.HYPERTABLE} and choose a table write mod
 
     On the System DSN tab, click `Add`, choose the {C.POSTGRESQL} ODBC driver for {C.COMPANY}, and complete the driver wizard.
   </NumberedItem>
-  <NumberedItem title={`Select the ${C.COMPANY} DSN`}>
+  <NumberedItem title={`Select the ${C.CLOUD_LONG} DSN`}>
 
-    In the log group settings, choose the DSN you created for {C.COMPANY}.
+    In the log group settings, choose the DSN you created for {C.CLOUD_LONG}.
 
-    If required, enter the DSN `Username` and `Password` for the {C.COMPANY} database.
+    If required, enter the DSN `Username` and `Password` for the {C.SERVICE_LONG}.
   </NumberedItem>
   <NumberedItem title="Point the log group at the hypertable">
 
@@ -105,7 +105,7 @@ Point DataLogger at your {C.COMPANY} {C.HYPERTABLE} and choose a table write mod
 
     Save the log group and set `Enabled` to `Yes`.
 
-    DataLogger begins sending OPC updates to your {C.COMPANY} {C.HYPERTABLE} when the log group is enabled.
+    DataLogger begins sending OPC updates to your {C.CLOUD_LONG} {C.HYPERTABLE} when the log group is enabled.
   </NumberedItem>
 </NumberedList>
 
@@ -118,7 +118,7 @@ A configured log group will only move data after an OPC tag update occurs.
 
     Trigger a value change on the configured OPC tag or wait for the polling interval so DataLogger logs a row.
   </NumberedItem>
-  <NumberedItem title={`Confirm the data landed in ${C.COMPANY}`}>
+  <NumberedItem title={`Confirm the data landed in ${C.CLOUD_LONG}`}>
 
     Run the following query in {C.CONSOLE} or another SQL editor:
 
@@ -133,11 +133,11 @@ A configured log group will only move data after an OPC tag update occurs.
   </NumberedItem>
 </NumberedList>
 
-You have successfully integrated Kepware KEPServerEX with {C.COMPANY}.
+You have successfully integrated Kepware KEPServerEX with {C.CLOUD_LONG}.
 
 ## Troubleshooting
 
-- **The DSN driver is not listed:** install the PostgreSQL ODBC driver and open the 32-bit ODBC Data Source Administrator on Windows.
+- **The DSN driver is not listed:** install the {C.PG} ODBC driver and open the 32-bit ODBC Data Source Administrator on Windows.
 - **`relation "kepware_telemetry" does not exist`:** verify the log group table name is `kepware_telemetry` and that the hypertable exists before enabling the group.
 - **DataLogger created a plain table:** convert the table with `SELECT create_hypertable('kepware_telemetry', 'time');` and keep `Create Table If Missing` unchecked.
 - **No rows appear after enabling the group:** confirm the log group is `Enabled` and that the configured OPC tags are updating.
