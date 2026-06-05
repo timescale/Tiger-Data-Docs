@@ -1,0 +1,48 @@
+---
+title: total()
+description: Calculate the exact sum of the values in a `uddsketch`
+keywords: [total, percentile approximation, timescaledb toolkit, uddsketch]
+---
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+<SinceRelease version="1.21.0" product="toolkit" />
+
+Calculate the exact sum of all the values added to a `uddsketch`. Unlike percentile calculations, the sum is exact,
+though there might be some loss of precision. This accessor allows you to calculate the total alongside percentiles,
+without needing to create two separate aggregates from the same raw data.
+
+## Samples
+
+Calculate the sum of the integers from 0 to 100.
+
+```sql
+SELECT total(uddsketch(100, 0.001, data::double precision))
+FROM generate_series(0, 100) data;
+```
+
+```
+total
+-------
+5050
+```
+
+## Arguments
+
+The syntax is:
+
+```sql
+total(
+  sketch UddSketch
+) RETURNS DOUBLE PRECISION
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| sketch | UddSketch | - | ✔ | The `uddsketch` to extract the sum from |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| total | DOUBLE PRECISION | The sum of the values in the `uddsketch`. |
