@@ -1,0 +1,98 @@
+<script is:inline>
+  /**
+   * Right-rail "On this page" scroll-spy.
+   *
+   * Starlight ships its own scroll-spy in `<starlight-toc>`, but it captures its
+   * link list (and the initial `aria-current` link) once at init. On this site
+   * `PartialTocSync` rebuilds the TOC `<ul>` at runtime to surface partial-injected
+   * headings, which replaces those `<a>` elements — so Starlight's observer ends up
+   * driving `aria-current` on detached nodes and the visible TOC never highlights
+   * the current section.
+   *
+   * This spy sidesteps that entirely: it reads the *live* links every frame and
+   * sets `aria-current` on the entry whose heading is currently at the top of the
+   * viewport. It also re-asserts shortly after load to override the one stray
+   * removal Starlight's observer performs before it starts working on stale nodes.
+   */
+  (function () {
+    function headerOffset() {
+      var header = document.querySelector("header");
+      var h = header ? header.getBoundingClientRect().height : 0;
+      // Activate a heading once it sits a little below the sticky header.
+      return h + 24;
+    }
+
+    /** Live [{ link, heading }] pairs in document order, rebuilt each update. */
+    function collect() {
+      var toc = document.querySelector("starlight-toc");
+      if (!toc) return [];
+      var links = Array.prototype.slice.call(toc.querySelectorAll("a[href^='#']"));
+      var out = [];
+      for (var i = 0; i < links.length; i++) {
+        var id = decodeURIComponent(links[i].hash.slice(1));
+        var heading =
+          id === "_top"
+            ? document.getElementById("_top") || document.querySelector("main h1")
+            : document.getElementById(id);
+        if (heading) out.push({ link: links[i], heading: heading });
+      }
+      return out;
+    }
+
+    function update() {
+      var entries = collect();
+      if (!entries.length) return;
+      var offset = headerOffset();
+      var active = entries[0].link;
+      for (var i = 0; i < entries.length; i++) {
+        if (entries[i].heading.getBoundingClientRect().top - offset <= 1) {
+          active = entries[i].link;
+        } else {
+          break;
+        }
+      }
+      // Snap to the last entry once scrolled to the bottom, so trailing short
+      // sections that never reach the top of the viewport can still activate.
+      var doc = document.documentElement;
+      if (window.scrollY + window.innerHeight >= doc.scrollHeight - 2) {
+        active = entries[entries.length - 1].link;
+      }
+      for (var j = 0; j < entries.length; j++) {
+        var link = entries[j].link;
+        if (link === active) {
+          if (link.getAttribute("aria-current") !== "true")
+            link.setAttribute("aria-current", "true");
+        } else if (link.getAttribute("aria-current") === "true") {
+          link.removeAttribute("aria-current");
+        }
+      }
+    }
+
+    var ticking = false;
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(function () {
+        ticking = false;
+        update();
+      });
+    }
+
+    function start() {
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onScroll, { passive: true });
+      // Run now and again shortly after, to land after PartialTocSync's rebuild
+      // and to override Starlight's one stray aria-current removal.
+      update();
+      setTimeout(update, 200);
+      setTimeout(update, 600);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", start);
+    } else {
+      start();
+    }
+    document.addEventListener("astro:page-load", update);
+  })();
+</script>
