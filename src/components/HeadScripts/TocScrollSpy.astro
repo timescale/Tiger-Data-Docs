@@ -13,6 +13,9 @@
    * sets `aria-current` on the entry whose heading is currently at the top of the
    * viewport. It also re-asserts shortly after load to override the one stray
    * removal Starlight's observer performs before it starts working on stale nodes.
+   *
+   * It also intercepts TOC clicks so the page always scrolls the clicked heading to
+   * the top — native anchor clicks do nothing when the hash already matches the URL.
    */
   (function () {
     function headerOffset() {
@@ -22,6 +25,14 @@
       return h + 24;
     }
 
+    /** Resolve the heading element a TOC hash points at. */
+    function headingFor(hash) {
+      var id = decodeURIComponent(hash.slice(1));
+      return id === "_top"
+        ? document.getElementById("_top") || document.querySelector("main h1")
+        : document.getElementById(id);
+    }
+
     /** Live [{ link, heading }] pairs in document order, rebuilt each update. */
     function collect() {
       var toc = document.querySelector("starlight-toc");
@@ -29,11 +40,7 @@
       var links = Array.prototype.slice.call(toc.querySelectorAll("a[href^='#']"));
       var out = [];
       for (var i = 0; i < links.length; i++) {
-        var id = decodeURIComponent(links[i].hash.slice(1));
-        var heading =
-          id === "_top"
-            ? document.getElementById("_top") || document.querySelector("main h1")
-            : document.getElementById(id);
+        var heading = headingFor(links[i].hash);
         if (heading) out.push({ link: links[i], heading: heading });
       }
       return out;
@@ -43,19 +50,13 @@
       var entries = collect();
       if (!entries.length) return;
       var offset = headerOffset();
+      // Activate the last heading sitting at or above the offset line. `ensureBottomRoom`
+      // reserves enough scroll space that even the final short sections reach it, so no
+      // special bottom-of-page handling is needed here.
       var active = entries[0].link;
       for (var i = 0; i < entries.length; i++) {
-        if (entries[i].heading.getBoundingClientRect().top - offset <= 1) {
-          active = entries[i].link;
-        } else {
-          break;
-        }
-      }
-      // Snap to the last entry once scrolled to the bottom, so trailing short
-      // sections that never reach the top of the viewport can still activate.
-      var doc = document.documentElement;
-      if (window.scrollY + window.innerHeight >= doc.scrollHeight - 2) {
-        active = entries[entries.length - 1].link;
+        if (entries[i].heading.getBoundingClientRect().top - offset <= 1) active = entries[i].link;
+        else break;
       }
       for (var j = 0; j < entries.length; j++) {
         var link = entries[j].link;
@@ -68,6 +69,67 @@
       }
     }
 
+    /**
+     * Reserve enough scroll room at the page bottom that even the last heading can
+     * be scrolled up to the offset line. Without this, trailing sections whose
+     * content (plus footer) is shorter than a viewport can never reach the top, so
+     * clicking them in the TOC lands short. The spacer grows only by the deficit,
+     * so pages with a long tail are unaffected (its height stays 0).
+     */
+    function ensureBottomRoom() {
+      var main = document.querySelector("main");
+      if (!main) return;
+      var spacer = document.getElementById("toc-scroll-spacer");
+      if (!spacer) {
+        spacer = document.createElement("div");
+        spacer.id = "toc-scroll-spacer";
+        spacer.setAttribute("aria-hidden", "true");
+      }
+      // Keep it the very last element so it only ever adds room below everything.
+      if (main.lastElementChild !== spacer) main.appendChild(spacer);
+      spacer.style.height = "0px";
+      var entries = collect();
+      if (!entries.length) return;
+      var last = entries[entries.length - 1].heading;
+      var lastTop = last.getBoundingClientRect().top + window.scrollY;
+      var needed =
+        lastTop - headerOffset() + window.innerHeight - document.documentElement.scrollHeight;
+      spacer.style.height = (needed > 0 ? Math.ceil(needed) : 0) + "px";
+    }
+
+    /**
+     * Always scroll the clicked TOC entry to just below the sticky header — even
+     * when its hash already matches the URL (a native anchor click is a no-op in
+     * that case, so the page wouldn't move otherwise).
+     */
+    function onClick(e) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+        return;
+      var a = e.target.closest ? e.target.closest("a[href^='#']") : null;
+      if (!a) return;
+      var toc = document.querySelector("starlight-toc");
+      if (!toc || !toc.contains(a)) return;
+      var heading = headingFor(a.hash);
+      if (!heading) return;
+      e.preventDefault();
+      // Make sure the page can scroll far enough to land this heading at the top.
+      ensureBottomRoom();
+      var doc = document.documentElement;
+      var maxScroll = Math.max(0, doc.scrollHeight - window.innerHeight);
+      var top = heading.getBoundingClientRect().top + window.scrollY - headerOffset();
+      top = Math.max(0, Math.min(top, maxScroll));
+      var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: top, behavior: reduce ? "auto" : "smooth" });
+      if (history.pushState) history.pushState(null, "", a.hash);
+      update();
+    }
+
+    // Re-measure the bottom room (viewport- and layout-dependent) then re-highlight.
+    function refresh() {
+      ensureBottomRoom();
+      update();
+    }
+
     var ticking = false;
     function onScroll() {
       if (ticking) return;
@@ -78,14 +140,22 @@
       });
     }
 
+    var resizeTimer;
+    function onResize() {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(refresh, 150);
+    }
+
     function start() {
       window.addEventListener("scroll", onScroll, { passive: true });
-      window.addEventListener("resize", onScroll, { passive: true });
+      window.addEventListener("resize", onResize, { passive: true });
+      // Capture phase so we own the click before the native anchor jump.
+      document.addEventListener("click", onClick, true);
       // Run now and again shortly after, to land after PartialTocSync's rebuild
       // and to override Starlight's one stray aria-current removal.
-      update();
-      setTimeout(update, 200);
-      setTimeout(update, 600);
+      refresh();
+      setTimeout(refresh, 200);
+      setTimeout(refresh, 600);
     }
 
     if (document.readyState === "loading") {
@@ -93,6 +163,6 @@
     } else {
       start();
     }
-    document.addEventListener("astro:page-load", update);
+    document.addEventListener("astro:page-load", refresh);
   })();
 </script>
