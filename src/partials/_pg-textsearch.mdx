@@ -7,7 +7,7 @@ import ConnectionDetails from "./_prereqs-connection-details.mdx";
 import { Prerequisites } from "@components/Prerequisites";
 
 <Callout variant="note">
-**pg_textsearch v1.0.0** (March 2026) is **production-ready** on {C.CLOUD_LONG}. See the [v1.0.0 release notes](https://github.com/timescale/pg_textsearch/releases/tag/v1.0.0).
+**pg_textsearch v1.1.0** is **production-ready** on {C.CLOUD_LONG}. See the [v1.1.0 release notes](https://github.com/timescale/pg_textsearch/releases/tag/v1.1.0).
 </Callout>
 
 `pg_textsearch` supports **{C.PG} 17 and 18**. For self-hosted installs, confirm versions against the [upstream compatibility table](https://github.com/timescale/pg_textsearch#postgresql-version-compatibility).
@@ -138,13 +138,105 @@ USING bm25(description)
 WITH (text_config='english');
 ```
 
-BM25 supports single-column indexes only. For optimal performance, load your data first, then create the index.
+Each BM25 index covers a single text expression. That expression can be a plain column, or a computed expression that concatenates columns, extracts a JSONB field, or normalizes text. See [Index expressions, subsets of rows, and arrays](#index-expressions-subsets-of-rows-and-arrays). For optimal performance, load your data first, then create the index.
 
 </NumberedItem>
 
 </NumberedList>
 
 You have created a BM25 index for full-text search.
+
+## Index expressions, subsets of rows, and arrays
+
+<SinceRelease version="v1.1.0" product="pg_textsearch" />
+
+A BM25 index can cover more than a plain column. You can index a computed expression, restrict the index to a subset of rows, or index a `text[]` array.
+
+### Index an expression
+
+Index a computed expression to search JSONB fields, combine multiple columns, or normalize text. The expression must return `text` and use only `IMMUTABLE` functions, and your queries must repeat the same expression in `ORDER BY`:
+
+```sql
+-- Extract a JSONB field
+CREATE INDEX events_msg_idx ON events
+USING bm25 ((data->>'description'))
+WITH (text_config='english');
+
+-- Combine title and body into one searchable index
+CREATE INDEX articles_idx ON articles
+USING bm25 ((coalesce(title, '') || ' ' || coalesce(body, '')))
+WITH (text_config='english');
+
+-- Normalize case before indexing
+CREATE INDEX docs_lower_idx ON docs
+USING bm25 ((lower(content)))
+WITH (text_config='simple');
+```
+
+### Index a subset of rows
+
+Add a `WHERE` clause to index only the rows you search. Partial indexes are smaller and faster when queries always target the same subset:
+
+```sql
+CREATE INDEX docs_published_idx ON docs
+USING bm25 (content)
+WITH (text_config='english')
+WHERE status = 'published';
+```
+
+Partial indexes require explicit index naming with `to_bm25query()`. The implicit `content <@> 'query'` syntax skips them:
+
+```sql
+SELECT * FROM docs
+WHERE status = 'published'
+ORDER BY content <@> to_bm25query('search terms', 'docs_published_idx')
+LIMIT 10;
+```
+
+You can combine expression and partial indexes:
+
+```sql
+CREATE INDEX events_error_idx ON events
+USING bm25 ((data->>'message'))
+WITH (text_config='english')
+WHERE (data->>'severity') = 'error';
+```
+
+### Search multilingual tables
+
+For tables that hold documents in several languages, create one partial index per language, each with the matching text search configuration. Each index then applies language-appropriate stemming and stop words:
+
+```sql
+CREATE INDEX docs_en_idx ON docs USING bm25 (content)
+  WITH (text_config='english') WHERE lang = 'en';
+CREATE INDEX docs_de_idx ON docs USING bm25 (content)
+  WITH (text_config='german')  WHERE lang = 'de';
+CREATE INDEX docs_fr_idx ON docs USING bm25 (content)
+  WITH (text_config='french')  WHERE lang = 'fr';
+```
+
+Query with the matching predicate and index name:
+
+```sql
+SELECT * FROM docs
+WHERE lang = 'en'
+ORDER BY content <@> to_bm25query('databases', 'docs_en_idx')
+LIMIT 10;
+```
+
+### Index a text array
+
+`pg_textsearch` indexes `text[]` columns by scoring the array elements as a single flattened document. This is useful when you store a document as pre-split chunks:
+
+```sql
+CREATE TABLE chunked_docs (id bigserial PRIMARY KEY, content text[]);
+
+CREATE INDEX chunked_docs_idx ON chunked_docs
+USING bm25(content)
+WITH (text_config='english');
+```
+
+BM25 scores match what you would get by concatenating the elements into a single `text` value.
 
 ## Enable parallel indexing for faster index creation
 
@@ -468,18 +560,17 @@ Customize `pg_textsearch` behavior for your specific use case and data character
 
 <NumberedItem title="Configure memory and performance settings">
 
-To manage memory usage, you control when the in-memory index spills to disk segments. When the memtable reaches the
-threshold, it automatically flushes to a segment at transaction commit.
+`pg_textsearch` keeps in-memory inverted indexes (memtables) in {C.PG} dynamic shared memory. Use `memory_limit` to bound their growth: as usage approaches the cap, memtables spill to on-disk segments automatically, and if usage still exceeds the cap, inserts fail with an error rather than risking an out-of-memory kill.
 
 <Callout variant="tip">
 **Crash recovery:** the memtable is rebuilt from the heap on startup, so you do **not** lose indexed data if {C.PG} crashes before a spill to disk completes.
 </Callout>
 
 ```sql
--- Set memtable spill threshold (default 32000000 posting entries, ~1M docs/segment)
-SET pg_textsearch.memtable_spill_threshold = 32000000;
+-- Cap shared memory used by memtables (default 2GB; 0 disables the limit)
+SET pg_textsearch.memory_limit = '2GB';
 
--- Set bulk load spill threshold (default 100000 terms per transaction)
+-- Spill to disk after this many terms in a single transaction (default 100000)
 SET pg_textsearch.bulk_load_threshold = 150000;
 
 -- Segments per level before automatic compaction (default 8, allowed range 2–64)
@@ -488,9 +579,6 @@ SET pg_textsearch.segments_per_level = 8;
 -- Set default query limit when no LIMIT clause is present (default 1000)
 SET pg_textsearch.default_limit = 5000;
 
--- Enable Block-Max WAND optimization for faster top-k queries (enabled by default)
-SET pg_textsearch.enable_bmw = true;
-
 -- Log block skip statistics for debugging query performance (disabled by default)
 SET pg_textsearch.log_bmw_stats = false;
 
@@ -498,6 +586,10 @@ SET pg_textsearch.log_bmw_stats = false;
 SET pg_textsearch.log_scores = false;
 ```
 <SinceRelease version="v0.1.0" product="pg_textsearch" />
+
+<Callout variant="note">
+`memory_limit` derives three internal thresholds: a per-index soft limit (`memory_limit / 8`) spills that index's memtable to disk, a global soft limit (`memory_limit / 2`) evicts the largest memtable across all indexes, and the hard limit (`memory_limit`) rejects the insert with an error. You only need to set `memory_limit`; the ratios are tuned for typical workloads. The older `pg_textsearch.memtable_spill_threshold` GUC is **deprecated** in favor of `memory_limit`.
+</Callout>
 
 ```sql
 -- Enable segment compression using delta encoding and bitpacking (enabled by default)
@@ -546,6 +638,11 @@ WITH (text_config='english', k1=1.5, b=0.8);
     WHERE indexrelid::regclass::text ~ 'bm25';
     ```
 
+- Check shared memory used by memtables across all indexes
+    ```sql
+    SELECT * FROM bm25_memory_usage();
+    ```
+
 - View index summary with corpus statistics and memory usage (**superuser**)
     ```sql
     SELECT bm25_summarize_index('products_search_idx');
@@ -576,7 +673,7 @@ caching and pagination to improve user experience with large result sets.
 
 * **No phrase search**: you cannot search for exact multi-word phrases (no positional index; emulate with BM25 plus a post-filter if needed).
 * **No compressed data support**: `pg_textsearch` does not work with **compressed** chunk or table data (for example Hypercore-compressed data where the extension applies).
-* **No expression indexing**: each BM25 index covers a **single text column**. You cannot index an expression such as `lower(title) || ' ' || content` directly; use a **generated column** that concatenates or normalizes text, then index that column.
+* **One expression per index**: each BM25 index covers a **single text expression**. To search several columns at once, index a computed expression that concatenates them (see [Index expressions, subsets of rows, and arrays](#index-expressions-subsets-of-rows-and-arrays)).
 * **No built-in faceted search**: there is no dedicated faceting operator; use ordinary {C.PG} patterns (`WHERE`, `GROUP BY`, counts) alongside BM25 filters.
 * **Insert and update throughput**: the memtable design supports incremental writes, but **sustained write-heavy** workloads are still a focus of ongoing performance work. Prefer **bulk load, then index** (or `bm25_force_merge` after large batches) when possible.
 * **No background compaction**: segment compaction runs **synchronously** during memtable spill; write-heavy workloads may see latency spikes during spills.

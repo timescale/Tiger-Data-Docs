@@ -911,7 +911,7 @@ tags (configurable), while the `<@>` operator handles the BM25 ranking.
 
 ### Phrase search workaround
 
-`pg_textsearch` 1.0 doesn't support native phrase queries (matching exact multi-word
+`pg_textsearch` doesn't support native phrase queries (matching exact multi-word
 sequences). Work around this by over-fetching from the BM25 index and post-filtering with
 `ILIKE`. Run this query in your SQL client. The inner query uses BM25 to find the top
 100 candidates, and the outer query filters down to rows containing the exact phrase:
@@ -978,7 +978,7 @@ operation. Run it after large bulk loads, not after every insert.
 
 ## Current limitations
 
-No tool is perfect (yet). Here's what to be aware of in `pg_textsearch` 1.0:
+No tool is perfect (yet). Here's what to be aware of in `pg_textsearch`:
 
 - **No phrase queries**: the index stores term frequencies but not positions. Use the
   over-fetch + post-filter pattern shown above
@@ -986,7 +986,8 @@ No tool is perfect (yet). Here's what to be aware of in `pg_textsearch` 1.0:
   are planned for a post-1.0 release
 - **No highlighting from the index**: use {C.PG}'s built-in `ts_headline()` on the result
   set
-- **Single column per index**: use a generated column to combine multiple fields
+- **One expression per index**: to search several fields at once, index an expression
+  that concatenates them (for example `(title || ' ' || description)`) or use a generated column
 - **PL/pgSQL requires explicit index names**: use
   `to_bm25query('query', 'index_name')` inside PL/pgSQL, DO blocks, or stored procedures
 
