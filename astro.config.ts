@@ -694,26 +694,15 @@ export default defineConfig({
             },
           ],
         },
-        // Sync tab: data sync, file uploads, and full database migration
+        // Migrate tab: data sync, file uploads, and full database migration
         {
-          label: "Sync",
+          label: "Migrate",
           link: "/migrate",
           sidebar: [
             {
               label: "Sync data into Tiger Data",
               collapsed: true,
               items: [{ label: "Sync data into Tiger Data", link: "/migrate" }],
-            },
-            {
-              label: "Sync methods",
-              collapsed: false,
-              items: [
-                { label: "Sync from Postgres", link: "/migrate/livesync-for-postgresql" },
-                { label: "Sync from S3", link: "/migrate/livesync-for-s3" },
-                { label: "Stream from Kafka", link: "/migrate/livesync-for-kafka" },
-                { label: "Upload a file (Console)", link: "/migrate/import-console" },
-                { label: "Upload a file (terminal)", link: "/migrate/import-terminal" },
-              ],
             },
             {
               label: "Migration methods",
@@ -748,6 +737,17 @@ export default defineConfig({
                     { label: "timescaledb-backfill tool", link: "/migrate/dual-write-and-backfill/timescaledb-backfill" },
                   ],
                 },
+              ],
+            },
+            {
+              label: "Sync methods",
+              collapsed: false,
+              items: [
+                { label: "Sync from Postgres", link: "/migrate/livesync-for-postgresql" },
+                { label: "Sync from S3", link: "/migrate/livesync-for-s3" },
+                { label: "Stream from Kafka", link: "/migrate/livesync-for-kafka" },
+                { label: "Upload a file (Console)", link: "/migrate/import-console" },
+                { label: "Upload a file (terminal)", link: "/migrate/import-terminal" },
               ],
             },
           ],
