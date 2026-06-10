@@ -808,6 +808,7 @@ export default defineConfig({
                           link: "/integrate/connectors/destination/tigerlake",
                           attrs: { "data-no-flatten": "true" },
                         },
+                        { label: "Snowflake", link: "/integrate/connectors/destination/snowflake" },
                       ],
                     },
                   ],
