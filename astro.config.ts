@@ -694,18 +694,18 @@ export default defineConfig({
             },
           ],
         },
-        // Migrate tab, logical order: overview → how to import/migrate → source-specific guides
+        // Sync tab: data sync, file uploads, and full database migration
         {
-          label: "Migrate",
+          label: "Sync",
           link: "/migrate",
           sidebar: [
             {
-              label: "Migrate to Tiger Data",
+              label: "Sync data into Tiger Data",
               collapsed: true,
-              items: [{ label: "Migrate to Tiger Data", link: "/migrate" }],
+              items: [{ label: "Sync data into Tiger Data", link: "/migrate" }],
             },
             {
-              label: "Import & migration methods",
+              label: "Sync methods",
               collapsed: false,
               items: [
                 { label: "Sync from Postgres", link: "/migrate/livesync-for-postgresql" },
@@ -713,7 +713,29 @@ export default defineConfig({
                 { label: "Stream from Kafka", link: "/migrate/livesync-for-kafka" },
                 { label: "Upload a file (Console)", link: "/migrate/import-console" },
                 { label: "Upload a file (terminal)", link: "/migrate/import-terminal" },
-                { label: "Live migration", link: "/migrate/live-migration" },
+              ],
+            },
+            {
+              label: "Migration methods",
+              collapsed: false,
+              items: [
+                {
+                  label: "Livesync replication",
+                  collapsed: true,
+                  items: [
+                    { label: "Livesync replication", link: "/migrate/livesync-replication" },
+                    { label: "Advanced topics", link: "/migrate/livesync-replication-advanced" },
+                    { label: "Troubleshooting", link: "/migrate/livesync-replication-troubleshooting" },
+                  ],
+                },
+                {
+                  label: "Live migration (deprecated)",
+                  collapsed: true,
+                  items: [
+                    { label: "Live migration (deprecated)", link: "/migrate/live-migration" },
+                    { label: "FAQ and troubleshooting", link: "/migrate/troubleshooting" },
+                  ],
+                },
                 { label: "Migrate with downtime", link: "/migrate/migrate-with-downtime" },
                 {
                   label: "Dual-write and backfill",
@@ -726,7 +748,6 @@ export default defineConfig({
                     { label: "timescaledb-backfill tool", link: "/migrate/dual-write-and-backfill/timescaledb-backfill" },
                   ],
                 },
-                { label: "FAQ and troubleshooting", link: "/migrate/troubleshooting" },
               ],
             },
           ],
