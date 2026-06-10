@@ -39,15 +39,17 @@ jobs:
             let warningMessage = '';
             let hasWarning = false;
             
-            // Check for required sections
-            const hasDescribeSection = prBody.includes('## Describe your changes');
-            const hasIssuesSection = prBody.includes('## Related Issues');
-            const hasChecklistSection = prBody.includes('## Checklist before requesting a review');
-            
-            const missingStructure = [];
-            if (!hasDescribeSection) missingStructure.push('"## Describe your changes"');
-            if (!hasIssuesSection) missingStructure.push('"## Related Issues"');
-            if (!hasChecklistSection) missingStructure.push('"## Checklist before requesting a review"');
+            // Check for required sections (must match .github/pull_request_template.md)
+            const requiredSections = [
+              '## Describe your changes',
+              '## Affected pages',
+              '## Related Issues',
+              '## Checklist before requesting a review',
+            ];
+
+            const missingStructure = requiredSections
+              .filter((heading) => !prBody.includes(heading))
+              .map((heading) => `"${heading}"`);
             
             if (missingStructure.length > 0) {
               warningMessage = `**PR is missing required template sections:**\n\n${missingStructure.join('\n')}\n\nPlease use the PR template.`;

@@ -9,7 +9,7 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 ## Project Overview
 
-Tiger Data documentation site built on Astro + Starlight using the Stainless Docs Platform (`@stainless-api/docs`). Documentation content is sourced from three sibling repositories: `timescaledb`, `pgai`, and `pgvectorscale`. Includes experimental AI chat via `@stainless-api/docs-ai-chat`.
+Tiger Data documentation site built on Astro + Starlight using the Stainless Docs Platform (`@stainless-api/docs`). Documentation content is sourced from three sibling repositories: `timescaledb`, `pgai`, and `pgvectorscale`.
 
 ## Commands
 
@@ -78,6 +78,7 @@ All navigation, tabs, and sidebar structure is defined in `astro.config.ts` via 
 Custom Astro/React components live in `src/components/`:
 - `Header.astro`, `PageTitle.astro` (breadcrumbs + `@stainless-api/docs/components/AIDropdown`), `PageNavigation.astro`: Starlight overrides
 - `Callout.astro`: custom callout with Figma-styled lightbulb icon
+- `PageSidebar.astro` + `LearnMore.astro`: right-rail "Learn more" card driven entirely by per-page frontmatter (`learnMore:` block — tutorials, related posts, optional CTA). No per-page imports required. **Full authoring guide with 8 copy-paste recipes:** [`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md).
 - `AuthorByline.astro`: author attribution for tutorials
 - `ChangelogEntry.astro`, `ChangelogFilter.astro`, `ChangelogTag.astro`: changelog/release notes
 - `Glossary/`: glossary term rendering with category filtering
@@ -85,6 +86,10 @@ Custom Astro/React components live in `src/components/`:
 - `NumberedList.astro`, `NumberedList.tsx`, `NumberedItem.astro`: ordered step components
 - `HeaderSearchBar.astro`: site search bar
 - `SinceRelease.astro`: version badge component
+
+### Per-page right-rail card
+
+Use the `learnMore:` frontmatter block to surface a tutorials / related-posts / CTA card in the right rail of any MDX page. Auto-hides when the key is absent. Schema is in `src/content.config.ts` (`learnMoreSchema`); copy-paste recipes and troubleshooting are in **[`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md)**. Prefer this over building a one-off "related content" pattern at the bottom of pages.
 
 Helper modules in `src/lib/`:
 - `docs-components.ts`: re-exports Stainless components with Callout override
@@ -191,6 +196,7 @@ Previous directory reorganization:
 
 - Do not use the em dash (Unicode U+2014) in documentation. Prefer commas, semicolons, colons, or parentheses, or split into two sentences. For label-and-description lines, use a colon after the label (for example `**Label**: description`). See [Contribute to the docs: Writing style](/get-started/contributing#writing-style).
 - Optional frontmatter **`seoDescription`**: SEO/social summary without sidebar subtitles (see [Writing style: SEO summary](/get-started/contributing#seo-summary-in-frontmatter)); implemented in `src/components/Head.astro`. If both `description` and `seoDescription` are set, **`description` is used** for meta and sidebar; `seoDescription` is ignored for injection.
+- **No deprecated compression APIs**: TimescaleDB 2.18.0 renamed the compression API to columnstore/hypercore (`compress_chunk` to `convert_to_columnstore`, `*_compression_policy` to `*_columnstore_policy`, `timescaledb.compress` to `timescaledb.enable_columnstore`, and so on). Old names still work as backwards-compat aliases but must not appear in new docs. Full mapping, carve-outs, and verification grep: `.claude/references/deprecated-compression-apis.md`.
 
 ### MDX Components
 

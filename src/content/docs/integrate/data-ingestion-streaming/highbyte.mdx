@@ -2,6 +2,7 @@
 title: "Integrate HighByte with Tiger Cloud"
 description: "Connect operational technology sources, model the data, and stream it to your service"
 integrationCategory: "data-ingestion-streaming"
+integrationPlatforms: ["aws", "azure", "self-hosted"]
 integrationIndustry: ["iot", "manufacturing", "energy"]
 keywords: ["iot integration", "opc ua", "mqtt", "industrial data", "operational technology", "highbyte intelligence hub", "data streaming"]
 integrationCardLogo: "highbyte.png"
@@ -13,18 +14,21 @@ import * as C from "@constants";
 
 import { Prerequisites } from "@components/Prerequisites";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import ConnectionDetails from '@partials/_prereqs-connection-details.mdx';
 
 [HighByte Intelligence Hub](https://www.highbyte.com/) is a DataOps platform for industrial and IoT data integration. It connects
 to operational technology (OT) sources such as OPC UA, MQTT, and Modbus, models the data, and streams it to
-destinations like {C.TIMESCALE_DB}.
+destinations like {C.CLOUD_LONG}.
 
 This page shows you how to connect HighByte Intelligence Hub to your {C.SERVICE_LONG} to stream industrial
-time-series data into {C.TIMESCALE_DB}, with support for automatic {C.HYPERTABLE} creation.
+time-series data into {C.CLOUD_LONG}, with support for automatic {C.HYPERTABLE} creation.
 
-<Prerequisites>
-- A [target {C.SERVICE_LONG}](/get-started/quickstart/create-service) (this procedure also works for [{C.SELF_LONG}](/get-started/choose-your-path/install-timescaledb))
-- A [HighByte Intelligence Hub](https://www.highbyte.com/download-software) instance
-- {C.TIMESCALE_DB} 2.13+ on your {C.SERVICE_LONG} for automatic {C.HYPERTABLE} creation
+<Prerequisites context="integration">
+- A [{C.SERVICE_LONG}](/get-started/quickstart/create-service) with {C.TIMESCALE_DB} 2.13+ for automatic {C.HYPERTABLE} creation.
+
+   These steps use {C.CLOUD_LONG}, but the same approach applies to a [{C.SELF_LONG}](/get-started/choose-your-path/install-timescaledb) instance.
+<ConnectionDetails />
+- A [HighByte Intelligence Hub](https://www.highbyte.com/download-software) instance.
 - At least one data source configured in HighByte (for example, an OPC UA server or MQTT broker). See the [HighByte documentation](https://guide.highbyte.com/) for details on configuring data sources.
 </Prerequisites>
 
@@ -32,8 +36,8 @@ time-series data into {C.TIMESCALE_DB}, with support for automatic {C.HYPERTABLE
 
 To stream data from HighByte into your {C.SERVICE_LONG}, create a {C.TIMESCALE_DB} connection:
 
-<NumberedList heading="Create a TimescaleDB connection in HighByte">
-  <NumberedItem title="Navigate to Connections">
+<NumberedList>
+  <NumberedItem title="Navigate to `Connections`">
     In HighByte Intelligence Hub, navigate to `Connections`.
   </NumberedItem>
   <NumberedItem title="Add a new connection">
@@ -69,12 +73,12 @@ When HighByte writes to a table that does not yet exist, it automatically create
 a {C.HYPERTABLE}. This requires {C.TIMESCALE_DB} 2.13 or later. For earlier versions, create the table and
 {C.HYPERTABLE} manually before writing data.
 
-<NumberedList heading="Configure an output data flow">
+<NumberedList>
   <NumberedItem title="Create or select a data model">
     In HighByte, create or select a `data model` that represents your source data. For example,
     a temperature sensor model with fields for `time`, `device_id`, and `value`.
   </NumberedItem>
-  <NumberedItem title="Add a TimescaleDB output">
+  <NumberedItem title={`Add a ${C.TIMESCALE_DB} output`}>
     Add a `TimescaleDB output` to the data flow and select your connection.
   </NumberedItem>
   <NumberedItem title="Configure output settings">
@@ -98,8 +102,8 @@ a {C.HYPERTABLE}. This requires {C.TIMESCALE_DB} 2.13 or later. For earlier vers
 HighByte can also read data from your {C.SERVICE_LONG} using SQL queries. This is useful for feeding
 aggregated or historical data back into other systems.
 
-<NumberedList heading="Configure an input data flow">
-  <NumberedItem title="Add a TimescaleDB input">
+<NumberedList>
+  <NumberedItem title={`Add a ${C.TIMESCALE_DB} input`}>
     In HighByte, add a `TimescaleDB input` to a data flow and select your connection.
   </NumberedItem>
   <NumberedItem title="Write a SQL query">
@@ -122,12 +126,9 @@ aggregated or historical data back into other systems.
 
 To confirm that data is flowing from HighByte into your {C.SERVICE_LONG}:
 
-<NumberedList heading="Verify the HighByte integration">
-  <NumberedItem title="Connect to your service">
-    Connect to your {C.SERVICE_LONG}.
-
-    For {C.CLOUD_LONG}, open an [SQL editor](/build/data-management/run-queries-from-tiger-console) in [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services).
-    For {C.SELF_LONG}, use [psql](/integrate/query-administration/psql).
+<NumberedList>
+  <NumberedItem title={`Connect to your ${C.SERVICE_SHORT}`}>
+    Use the [{C.CONSOLE}](/build/data-management/run-queries-from-tiger-console), `psql`, or any other SQL editor to connect to your {C.SERVICE_LONG}.
   </NumberedItem>
   <NumberedItem title="Check data presence">
     Check that data from HighByte is present in your {C.SERVICE_LONG}:
@@ -139,7 +140,7 @@ To confirm that data is flowing from HighByte into your {C.SERVICE_LONG}:
     LIMIT 10;
     ```
   </NumberedItem>
-  <NumberedItem title="Confirm hypertable creation">
+  <NumberedItem title={`Confirm ${C.HYPERTABLE} creation`}>
     Confirm that the table was created as a {C.HYPERTABLE}:
 
     ```sql

@@ -1,10 +1,12 @@
 import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
-import IntegrationPrereqs from "./_integration-prereqs.mdx";
+import IntegrationPrereqs from "./_prereqs-cloud-no-connection.mdx";
 import CLIForks from "./_devops-cli-service-forks.mdx";
+import { Prerequisites } from "@components/Prerequisites";
 
 import { Image } from "astro:assets";
-import imgTscForkedService from "../assets/images/deploy/tiger-cloud/tsc-forked-service.webp";
 
 Modern development is highly iterative. Developers and AI agents need safe spaces to test changes before deploying them
 to production. Forkable {C.SERVICE_SHORT}s make this natural and easy. Spin up a branch, run your test, throw it away, or
@@ -36,30 +38,28 @@ can automatically test a major {C.PG} upgrade on a fork before applying it to yo
    - You need the absolute latest data
    - Recent changes must be included in the fork
 
-- `last-snapshot`: fork from the most recent [automatic backup or snapshot](/deploy/tiger-cloud/tiger-cloud-aws/high-availability/backup-restore).
+- `last-snapshot`: fork from the most recent [automatic backup](../high-availability/backup-restore). Because {C.CLOUD_LONG} takes automatic backups daily, this is usually within the previous 24 hours of your {C.SERVICE_SHORT}. To see when the latest backup was taken, check [`Backup history`](../high-availability/backup-restore#automatic-backups) in {C.CONSOLE}.
   Use when:
   - You want the fastest possible fork creation
-  - Slightly behind current data is acceptable
+  - Up to 24 hours behind current data is acceptable
 
-- `timestamp`: fork from a specific point in time within your [retention period](/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management#features-included-in-each-pricing-plan).
+- `timestamp`: fork from a specific point in time, up to 14 days before, depending on your [{C.PRICING_PLAN}](../pricing-and-account-management#features-included-in-each-pricing-plan).
   Use when:
   - Disaster recovery from a known-good state
   - Investigating issues that occurred at a specific time
   - Testing "what-if" scenarios from historical data
 
-The retention period for point-in-time recovery and forking depends on your [{C.PRICING_PLAN}](/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management#features-included-in-each-pricing-plan).
-
 ### Fork creation speed
 
-Fork creation speed depends on your type of service you want to create:
+Fork creation speed depends on the type of {C.SERVICE_SHORT} you want to create:
 
-- Free: ~30-90 seconds. Uses a Copy-on-Write storage architecture with zero-copy between a fork and the parent.
-- Paid: varies with the size of your {C.SERVICE_SHORT}, typically 5-20+ minutes. Uses traditional storage architecture
+- Free {C.SERVICE_SHORT}s: ~30-90 seconds. Use a Copy-on-Write storage architecture with zero-copy between a fork and the parent.
+- Standard {C.SERVICE_SHORT}s: varies with the size of your {C.SERVICE_SHORT}, typically 5-20+ minutes. Use traditional storage architecture
    with backup restore + WAL replay.
 
 ### Billing
 
-You can fork a free {C.SERVICE_SHORT} to a free or a paid {C.SERVICE_SHORT}. However, you cannot fork a paid
+You can fork a free {C.SERVICE_SHORT} to a free or a standard {C.SERVICE_SHORT}. However, you cannot fork a standard
 {C.SERVICE_SHORT} to a free {C.SERVICE_SHORT}.
 
 Billing on storage works in the following way:
@@ -74,33 +74,46 @@ Billing on storage works in the following way:
 
 For details, see [Replicas and forks with tiered data](/build/data-management/storage/tiered-data-replicas-forks).
 
-## Prerequisites
-
+<Prerequisites context="procedure">
 <IntegrationPrereqs />
+</Prerequisites>
 
-## Manage forks using {C.CLI_LONG}
+## Manage forks
+
+<Callout variant="important">
+
+You cannot fork a {C.SERVICE_SHORT} while it is being provisioned or otherwise transitioning state.
+Wait for the {C.SERVICE_SHORT} to reach `Running` or `Paused` before you start forking.
+
+</Callout>
+
+<Tabs>
+
+<TabItem label={C.CLI_LONG}>
 
 <CLIForks />
 
-## Manage forks using {C.CONSOLE_SHORT}
+</TabItem>
 
-To manage development forks:
+<TabItem label={C.CONSOLE}>
+
+{C.CONSOLE} lets you create development forks and point-in-time recovery (PITR) forks.
+
+### Development forks
+
+Development forks use the [`now`](#understand-service-forks) strategy.
 
 <NumberedList>
 
-<NumberedItem title={`In ${C.CONSOLE}, ensure the ${C.SERVICE_SHORT} has a status of \`Running\` or \`Paused\``}>
+<NumberedItem title={`In ${C.CONSOLE}, navigate to \`Operations\` > \`Service Management\` and click \`Fork service\``}>
 
-</NumberedItem>
-
-<NumberedItem title="Navigate to `Operations` > `Service Management` and click `Fork service`">
+<Image src={props.devForkScreenshot} alt="Fork a Tiger Cloud service" />
 
 </NumberedItem>
 
 <NumberedItem title="Configure the fork, then click `Fork service`">
 
 A fork of the {C.SERVICE_SHORT} is created. The forked {C.SERVICE_SHORT} shows in `Services` with a label specifying which {C.SERVICE_SHORT} it has been forked from.
-
-<Image src={imgTscForkedService} alt="See the forked service" />
 
 </NumberedItem>
 
@@ -109,6 +122,48 @@ A fork of the {C.SERVICE_SHORT} is created. The forked {C.SERVICE_SHORT} shows i
 </NumberedItem>
 
 </NumberedList>
+
+### PITR forks
+
+PITR forks use the [`timestamp`](#understand-service-forks) strategy. To recover from a destructive or unwanted action, create a fork at a specific point in time. To avoid paying compute for both the recovery fork and the original {C.SERVICE_SHORT}, pause the original.
+
+<NumberedList>
+
+<NumberedItem title="Navigate to `Operations` > `Service management` and click `Create recovery fork`">
+
+<Image src={props.recoveryForkScreenshot} alt="Creating a recovery fork in Tiger Console" />
+
+</NumberedItem>
+
+<NumberedItem title="Select the recovery point, ensuring the correct time zone (UTC offset)">
+
+</NumberedItem>
+
+{props.crossRegion && (
+  <NumberedItem title="Select the region">
+    If you had <a href="../high-availability/backup-restore#enable-cross-region-backup">cross-region backup</a> enabled for your service, select the region in which to create the fork.
+  </NumberedItem>
+)}
+
+<NumberedItem title={`Configure the fork to match the original ${C.SERVICE_SHORT}`}>
+
+Best practice is to match the same configuration you had at the point you want to recover to. You can also add an HA replica, tag the fork, or add a connection pooler.
+
+</NumberedItem>
+
+<NumberedItem title="Confirm by clicking `Create recovery fork`">
+
+</NumberedItem>
+
+<NumberedItem title="Update the connection strings in your app to use the fork">
+
+</NumberedItem>
+
+</NumberedList>
+
+</TabItem>
+
+</Tabs>
 
 ## Integrate {C.SERVICE_SHORT} forks in your CI/CD pipeline
 

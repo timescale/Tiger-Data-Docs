@@ -144,20 +144,23 @@ Follow the steps below to build from scratch.
 
 ## Constants — CRITICAL
 
-Import and use constants for all product/brand names. **Never hardcode these in prose:**
+Import constants once at the top of every tutorial:
 
-| Constant | Renders as |
-|----------|-----------|
-| `{C.PG}` | PostgreSQL |
-| `{C.CLOUD_LONG}` | Tiger Cloud |
-| `{C.TIMESCALE_DB}` | TimescaleDB |
-| `{C.SERVICE_LONG}` | Tiger Cloud service |
-| `{C.CLOUD_EDITOR}` | Tiger Cloud SQL editor |
-| `{C.PGVECTORSCALE}` | pgvectorscale |
-| `{C.COMPANY}` | Tiger Data |
-| `{C.SELF_LONG}` | self-hosted TimescaleDB |
+```tsx
+import * as C from "@constants";
+```
+
+Then use the matching constant for every product, brand, or term it covers. **The full list of available constants lives in `src/constants.ts` — read it directly when you need to find the right key, and treat that file as the source of truth.** Common ones include `{C.PG}` (PostgreSQL), `{C.CLOUD_LONG}` (Tiger Cloud), `{C.TIMESCALE_DB}`, `{C.SERVICE_LONG}` (Tiger Cloud service), `{C.SELF_LONG}` (self-hosted TimescaleDB), `{C.CLOUD_EDITOR}` (Tiger Cloud SQL editor), `{C.PGVECTORSCALE}`, and `{C.COMPANY}` (Tiger Data) — but any constant defined in `constants.ts` is fair game when it matches what you're writing.
+
+**Never hardcode** a product or brand name in prose when a constant exists for it. The `lint:postgresql-variable` CI check specifically enforces `{C.PG}`.
 
 **Exception:** Inside backticks or URLs, use the literal string. Extension names that appear as code (`pg_textsearch`, `pgvectorscale`) should be in backticks in prose for consistent formatting.
+
+## Use current columnstore/hypercore APIs
+
+TimescaleDB 2.18.0 renamed the compression API to columnstore/hypercore (`compress_chunk` → `convert_to_columnstore`, `*_compression_policy` → `*_columnstore_policy`, `timescaledb.compress` → `timescaledb.enable_columnstore`, etc.). The old names still work as backwards-compat aliases but **must not appear in new tutorials** — in prose, SQL, GitHub repo code excerpts, or screenshots. If you're adapting from a cookbook, blog post, or vendor doc that uses the old names, translate as you write.
+
+Full mapping table, carve-outs (`compress_chunk_time_interval` and `compress_sparse_index` are NOT deprecated), and verification grep one-liner live in `.claude/references/deprecated-compression-apis.md`. Read that file before writing SQL or pasting code from a source repo, and again before saving the tutorial.
 
 ## .env file handling
 
@@ -224,3 +227,4 @@ You MUST also:
 - [ ] Glossary entries for new terms
 - [ ] `pnpm build` passes cleanly
 - [ ] Headings are sentence case
+- [ ] No deprecated compression APIs anywhere on the page — `compress_chunk` / `decompress_chunk` / `recompress_chunk` / `*_compression_policy` / `*_compression_stats` / `*_compression_settings` views / `timescaledb.compress(_orderby|_segmentby)` are all replaced with their columnstore/hypercore equivalents (see [the mapping](#use-current-columnstorehypercore-apis))

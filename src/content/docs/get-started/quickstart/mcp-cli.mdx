@@ -14,16 +14,16 @@ import RESTPrereqs from "../../../../partials/_prereqs-cloud-account-only.mdx";
 import MCPCommands from "../../../../partials/_devops-mcp-commands.mdx";
 import MCPCommandsCLI from "../../../../partials/_devops-mcp-commands-cli.mdx";
 import GlobalFlags from "../../../../partials/_devops-cli-global-flags.mdx";
+import { Prerequisites } from "@components/Prerequisites";
 
 {C.MCP_LONG} gives your AI assistant access to {C.CLOUD_LONG} so you can manage {C.SERVICE_SHORT}s and query your data using natural language.
 
 {C.MCP_LONG} is built into the {C.CLI_LONG} binary. It mirrors {C.CLI_SHORT} functionality and is wired to {C.COMPANY} documentation, so your AI assistant can answer questions with up-to-date guidance. This page walks you through installing {C.CLI_LONG}, configuring authentication for {C.MCP_LONG}, and managing {C.CLOUD_LONG} resources from your AI assistant.
 
-## Prerequisites
-
+<Prerequisites context="tutorial">
 <RESTPrereqs />
 
-- Install an AI assistant on your machine with an active API key.
+- An AI assistant installed on your machine with an active API key.
 
   The following AI assistants are **automatically** configured by {C.MCP_LONG}:
   - [`claude-code`](https://docs.anthropic.com/en/docs/claude-code)
@@ -34,6 +34,7 @@ import GlobalFlags from "../../../../partials/_devops-cli-global-flags.mdx";
   - [`vscode/code/vs-code`](https://code.visualstudio.com).
 
   Support for additional clients is added over time; if yours isn't listed, use [manual configuration](#manually-configure-tiger-mcp) below.
+</Prerequisites>
 
 ## Install and configure {C.MCP_LONG}
 
@@ -129,6 +130,28 @@ For example: _"I need to migrate a database with 25 million rows to {C.CLOUD_LON
 
   </NumberedItem>
 </NumberedList>
+
+## Restrict {C.MCP_LONG} to read-only
+
+If you want your AI assistant to explore and query {C.SERVICE_SHORT}s without changing anything, enable read-only mode:
+
+```bash
+tiger config set read_only true
+```
+
+When read-only mode is on:
+
+- Mutating {C.MCP_SHORT} tools and {C.CLI_SHORT} commands (`service create`, `fork`, `start`, `stop`, `resize`, `update-password`, and `delete`) are refused with an error.
+- The database sessions opened by the `db_execute_query` tool, `tiger db connect`, and `tiger db connection-string` run in {C.CLOUD_LONG}'s immutable read-only mode, so writes and schema changes (DDL) are rejected by the server.
+- Read tools and commands, such as listing {C.SERVICE_SHORT}s or running `SELECT` queries, are unaffected.
+
+To set read-only mode for a single session without changing your saved configuration, set the `TIGER_READ_ONLY` environment variable instead:
+
+```bash
+TIGER_READ_ONLY=true tiger mcp start
+```
+
+To turn read-only mode back off, run `tiger config unset read_only`.
 
 ## Manually configure {C.MCP_LONG}
 

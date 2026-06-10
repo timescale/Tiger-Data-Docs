@@ -2,6 +2,7 @@
 title: "Integrate Datadog with Tiger Cloud"
 description: "Export telemetry data and collect metrics to monitor your service performance"
 integrationCategory: "observability-alerting"
+integrationPlatforms: ["aws", "azure"]
 integrationIndustry: ["crypto", "manufacturing", "healthcare"]
 keywords: ["datadog integration","apm","metrics collection","monitoring","observability","telemetry","log aggregation"]
 integrationCardLogo: "datadog.png"
@@ -12,8 +13,11 @@ sidebar:
 import * as C from "@constants";
 
 import DataDogExporter from '@partials/_datadog-data-exporter.mdx';
-import IntegrationPrereqsCloud from '@partials/_integration-prereqs-cloud-only.mdx';
+import IntegrationPrereqsCloud from '@partials/_prereqs-cloud-no-connection.mdx';
+import ConnectionDetails from '@partials/_prereqs-connection-details.mdx';
 import ManageDataExporter from '@partials/_manage-a-data-exporter.mdx';
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 [Datadog](https://www.datadoghq.com/) is a cloud-based monitoring and analytics platform that provides comprehensive visibility into
 applications, infrastructure, and systems through real-time monitoring, logging, and analytics.
@@ -28,15 +32,14 @@ This page explains how to:
 
   This integration is available for all {C.PRICING_PLAN}s.
 
-## Prerequisites
-
+<Prerequisites context="integration">
 <IntegrationPrereqsCloud />
+<ConnectionDetails />
 
-- Sign up for [Datadog](https://www.datadoghq.com/).
-
-  You need your [Datadog API key](https://docs.datadoghq.com/account_management/api-app-keys/#add-an-api-key-or-client-token) to follow this procedure.
-
-- Install [Datadog Agent](https://docs.datadoghq.com/getting_started/agent/#installation).
+- A [Datadog](https://www.datadoghq.com/) account.
+- Your [Datadog API key](https://docs.datadoghq.com/account_management/api-app-keys/#add-an-api-key-or-client-token).
+- [Datadog Agent](https://docs.datadoghq.com/getting_started/agent/#installation) installed.
+</Prerequisites>
 
 ## Monitor {C.SERVICE_LONG} metrics with Datadog
 
@@ -78,76 +81,67 @@ It must be one of the following:
 Datadog Agent includes a [{C.PG} integration](https://docs.datadoghq.com/integrate/postgres/) that you use to collect detailed {C.PG} database
 metrics about your {C.SERVICE_LONG}s.
 
-1. **Connect to your {C.SERVICE_LONG}**
+<NumberedList>
+  <NumberedItem title={`Connect to your ${C.SERVICE_LONG}`}>
+    For {C.CLOUD_LONG}, open an SQL editor in [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services). For {C.SELF_LONG}, use [`psql`](/integrate/query-administration/psql).
+  </NumberedItem>
+  <NumberedItem title={`Add the \`datadog\` user to your ${C.SERVICE_LONG}`}>
+    ```sql
+    create user datadog with password '<password>';
+    ```
 
-   For {C.CLOUD_LONG}, open an SQL editor in [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services). For {C.SELF_LONG}, use [`psql`](/integrate/query-administration/psql).
+    ```sql
+    grant pg_monitor to datadog;
+    ```
 
-2. **Add the `datadog` user to your {C.SERVICE_LONG}**
+    ```sql
+    grant SELECT ON pg_stat_database to datadog;
+    ```
+  </NumberedItem>
+  <NumberedItem title="Test the connection and rights for the datadog user">
+    Update the following command with your [connection details](/integrate/find-connection-details), then run it from the command line:
 
-   ```sql
-   create user datadog with password '<password>';
-   ```
-
-   ```sql
-   grant pg_monitor to datadog;
-   ```
-
-   ```sql
-   grant SELECT ON pg_stat_database to datadog;
-   ```
-
-3. **Test the connection and rights for the datadog user**
-
-   Update the following command with your [connection details](/integrate/find-connection-details), then run it from the command line:
-
-   ```bash
+    ```bash
     psql "postgres://datadog:<datadog password>@<host>:<port>/tsdb?sslmode=require" -c \
     "select * from pg_stat_database LIMIT(1);" \
     && echo -e "\e[0;32mPostgres connection - OK\e[0m" || echo -e "\e[0;31mCannot connect to Postgres\e[0m"
-   ```
+    ```
 
-   You see the output from the `pg_stat_database` table, which means you have given the correct rights to `datadog`.
+    You see the output from the `pg_stat_database` table, which means you have given the correct rights to `datadog`.
+  </NumberedItem>
+  <NumberedItem title={`Connect Datadog to your ${C.SERVICE_LONG}`}>
+    1. Configure the [Datadog Agent {C.PG} configuration file](https://docs.datadoghq.com/database_monitoring/setup_postgres/selfhosted?tab=postgres15); it is usually located on the Datadog Agent host at:
+       - **Linux**: `/etc/datadog-agent/conf.d/postgres.d/conf.yaml`
+       - **MacOS**: `/opt/datadog-agent/etc/conf.d/postgres.d/conf.yaml`
+       - **Windows**: `C:\ProgramData\Datadog\conf.d\postgres.d\conf.yaml`
+    1. Integrate Datadog Agent with your {C.SERVICE_LONG}. Use your [connection details](/integrate/find-connection-details) to update the following and add it to the Datadog Agent {C.PG} configuration file:
 
-4. **Connect Datadog to your {C.SERVICE_LONG}**
+       ```yaml
+       init_config:
 
-   1. Configure the [Datadog Agent {C.PG} configuration file](https://docs.datadoghq.com/database_monitoring/setup_postgres/selfhosted?tab=postgres15); it is usually located on the Datadog Agent host at:
-      - **Linux**: `/etc/datadog-agent/conf.d/postgres.d/conf.yaml`
-      - **MacOS**: `/opt/datadog-agent/etc/conf.d/postgres.d/conf.yaml`
-      - **Windows**: `C:\ProgramData\Datadog\conf.d\postgres.d\conf.yaml`
+       instances:
+       - host: <host>
+         port: <port>
+         username: datadog
+         password: <datadog's password>>
+         dbname: tsdb
+         disable_generic_tags: true
+       ```
+  </NumberedItem>
+  <NumberedItem title={`Add ${C.CLOUD_LONG} metrics`}>
+    Tags make it easier to build Datadog dashboards that combine metrics from the {C.CLOUD_LONG} data exporter and Datadog Agent. Use your [connection details](/integrate/find-connection-details) to update the following and add it to `<datadog_home>/datadog.yaml`:
 
-   2. Integrate Datadog Agent with your {C.SERVICE_LONG}:
-
-      Use your [connection details](/integrate/find-connection-details) to update the following and add it to the Datadog Agent {C.PG}
-      configuration file:
-
-      ```yaml
-      init_config:
-
-      instances:
-      - host: <host>
-        port: <port>
-        username: datadog
-        password: <datadog's password>>
-        dbname: tsdb
-        disable_generic_tags: true
-      ```
-
-5. **Add {C.CLOUD_LONG} metrics**
-
-   Tags to make it easier for build Datadog dashboards that combine metrics from the {C.CLOUD_LONG} data exporter and
-   Datadog Agent. Use your [connection details](/integrate/find-connection-details) to update the following and add it to
-   `<datadog_home>/datadog.yaml`:
-
-   ```yaml
-   tags:
-     - project-id:<project-id>
-     - service-id:<service-id>
-     - region:<region>
-   ```
-
-6. **Restart Datadog Agent**
-
-   See how to [Start, stop, and restart Datadog Agent](https://docs.datadoghq.com/agent/configuration/agent-commands/#start-stop-and-restart-the-agent).
+    ```yaml
+    tags:
+      - project-id:<project-id>
+      - service-id:<service-id>
+      - region:<region>
+    ```
+  </NumberedItem>
+  <NumberedItem title="Restart Datadog Agent">
+    See how to [Start, stop, and restart Datadog Agent](https://docs.datadoghq.com/agent/configuration/agent-commands/#start-stop-and-restart-the-agent).
+  </NumberedItem>
+</NumberedList>
 
 Metrics for your {C.SERVICE_LONG} are now visible in Datadog. Check the Datadog {C.PG} integration documentation for a
 comprehensive list of [metrics](https://docs.datadoghq.com/integrate/postgres/?tab=host#metrics) collected.

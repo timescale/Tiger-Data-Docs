@@ -11,6 +11,7 @@ import { Tabs, TabItem } from "@astrojs/starlight/components";
 import LivesyncConfigureSourceDatabase from "../../../partials/_livesync-configure-source-database.mdx";
 import TuneSourceDatabaseAWSRDS from "../../../partials/_livesync-configure-source-database-awsrds.mdx";
 import MigrationPrerequisites from "../../../partials/_migrate_prerequisites.mdx";
+import { Prerequisites } from "@components/Prerequisites";
 
 import { Image } from "astro:assets";
 import imgTigerConsoleConnectorOverview from "../../../assets/images/integrate/connectors/tiger-console-connector-overview.png";
@@ -31,19 +32,16 @@ The connector uses the established [{C.PG} logical replication protocol](https:/
 
 <Image src={imgTigerConsoleConnectorOverview} alt="Connectors overview in Tiger Console" />
 
-## Prerequisites
-
+<Prerequisites context="procedure">
 <MigrationPrerequisites />
 
-In addition:
-
-- Find your {C.SERVICE_LONG} [connection details](/integrate/find-connection-details).
-- Install [{C.PG} client tools](/integrate/query-administration/psql) on your sync machine.
-- Make sure the source {C.PG} instance and the target {C.SERVICE_LONG} have the same extensions installed. The connector does not create extensions on the target. If a table uses types from an extension, create that extension on the target {C.SERVICE_SHORT} before syncing the table.
+- Your {C.SERVICE_LONG} [connection details](/integrate/find-connection-details).
+- [{C.PG} client tools](/integrate/query-administration/psql) installed on your sync machine.
+- The source {C.PG} instance and the target {C.SERVICE_LONG} must have the same extensions installed. The connector does not create extensions on the target. If a table uses types from an extension, create that extension on the target {C.SERVICE_SHORT} before syncing the table.
+</Prerequisites>
 
 ## Limitations
 
-- The source {C.PG} instance must be accessible from the Internet. Services behind a firewall or VPC are not yet supported.
 - Indexes, primary keys, unique constraints, and sequences are not migrated. Create the indexes you need on the target {C.SERVICE_SHORT} for your query patterns.
 - Using {C.TIMESCALE_DB} as the source has limited support (no {C.CAGG}s).
 - The source must run {C.PG} 13 or later.
@@ -94,32 +92,59 @@ To sync from your {C.PG} database to a {C.SERVICE_LONG} using [{C.CONSOLE}](http
 
 <NumberedItem title={`Connect to your ${C.SERVICE_LONG}`}>Open <a href="https://console.cloud.tigerdata.com/dashboard/services">{C.CONSOLE}</a> and select the {C.SERVICE_SHORT} you want to sync live data into.</NumberedItem>
 
+<NumberedItem title="Prepare the source database">
+
+1. Click `Connectors` → `PostgreSQL`.
+1. Set the connector name (pencil icon).
+1. Check `Set wal_level to logical` and `Update your credentials`, then click `Continue`.
+
+</NumberedItem>
+
 <NumberedItem title={`Connect the source database and the target ${C.SERVICE_SHORT}`}>
 
-- Click `Connectors` → `PostgreSQL`.
-- Set the connector name (pencil icon).
-- Check `Set wal_level to logical` and `Update your credentials`, then click `Continue`.
-- Enter your database credentials or {C.PG} connection string and click `Connect to database`. {C.CONSOLE} connects to the source and retrieves schema information.
+1. Enter your database credentials or {C.PG} connection string.
+
+1. **(Recommended for private databases)** If the source database is not reachable from the public Internet, toggle `Enable SSH tunneling` and route the connector through a bastion host:
+
+   1. Copy the public key shown in the wizard and append it to the `authorized_keys` file of the user the connector will log in as on the bastion host:
+
+      ```bash
+      echo "<public key from the connector wizard>" >> ~/.ssh/authorized_keys
+
+      # Verify
+      cat ~/.ssh/authorized_keys
+      ```
+
+   1. Enter the bastion `Hostname`, `User`, and `Port` in the wizard.
+
+1. Click `Connect to database`. {C.CONSOLE} connects to the source and retrieves schema information.
 
 </NumberedItem>
 
-<NumberedItem title={`Choose tables and optimize for ${C.HYPERTABLE}s`}>
+<NumberedItem title="Select the data to synchronize">
 
-- In the `Select table` dropdown, choose the tables to sync.
-- Click `Select tables +`. {C.CONSOLE} checks the schema and, when possible, suggests the time dimension column for a {C.HYPERTABLE}.
-- Click `Create Connector`. {C.CONSOLE} starts the {C.PG_CONNECTOR} and shows progress.
+Choose where the connector picks tables from:
 
-</NumberedItem>
+- **From an existing publication:** select a {C.PG} `PUBLICATION` name, then pick schemas and tables from those it includes. Use this when you cannot grant the connector user `CREATE` privilege on the source — your DBA can pre-create the publication — or when you want to apply [row or column filters](https://www.postgresql.org/docs/current/logical-replication-row-filter.html) on published tables.
+- **Directly from the source:** select schemas, then pick the tables to sync from them. {C.CONSOLE} creates the publication for you.
 
-<NumberedItem title="Monitor synchronization">
-
-- Click `Connectors` to see `Connector data flow`: Status and amount of data replicated.
-- For per-table progress: `Connectors` → `Source connectors` → select your connector.
+Click `Select tables +`. For each selected table, {C.CONSOLE} checks the schema and, when possible, suggests the time dimension column for a {C.HYPERTABLE}.
 
 </NumberedItem>
 
-<NumberedItem title="Manage the connector">
+<NumberedItem title="Configure Initial Data Copy workers">
 
+Specify the number of parallel connections — Initial Data Copy (IDC) workers — used to process the initial data copy. Higher values can speed up the initial copy but may increase load on the source database. Defaults to `4`.
+
+Tune this based on the resources available on the source database and the number of tables being synced. Large individual tables still copy through a single connection, so higher worker counts help most when you have many small to medium tables.
+
+Click `Create Connector`. {C.CONSOLE} starts the {C.PG_CONNECTOR} and shows progress.
+
+</NumberedItem>
+
+<NumberedItem title="Monitor and manage the connector">
+
+- **Progress:** `Connectors` → `Source connectors` → select your connector to review per-table syncing progress.
 - **Edit:** `Connectors` → `Source connectors` → select the connector. You can rename it, add or remove tables.
 - **Pause:** same table → three-dot menu → `Pause`.
 - **Delete:** three-dot menu → `Delete` (pause the connector first).

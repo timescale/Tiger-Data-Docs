@@ -5,10 +5,11 @@ products: [cloud, mst, self_hosted]
 ---
 
 import * as C from "@constants";
-import PrereqCloud from "../../../../partials/_prereqs-cloud-only.mdx";
+import PrereqCloud from "../../../../partials/_prereqs-cloud-no-connection.mdx";
+import ConnectionDetails from "../../../../partials/_prereqs-connection-details.mdx";
+import { Prerequisites } from "@components/Prerequisites";
 import HypercoreIntroShort from "../../../../partials/_hypercore-intro-short.mdx";
 import HCConversionOverview from "../../../../partials/_hypercore-conversion-overview.mdx";
-import { NumberedList, NumberedItem } from "@components/NumberedList";
 import HCPolicyWorkflow from "../../../../partials/_hypercore_policy_workflow.mdx";
 
 <HypercoreIntroShort />
@@ -17,31 +18,31 @@ import HCPolicyWorkflow from "../../../../partials/_hypercore_policy_workflow.md
 
 For an in-depth explanation of how {C.HYPERTABLE}s and {C.HYPERCORE} work, see the [Data model](/learn/deep-dive/whitepaper#data-model).
 
-This page shows you how to get the best results when you set a policy to automatically convert {C.CHUNK}s in a {C.HYPERTABLE}
-from the {C.ROWSTORE} to the {C.COLUMNSTORE}.
+This page shows you how to convert {C.CHUNK}s in a {C.HYPERTABLE} from the {C.ROWSTORE} to the {C.COLUMNSTORE} — automatically
+with a {C.COLUMNSTORE} policy or manually for finer control — and how to get the best compression and query performance from
+your data.
 
-## Prerequisites
-
+<Prerequisites context="procedure">
 <PrereqCloud />
+<ConnectionDetails />
+</Prerequisites>
 
-The code samples in this page use the [crypto_sample.zip](https://assets.timescale.com/docs/downloads/candlestick/crypto_sample.zip) data from [this key features tutorial](/get-started/quickstart/quickstart-5-minutes).
-
-## Optimize your data with {C.COLUMNSTORE} policies
+## Convert your data to the {C.COLUMNSTORE}
 
 The compression ratio and query performance of data in the {C.COLUMNSTORE} is dependent on the order and structure of your
 data. Rows that change over a dimension should be close to each other. With time-series data, you `orderby` the time
-dimension. For example, `Timestamp`:
+dimension. For example, `time`:
 
-| Timestamp  | Device ID  |  Device Type |  CPU |Disk IO|
-|---|---|---|---|---|
-|12:00:01|A|SSD|70.11|13.4|
+| time  | symbol  | price | day_volume |
+|---|---|---|---|
+|12:00:01|BTC/USD|42000.50|130|
 
 This ensures that records are compressed and accessed in the same order. However, you would always have to
 access the data using the time dimension, then filter all the rows using other criteria. To make your queries more
 efficient, you segment your data based on the following:
 
 - The way you want to access it. For example, to rapidly access data about a
-single device, you `segmentby` the `Device ID` column. This enables you to run much faster analytical queries on
+single symbol, you `segmentby` the `symbol` column. This enables you to run much faster analytical queries on
 data in the {C.COLUMNSTORE}.
 - The compression rate you want to achieve. The [lower the cardinality](https://www.tigerdata.com/blog/what-is-high-cardinality) of the `segmentby` column, the better compression results you get.
 
@@ -49,13 +50,9 @@ When {C.TIMESCALE_DB} converts a {C.CHUNK} to the {C.COLUMNSTORE}, it automatica
 data. It also creates and uses custom indexes to incorporate the `segmentby` and `orderby` parameters when
 you write to and read from the {C.COLUMNSTORE}.
 
-To set up your {C.HYPERCORE} automation:
-
-<NumberedList>
+Choose the conversion path that fits your workload:
 
 <HCPolicyWorkflow />
-
-</NumberedList>
 
 ## Reference
 

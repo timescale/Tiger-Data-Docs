@@ -2,6 +2,7 @@
 title: "Integrate Grafana with Tiger Cloud"
 description: "Query, visualize, and explore your data with interactive dashboards"
 integrationCategory: "observability-alerting"
+integrationPlatforms: ["aws", "azure"]
 integrationIndustry: ["energy", "crypto", "iot", "manufacturing"]
 keywords: ["grafana integration","data visualization","dashboards","monitoring","observability","alerting","time-series visualization"]
 integrationCardLogo: "grafana.png"
@@ -12,7 +13,10 @@ sidebar:
 import * as C from "@constants";
 
 import GrafanaConnect from '@partials/_grafana-connect.mdx';
-import IntegrationPrereqsCloud from '@partials/_integration-prereqs-cloud-only.mdx';
+import IntegrationPrereqsCloud from '@partials/_prereqs-cloud-no-connection.mdx';
+import ConnectionDetails from '@partials/_prereqs-connection-details.mdx';
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 import { Image } from "astro:assets";
 import imgGrafanaQueryResults from "../../../../assets/images/integrate/observability-alerting/grafana_query_results.png";
@@ -23,11 +27,12 @@ import imgTimescaleGrafanaIntegration from "../../../../assets/images/integrate/
 
 This page shows you how to integrate Grafana with a {C.SERVICE_LONG}, create a dashboard and panel, then visualize geospatial data.
 
-## Prerequisites
-
+<Prerequisites context="integration">
 <IntegrationPrereqsCloud />
+<ConnectionDetails />
 
-- Install [self-managed Grafana](https://grafana.com/get/?tab=self-managed) or sign up for [Grafana Cloud](https://grafana.com/get/).
+- A [self-managed Grafana](https://grafana.com/get/?tab=self-managed) instance, or a [Grafana Cloud](https://grafana.com/get/) account.
+</Prerequisites>
 
 <GrafanaConnect />
 
@@ -40,83 +45,79 @@ that system.
 
 To create a new dashboard:
 
-1. **On the `Dashboards` page, click `New` and select `New dashboard`**
-
-2. **Click `Add visualization`**
-
-3. **Select the data source**
-
-   Select your {C.SERVICE_SHORT} from the list of pre-configured data sources or configure a new one.
-
-4. **Configure your panel**
-
-   Select the visualization type. The type defines specific fields to configure in addition to standard ones, such as the panel name.
-
-5. **Run your queries**
-
-   You can edit the queries directly or use the built-in query editor. If you are visualizing time-series data, select `Time series` in the `Format` drop-down.
-
-6. **Click `Save dashboard`**
-
-   You now have a dashboard with one panel. Add more panels to a dashboard by clicking `Add` at the top right and selecting `Visualization` from the drop-down.
+<NumberedList>
+  <NumberedItem title="On the `Dashboards` page, click `New` and select `New dashboard`" />
+  <NumberedItem title="Click `Add visualization`" />
+  <NumberedItem title="Select the data source">
+    Select your {C.SERVICE_SHORT} from the list of pre-configured data sources or configure a new one.
+  </NumberedItem>
+  <NumberedItem title="Configure your panel">
+    Select the visualization type. The type defines specific fields to configure in addition to standard ones, such as the panel name.
+  </NumberedItem>
+  <NumberedItem title="Run your queries">
+    You can edit the queries directly or use the built-in query editor. If you are visualizing time-series data, select `Time series` in the `Format` drop-down.
+  </NumberedItem>
+  <NumberedItem title="Click `Save dashboard`">
+    You now have a dashboard with one panel. Add more panels to a dashboard by clicking `Add` at the top right and selecting `Visualization` from the drop-down.
+  </NumberedItem>
+</NumberedList>
 
 ## Use the time filter function
 
 Grafana time-series panels include a time filter:
 
-1. **Call `$__timefilter()` to link the user interface construct in a Grafana panel with the query**
+<NumberedList>
+  <NumberedItem title="Call `$__timefilter()` to link the user interface construct in a Grafana panel with the query">
+    For example, to set the `pickup_datetime` column as the filtering range for your visualizations:
 
-   For example, to set the `pickup_datetime` column as the filtering range for your visualizations:
+    ```sql
+    SELECT
+      --1--
+      time_bucket('1 day', pickup_datetime) AS "time",
+      --2--
+      COUNT(*)
+    FROM rides
+    WHERE $__timeFilter(pickup_datetime)
+    ```
+  </NumberedItem>
+  <NumberedItem title="Group your visualizations and order the results by time buckets">
+    Use [`time_bucket`](/reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket) to group results. In this case, the `GROUP BY` and `ORDER BY` statements reference `time`. For example:
 
-   ```sql
-   SELECT
-     --1--
-     time_bucket('1 day', pickup_datetime) AS "time",
-     --2--
-     COUNT(*)
-   FROM rides
-   WHERE $__timeFilter(pickup_datetime)
-   ```
+    ```sql
+    SELECT
+      --1--
+      time_bucket('1 day', pickup_datetime) AS time,
+      --2--
+      COUNT(*)
+    FROM rides
+    WHERE $__timeFilter(pickup_datetime)
+    GROUP BY time
+    ORDER BY time
+    ```
 
-2. **Group your visualizations and order the results by [time buckets](/reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket)**
+    When you visualize this query in Grafana, you see this:
 
-   In this case, the `GROUP BY` and `ORDER BY` statements reference `time`.
+    <Image src={imgGrafanaQueryResults} alt="Grafana panel showing query results from Tiger Cloud" />
 
-   For example:
+    You can adjust the `time_bucket` function and compare the graphs:
 
-   ```sql
-   SELECT
-     --1--
-     time_bucket('1 day', pickup_datetime) AS time,
-     --2--
-     COUNT(*)
-   FROM rides
-   WHERE $__timeFilter(pickup_datetime)
-   GROUP BY time
-   ORDER BY time
-   ```
+    ```sql
+    SELECT
+      --1--
+      time_bucket('5m', pickup_datetime) AS time,
+      --2--
+      COUNT(*)
+    FROM rides
+    WHERE $__timeFilter(pickup_datetime)
+    GROUP BY time
+    ORDER BY time
+    ```
 
-   When you visualize this query in Grafana, you see this:
+    When you visualize this query, it looks like this:
 
-   <Image src={imgGrafanaQueryResults} alt="Grafana panel showing query results from Tiger Cloud" />
-
-   You can adjust the `time_bucket` function and compare the graphs:
-
-   ```sql
-   SELECT
-     --1--
-     time_bucket('5m', pickup_datetime) AS time,
-     --2--
-     COUNT(*)
-   FROM rides
-   WHERE $__timeFilter(pickup_datetime)
-   GROUP BY time
-   ORDER BY time
-   ```
-
-   When you visualize this query, it looks like this:
-
-   <Image src={imgGrafanaQueryResults5m} alt="Grafana panel showing query results aggregated in 5-minute time buckets" />
+    <Image src={imgGrafanaQueryResults5m} alt="Grafana panel showing query results aggregated in 5-minute time buckets" />
+  </NumberedItem>
+</NumberedList>
 
 ## Visualize geospatial data
 
@@ -128,51 +129,40 @@ This section visualizes taxi rides in Manhattan, where the distance traveled
 was greater than 5 miles. It uses the same query as the [NYC Taxi Cab](/build/examples/analyze-transport-data)
 tutorial as a starting point.
 
-1. **Add a geospatial visualization**
+<NumberedList>
+  <NumberedItem title="Add a geospatial visualization">
+    1. In your Grafana dashboard, click `Add` > `Visualization`.
+    1. Select `Geomap` in the visualization type drop-down at the top right.
+  </NumberedItem>
+  <NumberedItem title="Configure the data format">
+    1. In the `Queries` tab below, select your data source.
+    1. In the `Format` drop-down, select `Table`.
+    1. In the mode switcher, toggle `Code` and enter the query, then click `Run`. For example:
 
-   1. In your Grafana dashboard, click `Add` > `Visualization`.
+       ```sql
+       SELECT time_bucket('5m', rides.pickup_datetime) AS time,
+              rides.trip_distance AS value,
+              rides.pickup_latitude AS latitude,
+              rides.pickup_longitude AS longitude
+       FROM rides
+       WHERE rides.trip_distance > 5
+       GROUP BY time,
+                rides.trip_distance,
+                rides.pickup_latitude,
+                rides.pickup_longitude
+       ORDER BY time
+       LIMIT 500;
+       ```
+  </NumberedItem>
+  <NumberedItem title="Customize the Geomap settings">
+    With default settings, the visualization uses green circles of the fixed size. Configure at least the following for a more representative view:
 
-   2. Select `Geomap` in the visualization type drop-down at the top right.
+    - `Map layers` > `Styles` > `Size` > `value`. This changes the size of the circle depending on the value, with bigger circles representing bigger values.
+    - `Map layers` > `Styles` > `Color` > `value`.
+    - `Thresholds` > Add `threshold`. Add thresholds for 7 and 10, to mark rides over 7 and 10 miles in different colors, respectively.
 
-2. **Configure the data format**
+    You now have a visualization that looks like this:
 
-   1. In the `Queries` tab below, select your data source.
-
-   2. In the `Format` drop-down, select `Table`.
-
-   3. In the mode switcher, toggle `Code` and enter the query, then click `Run`.
-
-      For example:
-
-      ```sql
-      SELECT time_bucket('5m', rides.pickup_datetime) AS time,
-             rides.trip_distance AS value,
-             rides.pickup_latitude AS latitude,
-             rides.pickup_longitude AS longitude
-      FROM rides
-      WHERE rides.trip_distance > 5
-      GROUP BY time,
-               rides.trip_distance,
-               rides.pickup_latitude,
-               rides.pickup_longitude
-      ORDER BY time
-      LIMIT 500;
-      ```
-
-3. **Customize the Geomap settings**
-
-   With default settings, the visualization uses green circles of the fixed size. Configure at least the following for a more representative view:
-
-   - `Map layers` > `Styles` > `Size` > `value`.
-
-     This changes the size of the circle depending on the value, with bigger circles representing bigger values.
-
-   - `Map layers` > `Styles` > `Color` > `value`.
-
-   - `Thresholds` > Add `threshold`.
-
-     Add thresholds for 7 and 10, to mark rides over 7 and 10 miles in different colors, respectively.
-
-   You now have a visualization that looks like this:
-
-   <Image src={imgTimescaleGrafanaIntegration} alt="Grafana dashboard connected to Tiger Cloud" />
+    <Image src={imgTimescaleGrafanaIntegration} alt="Grafana dashboard connected to Tiger Cloud" />
+  </NumberedItem>
+</NumberedList>
