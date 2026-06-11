@@ -560,43 +560,41 @@ Customize `pg_textsearch` behavior for your specific use case and data character
 
 <NumberedItem title="Configure memory and performance settings">
 
-`pg_textsearch` keeps in-memory inverted indexes (memtables) in {C.PG} dynamic shared memory. Use `memory_limit` to bound their growth: as usage approaches the cap, memtables spill to on-disk segments automatically, and if usage still exceeds the cap, inserts fail with an error rather than risking an out-of-memory kill.
+`pg_textsearch` keeps in-memory inverted indexes (memtables) in {C.PG} dynamic shared memory. `memory_limit` bounds their growth: as usage approaches the cap, memtables spill to on-disk segments automatically, and if usage still exceeds the cap, inserts fail with an error rather than risking an out-of-memory kill.
 
 <Callout variant="tip">
 **Crash recovery:** the memtable is rebuilt from the heap on startup, so you do **not** lose indexed data if {C.PG} crashes before a spill to disk completes.
 </Callout>
 
+Two settings can be changed in any session, by any role:
+
 ```sql
--- Cap shared memory used by memtables (default 2GB; 0 disables the limit)
-SET pg_textsearch.memory_limit = '2GB';
-
--- Spill to disk after this many terms in a single transaction (default 100000)
-SET pg_textsearch.bulk_load_threshold = 150000;
-
--- Segments per level before automatic compaction (default 8, allowed range 2–64)
-SET pg_textsearch.segments_per_level = 8;
-
--- Set default query limit when no LIMIT clause is present (default 1000)
+-- Default query limit when no LIMIT clause is present (default 1000)
 SET pg_textsearch.default_limit = 5000;
 
--- Log block skip statistics for debugging query performance (disabled by default)
-SET pg_textsearch.log_bmw_stats = false;
-
--- Log BM25 scores during scans (disabled by default)
-SET pg_textsearch.log_scores = false;
-```
-<SinceRelease version="v0.1.0" product="pg_textsearch" />
-
-<Callout variant="note">
-`memory_limit` derives three internal thresholds: a per-index soft limit (`memory_limit / 8`) spills that index's memtable to disk, a global soft limit (`memory_limit / 2`) evicts the largest memtable across all indexes, and the hard limit (`memory_limit`) rejects the insert with an error. You only need to set `memory_limit`; the ratios are tuned for typical workloads. The older `pg_textsearch.memtable_spill_threshold` GUC is **deprecated** in favor of `memory_limit`.
-</Callout>
-
-```sql
--- Enable segment compression using delta encoding and bitpacking (enabled by default)
--- Reduces index size by ~41% with 10-20% query performance improvement for shorter queries
+-- Segment compression with delta encoding and bitpacking (enabled by default).
+-- Reduces index size by ~41% with a 10-20% query performance improvement for shorter queries.
 SET pg_textsearch.compress_segments = on;
 ```
 <SinceRelease version="v0.4.0" product="pg_textsearch" />
+
+The remaining settings are **server-level** or **superuser-only**, so a plain `SET` in a regular session does not apply them:
+
+| Setting | Default | Notes |
+|---------|---------|-------|
+| `pg_textsearch.memory_limit` | `2GB` | Server-level; takes effect on a configuration reload. A value of `0` disables the limit. |
+| `pg_textsearch.bulk_load_threshold` | `100000` | Superuser. Terms per transaction before the memtable spills to disk. |
+| `pg_textsearch.segments_per_level` | `8` | Superuser. Segments per level before automatic compaction (range 2–64). |
+| `pg_textsearch.log_bmw_stats` | `off` | Superuser. Logs Block-Max WAND block-skip statistics. |
+| `pg_textsearch.log_scores` | `off` | Superuser. Logs BM25 scores during index scans. |
+
+- On {C.CLOUD_LONG}, change these from the {C.CONSOLE}: open your {C.SERVICE_SHORT}, then `Operations` > `Database parameters`. See [Configure database parameters](/deploy/tiger-cloud/tiger-cloud-aws/configuration/customize-configuration). The `tsdbadmin` role cannot apply them with `SET` or `ALTER SYSTEM`.
+- On self-hosted {C.PG}, set `memory_limit` in `postgresql.conf`, or run `ALTER SYSTEM SET pg_textsearch.memory_limit = '2GB';` followed by `SELECT pg_reload_conf();`. As a superuser, you can change the superuser-only settings with `SET` in your session.
+
+<Callout variant="note">
+`memory_limit` is applied as three tiers derived from the single value: a per-index soft limit (`memory_limit / 8`) spills that index's memtable to disk, a global soft limit (`memory_limit / 2`) evicts the largest memtable across all indexes, and the hard limit (`memory_limit`) refuses further cache growth so an insert fails rather than risking the out-of-memory killer. You only set `memory_limit`; the ratios are derived automatically.
+</Callout>
+<SinceRelease version="v1.1.0" product="pg_textsearch" />
 
 </NumberedItem>
 
@@ -631,11 +629,13 @@ WITH (text_config='english', k1=1.5, b=0.8);
 
 <NumberedItem title="Monitor index usage and memory consumption">
 
-- Check index usage statistics
+- Check index usage statistics for every BM25 index
     ```sql
-    SELECT schemaname, relname, indexrelname, idx_scan, idx_tup_read
-    FROM pg_stat_user_indexes
-    WHERE indexrelid::regclass::text ~ 'bm25';
+    SELECT s.schemaname, s.relname, s.indexrelname, s.idx_scan, s.idx_tup_read
+    FROM pg_stat_user_indexes s
+    JOIN pg_class c ON c.oid = s.indexrelid
+    JOIN pg_am a ON a.oid = c.relam
+    WHERE a.amname = 'bm25';
     ```
 
 - Check shared memory used by memtables across all indexes
@@ -654,7 +654,7 @@ WITH (text_config='english', k1=1.5, b=0.8);
     ```
 
 <Callout variant="note">
-The two-argument form `bm25_dump_index('index_name', '/path/to/file.txt')` exists only in **debug builds** compiled with `-DDEBUG_DUMP_INDEX`. Standard packages expose the single-argument form only.
+`bm25_summarize_index` and `bm25_dump_index` require superuser. On {C.CLOUD_LONG} the `tsdbadmin` role is not a superuser, so these two functions are unavailable there; use `bm25_memory_usage()` and `pg_stat_user_indexes` to monitor instead. The two-argument form `bm25_dump_index('index_name', '/path/to/file.txt')` exists only in **debug builds** compiled with `-DDEBUG_DUMP_INDEX`. Standard packages expose the single-argument form only.
 </Callout>
 
 - Force memtable spill to disk (useful for testing or memory management)
