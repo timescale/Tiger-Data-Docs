@@ -46,26 +46,18 @@ Refresh the {C.CAGG} `conditions` between `2020-01-01` and
 CALL refresh_continuous_aggregate('conditions', '2020-01-01', '2020-02-01');
 ```
 
-Alternatively, incrementally refresh the {C.CAGG} `conditions`
-between `2020-01-01` and `2020-02-01` exclusive, working in `12h` intervals:
+Incrementally refresh the {C.CAGG} `conditions` between `2020-01-01` and
+`2020-02-01` exclusive, in batches of 5 buckets at a time, from newest data to
+oldest. This breaks a large refresh into smaller transactions, so locks are held
+for shorter periods and results become visible as each batch completes:
 
 ```sql
-DO
-$$
-DECLARE
-  refresh_interval INTERVAL = '12h'::INTERVAL;
-  start_timestamp TIMESTAMPTZ = '2020-01-01T00:00:00Z';
-  end_timestamp TIMESTAMPTZ = start_timestamp + refresh_interval;
-BEGIN
-  WHILE start_timestamp < '2020-02-01T00:00:00Z' LOOP
-    CALL refresh_continuous_aggregate('conditions', start_timestamp, end_timestamp);
-    COMMIT;
-    RAISE NOTICE 'finished with timestamp %', end_timestamp;
-    start_timestamp = end_timestamp;
-    end_timestamp = end_timestamp + refresh_interval;
-  END LOOP;
-END
-$$;
+CALL refresh_continuous_aggregate(
+  'conditions',
+  '2020-01-01',
+  '2020-02-01',
+  options => '{"buckets_per_batch": 5, "refresh_newest_first": true}'::jsonb
+);
 ```
 
 Force the  `conditions` {C.CAGG} to refresh between `2020-01-01` and
@@ -95,7 +87,7 @@ CALL refresh_continuous_aggregate(
 | `window_start` | INTERVAL, TIMESTAMPTZ, INTEGER | - | ✔ | Start of the window to refresh, has to be before `window_end`. |
 | `window_end` | INTERVAL, TIMESTAMPTZ, INTEGER | - | ✔ | End of the window to refresh, has to be after `window_start`. |
 | `force` | BOOLEAN | `FALSE` | - | Force refresh every bucket in the time range between `window_start` and `window_end`, even when the bucket has already been refreshed. This can be very expensive when a lot of data is refreshed. |
-| `options` | JSONB | `NULL` | - | JSONB object with additional options. Supports `process_hypertable_invalidations` (boolean, default `true`). |
+| `options` | JSONB | `NULL` | - | JSONB object with additional options. See [Options](#options). |
 
 You must specify the `window_start` and `window_end` parameters differently,
 depending on the type of the time column of the {C.HYPERTABLE}. For {C.HYPERTABLE}s with
@@ -116,6 +108,27 @@ refresh window as an `INTEGER` type.
   Note that it's not guaranteed that all buckets will be updated: refreshes will
   not take place when buckets are materialized with no data changes or with
   changes that only occurred in the secondary table used in the JOIN.
+</Callout>
+
+## Options
+
+<SinceRelease version="2.28.0" product="tsdb" />
+
+The `options` argument is a JSONB object that accepts the following keys:
+
+| Key | Type | Default | Description |
+|-|-|-|-|
+| `buckets_per_batch` | INTEGER | `10` | Number of buckets to refresh per batch. This value is multiplied by the {C.CAGG} bucket width to determine the size of each batch range. Set to `0` to refresh the whole window in a single atomic pass. Values less than `0` are not allowed. |
+| `max_batches_per_execution` | INTEGER | `0` | Maximum number of batches to process in this call. Default `0` means no limit. Values less than `0` are not allowed. |
+| `refresh_newest_first` | BOOLEAN | `true` | Control the order of incremental refreshes. Set to `true` to refresh from the newest data to the oldest, or `false` for oldest to newest. |
+
+<Callout variant="note">
+  Since {C.TIMESCALE_DB} 2.28.0, `refresh_continuous_aggregate()` processes the
+  refresh window incrementally in batches by default (`buckets_per_batch` is
+  `10`), matching the behavior of {C.CAGG} refresh policies. Each batch runs in
+  its own transaction, so locks are released between batches and results become
+  visible as each batch completes. To restore the previous single-transaction
+  behavior, set `buckets_per_batch` to `0`.
 </Callout>
 
 ## Returns
