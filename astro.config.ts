@@ -770,6 +770,7 @@ export default defineConfig({
                   collapsed: true,
                   items: [
                     { label: "Overview", link: "/integrate/data-ingestion-streaming" },
+                    { label: "EMQX", link: "/integrate/data-ingestion-streaming/emqx" },
                     { label: "Fivetran", link: "/integrate/data-ingestion-streaming/fivetran" },
                     { label: "HighByte", link: "/integrate/data-ingestion-streaming/highbyte" },
                     { label: "Kepware KEPServerEX", link: "/integrate/data-ingestion-streaming/kepware-kepserverex" },
