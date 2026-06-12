@@ -40,7 +40,9 @@ To improve performance for {C.CAGG} refresh, see
 ## Samples
 
 Refresh the {C.CAGG} `conditions` between `2020-01-01` and
-`2020-02-01` exclusive.
+`2020-02-01` exclusive. This call uses the default settings shown in
+[Options](#options). Since {C.TIMESCALE_DB} 2.28.0, those defaults perform an
+incremental refresh in batches of 10 buckets (`buckets_per_batch`):
 
 ```sql
 CALL refresh_continuous_aggregate('conditions', '2020-01-01', '2020-02-01');
@@ -57,6 +59,18 @@ CALL refresh_continuous_aggregate(
   '2020-01-01',
   '2020-02-01',
   options => '{"buckets_per_batch": 5, "refresh_newest_first": true}'::jsonb
+);
+```
+
+Disable incremental refresh and refresh the entire window in a single atomic
+pass by setting `buckets_per_batch` to `0`:
+
+```sql
+CALL refresh_continuous_aggregate(
+  'conditions',
+  '2020-01-01',
+  '2020-02-01',
+  options => '{"buckets_per_batch": 0}'::jsonb
 );
 ```
 
@@ -127,8 +141,8 @@ The `options` argument is a JSONB object that accepts the following keys:
   refresh window incrementally in batches by default (`buckets_per_batch` is
   `10`), matching the behavior of {C.CAGG} refresh policies. Each batch runs in
   its own transaction, so locks are released between batches and results become
-  visible as each batch completes. To restore the previous single-transaction
-  behavior, set `buckets_per_batch` to `0`.
+  visible as each batch completes. To refresh the entire window in a single
+  atomic pass instead, set `buckets_per_batch` to `0`.
 </Callout>
 
 ## Returns
