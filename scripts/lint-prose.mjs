@@ -3,8 +3,9 @@
  * Run Vale (Google style guide + custom TigerData rules) on changed docs.
  *
  * Mirrors what CI does, but locally and only on the Markdown/MDX you've touched
- * so you can check before pushing. CI uses reviewdog to report on changed lines;
- * this lints the whole changed file.
+ * so you can check before pushing. CI reports only on the lines you changed
+ * (.github/scripts/vale_pr_lint.py); this lints the whole changed file, so you
+ * may see findings here on lines your PR didn't touch.
  *
  * Usage:
  *   pnpm lint:prose          # changed *.md/*.mdx vs the main branch + working tree
