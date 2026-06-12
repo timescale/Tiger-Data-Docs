@@ -37,36 +37,29 @@ This page shows you how to connect HiveMQ to your {C.SERVICE_LONG} using the [Hi
     Use the [{C.CONSOLE}](/build/data-management/run-queries-from-tiger-console), `psql`, or any other SQL editor to connect to your {C.SERVICE_LONG}.
   </NumberedItem>
   <NumberedItem title={`Create a ${C.HYPERTABLE} for MQTT messages`}>
-    Create a {C.HYPERTABLE} that matches the columns you want HiveMQ to populate from each MQTT message. Partition on `ts` so the table scales as message volume grows:
+    Create a compact `hypertable` suitable for time-series tag readings. The default structure stores a timestamp, a `tag_id` identifier, a numeric `value`, and the message metadata fields that come from the payload:
 
     ```sql
     CREATE TABLE mqtt_messages (
-       ts          TIMESTAMPTZ NOT NULL,
-       topic       TEXT        NOT NULL,
-       client_id   TEXT,
-       qos         SMALLINT,
-       payload     JSONB
+      ts      TIMESTAMPTZ NOT NULL,
+      tag_id  TEXT        NOT NULL,
+      value   DOUBLE PRECISION,
+      quality TEXT,
+      units   TEXT
     ) WITH (
-       tsdb.hypertable = true,
-       tsdb.partition_column = 'ts',
-       tsdb.chunk_interval = '1 day',
-       tsdb.columnstore = true,
-       tsdb.segmentby = 'topic',
-       tsdb.orderby = 'ts DESC'
+      tsdb.hypertable = true,
+      tsdb.chunk_interval = '1 day'
     );
     ```
 
     <Callout variant="note">
-    The columns on this table must match the fields you map in the HiveMQ extension routes in the next section. Use `JSONB` for `payload` if your devices publish JSON, or `BYTEA` for raw binary payloads.
+      This layout (`ts`, `tag_id`, `value`, `quality`, `units`) depends entirely on what data you intend to extract from the MQTT topic and payload.
     </Callout>
 
     <Callout variant="note">
-    Aim for 1–20 million rows per chunk. That's roughly 1 day for 10,000 messages/min, or 1 hour for 300,000 messages/min. Adjust `tsdb.chunk_interval` to match your broker's throughput.
+      Aim for 1–20 million rows per chunk. That's roughly 1 day for 10,000 messages/min, or 1 hour for 300,000 messages/min. Adjust `tsdb.chunk_interval` to match your broker's throughput.
     </Callout>
 
-    <Callout variant="note">
-    Setting `tsdb.columnstore = true` automatically adds a {C.COLUMNSTORE} policy that compresses {C.CHUNK}s once they reach `tsdb.chunk_interval` (1 day above). To use a different interval, [remove the auto-created policy](/reference/timescaledb/hypercore/remove_columnstore_policy) and call [`add_columnstore_policy`](/reference/timescaledb/hypercore/add_columnstore_policy) with your preferred `after` value, for example `INTERVAL '7 days'`.
-    </Callout>
   </NumberedItem>
 </NumberedList>
 
@@ -112,7 +105,7 @@ This page shows you how to connect HiveMQ to your {C.SERVICE_LONG} using the [Hi
     </Callout>
   </NumberedItem>
   <NumberedItem title="Define a route from MQTT topics to your table">
-    Still in `config.xml`, add an MQTT-to-{C.PG} route that maps incoming messages to the columns on `mqtt_messages`:
+    Still in `config.xml`, add an MQTT-to-{C.PG} route that uses a statement template to parse JSON payload fields and insert them into separate columns on `mqtt_messages`:
 
     ```xml
     <mqtt-to-postgresql-routes>
@@ -123,38 +116,50 @@ This page shows you how to connect HiveMQ to your {C.SERVICE_LONG} using the [Hi
                 <mqtt-topic-filter>#</mqtt-topic-filter>
             </mqtt-topic-filters>
             <processor>
-                <insert-statement>
-                    <table>mqtt_messages</table>
-                    <columns>
-                        <column>
-                            <name>ts</name>
-                            <value>${mqtt-message.timestamp}</value>
-                        </column>
-                        <column>
-                            <name>topic</name>
-                            <value>${mqtt-message.topic}</value>
-                        </column>
-                        <column>
-                            <name>client_id</name>
-                            <value>${mqtt-message.client-id}</value>
-                        </column>
-                        <column>
-                            <name>qos</name>
-                            <value>${mqtt-message.qos}</value>
-                        </column>
-                        <column>
-                            <name>payload</name>
-                            <value>${mqtt-message.payload-utf8}</value>
-                        </column>
-                    </columns>
-                </insert-statement>
+                <statement-template>conf/examples/hivemq-mqtt-message-template.sql</statement-template>
             </processor>
         </mqtt-to-postgresql-route>
     </mqtt-to-postgresql-routes>
     ```
 
-    Narrow the `<mqtt-topic-filter>` to the topics you want to persist. Use `#` only if you want to capture every message on the broker. See the [HiveMQ extension reference](https://docs.hivemq.com/hivemq-postgresql-extension/latest/) for the full list of available placeholders.
+    Narrow the `<mqtt-topic-filter>` to the topics you want to persist. Use `#` only if you want to capture every message on the broker.
   </NumberedItem>
+  <NumberedItem title="Create the statement template file">
+    Create the statement template file at `HIVEMQ_HOME/extensions/hivemq-postgresql-extension/conf/examples/hivemq-mqtt-message-template.sql`. This will need to be customized based on the message format.
+
+    #### Sample MQTT topic and JSON
+
+    Given an mqtt topic and JSON as follows:
+
+    ```text
+    uns/tiger-data/plant-7/sensor-123/reading
+    ```
+
+    ```json
+    {
+      "timestamp": "2026-06-12T14:26:00Z",
+      "value": 74.5,
+      "quality": "GOOD",
+      "units": "°F"
+    }
+    ```
+
+    Then the template file might look like this:
+
+    ```sql
+    INSERT INTO mqtt_messages (ts, tag_id, value, quality, units)
+    VALUES (
+      ((${mqtt-payload-utf8})::jsonb ->> 'timestamp')::timestamptz,
+      ${mqtt-topic},
+      ((${mqtt-payload-utf8})::jsonb ->> 'value')::double precision,
+      ((${mqtt-payload-utf8})::jsonb ->> 'quality'),
+      ((${mqtt-payload-utf8})::jsonb ->> 'units')
+    );
+    ```
+
+    See the [HiveMQ extension reference](https://docs.hivemq.com/hivemq-postgresql-extension/latest/) for the full list of placeholders and supported statement templates. In this example, the topic was used as the tag_id.
+  </NumberedItem>
+
   <NumberedItem title="Start HiveMQ and verify the extension is loaded">
     Start (or restart) HiveMQ and check the broker log for a line confirming the extension is started and the route is active:
 
