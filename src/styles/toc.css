@@ -3,9 +3,10 @@
  * Table of contents panel, links, active states, version selector, build page TOC.
  */
 
-/* Panel divider */
+/* Right-sidebar padding. No border here: the TOC "tree line" is drawn per-link
+   (see the link rule below) so it can step inward for nested headings instead of
+   running as a single full-height rail. */
 .right-sidebar-container {
-  border-inline-start: 1px solid var(--toc-line);
   padding-inline-start: 1rem;
 }
 
@@ -52,7 +53,10 @@ starlight-toc h2 {
   box-sizing: border-box;
 }
 
-/* TOC list */
+/* TOC list. gap:0 so the per-link tree line below stays continuous (the rail is
+   the links' border, and any gap would break it). Vertical rhythm comes from the
+   links' padding-block instead. The `ul`-level borders Starlight ships are
+   removed so the only rail is the stepping per-link one. */
 .right-sidebar-container starlight-toc ul,
 .right-sidebar-panel starlight-toc ul,
 starlight-toc ul {
@@ -61,44 +65,98 @@ starlight-toc ul {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0;
   width: 100%;
   align-items: flex-start;
+  border-inline-start: 0 !important;
 }
 
 .right-sidebar-container starlight-toc ul:first-of-type,
 .right-sidebar-panel starlight-toc ul:first-of-type,
 starlight-toc > nav > ul {
-  gap: 0.5rem;
+  gap: 0;
 }
 
-/* Nested TOC items */
+/* Nested TOC list — indents the level so its links' rail steps inward, with a
+   vertical gap above and below where the sloped connector eases between depths.
+   No border here; the rail is on the links. Class-prefixed selectors outrank the
+   `…panel starlight-toc ul { padding:0 }` rule (specificity 0,1,2). */
+.right-sidebar-container starlight-toc ul ul,
+.right-sidebar-panel starlight-toc ul ul,
 starlight-toc ul ul {
-  gap: 0.25rem;
-  margin-top: 0.25rem;
+  position: relative;
+  margin-block: var(--toc-step-h);
   margin-inline-start: 0;
-  padding-inline-start: 1rem;
-  border-inline-start: 1px solid var(--toc-line);
+  padding-inline-start: var(--toc-step-w);
   align-items: flex-start;
   width: 100%;
 }
 
-/* Nested TOC indent */
-.right-sidebar-container starlight-toc ul ul a:not([aria-current="true"]),
-.right-sidebar-panel starlight-toc ul ul a:not([aria-current="true"]),
-starlight-toc ul ul a:not([aria-current="true"]) {
-  padding-inline-start: 0.5rem !important;
+/* Sloped step connectors. Rather than a 90° corner, an SVG S-curve eases the
+   rail from the outer position (parent rail) to the inner position (child rail)
+   across the gap above the nested list (::before), and back out across the gap
+   below it (::after). Drawn as a mask so the curve takes the rail color
+   (--toc-line) in both themes. The curve has vertical tangents at both ends so
+   it blends seamlessly into the straight per-link rails. */
+.right-sidebar-container starlight-toc ul ul::before,
+.right-sidebar-panel starlight-toc ul ul::before,
+starlight-toc ul ul::before,
+.right-sidebar-container starlight-toc ul ul::after,
+.right-sidebar-panel starlight-toc ul ul::after,
+starlight-toc ul ul::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  width: var(--toc-step-w);
+  height: var(--toc-step-h);
+  background-color: var(--toc-line);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
 }
 
-/* TOC links */
+.right-sidebar-container starlight-toc ul ul::before,
+.right-sidebar-panel starlight-toc ul ul::before,
+starlight-toc ul ul::before {
+  top: calc(-1 * var(--toc-step-h));
+  -webkit-mask-image: var(--toc-curve-in);
+  mask-image: var(--toc-curve-in);
+}
+
+.right-sidebar-container starlight-toc ul ul::after,
+.right-sidebar-panel starlight-toc ul ul::after,
+starlight-toc ul ul::after {
+  bottom: calc(-1 * var(--toc-step-h));
+  -webkit-mask-image: var(--toc-curve-out);
+  mask-image: var(--toc-curve-out);
+}
+
+/* The last top-level item's nested list has no following item to step back out
+   to, so drop its bottom connector (it would otherwise dangle as a stub). */
+.right-sidebar-container starlight-toc > nav > ul > li:last-child > ul::after,
+.right-sidebar-panel starlight-toc > nav > ul > li:last-child > ul::after,
+starlight-toc > nav > ul > li:last-child > ul::after {
+  content: none;
+}
+
+/* TOC links. Each link carries the tree line as its inline-start border, so the
+   rail sits beside the link at its own depth and steps inward for nested levels.
+   Adjacent links touch (gap:0), keeping the line continuous within a level. */
 .right-sidebar-container starlight-toc a,
 .right-sidebar-panel starlight-toc a,
 starlight-toc a {
   display: block;
-  color: var(--toc-title-inactive);
+  /* !important: Stainless ships `&`-nested rules (e.g. `& ul > li > a`) that
+     outrank these token colors. Keep colors important so the design palette wins. */
+  color: var(--toc-title-inactive) !important;
   text-decoration: none;
   padding-inline: var(--toc-inset) 0 !important;
-  padding-block: 0.125rem 0;
+  /* !important so the row height (and thus the inter-row gap) is ours, not
+     Stainless's scoped value. The gap = 2× this padding must equal --toc-step-h
+     so normal rows and stepped rows are spaced identically. */
+  padding-block: 0.375rem !important;
+  border-inline-start: 1px solid var(--toc-line);
   transition: color 0.15s ease;
   text-align: left;
   width: 100%;
@@ -106,6 +164,28 @@ starlight-toc a {
   overflow-wrap: break-word;
   word-wrap: break-word;
   border-radius: 0;
+}
+
+/* Uniform spacing across the step. At a depth change the sloped connector lives
+   in the nested list's margin (--toc-step-h). Zero the link padding on the two
+   rows that border that margin (parent + first child going in; last child + the
+   next top-level item coming out) so the gap there equals one normal inter-row
+   gap (2× link padding-block = --toc-step-h) instead of stacking on top of it.
+   This keeps the space between every entry the same. */
+/* Parent row + last nested row drop their bottom padding; first nested row +
+   the next top-level row drop their top padding. Class-prefixed so they outrank
+   the base link padding above (which carries a class and !important). */
+.right-sidebar-container starlight-toc li:has(> ul) > a,
+.right-sidebar-panel starlight-toc li:has(> ul) > a,
+.right-sidebar-container starlight-toc ul ul > li:last-child > a,
+.right-sidebar-panel starlight-toc ul ul > li:last-child > a {
+  padding-block-end: 0 !important;
+}
+.right-sidebar-container starlight-toc ul ul > li:first-child > a,
+.right-sidebar-panel starlight-toc ul ul > li:first-child > a,
+.right-sidebar-container starlight-toc > nav > ul > li:has(> ul) + li > a,
+.right-sidebar-panel starlight-toc > nav > ul > li:has(> ul) + li > a {
+  padding-block-start: 0 !important;
 }
 
 /* TOC link text */
@@ -118,18 +198,25 @@ starlight-toc a span {
 }
 
 starlight-toc a:hover {
-  color: var(--toc-title-active);
+  color: var(--toc-title-active) !important;
 }
 
-/* Active TOC item */
+/* Active TOC item.
+   The selection line is Starlight's own absolutely-positioned `::after` bar
+   (left:-1px, 2px wide) — we recolor it below rather than drawing a second
+   border, so the active row keeps the same padding as its siblings and never
+   shifts horizontally. */
 .right-sidebar-container starlight-toc a[aria-current="true"],
 .right-sidebar-panel starlight-toc a[aria-current="true"],
 starlight-toc a[aria-current="true"] {
-  color: var(--toc-title-active);
-  border-inline-start: 2px solid var(--toc-selection-line);
-  border-radius: 0;
-  padding-inline-start: 8px !important;
-  margin-inline-start: 0;
+  color: var(--toc-title-active) !important;
+}
+
+/* Selection line — recolor Starlight's accent indicator to the design token. */
+.right-sidebar-container starlight-toc a[aria-current="true"]::after,
+.right-sidebar-panel starlight-toc a[aria-current="true"]::after,
+starlight-toc a[aria-current="true"]::after {
+  background-color: var(--toc-selection-line) !important;
 }
 
 .right-sidebar-container starlight-toc li:has(a[aria-current="true"]),
@@ -180,15 +267,48 @@ starlight-toc li:has(a[aria-current="true"]) {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0;
   width: 100%;
 }
 
+/* Indent the nested level so its rows' rail steps inward, with gaps above/below
+   for the sloped connector. The rail itself is drawn per-row (parent/link
+   borders) so it steps instead of running full-height. ::before / ::after are
+   the sloped step connectors (see the main TOC above). */
 .build-page-toc__sublist {
-  gap: 0.25rem;
-  margin-top: 0.25rem;
-  padding-inline-start: 1rem;
-  border-inline-start: 1px solid var(--toc-line);
+  position: relative;
+  margin-block: var(--toc-step-h);
+  padding-inline-start: var(--toc-step-w);
+}
+
+.build-page-toc__sublist::before,
+.build-page-toc__sublist::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  width: var(--toc-step-w);
+  height: var(--toc-step-h);
+  background-color: var(--toc-line);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+.build-page-toc__sublist::before {
+  top: calc(-1 * var(--toc-step-h));
+  -webkit-mask-image: var(--toc-curve-in);
+  mask-image: var(--toc-curve-in);
+}
+
+.build-page-toc__sublist::after {
+  bottom: calc(-1 * var(--toc-step-h));
+  -webkit-mask-image: var(--toc-curve-out);
+  mask-image: var(--toc-curve-out);
+}
+
+.build-page-toc__list > li:last-child > .build-page-toc__sublist::after {
+  content: none;
 }
 
 .build-page-toc__parent {
@@ -196,15 +316,17 @@ starlight-toc li:has(a[aria-current="true"]) {
   font-weight: 600;
   color: var(--toc-title-active);
   padding-inline: var(--toc-inset) 0;
-  padding-block: 0.125rem 0;
+  padding-block: 0.375rem;
+  border-inline-start: 1px solid var(--toc-line);
 }
 
 .build-page-toc__link {
   display: block;
   color: var(--toc-title-inactive);
   text-decoration: none;
-  padding-inline: 0.5rem 0;
-  padding-block: 0.125rem 0;
+  padding-inline: var(--toc-inset) 0;
+  padding-block: 0.375rem;
+  border-inline-start: 1px solid var(--toc-line);
   transition: color 0.15s ease;
 }
 
