@@ -1,0 +1,54 @@
+---
+title: remove_tiering_policy()
+description: Remove the tiering policy from a hypertable or continuous aggregate
+keywords: [data tiering, policies, remove]
+---
+
+import * as C from "@constants";
+
+import ReturnsVoid from '@partials/_returns-void.mdx';
+
+Remove the tiering policy from a {C.HYPERTABLE} or {C.CAGG}. The underlying {C.TIMESCALE_DB} background job is deleted, so no further {C.CHUNK}s are tiered automatically.
+
+{C.CHUNK_CAP}s that the policy had already frozen and queued for upload but had not yet shipped to object storage are unfrozen and removed from the tiering queue. {C.CHUNK_CAP}s that have already been uploaded to object storage remain tiered; use [`untier_chunk`](/reference/timescaledb/data-tiering/untier_chunk) to bring them back.
+
+## Samples
+
+- **Remove the tiering policy from the `assets_candlestick_daily` hypertable**:
+
+  ```sql
+  SELECT remove_tiering_policy('assets_candlestick_daily');
+  ```
+
+- **Remove the tiering policy from a continuous aggregate, ignoring the call when no policy exists**:
+
+  ```sql
+  SELECT remove_tiering_policy('daily_summary', if_exists => true);
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT remove_tiering_policy(
+    hypertable = '<hypertable_or_cagg_name>',
+    if_exists = true | false
+);
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| `hypertable` | `REGCLASS` | - | ✔ | Name of the {C.HYPERTABLE} or {C.CAGG} the tiering policy is attached to. |
+| `if_exists` | `BOOLEAN` | `false` | - | When `true`, emit a notice rather than an error if no tiering policy exists on the relation. |
+
+## Returns
+
+<ReturnsVoid />
+
+## Errors
+
+`remove_tiering_policy` raises an exception when:
+
+- The supplied relation is neither a {C.HYPERTABLE} nor a {C.CAGG}.
+- No tiering policy exists on the relation and `if_exists` is `false`.
