@@ -30,14 +30,14 @@ This page shows you how to connect HiveMQ to your {C.SERVICE_LONG} using the [Hi
 - The [HiveMQ Enterprise Extension for {C.PG}](https://docs.hivemq.com/hivemq-postgresql-extension/latest/) downloaded
 </Prerequisites>
 
-## Create a target table in {C.CONSOLE}
+## Create a target table in {C.CLOUD_LONG}
 
 <NumberedList>
   <NumberedItem title="Connect to your service">
     Use the [{C.CONSOLE}](/build/data-management/run-queries-from-tiger-console), `psql`, or any other SQL editor to connect to your {C.SERVICE_LONG}.
   </NumberedItem>
   <NumberedItem title={`Create a ${C.HYPERTABLE} for MQTT messages`}>
-    Create a compact `hypertable` suitable for time-series tag readings. The default structure stores a timestamp, a `tag_id` identifier, a numeric `value`, and the message metadata fields that come from the payload:
+    Create a `hypertable` for time-series readings. The table stores the event time, a `tag_id`, the numeric `value`, and payload metadata fields:
 
     ```sql
     CREATE TABLE mqtt_messages (
@@ -53,7 +53,7 @@ This page shows you how to connect HiveMQ to your {C.SERVICE_LONG} using the [Hi
     ```
 
     <Callout variant="note">
-      This layout (`ts`, `tag_id`, `value`, `quality`, `units`) depends entirely on what data you intend to extract from the MQTT topic and payload.
+      This layout (`ts`, `tag_id`, `value`, `quality`, `units`) is recommended for time-series sensor readings when the payload includes metadata. If you want auditability or debugging, add a `payload JSONB` column so you preserve the raw message alongside parsed fields, then adjust the template below accordingly.
     </Callout>
 
     <Callout variant="note">
@@ -113,7 +113,7 @@ This page shows you how to connect HiveMQ to your {C.SERVICE_LONG} using the [Hi
             <id>mqtt-to-tiger-cloud</id>
             <postgresql-id>tiger-cloud</postgresql-id>
             <mqtt-topic-filters>
-                <mqtt-topic-filter>#</mqtt-topic-filter>
+                <mqtt-topic-filter>uns/tiger-data/#</mqtt-topic-filter>
             </mqtt-topic-filters>
             <processor>
                 <statement-template>conf/examples/hivemq-mqtt-message-template.sql</statement-template>
@@ -156,6 +156,12 @@ This page shows you how to connect HiveMQ to your {C.SERVICE_LONG} using the [Hi
       ((${mqtt-payload-utf8})::jsonb ->> 'units')
     );
     ```
+
+    The `timestamp` field must be valid ISO 8601 so the cast to `timestamptz` succeeds.
+
+    <Callout variant="note">
+      `${mqtt-topic}` inserts the full MQTT topic string as `tag_id`. If you only want a sensor identifier, extract the relevant segment from the topic path instead of storing the full topic.
+    </Callout>
 
     See the [HiveMQ extension reference](https://docs.hivemq.com/hivemq-postgresql-extension/latest/) for the full list of placeholders and supported statement templates. In this example, the topic was used as the tag_id.
   </NumberedItem>
