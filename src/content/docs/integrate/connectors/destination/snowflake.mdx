@@ -33,6 +33,10 @@ In this integration guide, you:
 - [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and authenticated to the same AWS account as your S3 Table Bucket.
 </Prerequisites>
 
+<Callout variant="warning">
+  Your {C.SERVICE_LONG} and your S3 Table Bucket must be in the same AWS region. Cross-region traffic incurs per-GB transfer fees.
+</Callout>
+
 ## Configure Snowflake
 
 Set up the Catalog Integration that tells Snowflake where your tables are and how to authenticate to your S3 Table Bucket.
@@ -79,6 +83,8 @@ Set up the Catalog Integration that tells Snowflake where your tables are and ho
     Open a Snowflake worksheet with the `ACCOUNTADMIN` role. Replace all placeholders using the reference table above, then run:
 
     ```sql
+    USE ROLE ACCOUNTADMIN;
+
     CREATE OR REPLACE CATALOG INTEGRATION tiger_s3tables_catalog
       CATALOG_SOURCE = ICEBERG_REST
       TABLE_FORMAT = ICEBERG
@@ -231,8 +237,8 @@ Each table that {C.LAKE_LONG} has synced must be registered once in Snowflake be
   <NumberedItem title="Create a database and schema in Snowflake">
 
     ```sql
-    CREATE DATABASE tiger_data;
-    CREATE SCHEMA tiger_data.<YOUR_NAMESPACE>;
+    CREATE DATABASE IF NOT EXISTS tiger_data;
+    CREATE SCHEMA IF NOT EXISTS tiger_data.<YOUR_NAMESPACE>;
     ```
 
   </NumberedItem>
@@ -296,10 +302,33 @@ To confirm Snowflake can access your {C.SERVICE_LONG} data:
 
     You see the first ten rows of data synced from your {C.SERVICE_LONG}.
 
+    The real value is joining time-series data from {C.CLOUD_LONG} with reference data that lives natively in Snowflake — no pipeline required. For example, given a `customers` table already in Snowflake and a `sensor_readings` {C.HYPERTABLE} synced from {C.CLOUD_LONG}:
+
+    ```sql
+    SELECT
+        c.customer_name,
+        DATE_TRUNC('hour', s.time) AS hour,
+        AVG(s.temperature)         AS avg_temp
+    FROM tiger_data.<YOUR_NAMESPACE>.sensor_readings AS s
+    JOIN snowflake_warehouse.public.customers AS c
+        ON s.customer_id = c.id
+    WHERE s.time >= DATEADD(day, -7, CURRENT_TIMESTAMP())
+    GROUP BY 1, 2
+    ORDER BY 2 DESC;
+    ```
+
   </NumberedItem>
 </NumberedList>
 
 You have successfully integrated Snowflake with {C.CLOUD_LONG}.
+
+## Refresh metadata on demand
+
+New rows inserted in {C.CLOUD_LONG} are visible in Snowflake within the `REFRESH_INTERVAL_SECONDS` window (120 seconds by default). To see changes immediately without waiting:
+
+```sql
+ALTER CATALOG INTEGRATION tiger_s3tables_catalog REFRESH;
+```
 
 ## Troubleshooting
 
@@ -325,5 +354,10 @@ You have successfully integrated Snowflake with {C.CLOUD_LONG}.
     title="Tiger Lake connector"
     description="Set up or manage the Apache Iceberg destination connector that syncs your service data to Amazon S3 Tables."
     href="/integrate/connectors/destination/tigerlake"
+  />
+  <RelatedContentCard
+    title="Snowflake integration cookbook"
+    description="End-to-end example using a real dataset with an analytical join between Iceberg and Snowflake-native tables."
+    href="https://github.com/timescale/cookbook-integrations/tree/start/integrations-cookbook/snowflake"
   />
 </RelatedContentCards>
