@@ -6,6 +6,7 @@ import type { AstroIntegration } from "astro";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
 import starlightLlmsTxt from "starlight-llms-txt";
 import rehypeBasePath from "./src/plugins/rehype-base-path";
+import rehypePagefindWeight from "./src/plugins/rehype-pagefind-weight";
 import remarkResolveConstantsInHeadings from "./src/plugins/remark-resolve-constants-in-headings";
 
 import sentry from "@sentry/astro";
@@ -198,7 +199,7 @@ export default defineConfig({
   trailingSlash: "never",
   markdown: {
     remarkPlugins: [remarkResolveConstantsInHeadings],
-    rehypePlugins: [[rehypeBasePath, { base: BASE }]],
+    rehypePlugins: [[rehypeBasePath, { base: BASE }], rehypePagefindWeight],
   },
     vite: {
       plugins: [vite7CompatPlugin()] as any,
@@ -769,11 +770,14 @@ export default defineConfig({
                   collapsed: true,
                   items: [
                     { label: "Overview", link: "/integrate/data-ingestion-streaming" },
+                    { label: "EMQX", link: "/integrate/data-ingestion-streaming/emqx" },
                     { label: "Fivetran", link: "/integrate/data-ingestion-streaming/fivetran" },
                     { label: "HighByte", link: "/integrate/data-ingestion-streaming/highbyte" },
+                    { label: "Kepware KEPServerEX", link: "/integrate/data-ingestion-streaming/kepware-kepserverex" },
                     { label: "HiveMQ", link: "/integrate/data-ingestion-streaming/hivemq" },
                     { label: "Ignition", link: "/integrate/data-ingestion-streaming/ignition" },
                     { label: "Litmus Edge", link: "/integrate/data-ingestion-streaming/litmus-edge" },
+                    { label: "Node-RED", link: "/integrate/data-ingestion-streaming/node-red" },
                   ],
                 },
                 {
@@ -1619,6 +1623,7 @@ export default defineConfig({
                         { label: "num_vals()", link: "/reference/toolkit/percentile-approximation/uddsketch/num_vals" },
                         { label: "percentile_agg()", link: "/reference/toolkit/percentile-approximation/uddsketch/percentile_agg" },
                         { label: "rollup()", link: "/reference/toolkit/percentile-approximation/uddsketch/rollup" },
+                        { label: "total()", link: "/reference/toolkit/percentile-approximation/uddsketch/total" },
                         { label: "uddsketch()", link: "/reference/toolkit/percentile-approximation/uddsketch/uddsketch" },
                       ],
                     },
@@ -1633,6 +1638,7 @@ export default defineConfig({
                         { label: "num_vals()", link: "/reference/toolkit/percentile-approximation/tdigest/num_vals" },
                         { label: "rollup()", link: "/reference/toolkit/percentile-approximation/tdigest/rollup" },
                         { label: "tdigest()", link: "/reference/toolkit/percentile-approximation/tdigest/tdigest" },
+                        { label: "total()", link: "/reference/toolkit/percentile-approximation/tdigest/total" },
                       ],
                     },
                   ],
