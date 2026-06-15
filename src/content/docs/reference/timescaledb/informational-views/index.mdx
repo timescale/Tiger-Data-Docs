@@ -7,6 +7,7 @@ keywords: [information]
 ---
 
 import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
 
 {C.TIMESCALE_DB} makes complex database features like partitioning and data retention easy to use with
 our comprehensive APIs. {C.TIMESCALE_DB} works hard to provide detailed information about the state of
@@ -112,4 +113,50 @@ FROM timescaledb_information.continuous_aggregates;
 - [`timescaledb_information.job_history`](/reference/timescaledb/informational-views/job_history): get information about background job execution
 - [`timescaledb_information.job_stats`](/reference/timescaledb/informational-views/job_stats): get information and statistics about automatically run jobs
 - [`timescaledb_information.jobs`](/reference/timescaledb/informational-views/jobs): get information about all jobs registered with the automatic scheduler
-- [`timescaledb_experimental.policies`](/reference/timescaledb/informational-views/policies): get information about all policies set on {C.CAGG}s
+
+## Stability
+
+When building monitoring, alerting, or operational tools on top of TimescaleDB, it is critical to query the correct system schemas. 
+TimescaleDB provides dedicated, stable views designed specifically for user introspection. 
+However, it also relies on several internal schemas that manage database state.
+
+### Schemas and views for public consumption
+
+For all monitoring, automation, and operational queries, **you should exclusively use the views located in the `timescaledb_information` schema.** 
+These views are considered part of TimescaleDB's public API. 
+They are designed to be stable, human-readable, and safe to query. 
+If TimescaleDB introduces changes to its underlying architecture, these views will be maintained or properly deprecated across major versions to prevent your operations from breaking.
+
+- [`timescaledb_information.chunk_columnstore_settings`](/reference/timescaledb/informational-views/chunk_columnstore_settings)
+- [`timescaledb_information.chunks`](/reference/timescaledb/informational-views/chunks)
+- [`timescaledb_information.continuous_aggregates`](/reference/timescaledb/informational-views/continuous_aggregates)
+- [`timescaledb_information.dimensions`](/reference/timescaledb/informational-views/dimensions)
+- [`timescaledb_information.hypertable_columnstore_settings`](/reference/timescaledb/informational-views/hypertable_columnstore_settings)
+- [`timescaledb_information.hypertables`](/reference/timescaledb/informational-views/hypertables)
+- [`timescaledb_information.job_errors`](/reference/timescaledb/informational-views/job_errors)
+- [`timescaledb_information.job_history`](/reference/timescaledb/informational-views/job_history)
+- [`timescaledb_information.job_stats`](/reference/timescaledb/informational-views/job_stats)
+- [`timescaledb_information.jobs`](/reference/timescaledb/informational-views/jobs)
+- `timescaledb_information.stat_chunk_activity`
+
+<Callout variant="tip">
+When writing Grafana dashboards, Datadog integrations, or custom cron jobs, always prefix your queries with `timescaledb_information`.
+</Callout>
+
+### Internal schemas to avoid
+
+TimescaleDB uses several internal schemas to manage metadata, distributed transactions, and hypertable state. **Under no circumstances should you query, build tools upon, or modify tables and views within these schemas.**
+These schemas serve a strictly internal purpose. These objects are actively refactored, altered, and removed in these schemas between minor releases to optimize database performance.
+
+<Callout variant="warning">
+If you build monitoring on these internal schemas, your tools will inevitably break during database upgrades without warning.
+</Callout>
+
+Do not build dependencies on any objects in the following schemas:
+- `_timescaledb_cache`
+- `_timescaledb_catalog`
+- `_timescaledb_internal`
+
+### Experimental schema
+
+Any tables, views, or functions in the `timescaledb_experimental` schema are considered not ready for production services and breaking changes can happen at any time.

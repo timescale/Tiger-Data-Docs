@@ -1,0 +1,229 @@
+---
+title: Integrate Litmus Edge with Tiger Cloud
+description: Stream industrial device data from Litmus Edge into your service using the PostgreSQL integration connector
+integrationCategory: data-ingestion-streaming
+integrationPlatforms: [aws, azure, self-hosted]
+integrationIndustry: [iot, manufacturing, energy]
+keywords: [industrial iot, edge computing, opc ua, mqtt, manufacturing data, scada, devicehub, litmus edge]
+integrationCardLogo: litmus-edge.png
+integrationCardLogoDark: litmus-edge-dark.png
+sidebar:
+  label: Litmus Edge
+---
+
+import * as C from "@constants";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-and-self.mdx";
+import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
+
+[Litmus Edge](https://litmus.io/litmus-edge/) is an industrial edge platform that collects data from PLCs, sensors,
+and other operational technology assets over protocols such as OPC UA, MQTT, and Modbus, then forwards that data to
+enterprise systems and databases.
+
+This page shows you how to configure the {C.PG} integration connector in Litmus Edge to stream device data into
+your {C.SERVICE_LONG}, where it is stored as a {C.HYPERTABLE} for time-series analytics.
+
+In this integration guide, you:
+
+- Create a target {C.HYPERTABLE} in your {C.SERVICE_LONG}.
+- Configure the {C.PG} connector in Litmus Edge to point at your service.
+- Subscribe a DeviceHub topic to the connector so device data flows into the {C.HYPERTABLE}.
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+- A running [Litmus Edge](https://docs.litmus.io/litmusedge) instance that can reach your {C.SERVICE_LONG} on port `5432`.
+- At least one device configured in Litmus Edge [DeviceHub](https://docs.litmus.io/litmusedge/product-features/devicehub) that is publishing tags you want to stream.
+</Prerequisites>
+
+## Prepare your service
+
+Litmus Edge writes every published tag to a fixed schema. Pre-create the table as a {C.HYPERTABLE} so time-series
+queries and {C.COLUMNSTORE} policies work out of the box.
+
+<NumberedList>
+  <NumberedItem title={`Connect to your ${C.SERVICE_LONG}`}>
+
+    Use the [{C.CONSOLE}](/build/data-management/run-queries-from-tiger-console), `psql`, or any other SQL editor to
+    connect to your {C.SERVICE_LONG}.
+
+  </NumberedItem>
+  <NumberedItem title={`Create the target ${C.HYPERTABLE}`}>
+
+    Litmus Edge writes one row per tag update with the following columns. Create the table directly as a
+    {C.HYPERTABLE} partitioned on `arrived_at`:
+
+    ```sql
+    CREATE TABLE litmus_data (
+        id          bigserial,
+        record      uuid              NOT NULL,
+        arrived_at  timestamptz       NOT NULL,
+        device_id   varchar(64),
+        register_id varchar(64),
+        tag_name    varchar(64),
+        datatype    varchar(32),
+        value       varchar,
+        success     boolean
+    ) WITH (
+        timescaledb.hypertable,
+        timescaledb.chunk_interval = '7 days',
+        timescaledb.segmentby = 'tag_name, device_id, register_id'
+    );
+    ```
+
+    Litmus Edge's default schema declares `id` as the primary key, but a {C.HYPERTABLE} primary key must include the
+    partition column. The statement above omits the primary key so that `arrived_at` alone partitions the data. Leave
+    the `Create Table If Missing` option in Litmus Edge unchecked so it writes into this table instead of trying to
+    create its own.
+  
+    If you need row-level uniqueness — for upserts or logical replication, for example — add `PRIMARY KEY (arrived_at, record)`: `record` is already `NOT NULL` and a uuid, and pairing it with the partition
+    column satisfies the {C.HYPERTABLE} requirement.
+
+    The `chunk_interval` setting controls how much data each {C.HYPERTABLE} chunk holds. Aim for chunks that fit the
+    most recent working set in memory — a good starting point is an interval that produces chunks roughly 25% of your
+    service's RAM. For a busy line publishing thousands of tags per second, that may mean hours rather than days; You can change the interval later with
+    [`set_chunk_time_interval()`](/reference/timescaledb/hypertables/set_chunk_time_interval) — it only affects new chunks.
+
+  </NumberedItem>
+</NumberedList>
+
+## Configure the {C.PG} connector in Litmus Edge
+
+Litmus Edge ships two {C.PG} integration types: `DB - PostgreSQL` for plaintext connections and `DB - PostgreSQL SSL`
+for TLS-protected connections. {C.CLOUD_LONG} requires TLS, so use the SSL variant for {C.CLOUD_LONG} and either
+variant for {C.SELF_LONG}.
+
+<NumberedList>
+  <NumberedItem title="Open the Integration pane">
+
+    Log in to Litmus Edge, then select `Integration` from the navigation panel.
+
+  </NumberedItem>
+  <NumberedItem title={`Add a ${C.PG} connector`}>
+
+    Click the add icon, then select `DB - PostgreSQL SSL` from the list of integration connectors.
+
+  </NumberedItem>
+  <NumberedItem title="Configure connection settings">
+
+    Using your [{C.SERVICE_LONG} connection details](/integrate/find-connection-details), fill in the connector
+    fields:
+
+    - `Name`: a label for this connector, for example `tiger-cloud`.
+    - `Hostname`: your service hostname.
+    - `Port`: `5432`.
+    - `SSL Mode`: `require`. Use `verify ca` or `verify full` if you want Litmus Edge to validate the server certificate.
+    - `Username`: your service username, typically `tsdbadmin`.
+    - `Password`: your service password.
+    - `Database`: `tsdb`.
+    - `Table`: `litmus_data`.
+
+    Leave `CA Certificate`, `Certificate`, and `Private Key` blank when `SSL Mode` is `require`. For `verify ca` or
+    `verify full`, paste the {C.CLOUD_LONG} CA certificate into `CA Certificate`.
+
+  </NumberedItem>
+  <NumberedItem title="Tune the write behavior">
+
+    For production workloads that require high throughput, set:
+
+    - `Bulk Insert Count`: number of messages to batch per `INSERT`. A value between `100` and `1000` reduces commit
+      overhead at high message rates.
+    - `Commit Timeout`: maximum milliseconds to wait before flushing a partial batch. `1000` is a good starting
+      point — drop to `200`–`500` if you need sub-second freshness.
+    - `Persistent Storage`: enable to spool messages to disk if the connection to your service drops, so no data is
+      lost during a brief outage.
+
+    Leave `Create Table If Missing` unchecked — the {C.HYPERTABLE} you created earlier is the target.
+
+  </NumberedItem>
+  <NumberedItem title="Save the connector">
+
+    Click `OK`. The new connector appears as a tile in the Integration pane with its status indicator.
+
+  </NumberedItem>
+</NumberedList>
+
+## Stream device data to your service
+
+A connector by itself does not move data. Subscribe one or more DeviceHub topics to it so tag updates flow into your
+{C.HYPERTABLE}.
+
+<NumberedList>
+  <NumberedItem title="Open the connector">
+
+    In the Integration pane, click the tile for the connector you just created.
+
+  </NumberedItem>
+  <NumberedItem title="Add a topic subscription">
+
+    Select the `Topics` tab, click the add icon, then choose `add a new subscription`.
+
+  </NumberedItem>
+  <NumberedItem title="Map a DeviceHub tag to the connector">
+
+    Configure the subscription:
+
+    - `Data direction`: `Local to Remote`.
+    - `Local data topic`: click the search icon and select the DeviceHub device and tag you want to stream. To
+      stream every tag from a device, use a wildcard suffix.
+    - `Remote data topic`: leave the default or enter a label that identifies this stream.
+    - `QoS`: `1` for at-least-once delivery.
+    - `Enable`: toggle on.
+
+    Click `OK`, then confirm the prompt to restart the connector.
+
+  </NumberedItem>
+</NumberedList>
+
+## Verify the integration
+
+To confirm Litmus Edge is writing data to your {C.SERVICE_LONG}:
+
+<NumberedList>
+  <NumberedItem title="Trigger a tag update in Litmus Edge">
+
+    Generate activity on the subscribed tag — let the device publish, or open the tag in DeviceHub and use
+    `Write Value` to push a test value.
+
+  </NumberedItem>
+  <NumberedItem title="Query the target table">
+
+    From the [{C.CONSOLE}](/build/data-management/run-queries-from-tiger-console) or `psql`, run:
+
+    ```sql
+    SELECT arrived_at, device_id, tag_name, value
+    FROM litmus_data
+    ORDER BY arrived_at DESC
+    LIMIT 10;
+    ```
+
+    You see one row per tag update, with `arrived_at` reflecting when Litmus Edge received the value, `device_id`
+    and `tag_name` identifying the source, and `value` holding the payload as a string.
+
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated Litmus Edge with {C.CLOUD_LONG}.
+
+## Troubleshooting
+
+- **Connector status shows `disconnected`:** check that the Litmus Edge host can reach your service on port `5432`,
+  and that the `Username`, `Password`, and `Database` match your [connection details](/integrate/find-connection-details).
+- **`relation "litmus_data" does not exist`:** Litmus Edge is writing to the wrong table. Confirm the `Table` field
+  is set to `litmus_data` and `Create Table If Missing` is unchecked.
+- **SSL handshake fails:** {C.CLOUD_LONG} requires TLS — use the `DB - PostgreSQL SSL` connector, not the plain
+  `DB - PostgreSQL` connector. If you selected `verify ca` or `verify full`, make sure the `CA Certificate` field
+  contains the {C.CLOUD_LONG} CA certificate.
+- **No rows appearing after a tag update:** confirm that the topic subscription is `Enabled` and that you restarted
+  the connector after adding it.
+
+For other connectivity and authentication issues, see [Troubleshoot {C.CLOUD_LONG} integrations](/integrate/troubleshooting).
+
+## Limitations
+
+- The {C.PG} connector is outbound only. Litmus Edge writes to your {C.SERVICE_LONG} but cannot read from it.
+  To query the {C.HYPERTABLE} from inside Litmus Edge, use the Litmus SQL node in a Flow — it can read from
+  your service and feed the results back into DeviceHub or another connector.
+- Litmus Edge writes the tag payload to a single `varchar` column. Cast `value` to the appropriate type
+  (`(value)::double precision`, `(value)::int`) at query time, or use a continuous aggregate to materialize typed columns.

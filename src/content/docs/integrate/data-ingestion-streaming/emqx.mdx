@@ -1,0 +1,293 @@
+---
+title: "Integrate EMQX with Tiger Cloud"
+description: "Connect EMQX to Tiger Cloud and stream MQTT messages into a hypertable"
+integrationCategory: "data-ingestion-streaming"
+integrationPlatforms: ["aws", "azure", "self-hosted"]
+integrationIndustry: ["iot", "manufacturing", "energy"]
+connectorType: "external"
+integrationTechnologies: ["MQTT", "PostgreSQL"]
+keywords: ["mqtt", "broker", "iot", "industrial data", "operational technology", "data streaming"]
+integrationCardLogo: "emqx.png"
+integrationCardLogoAlt: "EMQX logo"
+sidebar:
+  label: "EMQX"
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-and-self.mdx";
+import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
+
+[EMQX][emqx] is a distributed MQTT broker used to move data between IoT devices, applications, and backend systems in real time.
+
+This page shows you how to connect EMQX to your {C.SERVICE_LONG} using the EMQX [data integration for {C.PG}][emqx-pg-sink] to stream MQTT messages into {C.TIMESCALE_DB}.
+
+In this integration guide, you:
+
+- prepare a target hypertable for MQTT messages in your {C.SERVICE_LONG} service
+- configure EMQX to send messages to your {C.PG} database
+- verify that MQTT tag values arrive in your {C.TIMESCALE_DB} hypertable
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+- An [EMQX][emqx-download] broker (Open Source or Enterprise) with access to the EMQX Dashboard
+</Prerequisites>
+
+<NumberedList heading={`Create a target hypertable in ${C.CLOUD_LONG}`}>
+  <NumberedItem title="Connect to your service">
+    Use the [{C.CLOUD_LONG} Console][tiger console], `psql`, or any other SQL editor to connect to your {C.SERVICE_LONG}.
+  </NumberedItem>
+  <NumberedItem title="Create a target hypertable for MQTT messages">
+    Create a hypertable with the columns you want EMQX to populate from each MQTT message. For example:
+
+    ```sql
+    CREATE TABLE mqtt_messages (
+       ts          TIMESTAMPTZ NOT NULL,
+       tag_id      TEXT        NOT NULL,
+       client_id   TEXT,
+       qos         SMALLINT,
+       value       DOUBLE PRECISION
+    ) WITH (
+       tsdb.hypertable = true,
+       tsdb.partition_column = 'ts',
+       tsdb.chunk_interval = '7 days'
+    );
+    ```
+
+    Choose a chunk interval that matches your message volume and query patterns. Aim for chunk sizes that fit the most recent working set in memory — a good starting point is an interval that produces chunks roughly 25% of your service RAM. For lower-volume streams, that may mean hours instead of days; for very busy MQTT workloads, a longer interval such as 2–7 days may be more appropriate.
+
+    You can change the chunk interval later with `set_chunk_time_interval()`; it only affects new chunks, so the current data remains unchanged.
+
+    <Callout variant="note">
+    You may need to change the table columns based on the format of the MQTT payload and what you want to store. The instructions here assume a plaintext numeric payload. If you need JSON or Sparkplug B mappings, see the additional examples at the end of this guide.
+    </Callout>
+  </NumberedItem>
+</NumberedList>
+
+<NumberedList heading={`Configure an EMQX data integration for ${C.PG}`}>
+  <NumberedItem title="Sign in to the EMQX Dashboard">
+    Navigate your browser to the EMQX Dashboard (default `http://YOUR_EMQX_HOST:18083`) and sign in with an admin account.
+  </NumberedItem>
+  <NumberedItem title={`Create a ${C.PG} connector`}>
+    Open **Integration** / **Connector** and select **Create**. Choose **{C.PG}** as the connector type.
+
+    Give the connector a name and add the **host**, **port**, **database**, **username**, and **password** from your {C.SERVICE_LONG} connection details. Enable TLS, then select **Test Connectivity** to verify the connection.
+
+    <Callout variant="warning">
+    {C.CLOUD_LONG} requires TLS. Make sure **Enable TLS** is on, otherwise the connector will not be able to reach your service.
+    </Callout>
+  </NumberedItem>
+  <NumberedItem title={`Create a ${C.PG} sink`}>
+    Open **Integration** / **Rules** and select **Create** to start a new rule. In the **SQL Editor**, write a rule that selects the messages you want to persist.
+
+    Use the payload mapping example above that matches your MQTT message format. For a simple numeric payload, the rule looks like:
+
+    ```sql
+    SELECT
+      timestamp                        as ts,
+      topic                            as tag_id,
+      clientid                         as client_id,
+      qos                              as qos,
+      CAST(payload AS DOUBLE PRECISION) as value
+    FROM "#"
+    ```
+
+    Under **Action Outputs**, select **Add Action**, choose **{C.PG}**, and select the connector you created in the previous step. Set the **SQL template** to insert into your table:
+
+    ```sql
+    INSERT INTO mqtt_messages (ts, tag_id, client_id, qos, value)
+    VALUES (
+      to_timestamp(${ts}::double precision / 1000),
+      ${topic},
+      ${client_id},
+      ${qos},
+      ${value}
+    )
+    ```
+
+    Save the action, then save the rule.
+
+  </NumberedItem>
+  <NumberedItem title="Verify messages are flowing">
+    Publish a test message to a topic that matches your rule, then query the table to confirm rows are arriving:
+
+    ```sql
+    SELECT * FROM mqtt_messages ORDER BY ts DESC LIMIT 10;
+    ```
+
+    If no rows appear, check the rule's **Statistics** tab in the EMQX Dashboard for matched and failed counts, and review the EMQX log for connector errors.
+  </NumberedItem>
+</NumberedList>
+
+## Verify the integration
+
+To confirm EMQX is sending MQTT data into your {C.SERVICE_LONG}:
+
+<NumberedList>
+  <NumberedItem title="Publish a test MQTT message">
+    Send a test message to the topic you configured in your EMQX rule. Then check the rule's statistics in the EMQX Dashboard to verify the message was matched and the {C.PG} action succeeded.
+  </NumberedItem>
+  <NumberedItem title={`Query the target table in ${C.SERVICE_LONG}`}>
+    Use the [{C.CLOUD_LONG} Console][tiger console], `psql`, or another SQL client to run:
+
+    ```sql
+    SELECT * FROM mqtt_messages ORDER BY ts DESC LIMIT 10;
+    ```
+
+    You should see the tag value and metadata appear in the table rows.
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated EMQX with {C.CLOUD_LONG}.
+
+## Additional payload examples
+
+The following table schemas, EMQX Rules, and Action Outputs can be adapted for different MQTT Payloads depending on the structure of the payload and what values are to be recorded.
+
+### JSON payload with named fields
+
+Use this when the MQTT message body is JSON and you want to extract individual fields.
+
+Sample payload:
+
+```json
+{
+  "tag_value": 112.34,
+  "status": "ok",
+  "device": "sensor-1"
+}
+```
+
+Table Schema:
+
+```sql
+CREATE TABLE mqtt_messages_json (
+  ts          TIMESTAMPTZ NOT NULL,
+  tag_id      TEXT        NOT NULL,
+  client_id   TEXT,
+  qos         SMALLINT,
+  value       DOUBLE PRECISION,
+  status      TEXT
+) WITH (
+  tsdb.hypertable = true,
+  tsdb.partition_column = 'ts',
+  tsdb.chunk_interval = '7 days'
+);
+```
+
+Rule:
+
+```sql
+SELECT
+  timestamp                            as ts,
+  topic                                as tag_id,
+  clientid                             as client_id,
+  qos                                  as qos,
+  CAST(payload->>'tag_value' AS DOUBLE PRECISION) as value,
+  payload->>'status'                   as status
+FROM "#"
+```
+
+Action output:
+
+```sql
+INSERT INTO mqtt_messages_json (ts, tag_id, client_id, qos, value, status)
+VALUES (
+  to_timestamp(${ts}::double precision / 1000),
+  ${topic},
+  ${client_id},
+  ${qos},
+  ${value},
+  ${status}
+)
+```
+
+### Sparkplug B payload
+
+Use this when EMQX receives Sparkplug B messages with nested metric data.
+
+Sample payload:
+
+```json
+{
+  "namespace": "spBv1.0",
+  "group_id": "factory-1",
+  "edge_node_id": "edge-01",
+  "device_id": "device-01",
+  "metrics": [
+    { "name": "temperature", "value": 72.5 }
+  ],
+  "timestamp": 1710000000000
+}
+```
+
+Table Schema:
+
+```sql
+CREATE TABLE mqtt_messages_sparkplug (
+  ts             TIMESTAMPTZ NOT NULL,
+  namespace      TEXT        NOT NULL,
+  group_id       TEXT        NOT NULL,
+  edge_node_id   TEXT,
+  device_id      TEXT,
+  metric_name    TEXT,
+  metric_value   DOUBLE PRECISION,
+  metric_ts      TIMESTAMPTZ
+) WITH (
+  tsdb.hypertable = true,
+  tsdb.partition_column = 'ts',
+  tsdb.chunk_interval = '7 days'
+);
+```
+
+Rule:
+
+```sql
+SELECT
+  timestamp                            as ts,
+  topic                                as tag_id,
+  clientid                             as client_id,
+  qos                                  as qos,
+  payload->>'namespace'                as namespace,
+  payload->>'group_id'                 as group_id,
+  payload->>'edge_node_id'             as edge_node_id,
+  payload->>'device_id'                as device_id,
+  (payload->'metrics'->0)->>'name'     as metric_name,
+  CAST((payload->'metrics'->0)->>'value' AS DOUBLE PRECISION) as metric_value,
+  to_timestamp(CAST(payload->>'timestamp' AS DOUBLE PRECISION) / 1000) as metric_ts
+FROM "#"
+```
+
+Action output:
+
+```sql
+INSERT INTO mqtt_messages_sparkplug (ts, namespace, group_id, edge_node_id, device_id, metric_name, metric_value, metric_ts)
+VALUES (
+  to_timestamp(${ts}::double precision / 1000),
+  ${namespace},
+  ${group_id},
+  ${edge_node_id},
+  ${device_id},
+  ${metric_name},
+  ${metric_value},
+  ${metric_ts}
+)
+```
+
+## Troubleshooting
+
+- If no rows appear in the target table, verify EMQX rule statistics for matched and failed counts, and confirm the connector is using the correct {C.PG} credentials and database host.
+- If the rule matches messages but the action fails, check that the payload fields are being extracted with the right JSON path and that the action SQL template uses the same column names as your target table.
+
+[tiger console]: /docs/build/data-management/run-queries-from-tiger-console
+
+[services-portal]: https://console.cloud.tigerdata.com/dashboard/services
+
+[emqx]: https://www.emqx.com/
+
+[emqx-download]: https://www.emqx.com/en/downloads
+
+[emqx-pg-sink]: https://docs.emqx.com/en/emqx/latest/data-integration/data-bridge-timescale.html

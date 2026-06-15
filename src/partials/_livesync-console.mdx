@@ -5,8 +5,9 @@ import { NumberedList, NumberedItem } from "@components/NumberedList";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 
 import imgPgConnectorWizard from "../assets/images/integrate/connectors/pg-connector-wizard-tiger-console.png";
+import imgPgConnectorConnectionString from "../assets/images/integrate/connectors/pg-connector-connection-string.png";
 import imgPgConnectorStart from "../assets/images/integrate/connectors/pg-connector-start-tiger-console.png";
-import imgConnectorOverview from "../assets/images/integrate/connectors/tiger-console-connector-overview.png";
+import imgPgConnectorConfigureIdcWorkerCount from "../assets/images/integrate/connectors/pg-connector-configure-idc-worker-count.png";
 import imgEditPgConnector from "../assets/images/integrate/connectors/edit-pg-connector-tiger-console.png";
 
 import PrereqCloud from "./_prereqs-cloud-no-connection.mdx";
@@ -30,10 +31,6 @@ import TuneSourceDatabaseAWSRDS from "./_livesync-configure-source-database-awsr
 
 ## Limitations
 
-* The source {C.PG} instance must be accessible from the Internet.
-
-  Services hosted behind a firewall or VPC are not supported. This functionality is on the roadmap.
-
 * Indexes, including the primary key, unique constraints, and sequences are not migrated to the target {C.SERVICE_LONG}.
 
   We recommend that, depending on your query patterns, you create only the necessary indexes on the target {C.SERVICE_LONG}.
@@ -49,7 +46,7 @@ set the following:
 export SOURCE="postgres://<user>:<password>@<source host>:<source port>/<db_name>"
 ```
 
-<Callout variant="tip">
+<Callout variant="important">
 
 Avoid using connection strings that route through connection poolers like PgBouncer or similar tools. This tool
 requires a direct connection to the database to function properly.
@@ -92,45 +89,69 @@ In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select
 
 </NumberedItem>
 
-<NumberedItem title={`Connect the source database and the target ${C.SERVICE_SHORT}`}>
+<NumberedItem title="Prepare the source database">
 
 <Image src={imgPgConnectorWizard} alt="PostgreSQL connector wizard in Tiger Console" />
 
-1. Click `Connectors` > `{C.PG}`.
+1. Click `Connectors` > `Postgres`.
 1. Set the name for the new connector by clicking the pencil icon.
 1. Check the boxes for `Set wal_level to logical` and `Update your credentials`, then click `Continue`.
-1. Enter your database credentials or a {C.PG} connection string, then click `Connect to database`.
-   This is the connection string for [`<pg connector username>`](/migrate/livesync-for-postgresql/#tune-your-source-database). {C.CONSOLE} connects to the source database and retrieves the schema information.
 
 </NumberedItem>
 
-<NumberedItem title={`Optimize the data to synchronize in ${C.HYPERTABLE}s`}>
+<NumberedItem title={`Connect the source database and the target ${C.SERVICE_SHORT}`}>
+
+<Image src={imgPgConnectorConnectionString} alt="PostgreSQL connector connection string in Tiger Console" />
+
+1. Enter your database credentials or a {C.PG} connection string. This is the connection string for [`<pg connector username>`](/migrate/livesync-for-postgresql/#tune-your-source-database).
+
+1. **(Recommended for private databases)** If the source database is not reachable from the public Internet, toggle `Enable SSH tunneling` and route the connector through a bastion host:
+
+   1. Copy the public key shown in the wizard and append it to the `authorized_keys` file of the user the connector will log in as on the bastion host:
+
+         ```bash
+         echo "<public key from the connector wizard>" >> ~/.ssh/authorized_keys
+
+         # Verify
+         cat ~/.ssh/authorized_keys
+         ```
+
+   1. Enter the bastion `Hostname`, `User`, and `Port` in the wizard.
+
+1. Click `Connect to database`. {C.CONSOLE} connects to the source database and retrieves the schema information.
+
+</NumberedItem>
+
+<NumberedItem title="Select the data to synchronize">
 
 <Image src={imgPgConnectorStart} alt="Starting the PostgreSQL connector in Tiger Console" />
 
-1. In the `Select table` dropdown, select the tables to sync.
-1. Click `Select tables +` .
+Choose where the connector picks tables from:
 
-   {C.CONSOLE} checks the table schema and, if possible, suggests the column to use as the time dimension in a {C.HYPERTABLE}.
-1. Click `Create Connector`.
+- **From an existing publication**: select a {C.PG} `PUBLICATION` name, then pick schemas and tables from those it includes. Use this when you cannot grant the connector user `CREATE` privilege on the source — your DBA can pre-create the publication — or when you want to apply [row or column filters](https://www.postgresql.org/docs/current/logical-replication-row-filter.html) on published tables.
+- **Directly from the source**: select schemas, then pick the tables to sync from them. {C.CONSOLE} creates the publication for you.
 
-   {C.CONSOLE} starts {C.PG_CONNECTOR} between the source database and the target {C.SERVICE_SHORT} and displays the progress.
-
-</NumberedItem>
-
-<NumberedItem title="Monitor synchronization">
-
-<Image src={imgConnectorOverview} alt="Connectors overview in Tiger Console" />
-
- 1. To view the amount of data replicated, click `Connectors`. The diagram in `Connector data flow` gives you an overview of the connectors you have created, their status, and how much data has been replicated.
-
- 1. To review the syncing progress for each table, click `Connectors` > `Source connectors`, then select the name of your connector in the table.
+Click `Select tables +`. For each selected table, {C.CONSOLE} checks the schema and, if possible, suggests the column to use as the time dimension in a {C.HYPERTABLE}.
 
 </NumberedItem>
 
-<NumberedItem title="Manage the connector">
+<NumberedItem title="Configure Initial Data Copy workers">
+
+<Image src={imgPgConnectorConfigureIdcWorkerCount} alt="Configure Initial Data Copy worker count in Tiger Console" />
+
+Specify the number of parallel connections — Initial Data Copy (IDC) workers — used to process the initial data copy. Higher values can speed up the initial copy but may increase load on the source database. Defaults to `4`.
+
+Tune this based on the resources available on the source database and the number of tables being synced. Large individual tables still copy through a single connection, so higher worker counts help most when you have many small to medium tables.
+
+Click `Create Connector`. {C.CONSOLE} starts the {C.PG_CONNECTOR} between the source database and the target {C.SERVICE_SHORT} and displays the progress.
+
+</NumberedItem>
+
+<NumberedItem title="Monitor and manage the connector">
 
 <Image src={imgEditPgConnector} alt="Editing a PostgreSQL connector in Tiger Console" />
+
+1. To review the syncing progress for each table, click `Connectors` > `Source connectors`, then select the name of your connector in the table.
 
 1. To edit the connector, click `Connectors` > `Source connectors`, then select the name of your connector in the table. You can rename the connector, delete or add new tables for syncing.
 

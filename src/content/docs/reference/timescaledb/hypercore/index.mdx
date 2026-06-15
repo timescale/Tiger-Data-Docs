@@ -9,66 +9,13 @@ keywords: [hypercore]
 import * as C from "@constants";
 
 import HypercoreIntro from '@partials/_hypercore-intro.mdx';
-import OldCreateHypertable from '@partials/_old-api-create-hypertable.mdx';
+import HCPolicyWorkflow from '@partials/_hypercore_policy_workflow.mdx';
 
 <HypercoreIntro />
 
 ## Samples
 
-Best practice for using {C.HYPERCORE} is to:
-
-1. **Enable {C.COLUMNSTORE} on a {C.HYPERTABLE}**
-
-   For [efficient queries](/build/performance-optimization/secondary-indexes), remember to `segmentby` the column you will
-   use most often to filter your data. For example:
-
-   - **{C.HYPERTABLE_CAP}s**:
-
-     Use [`CREATE TABLE`](/reference/timescaledb/hypertables/create_table):
-
-     ```sql
-     CREATE TABLE crypto_ticks (
-       "time" TIMESTAMPTZ,
-       symbol TEXT,
-       price DOUBLE PRECISION,
-       day_volume NUMERIC
-     ) WITH (
-       timescaledb.hypertable,
-       timescaledb.segmentby='symbol',
-       timescaledb.orderby='time DESC'
-     );
-     ```
-
-     <OldCreateHypertable />
-   - **{C.CAGG_CAP}s**:
-
-   1. [Use `ALTER MATERIALIZED VIEW` for a {C.CAGG}](/reference/timescaledb/continuous-aggregates/alter_materialized_view):
-      ```sql
-      ALTER MATERIALIZED VIEW assets_candlestick_daily set (
-         timescaledb.enable_columnstore = true,
-         timescaledb.segmentby = 'symbol');
-      ```
-
-   2. Create a [columnstore\_policy](/reference/timescaledb/hypercore/add_columnstore_policy) that automatically converts {C.CHUNK}s in a {C.HYPERTABLE}
-      to the {C.COLUMNSTORE} at a specific time interval. For example:
-      ```sql
-      CALL add_columnstore_policy('assets_candlestick_daily', after => INTERVAL '1d');
-      ```
-
-   {C.TIMESCALE_DB} is optimized for fast updates on compressed data in the {C.COLUMNSTORE}. To modify data in the
-   {C.COLUMNSTORE}, use standard SQL.
-
-2. **View the policies that you set or the policies that already exist**
-
-   ```sql
-   SELECT * FROM timescaledb_information.jobs
-   WHERE proc_name='policy_compression';
-   ```
-
-   See [timescaledb\_information.jobs](/reference/timescaledb/informational-views/jobs).
-
-You can also [convert\_to\_columnstore](/reference/timescaledb/hypercore/convert_to_columnstore) and [convert\_to\_rowstore](/reference/timescaledb/hypercore/convert_to_rowstore) manually
-for more fine-grained control over your data.
+<HCPolicyWorkflow />
 
 ## Limitations
 

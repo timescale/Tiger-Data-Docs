@@ -3,8 +3,11 @@ import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import SupportMatrix from "./_migrate_self_postgres_timescaledb_compatibility.mdx";
 
-import { Image } from "astro:assets";
-import imgTigerConsoleMaintenanceUpgrades from "../assets/images/deploy/tiger-cloud/tiger-console-maintenance-upgrades.png";
+import ThemeImage from "@components/ThemeImage.astro";
+import imgTigerConsoleMaintenanceUpgradesLight from "../assets/images/deploy/tiger-cloud/tiger-console-maintenance-upgrades-light.png";
+import imgTigerConsoleMaintenanceUpgradesDark from "../assets/images/deploy/tiger-cloud/tiger-console-maintenance-upgrades-dark.png";
+import imgTigerConsoleServiceUpgradesLight from "../assets/images/deploy/tiger-cloud/tiger-console-service-upgrades-light.png";
+import imgTigerConsoleServiceUpgradesDark from "../assets/images/deploy/tiger-cloud/tiger-console-service-upgrades-dark.png";
 
 {C.CLOUD_LONG} offers managed database {C.SERVICE_SHORT}s that provide a stable and reliable environment for your
 applications. Each {C.SERVICE_SHORT} is based on a specific version of the {C.PG} database and the {C.TIMESCALE_DB} extension.
@@ -12,64 +15,44 @@ To ensure that you benefit from the latest features, performance and security im
 {C.SERVICE_LONG} is kept up to date with the latest versions of {C.TIMESCALE_DB} and {C.PG}.
 
 {C.CLOUD_LONG} has the following upgrade policies:
-* **Minor software upgrades**: handled automatically, you do not need to do anything.
+* **{C.TIMESCALE_DB} upgrades**:
+  - [Non-critical upgrades](#non-critical-upgrades) — new minor versions and patch releases, applied automatically during a [maintenance window](#define-your-maintenance-window) that you define. Or upgrade manually earlier.
+  - [Critical security patches](#critical-security-patches) — installed outside normal maintenance windows when necessary, sometimes with a short outage.
+* **{C.PG} upgrades**:
+  - Minor version upgrades — applied automatically during your [maintenance window](#define-your-maintenance-window).
+  - Major version upgrades — [performed by you](#manually-upgrade-postgresql), on your own schedule. {C.CLOUD_LONG} only performs an [automatic upgrade](#automatic-upgrades-for-deprecated-versions) **when your current {C.PG} version reaches end-of-life**.
 
-  Upgrades are performed on your {C.SERVICE_LONG} during a maintenance window that you
-  [define to suit your workload](#define-your-maintenance-window). You can also [manually upgrade {C.TIMESCALE_DB}](#manually-upgrade-timescaledb-for-non-critical-upgrades).
-* **Critical security upgrades**: installed outside normal maintenance windows when necessary, and sometimes require
-  a short outage.
-
-  Downtime is usually between 30 seconds and 5 minutes. {C.COMPANY} aims to notify you by email
-  if downtime is required, so that you can plan accordingly. However, in some cases this is not possible.
-* **Major upgrades**: such as a new version of {C.PG} are performed [manually by you](#manually-upgrade-postgresql-for-a-service), or [automatically
-  by {C.CLOUD_LONG}](#automatic-postgresql-upgrades-for-a-service).
-
-<Callout variant="info">
+<Callout variant="note">
 
 After a maintenance upgrade, the DNS name remains the same. However, the IP address often changes.
 
 </Callout>
 
-## Minor software upgrades
+## Check your current versions
 
-If you do not [manually upgrade {C.TIMESCALE_DB}](#manually-upgrade-timescaledb-for-non-critical-upgrades) for non-critical upgrades,
-{C.CLOUD_LONG} performs upgrades automatically in the next available maintenance window. The upgrade is first applied to your standard {C.SERVICE_SHORT}s tagged `#dev`, and three weeks later to those tagged `#prod`. [Subscribe](https://status.tigerdata.com/) to get an email notification before your `#prod` {C.SERVICE_SHORT}s are upgraded. To upgrade your `#prod` {C.SERVICE_SHORT}s manually before the service window, see [Service management](service-management/service-management#change-the-service-environment).
+In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select your {C.SERVICE_SHORT}, then click `Operations` > `Service Upgrades`. This shows your current {C.TIMESCALE_DB} and {C.PG} versions, and whether a newer version is available.
 
-Most upgrades that occur during your maintenance windows do not require any downtime. This means that there is no
-{C.SERVICE_SHORT} outage during the upgrade. However, all connections and transactions in progress during the upgrade are
-reset. Usually, the {C.SERVICE_SHORT} connection is automatically restored after the reset.
+<ThemeImage light={imgTigerConsoleServiceUpgradesLight} dark={imgTigerConsoleServiceUpgradesDark} alt="Service upgrades panel in Tiger Console showing current and latest PostgreSQL and TimescaleDB versions" />
 
-Some minor upgrades do require some downtime. This is usually between 30 seconds and 5 minutes. If downtime is required
-for an upgrade, {C.COMPANY} endeavors to notify you by email ahead of the upgrade. However, in some cases, we might not be
-able to do so. Best practice is to [schedule your maintenance window](#define-your-maintenance-window) so that any downtime
-disrupts your workloads as little as possible and [minimize downtime with replicas](#minimize-downtime-with-replicas). If there are no
-pending upgrades available during a regular maintenance window, no changes are performed.
+## {C.TIMESCALE_DB} upgrades
 
-Free {C.SERVICE_SHORT}s are upgraded and restarted during the maintenance window each week, if there is a new version available. Some background maintenance tasks performed at other times can also cause connection resets. When a connection reset occurs, you can immediately reconnect to your {C.SERVICE_SHORT}s.
+{C.CLOUD_LONG} keeps your {C.SERVICE_SHORT}s on a supported version of {C.TIMESCALE_DB}. Non-critical upgrades — new minor versions and patch releases — are applied during your [maintenance window](#define-your-maintenance-window), or you can [trigger them manually](#non-critical-upgrades). Critical security patches are installed as soon as they are available.
 
-To track the status of maintenance events, see the {C.CLOUD_LONG} [status page](https://status.tigerdata.com/).
+### Non-critical upgrades
 
-### Minimize downtime with replicas
+Non-critical upgrades — new minor versions and patch releases — are applied automatically in the next available maintenance window.
 
-Maintenance upgrades require up to two automatic failovers. Each failover takes less than a few seconds.
-{C.SERVICE_LONG}s with [{C.HA_REPLICA}s and {C.READ_REPLICA}s](high-availability/high-availability) require minimal write downtime during maintenance,
-read-only queries keep working throughout.
+The schedule depends on the upgrade type and your service's environment tag:
 
-During a maintenance event, services with replicas perform maintenance on each node independently. When maintenance is
-complete on the primary node, it is restarted:
-- If the restart takes more than a minute, a replica node is promoted to primary, given that the replica has no
-  replication lag. Maintenance now proceeds on the newly promoted replica, following the same
-  sequence. If the newly promoted replica takes more than a minute to restart, the former
-  primary is promoted back. In total, the process may result in up to two minutes of write
-  downtime and two failover events.
-- If the maintenance on the primary node is completed within a minute and it comes back online, the replica remains
-  the replica.
+- **New minor versions on `#dev` {C.SERVICE_SHORT}s**: applied in the next maintenance window after the release.
+- **New minor versions on `#prod` {C.SERVICE_SHORT}s**: applied in the next maintenance window three weeks after the release. This gives you three weeks to validate the release on your `#dev` {C.SERVICE_SHORT}s first.
+- **Patch releases**: applied in the next maintenance window on both `#dev` and `#prod` {C.SERVICE_SHORT}s, with no waiting period.
 
+Occasionally, a new minor version is released before the previous one has completed its three-week window — for example, when it contains an important fix. In that case, the newer minor version takes priority: your `#prod` {C.SERVICE_SHORT}s skip the previous minor and target the new one instead, and the three-week window restarts from the new release. Your `#dev` {C.SERVICE_SHORT}s move to the new minor in their next maintenance window, as usual.
 
-### Manually upgrade {C.TIMESCALE_DB} for non-critical upgrades
+[Subscribe](https://status.tigerdata.com/) to get an email notification before your `#dev` {C.SERVICE_SHORT}s are upgraded. If there are no pending upgrades during a maintenance window, no changes are performed.
 
-Non-critical upgrades are available before the upgrade is performed automatically by {C.CLOUD_LONG}. To upgrade
-{C.TIMESCALE_DB} manually:
+To apply a non-critical {C.TIMESCALE_DB} upgrade manually before the next maintenance window:
 
 <NumberedList>
 
@@ -81,43 +64,42 @@ In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select
 
 <NumberedItem title={`Upgrade ${C.TIMESCALE_DB}`}>
 
-Either:
-
-1. Click `SQL Editor` at the bottom, then run `ALTER EXTENSION timescaledb UPDATE`.
-1. Click `⋮`, then `Pause` and `Resume` the service.
+Click `SQL Editor` at the bottom, then run `ALTER EXTENSION timescaledb UPDATE`.
 
 </NumberedItem>
 
 </NumberedList>
 
+### Critical security patches
 
-Upgrading to a newer version of {C.PG} allows you to take advantage of new
-features, enhancements, and security fixes. It also ensures that you are using a
-version of {C.PG} that's compatible with the newest version of {C.TIMESCALE_DB},
-allowing you to take advantage of everything it has to offer. For more
-information about feature changes between versions, see the [{C.CLOUD_LONG} release notes](/get-started/news/new),
-[supported systems](/get-started/choose-your-path/supported-platforms), and the [{C.PG} release notes](https://www.postgresql.org/docs/release/).
+Critical security patches are installed outside your normal maintenance window as soon as they are available.
 
-## Deprecations
+### Downtime and connection resets
 
-To ensure you benefit from the latest features, optimal performance, enhanced security, and full compatibility
-with {C.TIMESCALE_DB}, {C.CLOUD_LONG} supports a defined set of {C.PG} major versions. To reduce the maintenance burden and
-continue providing a high-quality managed experience, as {C.PG} and {C.TIMESCALE_DB} evolve, {C.COMPANY} periodically deprecates
-older {C.PG} versions.
+Most upgrades do not require any downtime. Connections and transactions in progress during the upgrade are reset, then the {C.SERVICE_SHORT} connection is usually restored automatically. Some background maintenance tasks performed outside the maintenance window can also cause connection resets — when one occurs, you can immediately reconnect.
 
-{C.COMPANY} provides advance notification to allow you ample time to plan and perform your upgrade. The timeline
-deprecation is as follows:
-- **Deprecation notice period begins**: you receive email notification of the deprecation and the timeline for the
-  upgrade.
-- **Customer self-service upgrade window**: best practice is to [manually upgrade to a new {C.PG} version](#manually-upgrade-postgresql-for-a-service) in
-  this time.
-- **Automatic upgrade deadline**: {C.CLOUD_LONG} performs an [automatic upgrade](#automatic-postgresql-upgrades-for-a-service) of your {C.SERVICE_SHORT}.
+Some non-critical upgrades and critical security patches do require a short outage, usually between 30 seconds and 5 minutes. {C.COMPANY} endeavors to notify you by email ahead of an upgrade that requires downtime. In some cases — particularly for critical security patches — advance notice is not possible. To track the status of maintenance events, see the {C.CLOUD_LONG} [status page](https://status.tigerdata.com/).
 
+To minimize the impact of downtime, [schedule your maintenance window](#define-your-maintenance-window) for a low-traffic period in your application, and add a [{C.HA_REPLICA} or {C.READ_REPLICA}](high-availability/high-availability). With a replica, writes pause only briefly during maintenance and read-only queries continue to be served by the replica throughout the upgrade.
 
-## Manually upgrade {C.PG} for a {C.SERVICE_SHORT}
+During a maintenance event, each node is upgraded independently. The primary is upgraded and restarted first:
 
-Upgrading to a newer version of {C.PG} enables you to take advantage of new features, enhancements, and security fixes.
-It also ensures that you are using a version of {C.PG} that's compatible with the newest version of {C.TIMESCALE_DB}.
+- If the primary restarts within a minute, no failover occurs. The replica stays as the replica, and maintenance then proceeds on it.
+- If the primary takes longer than a minute to restart — and the replica has no replication lag — the replica is promoted to primary (one failover). Maintenance then proceeds on the demoted former primary. If that node is also slow to restart, the original primary is promoted back (a second failover).
+
+Each failover takes less than a few seconds. In the worst case, two failovers add up to about two minutes of write downtime.
+
+## {C.PG} upgrades
+
+New minor versions of {C.PG} are applied automatically during your [maintenance window](#define-your-maintenance-window). You upgrade to a new major version of {C.PG} manually, on your own schedule. {C.CLOUD_LONG} only performs an [automatic upgrade](#automatic-upgrades-for-deprecated-versions) once your current {C.PG} version reaches end-of-life.
+
+Upgrading to a newer version of {C.PG} allows you to take advantage of new features, enhancements, and security fixes. It also ensures that you are using a version of {C.PG} that's compatible with the newest version of {C.TIMESCALE_DB}. For more information about feature changes between versions, see the [{C.CLOUD_LONG} release notes](/get-started/news/new), [supported systems](/get-started/choose-your-path/supported-platforms), and the [{C.PG} release notes](https://www.postgresql.org/docs/release/).
+
+The following table shows you the compatible versions of {C.PG} and {C.TIMESCALE_DB}:
+
+<SupportMatrix />
+
+### Manually upgrade {C.PG}
 
 For a smooth upgrade experience, make sure you:
 
@@ -130,20 +112,12 @@ For a smooth upgrade experience, make sure you:
    To reduce cost, you can immediately pause this fork and only pay for storage until you are comfortable deleting it
    after the upgrade is complete.
 
-<Callout variant="info">
+<Callout variant="important">
 
-{C.SERVICE_LONG}s with replicas cannot be upgraded. To upgrade a service
-with a replica, you must first delete the replica and then upgrade the service.
+{C.SERVICE_LONG}s with replicas cannot be upgraded. To upgrade a {C.SERVICE_SHORT}
+with a replica, you must first delete the replica and then upgrade the {C.SERVICE_SHORT}.
 
 </Callout>
-
-The following table shows you the compatible versions of {C.PG} and {C.TIMESCALE_DB}.
-
-<SupportMatrix />
-
-For more information about feature changes between versions, see the
-[{C.PG} release notes](https://www.postgresql.org/docs/release/) and
-[{C.TIMESCALE_DB} release notes](https://github.com/timescale/timescaledb/releases).
 
 <Callout variant="warning">
 
@@ -171,7 +145,7 @@ In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select
 
 <NumberedItem title={`Disable ${C.READ_REPLICA}s`}>
 
-Click <code>Operations</code> &gt; <code>Read scaling</code>, then click the trash icon next to all replica sets.
+Click <code>Operations</code> &gt; <code>Read scaling</code>, then click the trash icon next to all {C.READ_REPLICA} sets.
 
 </NumberedItem>
 
@@ -184,8 +158,8 @@ Click <code>Operations</code> &gt; <code>Read scaling</code>, then click the tra
 Your {C.SERVICE_LONG} is unavailable until the upgrade is complete. This normally takes up to 20 minutes.
 However, it can take longer if you have a large or complex {C.SERVICE_SHORT}.
 
-When the upgrade is finished, your service automatically resumes normal
-operations. If the upgrade is unsuccessful, the service returns to the state
+When the upgrade is finished, your {C.SERVICE_SHORT} automatically resumes normal
+operations. If the upgrade is unsuccessful, the {C.SERVICE_SHORT} returns to the state
 it was in before you started the upgrade.
 
 </NumberedItem>
@@ -195,11 +169,14 @@ it was in before you started the upgrade.
 
 </NumberedList>
 
-## Automatic {C.PG} upgrades for a {C.SERVICE_SHORT}
+### Automatic upgrades for deprecated versions
 
-If you do not manually upgrade your {C.SERVICE_SHORT}s within the [customer self-service upgrade window](#deprecations),
-{C.CLOUD_LONG} performs an automatic upgrade. Automatic upgrades can result in downtime, best practice is to
-[manually upgrade your {C.SERVICE_SHORT}s](#manually-upgrade-postgresql-for-a-service) during a low-traffic period for your application.
+To ensure you benefit from the latest features, optimal performance, enhanced security, and full compatibility with {C.TIMESCALE_DB}, {C.CLOUD_LONG} supports a defined set of {C.PG} major versions. As {C.PG} and {C.TIMESCALE_DB} evolve, {C.COMPANY} periodically deprecates older {C.PG} versions. If you do not upgrade before a deprecated version's deadline, {C.CLOUD_LONG} automatically upgrades your {C.SERVICE_SHORT} to keep it on a supported {C.PG} version. The automatic upgrade is applied during your [maintenance window](#define-your-maintenance-window). Automatic upgrades can result in downtime, so best practice is to [upgrade manually](#manually-upgrade-postgresql) during a low-traffic period for your application.
+
+{C.COMPANY} provides advance notification to allow you ample time to plan and perform your upgrade. The deprecation timeline is as follows:
+- **Deprecation notice**: you receive email notification of the deprecation and the timeline for the upgrade.
+- **Manual upgrade period**: [upgrade your {C.SERVICE_SHORT} manually](#manually-upgrade-postgresql) before the deadline.
+- **Automatic upgrade deadline**: {C.CLOUD_LONG} performs an automatic upgrade of your {C.SERVICE_SHORT}.
 
 During an automatic upgrade:
 1. Any configured [{C.HA_REPLICA}s](high-availability/high-availability) or [{C.READ_REPLICA}s](high-availability/read-scaling) are temporarily removed.
@@ -211,7 +188,7 @@ During an automatic upgrade:
 
 When you are considering your maintenance window schedule, best practice is to choose a day and time that usually
 has very low activity, such as during the early hours of the morning, or over the weekend. This helps minimize the
-impact of a short service interruption. Alternatively, you might prefer to have your maintenance window occur during
+impact of a short {C.SERVICE_SHORT} interruption. Alternatively, you might prefer to have your maintenance window occur during
 office hours, so that you can monitor your system during the upgrade.
 
 To change your maintenance window:
@@ -228,7 +205,7 @@ In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select
 
 1. Click `Operations` > `Environment`, then click `Change maintenance window`.
 
-   <Image src={imgTigerConsoleMaintenanceUpgrades} alt="Maintenance and upgrades" />
+   <ThemeImage light={imgTigerConsoleMaintenanceUpgradesLight} dark={imgTigerConsoleMaintenanceUpgradesDark} alt="Maintenance and upgrades" />
 
 1. Select the maintenance window start time, then click `Apply`.
 
