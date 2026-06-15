@@ -105,7 +105,7 @@ keywords: [topic, technology]    # optional, improves search
 
 ### Components
 
-The full component reference, with copy-paste examples, is [`readme-component.md`](./readme-component.md) (callouts, buttons, partials, Prerequisites, and more). Import only what you use. Common sources:
+The full component reference, with copy-paste examples, is [`README-component.md`](./README-component.md) (callouts, buttons, partials, Prerequisites, and more). Import only what you use. Common sources:
 
 ```mdx
 import * as C from "@constants";
@@ -203,7 +203,7 @@ Requires `STAINLESS_API_KEY` for API reference generation (see `.env.example`). 
 Deeper, authoritative guides in the repo. Prefer these over re-deriving conventions:
 
 - [`README.md`](./README.md): development quickstart, running the site locally, and where content lives.
-- [`readme-component.md`](./readme-component.md): full component usage guide (callouts, buttons, partials, Prerequisites) with copy-paste examples.
+- [`README-component.md`](./README-component.md): full component usage guide (callouts, buttons, partials, Prerequisites) with copy-paste examples.
 - [`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md): the per-page right-rail "Learn more" card.
 - [`.claude/references/deprecated-compression-apis.md`](./.claude/references/deprecated-compression-apis.md): the deprecated-to-current compression API mapping.
 - `src/content/docs/get-started/contributing.mdx`: the human-facing contributor and writing-style guide.
