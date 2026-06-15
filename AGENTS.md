@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Single source of truth for AI coding agents working in this repository (Claude Code, Cursor, Warp, and others). `CLAUDE.md` imports this file, so keep all agent guidance here.
+Single source of truth for AI coding agents working in this repository (Claude Code, Cursor, Warp, and others). `CLAUDE.md` is a symlink to this file, so keep all agent guidance here.
 
 ## Project overview
 
