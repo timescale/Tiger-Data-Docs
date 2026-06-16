@@ -1,11 +1,25 @@
 name: "TimescaleDB: Update GUCs list"
 
+# Regenerates the table of TimescaleDB configuration parameters (GUCs) that is
+# embedded in the docs via the `src/partials/_timescaledb-gucs.mdx` partial.
+#
+# How it works: scripts/timescaledb/generate_guc_overview.py fetches `src/guc.c`
+# from the timescale/timescaledb repo at the given release tag, parses the
+# DefineCustom*Variable macros to extract each GUC's name, type, default, and
+# description, and writes them as a Markdown table to the partial. The job then
+# opens a pull request with the regenerated partial for a human to review and merge.
+#
+# Triggers:
+#   - workflow_call: runs automatically on a TimescaleDB release, invoked by the
+#     release pipeline with the new release tag.
+#   - workflow_dispatch: run it by hand to refresh from a specific tag.
+
 on:
   workflow_call:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to refesh list from'
+        description: 'TimescaleDB release tag to refresh the GUC list from (for example 2.21.0)'
         required: true
         type: string
 

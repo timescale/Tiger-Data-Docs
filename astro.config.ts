@@ -770,12 +770,14 @@ export default defineConfig({
                   collapsed: true,
                   items: [
                     { label: "Overview", link: "/integrate/data-ingestion-streaming" },
+                    { label: "EMQX", link: "/integrate/data-ingestion-streaming/emqx" },
                     { label: "Fivetran", link: "/integrate/data-ingestion-streaming/fivetran" },
                     { label: "HighByte", link: "/integrate/data-ingestion-streaming/highbyte" },
                     { label: "Kepware KEPServerEX", link: "/integrate/data-ingestion-streaming/kepware-kepserverex" },
                     { label: "HiveMQ", link: "/integrate/data-ingestion-streaming/hivemq" },
                     { label: "Ignition", link: "/integrate/data-ingestion-streaming/ignition" },
                     { label: "Litmus Edge", link: "/integrate/data-ingestion-streaming/litmus-edge" },
+                    { label: "Node-RED", link: "/integrate/data-ingestion-streaming/node-red" },
                   ],
                 },
                 {
