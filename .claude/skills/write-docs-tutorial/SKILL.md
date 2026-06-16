@@ -152,7 +152,7 @@ import * as C from "@constants";
 
 Then use the matching constant for every product, brand, or term it covers. **The full list of available constants lives in `src/constants.ts` — read it directly when you need to find the right key, and treat that file as the source of truth.** Common ones include `{C.PG}` (PostgreSQL), `{C.CLOUD_LONG}` (Tiger Cloud), `{C.TIMESCALE_DB}`, `{C.SERVICE_LONG}` (Tiger Cloud service), `{C.SELF_LONG}` (self-hosted TimescaleDB), `{C.CLOUD_EDITOR}` (Tiger Cloud SQL editor), `{C.PGVECTORSCALE}`, and `{C.COMPANY}` (Tiger Data) — but any constant defined in `constants.ts` is fair game when it matches what you're writing.
 
-**Never hardcode** a product or brand name in prose when a constant exists for it. The `lint:postgresql-variable` CI check specifically enforces `{C.PG}`.
+**Never hardcode** a product or brand name in prose when a constant exists for it. The `TigerData.ProductConstants` Vale rule (run by the `vale.yml` CI check) nudges literal product/brand names toward their constant, including `{C.PG}`.
 
 **Exception:** Inside backticks or URLs, use the literal string. Extension names that appear as code (`pg_textsearch`, `pgvectorscale`) should be in backticks in prose for consistent formatting.
 
@@ -174,8 +174,7 @@ When a tutorial involves environment variables:
 
 Link to existing docs wherever relevant:
 - `/learn/search/using-pg-textsearch` — BM25 concepts
-- `/learn/search/pgvector-pgvectorsearch` — vector search concepts
-- `/reference/pgvectorscale/` — StreamingDiskANN reference
+- `/learn/search/pgvector-pgvectorsearch` — vector search concepts, including pgvectorscale and StreamingDiskANN
 - `/get-started/quickstart/create-service` — creating a service
 - `/get-started/choose-your-path/install-timescaledb` — self-hosted setup
 - Deploy guides under `/deploy/tiger-cloud/`
