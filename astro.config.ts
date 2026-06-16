@@ -198,6 +198,9 @@ export default defineConfig({
   base: BASE,
   trailingSlash: "never",
   markdown: {
+    // Astro 6.4.x no longer auto-applies GFM when custom remarkPlugins are set,
+    // which silently drops every Markdown table site-wide. Keep gfm explicit.
+    gfm: true,
     remarkPlugins: [remarkResolveConstantsInHeadings],
     rehypePlugins: [[rehypeBasePath, { base: BASE }], rehypePagefindWeight],
   },
