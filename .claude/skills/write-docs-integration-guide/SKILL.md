@@ -228,7 +228,7 @@ import * as C from "@constants";
 
 Use the matching constant for every product, brand, or term it covers. The full list lives in `src/constants.ts` — read it directly. Common ones: `{C.PG}` (PostgreSQL), `{C.CLOUD_LONG}` (Tiger Cloud), `{C.SERVICE_LONG}` (Tiger Cloud service), `{C.SELF_LONG}` (self-hosted TimescaleDB), `{C.TIMESCALE_DB}`, `{C.CONSOLE}`, `{C.HYPERTABLE}`, `{C.COMPANY}`.
 
-Never hardcode a product or brand name in prose when a constant exists. The `lint:postgresql-variable` CI check enforces `{C.PG}` for PostgreSQL/Postgres. Inside backticks or URLs, the literal string is fine.
+Never hardcode a product or brand name in prose when a constant exists. The `TigerData.ProductConstants` Vale rule (run by the `vale.yml` CI check) nudges literal product/brand names toward their constant, including `{C.PG}` for PostgreSQL/Postgres. Inside backticks or URLs, the literal string is fine.
 
 In `NumberedItem` titles, use a template literal when interpolating:
 
@@ -240,7 +240,7 @@ Preserve inline backticks in titles — they render correctly.
 
 ## Authoring rules
 
-- **Headings are sentence case.** Proper nouns and acronyms excepted. CI enforces this via `lint:headings`.
+- **Headings are sentence case.** Proper nouns and acronyms excepted. The `Google.Headings` Vale rule (run by the `vale.yml` CI check) enforces this.
 - **No `## Step N:` prefix.** `NumberedList` handles numbering; use plain verb-phrase headings.
 - **No `---` horizontal rules.** Section headings already separate content.
 - **No Latinisms.** "for example" not "e.g.", "that is" not "i.e.", "and so on" not "etc.", "versus" not "vs.".
@@ -279,13 +279,13 @@ import imgFoo from "../../../../assets/images/integrate/<category>/<file>.png";
 <Image src={imgFoo} alt="Descriptive alt text" />
 ```
 
-See `src/assets/images/integrate/image-instructions.mdx` for the project's image conventions.
+See `src/assets/images/README.md` for the project's image conventions, including the integration-screenshot layout and light/dark-mode versions.
 
 ## Components reference
 
 | Component | Source / docs |
 |---|---|
-| `Callout` | `src/components/Callout.astro` — variants: `info`, `note`, `tip`, `success`, `warning`, `danger` (no `caution`) |
+| `Callout` | `src/components/Callout.astro` — variants are exactly `tip`, `note`, `important`, `warning`, `callout` (CTA with button). No `info`/`success`/`danger`/`caution` — any other value is an authoring error. |
 | `NumberedList` / `NumberedItem` | `src/components/NumberedList.tsx` — `NumberedItem` accepts `title: string` |
 | `Prerequisites` | `src/components/Prerequisites.tsx` — pass `context="integration"` |
 | `RelatedContentCards` / `RelatedContentCard` | `src/components/RelatedContentCard.tsx`; per-page right-rail guide in `src/components/LearnMore.README.md` |
@@ -308,7 +308,7 @@ See `src/assets/images/integrate/image-instructions.mdx` for the project's image
    pnpm build
    ```
 
-   Fix anything flagged — MDX errors show as `Element type is invalid: undefined` or `Expected component X to be defined`. PostgreSQL and heading lint checks also run.
+   Fix anything flagged — MDX errors show as `Element type is invalid: undefined` or `Expected component X to be defined`. Prose, product-constant, and heading checks run separately via Vale (`pnpm lint:prose`, or the `vale.yml` CI check on changed lines), not as part of `pnpm build`.
 
 ## Checklist before finishing
 
