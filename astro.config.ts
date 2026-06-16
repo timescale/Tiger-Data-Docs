@@ -198,6 +198,7 @@ export default defineConfig({
   base: BASE,
   trailingSlash: "never",
   markdown: {
+    gfm: true,
     remarkPlugins: [remarkResolveConstantsInHeadings],
     rehypePlugins: [[rehypeBasePath, { base: BASE }], rehypePagefindWeight],
   },
