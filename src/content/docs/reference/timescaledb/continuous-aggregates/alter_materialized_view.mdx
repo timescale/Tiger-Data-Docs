@@ -16,14 +16,15 @@ import SinceRelease from '@components/SinceRelease.astro';
 You use the `ALTER MATERIALIZED VIEW` statement to modify some of the `WITH`
 clause [options](/reference/timescaledb/continuous-aggregates/create_materialized_view#arguments) for a {C.CAGG} view. You can only set the `continuous` and
 `create_group_indexes` options when you [create a {C.CAGG}](/reference/timescaledb/continuous-aggregates/create_materialized_view#arguments). `ALTER MATERIALIZED VIEW` also
-supports the following
-[{C.PG} clauses](https://www.postgresql.org/docs/current/sql-alterview.html) on the {C.CAGG} view:
+supports the following clauses on the {C.CAGG} view. The
+[{C.PG} clauses](https://www.postgresql.org/docs/current/sql-alterview.html) behave as they do for a standard view:
 
 - `RENAME TO`: rename the {C.CAGG} view
 - `RENAME [COLUMN]`: rename the {C.CAGG} column
 - `SET SCHEMA`: set the new schema for the {C.CAGG} view
 - `SET TABLESPACE`: move the materialization of the {C.CAGG} view to the new tablespace
 - `OWNER TO`: set a new owner for the {C.CAGG} view
+- `ADD COLUMN <name> <type> GENERATED ALWAYS AS (<expression>) STORED`: add a new column to the {C.CAGG} without recreating it. The expression can be a new aggregate, or a column that already appears in the `GROUP BY` clause of the {C.CAGG} definition. New data populates the column as the {C.CAGG} refreshes going forward; existing rows remain `NULL` until you force a refresh over the historical range to backfill them.
 
 ## Samples
 
@@ -49,6 +50,29 @@ supports the following
   ALTER MATERIALIZED VIEW contagg_view RENAME COLUMN old_name TO new_name;
   ```
 
+- Add a new aggregate to a {C.CAGG} without recreating it:
+
+  ```sql
+  ALTER MATERIALIZED VIEW contagg_view
+    ADD COLUMN max_temp double precision GENERATED ALWAYS AS (max(temperature)) STORED;
+  ```
+
+  You can also add a column that already appears in the `GROUP BY` clause of the
+  {C.CAGG} definition, even when it is not an aggregate:
+
+  ```sql
+  ALTER MATERIALIZED VIEW contagg_view
+    ADD COLUMN device_id integer GENERATED ALWAYS AS (device_id) STORED;
+  ```
+
+  In both cases, the new column is populated for new data as the {C.CAGG}
+  refreshes going forward. Existing rows remain `NULL` until you force a refresh
+  over the historical range to backfill them:
+
+  ```sql
+  CALL refresh_continuous_aggregate('contagg_view', '2020-01-01', '2020-02-01', force => true);
+  ```
+
 ## Arguments
 
 The syntax is:
@@ -61,14 +85,11 @@ ALTER MATERIALIZED VIEW <view_name> SET ( timescaledb.<argument> =  <value> [, .
 |-|-|-|-|-|
 | `view_name` | TEXT | - | ✔ | The name of the {C.CAGG} view to be altered. |
 | `timescaledb.materialized_only` | BOOLEAN | `true` | - | Return only materialized data when querying the {C.CAGG} view. Set to `false` to enable real-time aggregation. |
-| `timescaledb.enable_columnstore` | BOOLEAN | `true` | - | Enable {C.COLUMNSTORE}. Effectively the same as `timescaledb.compress`. Since 2.18.0 |
-| `timescaledb.compress` | TEXT | Disabled | - | Enable compression. |
+| `timescaledb.enable_columnstore` | BOOLEAN | `true` | - | Enable {C.COLUMNSTORE}. Since 2.18.0 |
 | `timescaledb.orderby` | TEXT | Descending order on the time column in `table_name`. | - | Set the order in which items are used in the {C.COLUMNSTORE}. Specified in the same way as an `ORDER BY` clause in a `SELECT` query. Since 2.18.0 |
-| `timescaledb.compress_orderby` | TEXT | Descending order on the time column in `table_name`. | - | Set the order used by compression. Specified in the same way as the `ORDER BY` clause in a `SELECT` query. |
 | `timescaledb.segmentby` | TEXT | No segmentation by column. | - | Set the list of columns used to segment data in the {C.COLUMNSTORE} for `table`. An identifier representing the source of the data such as `device_id` or `tags_id` is usually a good candidate. Since 2.18.0 |
-| `timescaledb.compress_segmentby` | TEXT | No segmentation by column. | - | Set the list of columns used to segment the compressed data. An identifier representing the source of the data such as `device_id` or `tags_id` is usually a good candidate. |
 | `column_name` | TEXT | - | - | Set the name of the column to order by or segment by. |
-| `timescaledb.compress_chunk_time_interval` | TEXT | - | - | Reduce the total number of compressed/{C.COLUMNSTORE} {C.CHUNK}s for `table`. If you set `compress_chunk_time_interval`, compressed/{C.COLUMNSTORE} {C.CHUNK}s are merged with the previous adjacent {C.CHUNK} within `chunk_time_interval` whenever possible. These {C.CHUNK}s are irreversibly merged. If you call to [decompress](/reference/timescaledb/hypercore/convert_to_rowstore)/[convert\_to\_rowstore](/reference/timescaledb/hypercore/convert_to_rowstore), merged {C.CHUNK}s are not split up. You can call `compress_chunk_time_interval` independently of other compression settings; `timescaledb.compress`/`timescaledb.enable_columnstore` is not required. |
+| `timescaledb.compress_chunk_time_interval` | TEXT | - | - | Reduce the total number of compressed/{C.COLUMNSTORE} {C.CHUNK}s for `table`. If you set `compress_chunk_time_interval`, compressed/{C.COLUMNSTORE} {C.CHUNK}s are merged with the previous adjacent {C.CHUNK} within `chunk_time_interval` whenever possible. These {C.CHUNK}s are irreversibly merged. If you call to [decompress](/reference/timescaledb/hypercore/convert_to_rowstore)/[convert\_to\_rowstore](/reference/timescaledb/hypercore/convert_to_rowstore), merged {C.CHUNK}s are not split up. You can call `compress_chunk_time_interval` independently of other compression settings; `timescaledb.enable_columnstore` is not required. |
 | `timescaledb.chunk_interval` (formerly `timescaledb.chunk_time_interval`) | INTERVAL | 10x the original {C.HYPERTABLE}. | - | Set the {C.CHUNK} interval. Renamed in {C.TIMESCALE_DB} V2.20. |
 
 ## Returns
