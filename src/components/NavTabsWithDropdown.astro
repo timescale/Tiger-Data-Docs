@@ -187,7 +187,10 @@ function buildNavTree(entries: unknown[] | undefined): NavTreeNode[] {
 function filterOverviewDuplicate(nodes: NavTreeNode[], tabLink: string): NavTreeNode[] {
   const tabPath = normalizePath(tabLink);
   return nodes.filter((n) => {
-    if (n.kind !== "link") return true;
+    // Drop any root entry — a plain link or a section group (e.g. Learn's "Overview"
+    // group whose href resolves to its first child) — labelled "Overview" that points at
+    // the tab's own index page. The dropdown header already links there.
+    if (typeof n.href !== "string") return true;
     return !(normalizePath(n.href) === tabPath && /^overview$/i.test(n.label.trim()));
   });
 }
