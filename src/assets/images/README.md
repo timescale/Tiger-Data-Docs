@@ -9,6 +9,11 @@ Store documentation-owned images here so Astro can **bundle, fingerprint, and op
 | `hero-cloud/`, `hero-local/` | Welcome / get-started hero card illustrations (`HeroGetStartedCard.astro`) |
 | `learn/` | Learn tab diagrams and figures (optional subfolders: `fundamentals/`, `deep-dive/`, `examples/`, `production-patterns/`) |
 | `migrate/` | Migration guides (RDS, S3 connector screenshots, etc.) |
+| `integrate/` | Integration guide screenshots, in a subfolder named for the tool (for example `integrate/grafana/`) |
+
+### Integration screenshots
+
+Save integration images as PNG under `integrate/<tool-name>/`. When a screenshot shows product UI that changes with the color theme, provide both a **light-mode** and a **dark-mode** version and switch between them (see `ThemeImage.astro`) so the image matches the reader's theme. Import the image in the page as shown below.
 
 ## Usage in MDX
 
@@ -29,8 +34,4 @@ import illustration from "../../../assets/images/migrate/my-flow.svg?url";
 <img src={illustration} alt="Description" />
 ```
 
-Paths are relative to the MDX file (e.g. from `src/content/docs/migrate/` use `../../../assets/images/...`; from `src/partials/` use `../assets/images/...`).
-
-## Synced reference repos
-
-Images pulled by `pnpm sync` from sibling repositories still land under **`public/assets/{timescaledb,pgai,pgvectorscale}/`** (see `scripts/sync-docs.ts`). Prefer `src/assets` for new, hand-authored docs imagery.
+Paths are relative to the MDX file (for example, from `src/content/docs/migrate/` use `../../../assets/images/...`; from `src/partials/` use `../assets/images/...`).
