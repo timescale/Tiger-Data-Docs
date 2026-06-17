@@ -1,0 +1,72 @@
+---
+title: add_tiering_policy()
+description: Add a policy to automatically tier older chunks to object storage
+keywords: [data tiering, policies, add]
+---
+
+import * as C from "@constants";
+
+import { Callout } from '@stainless-api/docs/components';
+
+Create a policy that periodically moves {C.CHUNK}s older than a given age from local storage to tiered object storage. The policy runs as a {C.CLOUD_LONG} background job and applies to all {C.CHUNK}s of the target {C.HYPERTABLE}, including the {C.MAT_HYPERTABLE}s that back {C.CAGG}s.
+
+{C.CHUNK_CAP}s selected for tiering are first frozen and then queued. A separate asynchronous worker uploads them to the configured object store and deletes the local copy when the upload completes. Frozen {C.CHUNK}s remain queryable until the upload finishes.
+
+By default the policy runs once per hour. To change the interval, call [`alter_job`](/reference/timescaledb/jobs-automation/alter_job) against the returned `job_id`.
+
+<Callout variant="note">
+  For {C.HYPERTABLE}s and {C.CAGG}s partitioned on an integer column, an `integer_now_func` must be configured on the underlying {C.HYPERTABLE} before adding a tiering policy. If `integer_now_func` is not set, `add_tiering_policy` raises an exception.
+</Callout>
+
+## Samples
+
+- **Tier chunks older than three weeks on the `assets_candlestick_daily` hypertable**:
+
+  ```sql
+  SELECT add_tiering_policy('assets_candlestick_daily', INTERVAL '3 weeks');
+  ```
+
+- **Tier chunks older than 1,000,000 ticks on an integer-partitioned hypertable**:
+
+  ```sql
+  SELECT add_tiering_policy('events', BIGINT '1000000');
+  ```
+
+- **Add a tiering policy to a continuous aggregate, ignoring the call when one already exists**:
+
+  ```sql
+  SELECT add_tiering_policy('daily_summary', INTERVAL '90 days', if_not_exists => true);
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT add_tiering_policy(
+    hypertable = '<hypertable_or_cagg_name>',
+    move_after = <interval_or_integer>,
+    if_not_exists = true | false
+);
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| `hypertable` | `REGCLASS` | - | ✔ | Name of the {C.HYPERTABLE} or {C.CAGG} to create the tiering policy for. |
+| `move_after` | `ANYELEMENT` | - | ✔ | {C.CHUNK_CAP}s fully older than this value are tiered. The type must match the type of the primary partitioning column: `INTERVAL` for `TIMESTAMP`, `TIMESTAMPTZ`, or `DATE`; `BIGINT`, `INTEGER`, or `SMALLINT` for integer-based dimensions. |
+| `if_not_exists` | `BOOLEAN` | `false` | - | When `true`, emit a notice rather than an error if a tiering policy already exists on the relation, and return the existing `job_id`. |
+
+## Returns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `job_id` | `INTEGER` | {C.CLOUD_LONG} background job ID created to implement this policy. |
+
+## Errors
+
+`add_tiering_policy` raises an exception when:
+
+- The supplied relation is neither a {C.HYPERTABLE} nor a {C.CAGG}.
+- A tiering policy already exists on the relation and `if_not_exists` is `false`.
+- The type of `move_after` does not match the primary dimension type.
+- The {C.HYPERTABLE} or its underlying {C.HYPERTABLE} is integer-partitioned and no `integer_now_func` is set.
