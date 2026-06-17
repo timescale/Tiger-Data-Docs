@@ -19,8 +19,8 @@ Background on the `learnMore` card: [`src/components/LearnMore.README.md`](../..
 
 [Tiger Den](https://den.tigerdata.com) is Tiger Data's marketing content hub. It
 tracks every blog post, YouTube video, case study, whitepaper, podcast, and
-third-party / KOL publication as a "content item", so it replaces the old mix of
-blog-sitemap scraping, YouTube RSS, and a curated Slack community feed.
+third-party / KOL publication as a "content item", which makes it the single
+source for this refresh: one place to read everything that was published.
 
 Access is the read-only **`TIGER_DEN_TOKEN`**. The matching step uses
 **`ANTHROPIC_API_KEY`**. Both
