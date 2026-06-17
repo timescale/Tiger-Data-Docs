@@ -1216,7 +1216,7 @@ export default defineConfig({
               label: "TimescaleDB",
               collapsed: true,
               items: [
-                { label: "TimescaleDB reference", link: "/reference/timescaledb" },
+                { label: "Overview", link: "/reference/timescaledb" },
                 {
                   label: "Hypertables and chunks",
                   collapsed: true,
@@ -1496,7 +1496,7 @@ export default defineConfig({
               label: "TimescaleDB Toolkit",
               collapsed: true,
               items: [
-                { label: "Toolkit reference", link: "/reference/toolkit" },
+                { label: "Overview", link: "/reference/toolkit" },
                 {
                   label: "Approximate count distinct",
                   collapsed: true,
@@ -1851,7 +1851,7 @@ export default defineConfig({
               label: "Tiger Cloud",
               collapsed: true,
               items: [
-                { label: "Tiger Cloud reference", link: "/reference/tiger-cloud" },
+                { label: "Overview", link: "/reference/tiger-cloud" },
                 {
                   label: "Data tiering",
                   collapsed: true,
@@ -1864,6 +1864,8 @@ export default defineConfig({
                     { label: "disable_tiering()", link: "/reference/tiger-cloud/data-tiering/disable_tiering" },
                   ],
                 },
+                { label: "Tiger CLI", link: "/reference/tiger-cloud/tiger-cli" },
+                { label: "Tiger MCP", link: "/reference/tiger-cloud/tiger-mcp" },
                 DOCS_LOCAL_WITHOUT_STAINLESS
                   ? {
                       label: "Tiger Cloud REST API",
