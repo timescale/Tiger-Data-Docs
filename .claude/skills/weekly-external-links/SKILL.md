@@ -42,7 +42,7 @@ python3 .claude/skills/weekly-external-links/scripts/fetch_tiger_den.py \
 
 # 2. Build the docs page catalog. Excludes the `reference` section by default
 #    (cards never belong on function-reference pages, and skipping it roughly
-#    halves the catalog and the matching cost). Captures existing learnMore links.
+#    halves what the matcher has to weigh). Captures existing learnMore links.
 python3 .claude/skills/weekly-external-links/scripts/build_doc_catalog.py \
     --out .learnmore-work/catalog.json
 
@@ -67,8 +67,8 @@ python3 .claude/skills/weekly-external-links/scripts/render_report.py \
 
 - `MAX_LINKS_PER_CARD` (default `4`): hard cap on total links per card.
 - `ANTHROPIC_MODEL` (default `claude-opus-4-8`): the matching model. Opus is the
-  most careful at the editorial judgment; `claude-sonnet-4-6` roughly halves cost
-  with some quality tradeoff.
+  most careful at the editorial judgment; `claude-sonnet-4-6` is a lighter, faster
+  alternative.
 - `build_doc_catalog.py --exclude` (default `reference`): comma-separated sections
   to skip. Pass `--exclude ''` to include everything.
 
@@ -127,13 +127,6 @@ manual dispatch), then opens a **pull request** against `main` with the drafted
 cards and a summary body. It never pushes to or merges `main`. Required repository
 secrets: `TIGER_DEN_TOKEN`, `ANTHROPIC_API_KEY`, and `ORG_AUTOMATION_TOKEN` (the
 existing token used by the other PR-opening workflows).
-
-## Cost
-
-The only paid step is the matcher (one Claude API call per run). At Opus 4.8
-rates this is roughly **$0.50-1.00 per weekly run** (~$3/month). The Tiger Den
-fetch and catalog build are free. Lower it with `ANTHROPIC_MODEL=claude-sonnet-4-6`
-if needed.
 
 ## Idempotency
 

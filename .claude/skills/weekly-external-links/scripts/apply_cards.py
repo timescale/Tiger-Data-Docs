@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Apply drafted learnMore cards (match_content.py) to the docs page files.
 
-For each card in the mapping, this edits the target page's YAML frontmatter:
-- new card  -> insert a complete `learnMore:` block before the closing `---`.
-- add card  -> append the new relatedPosts links to the page's existing card
-               (or add a relatedPosts section if the card has only tutorials).
+Each card's `links` is the final, complete relatedPosts set for its page. For
+each card, this edits the target page's YAML frontmatter:
+- page has no `learnMore:` block -> insert a complete one before the closing `---`.
+- page has a card with relatedPosts -> replace its relatedPosts items with the
+  card's link set, leaving the heading, tutorials, and cta intact.
+- page has a card but no relatedPosts (e.g. only tutorials) -> add a relatedPosts
+  section.
 
 The page's real state is re-derived from the file, not trusted from the card's
-`action`, so a mismatch can't corrupt frontmatter. Links whose href is already
-present on the page are skipped (idempotent: re-running won't duplicate). Labels
-are double-quoted so colons are safe. No YAML dependency: we edit the frontmatter
-lines directly to preserve formatting and comments.
+`action`, so a mismatch can't corrupt frontmatter. Labels are double-quoted so
+colons are safe. No YAML dependency: we edit the frontmatter lines directly to
+preserve formatting and comments.
 
 Usage:
     python3 apply_cards.py --mapping .learnmore-work/mapping.json \
@@ -117,8 +119,10 @@ def main():
     ap.add_argument("--catalog", required=True)
     args = ap.parse_args()
 
-    mapping = json.load(open(args.mapping))
-    path_by_page = {c["path"]: c["file"] for c in json.load(open(args.catalog))}
+    with open(args.mapping) as f:
+        mapping = json.load(f)
+    with open(args.catalog) as f:
+        path_by_page = {c["path"]: c["file"] for c in json.load(f)}
 
     applied = 0
     for card in mapping.get("cards", []):

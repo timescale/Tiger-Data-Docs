@@ -223,11 +223,14 @@ def main():
     model = os.environ.get("ANTHROPIC_MODEL", DEFAULT_MODEL)
     max_links = int(os.environ.get("MAX_LINKS_PER_CARD", DEFAULT_MAX_LINKS))
 
-    items = json.load(open(args.items))
-    catalog = json.load(open(args.catalog))
+    with open(args.items) as f:
+        items = json.load(f)
+    with open(args.catalog) as f:
+        catalog = json.load(f)
     if not items:
         print("No items to match; writing empty mapping.")
-        json.dump({"cards": [], "dropped": []}, open(args.out, "w"), indent=2)
+        with open(args.out, "w") as f:
+            json.dump({"cards": [], "dropped": []}, f, indent=2)
         return
 
     mapping = call_claude(items, catalog, api_key, model, max_links)
@@ -238,7 +241,8 @@ def main():
             card["notes"] = (card.get("notes", "") + f" [auto-trimmed to {max_links} links]").strip()
             card["links"] = card["links"][:max_links]
 
-    json.dump(mapping, open(args.out, "w"), indent=2)
+    with open(args.out, "w") as f:
+        json.dump(mapping, f, indent=2)
     print(
         f"Wrote {len(mapping.get('cards', []))} card(s) and "
         f"{len(mapping.get('dropped', []))} dropped item(s) to {args.out} (model: {model})"

@@ -15,7 +15,8 @@ import sys
 def main():
     if len(sys.argv) < 2:
         sys.exit("usage: render_report.py <mapping.json>")
-    m = json.load(open(sys.argv[1]))
+    with open(sys.argv[1]) as f:
+        m = json.load(f)
     cards = m.get("cards", [])
     dropped = m.get("dropped", [])
 
@@ -42,7 +43,7 @@ def main():
     if dropped:
         out.append("\n### Set aside (not linked)")
         for d in dropped:
-            out.append(f"- {d['title']} — {d['reason']}")
+            out.append(f"- {d['title']}: {d['reason']}")
 
     print("\n".join(out))
 

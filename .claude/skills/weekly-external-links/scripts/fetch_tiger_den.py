@@ -3,9 +3,8 @@
 
 Tiger Den (https://den.tigerdata.com) is Tiger Data's marketing content hub. It
 tracks every blog post, YouTube video, case study, whitepaper, podcast, and
-third-party/KOL publication as a "content item". This is the single source for
-the weekly external-links refresh, replacing the old blog-sitemap + YouTube-RSS
-+ Slack-KOL scripts.
+third-party/KOL publication as a "content item", and is the single source for the
+weekly external-links refresh.
 
 Access is the Tiger Den read-only bearer token (TIGER_DEN_TOKEN). The script
 talks to the Tiger Den MCP HTTP endpoint over JSON-RPC and calls the read-only

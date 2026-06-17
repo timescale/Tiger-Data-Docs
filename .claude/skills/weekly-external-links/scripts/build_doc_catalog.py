@@ -47,7 +47,7 @@ def main():
         default="reference",
         help="Comma-separated top-level sections to skip (default: reference). "
         "learnMore cards never belong on function-reference pages, and skipping "
-        "them roughly halves the catalog and the matching cost. Pass '' to include all.",
+        "them roughly halves what the matcher has to weigh. Pass '' to include all.",
     )
     a = ap.parse_args()
     excluded = {s.strip() for s in a.exclude.split(",") if s.strip()}
@@ -61,7 +61,8 @@ def main():
             rel = re.sub(r"/index$", "", re.sub(r"\.(md|mdx)$", "", os.path.relpath(p, ROOT)))
             if rel.split("/")[0] in excluded:
                 continue
-            txt = open(p, encoding="utf-8", errors="ignore").read()
+            with open(p, encoding="utf-8", errors="ignore") as fh:
+                txt = fh.read()
             fm = re.match(r"^---\n(.*?)\n---", txt, re.S)
             fm = fm.group(1) if fm else ""
 
@@ -86,7 +87,8 @@ def main():
     if a.out == "-":
         print(out)
     else:
-        open(a.out, "w").write(out)
+        with open(a.out, "w") as f:
+            f.write(out)
     print(f"[catalog] {len(cat)} pages ({sum(1 for c in cat if c['has_learnMore'])} already have learnMore)", file=sys.stderr)
 
 
