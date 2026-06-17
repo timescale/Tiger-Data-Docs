@@ -1,4 +1,4 @@
-# How to Add a New Changelog Entry
+# How to add a new changelog entry
 
 This guide walks through adding a new entry to the Tiger Data changelog: which file to edit, what each part does, and where each piece of information goes.
 
@@ -16,10 +16,10 @@ All changelog entries live in this single MDX file. New entries are added at the
 
 The changelog page is built from:
 
-1. **Page frontmatter** (title, description, etc.) at the top of `get-started/news/new.mdx`.
-2. **ChangelogFilter** – the filter UI (tags, search) above the list.
+1. **Page frontmatter** (title, description, and so on) at the top of `get-started/news/new.mdx`.
+2. **ChangelogFilter**: the filter UI (tags, search) above the list.
 3. **A wrapper** `<div class="changelog-page-toc">` that holds both the table-of-contents headings and the cards.
-4. **Repeating blocks** – for each entry you add **two things**:
+4. **Repeating blocks**: for each entry you add **two things**:
    - A `## Title` heading (used for the right-hand “On this page” TOC; it’s visually hidden on the page).
    - A `<ChangelogEntry>...</ChangelogEntry>` block that renders the visible card.
 
@@ -31,11 +31,11 @@ So each logical “entry” is: one `##` heading + one `<ChangelogEntry>`.
 
 ### 1. The `##` heading (for the TOC)
 
-**Place:** Directly **above** the corresponding `<ChangelogEntry>`, inside the same `changelog-page-toc` div.
+**Place:** directly **above** the corresponding `<ChangelogEntry>`, inside the same `changelog-page-toc` div.
 
-**Purpose:** Drives the right-hand “On this page” navigation. The heading text is hidden on the page; the card content is what users see.
+**Purpose:** drives the right-hand “On this page” navigation. The heading text is hidden on the page; the card content is what users see.
 
-**Format:** Use the same title you’ll use for the card.
+**Format:** use the same title you’ll use for the card.
 
 ```md
 ## Your entry title here
@@ -45,7 +45,7 @@ So each logical “entry” is: one `##` heading + one `<ChangelogEntry>`.
 
 ### 2. The `<ChangelogEntry>` component
 
-**Place:** Right after the `##` heading, still inside `div.changelog-page-toc`.
+**Place:** right after the `##` heading, still inside `div.changelog-page-toc`.
 
 The component takes **props** and **two slots** (heading + body).
 
@@ -54,7 +54,7 @@ The component takes **props** and **two slots** (heading + body).
 | Prop   | Required | Format        | Description |
 |--------|----------|---------------|-------------|
 | `title`| Yes      | String        | Full title of the entry. Must match the `##` heading and the H2 in the heading slot. Used for the card and for anchor IDs. |
-| `date` | Yes      | `YYYY-MM-DD`  | Release or announcement date. Shown as “Month Day, Year” (e.g. February 18, 2026). Use UTC to avoid timezone issues. |
+| `date` | Yes      | `YYYY-MM-DD`  | Release or announcement date. Shown as “Month Day, Year” (for example, February 18, 2026). Use UTC to avoid timezone issues. |
 | `tags` | Yes      | Array of tag keys | One or more of the allowed tags (see below). Used for filtering and the pill labels on the card. |
 
 **Allowed `tags` values:**  
@@ -74,11 +74,11 @@ Example:
 
 ### 3. The heading slot (card title)
 
-**Place:** First content **inside** `<ChangelogEntry>`, right after the opening tag.
+**Place:** first content **inside** `<ChangelogEntry>`, right after the opening tag.
 
-**Purpose:** This is the main title shown on the card (and used for deep links). It must be an `<h2>` with `slot="heading"` and `class="changelog-entry__title"`.
+**Purpose:** this is the main title shown on the card (and used for deep links). It must be an `<h2>` with `slot="heading"` and `class="changelog-entry__title"`.
 
-**Format:** The text should match the `title` prop and the `##` heading.
+**Format:** the text should match the `title` prop and the `##` heading.
 
 ```mdx
 <h2 slot="heading" class="changelog-entry__title">Your entry title here</h2>
@@ -90,16 +90,16 @@ Example:
 
 ### 4. The body (default slot)
 
-**Place:** Everything after the heading slot, until `</ChangelogEntry>`.
+**Place:** everything after the heading slot, until `</ChangelogEntry>`.
 
-**Purpose:** The main content of the entry: description, bullet lists, links, etc.
+**Purpose:** the main content of the entry: description, bullet lists, links, and so on.
 
 **Format:**
 
-- **Start with a `###` subsection.**  
-  This keeps layout and spacing consistent with other entries. Examples: “Now available”, “What’s new”, “Release highlights”, or a short topic name.
-- Use normal Markdown/MDX: paragraphs, **bold**, lists, [links](url), `code`, etc.
-- You can add more `###` subsections to group content (e.g. “Feature A”, “Feature B”).
+- **Usually start with a `###` subsection.**  
+  Most entries open with a `###` heading, which keeps layout and spacing consistent. Examples: “Now available”, “What’s new”, “Release highlights”, or a short topic name. A short entry can open with a paragraph instead (several existing entries do).
+- Use normal Markdown/MDX: paragraphs, **bold**, lists, [links](url), `code`, and so on.
+- You can add more `###` subsections to group content (for example, “Feature A”, “Feature B”).
 
 Example:
 
@@ -131,6 +131,7 @@ Here’s a complete new entry as it would appear at the top of the list in `new.
   tags={["new-feature"]}
 >
 <h2 slot="heading" class="changelog-entry__title">My new feature</h2>
+
 ### What's new
 
 You can now do X in Tiger Cloud. This helps with Y and Z.
@@ -148,7 +149,7 @@ See [docs link](https://...) for details.
 - [ ] `title` prop matches the `##` and the H2 text.
 - [ ] `date` is `YYYY-MM-DD`.
 - [ ] `tags` is an array of allowed tag keys.
-- [ ] First line of body is a `###` subsection.
+- [ ] Body opens with a `###` subsection (typical) or a short intro paragraph.
 - [ ] Entry is placed at the top (newest first).
 
 ---
@@ -158,7 +159,7 @@ See [docs link](https://...) for details.
 | What                    | Where it goes |
 |-------------------------|----------------|
 | File to edit            | `src/content/docs/get-started/news/new.mdx` |
-| Position of new entry   | At the top, after `<div class="changelog-page-toc">` and the first existing `##` / `<ChangelogEntry>` |
+| Position of new entry   | At the top, immediately after `<div class="changelog-page-toc">` and before the first existing `##` / `<ChangelogEntry>` |
 | TOC heading             | `## Entry title` (above the card) |
 | Card title (visible H2) | `<h2 slot="heading" class="changelog-entry__title">Entry title</h2>` (first thing inside `<ChangelogEntry>`) |
 | Date & tags             | `date="YYYY-MM-DD"` and `tags={["tag1", "tag2"]}` on `<ChangelogEntry>` |
@@ -168,6 +169,6 @@ See [docs link](https://...) for details.
 
 ## Tips
 
-- **Keep titles consistent:** Use the same string for the `##` heading, the `title` prop, and the H2 in the heading slot so the TOC and card stay in sync.
-- **One or more tags:** Use the tags that best describe the entry; multiple tags (e.g. `["new-feature", "improvement"]`) are fine.
-- **Body structure:** Starting with a `###` and using more `###` for sub-topics keeps the changelog scannable and the layout consistent across entries.
+- **Keep titles consistent:** use the same string for the `##` heading, the `title` prop, and the H2 in the heading slot so the TOC and card stay in sync.
+- **One or more tags:** use the tags that best describe the entry; multiple tags (for example, `["new-feature", "improvement"]`) are fine.
+- **Body structure:** starting with a `###` and using more `###` for sub-topics keeps the changelog scannable and the layout consistent across entries.
