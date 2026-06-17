@@ -266,6 +266,17 @@ export default defineConfig({
           tag: "script",
           content: `!function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);},s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='//static.ads-twitter.com/uwt.js',a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');twq('init','o8fs3');twq('track','PageView');`,
         },
+        {
+          // Sidebar active-branch expander: Starlight persists open/closed sidebar
+          // groups in sessionStorage and restores them on load, which can override the
+          // server-rendered open state and leave the current page hidden inside a
+          // collapsed parent group (e.g. a page nested one level down in a subgroup).
+          // After the persister runs, force every <details> ancestor of the active link
+          // open so the current page is always revealed. Setting `.open` directly does
+          // not fire the persister's click handler, so no loop or stored-state changes.
+          tag: "script",
+          content: `(function(){function exp(){var b=document.getElementById("starlight__sidebar");if(!b)return;var a=b.querySelector('[aria-current="page"]');if(!a)return;var e=a.parentElement;while(e&&e!==b){if(e.tagName==="DETAILS")e.open=true;e=e.parentElement;}}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",exp);}else{exp();}document.addEventListener("astro:page-load",exp);})();`,
+        },
         // ──── BEGIN STATSIG ────
         // Statsig client-side SDK: session replay, web analytics, and gate exposure logging.
         // Uses Segment's ajs_anonymous_id cookie for user identification.
@@ -538,9 +549,8 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-                { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
                 { label: "Set up hypercore", link: "/build/columnar-storage/setup-hypercore" },
-                { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
+                { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
                 { label: "Manage storage and tiering", link: "/build/data-management/storage/manage-storage" },
                 { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
                 { label: "Create and manage custom jobs", link: "/build/data-management/create-and-manage-jobs" },
@@ -993,6 +1003,8 @@ export default defineConfig({
                     },
                     { label: "Maintenance and upgrades", link: "/deploy/tiger-cloud/tiger-cloud-aws/upgrades" },
                     { label: "Billing and account management", link: "/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management" },
+                    { label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" },
+                    { label: "Vectorizer and LLM calls migration guide", link: "/deploy/tiger-cloud/vectorizer-deprecation" },
               ],
             },
             {
@@ -1060,14 +1072,8 @@ export default defineConfig({
                     },
                     { label: "Maintenance and upgrades", link: "/deploy/tiger-cloud/tiger-cloud-azure/upgrades" },
                     { label: "Billing and account management", link: "/deploy/tiger-cloud/tiger-cloud-azure/pricing-and-account-management" },
-              ],
-            },
-            {
-              label: "Tiger Cloud operations",
-              collapsed: true,
-              items: [
-                { label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" },
-                { label: "Vectorizer and LLM calls migration guide", link: "/deploy/tiger-cloud/vectorizer-deprecation" },
+                    { label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" },
+                    { label: "Vectorizer and LLM calls migration guide", link: "/deploy/tiger-cloud/vectorizer-deprecation" },
               ],
             },
             {
