@@ -13,10 +13,44 @@ import argparse, json, os, re, sys
 ROOT = "src/content/docs"
 
 
+def parse_related(fm):
+    """Extract existing relatedPosts links ({label, href}) from frontmatter text.
+
+    Lets the matcher reason about replacement (drop a weaker existing link in
+    favor of a better new one) instead of blindly appending.
+    """
+    lines = fm.split("\n")
+    rp = next((i for i, l in enumerate(lines) if re.match(r"^\s+relatedPosts:\s*$", l)), None)
+    if rp is None:
+        return []
+    key_indent = len(lines[rp]) - len(lines[rp].lstrip())
+    out, label = [], None
+    for l in lines[rp + 1:]:
+        if l.strip() and (len(l) - len(l.lstrip())) <= key_indent:
+            break  # dedented to a sibling key; list is done
+        m = re.match(r"\s*-\s*label:\s*(.+)$", l)
+        if m:
+            label = m.group(1).strip().strip("\"'")
+            continue
+        h = re.match(r"\s*href:\s*(\S+)", l)
+        if h and label is not None:
+            out.append({"label": label, "href": h.group(1)})
+            label = None
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="-")
+    ap.add_argument(
+        "--exclude",
+        default="reference",
+        help="Comma-separated top-level sections to skip (default: reference). "
+        "learnMore cards never belong on function-reference pages, and skipping "
+        "them roughly halves the catalog and the matching cost. Pass '' to include all.",
+    )
     a = ap.parse_args()
+    excluded = {s.strip() for s in a.exclude.split(",") if s.strip()}
 
     cat = []
     for dp, _, fns in os.walk(ROOT):
@@ -24,6 +58,9 @@ def main():
             if not fn.endswith((".md", ".mdx")):
                 continue
             p = os.path.join(dp, fn)
+            rel = re.sub(r"/index$", "", re.sub(r"\.(md|mdx)$", "", os.path.relpath(p, ROOT)))
+            if rel.split("/")[0] in excluded:
+                continue
             txt = open(p, encoding="utf-8", errors="ignore").read()
             fm = re.match(r"^---\n(.*?)\n---", txt, re.S)
             fm = fm.group(1) if fm else ""
@@ -32,9 +69,8 @@ def main():
                 x = re.search(rf"^{k}:\s*(.+)$", fm, re.M)
                 return x.group(1).strip().strip("\"'") if x else ""
 
-            rel = re.sub(r"/index$", "", re.sub(r"\.(md|mdx)$", "", os.path.relpath(p, ROOT)))
             has_lm = bool(re.search(r"^learnMore:", fm, re.M))
-            existing = re.findall(r"href:\s*(\S+)", fm) if has_lm else []
+            related = parse_related(fm) if has_lm else []
             cat.append({
                 "path": "/" + rel,
                 "file": p,
@@ -42,7 +78,7 @@ def main():
                 "title": g("title"),
                 "desc": g("description"),
                 "has_learnMore": has_lm,
-                "existing_hrefs": existing,
+                "existing_related": related,
             })
     cat.sort(key=lambda c: c["path"])
 
