@@ -1,0 +1,363 @@
+---
+title: Integrate Snowflake with Tiger Cloud
+description: "Query Tiger Cloud time-series data from Snowflake using Apache Iceberg and Amazon S3 Tables, without ETL pipelines or data duplication."
+integrationCategory: connectors
+integrationPlatforms: [aws]
+integrationCardLogo: "snowflake-logo.png"
+integrationIndustry: [financial services, retail, healthcare]
+keywords: [snowflake, apache iceberg, s3 tables, data warehouse, iceberg rest catalog, lake query]
+sidebar:
+  label: Snowflake
+---
+
+import * as C from "@constants";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-no-connection.mdx";
+import { Callout } from "@stainless-api/docs/components";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+
+[Snowflake](https://www.snowflake.com/) is a cloud data platform for data warehousing, analytics, and data sharing. This page shows you how to configure Snowflake to query data from your {C.SERVICE_LONG} using {C.LAKE_LONG}, with no ETL pipelines or data duplication required. Because Snowflake reads directly from Amazon S3 Tables in your AWS account, your data stays in one place and is always current.
+
+In this integration guide, you:
+
+- Configure a Snowflake Catalog Integration to connect to your S3 Tables namespace
+- Create a dedicated AWS IAM role that grants Snowflake read-only access to your data
+- Register your synced tables in Snowflake and run queries
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+
+- {C.LAKE_LONG} set up and active in your {C.SERVICE_LONG}. Follow the [{C.LAKE_LONG} guide](/integrate/connectors/destination/tigerlake) to create one. Note your `S3TableBucketArn` from the CloudFormation stack outputs. You need it throughout this guide.
+- A [Snowflake](https://docs.snowflake.com/en/user-guide/getting-started-tutorial) account with `ACCOUNTADMIN` privileges. `CREATE CATALOG INTEGRATION` requires `ACCOUNTADMIN` specifically, not just `SYSADMIN`.
+- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and authenticated to the same AWS account as your S3 Table Bucket.
+</Prerequisites>
+
+<Callout variant="warning">
+  Your {C.SERVICE_LONG} and your S3 Table Bucket must be in the same AWS region. Cross-region traffic incurs per-GB transfer fees.
+</Callout>
+
+## Configure Snowflake
+
+Set up the Catalog Integration that tells Snowflake where your tables are and how to authenticate to your S3 Table Bucket.
+
+<NumberedList>
+  <NumberedItem title="Find your namespace">
+
+    Run the following command, replacing `<YOUR_S3_TABLE_BUCKET_ARN>` and `<YOUR_AWS_REGION>` with the values from your {C.LAKE_LONG} setup:
+
+    ```shell
+    aws s3tables list-namespaces \
+      --table-bucket-arn <YOUR_S3_TABLE_BUCKET_ARN> \
+      --region <YOUR_AWS_REGION>
+    ```
+
+    The output includes two values you use in every step of this guide:
+
+    - `namespace`: your `<YOUR_NAMESPACE>`
+    - `ownerAccountId`: your `<YOUR_AWS_ACCOUNT_ID>`
+
+    This guide uses the following placeholders throughout. Replace them with your actual values before running each command:
+
+    | Placeholder | What it is | Where to find it |
+    | --- | --- | --- |
+    | `<YOUR_AWS_REGION>` | AWS region where your S3 Table Bucket was created | The segment of your `S3TableBucketArn` after `s3tables:`, for example `us-east-1` |
+    | `<YOUR_AWS_ACCOUNT_ID>` | Your 12-digit AWS account number | Your `S3TableBucketArn`, or the `ownerAccountId` field above |
+    | `<YOUR_BUCKET_NAME>` | Name of your S3 Table Bucket | The portion of your `S3TableBucketArn` after `bucket/` |
+    | `<YOUR_NAMESPACE>` | Logical grouping of tables inside the bucket | The `namespace` field from this step |
+    | `<YOUR_TABLE_NAME>` | Name of a specific synced table | Output of `aws s3tables list-tables` (see [Register tables in Snowflake](#register-tables-in-snowflake)) |
+    | `<API_AWS_IAM_USER_ARN>` | Snowflake's AWS identity | Output of `DESC INTEGRATION` (see the next step) |
+    | `<API_AWS_EXTERNAL_ID>` | Snowflake's external ID for secure role assumption | Output of `DESC INTEGRATION` (see the next step) |
+
+    For example, for the ARN `arn:aws:s3tables:us-east-1:111122223333:bucket/my-iceberg-bucket`, the placeholders are:
+
+    ```
+    <YOUR_AWS_REGION>      → us-east-1
+    <YOUR_AWS_ACCOUNT_ID>  → 111122223333
+    <YOUR_BUCKET_NAME>     → my-iceberg-bucket
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Create the Catalog Integration">
+
+    Open a Snowflake worksheet with the `ACCOUNTADMIN` role. Replace all placeholders using the reference table above, then run:
+
+    ```sql
+    USE ROLE ACCOUNTADMIN;
+
+    CREATE OR REPLACE CATALOG INTEGRATION tiger_s3tables_catalog
+      CATALOG_SOURCE = ICEBERG_REST
+      TABLE_FORMAT = ICEBERG
+      CATALOG_NAMESPACE = '<YOUR_NAMESPACE>'
+      REST_CONFIG = (
+        CATALOG_URI = 'https://glue.<YOUR_AWS_REGION>.amazonaws.com/iceberg'
+        CATALOG_API_TYPE = AWS_GLUE
+        WAREHOUSE = '<YOUR_AWS_ACCOUNT_ID>:s3tablescatalog/<YOUR_BUCKET_NAME>'
+        ACCESS_DELEGATION_MODE = VENDED_CREDENTIALS
+      )
+      REST_AUTHENTICATION = (
+        TYPE = SIGV4
+        SIGV4_IAM_ROLE = 'arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/snowflake-s3tables-reader'
+        SIGV4_SIGNING_REGION = '<YOUR_AWS_REGION>'
+      )
+      REFRESH_INTERVAL_SECONDS = 120
+      ENABLED = TRUE;
+    ```
+
+    The role name `snowflake-s3tables-reader` is the IAM role you create in the next section. You reference it here in advance so Snowflake knows which role to assume.
+
+  </NumberedItem>
+  <NumberedItem title="Get Snowflake's AWS identity">
+
+    Run the following in the same Snowflake worksheet:
+
+    ```sql
+    DESC INTEGRATION tiger_s3tables_catalog;
+    ```
+
+    From the output, save these two values, which you need in the next section:
+
+    | Field | Example value |
+    | --- | --- |
+    | `API_AWS_IAM_USER_ARN` | `arn:aws:iam::111122223333:user/abc123` |
+    | `API_AWS_EXTERNAL_ID` | `ABC12345_SFCRole=2_xxxx=` |
+
+  </NumberedItem>
+</NumberedList>
+
+## Grant AWS access to Snowflake
+
+Create a dedicated IAM role so Snowflake can authenticate to your S3 Table Bucket. A separate role keeps the {C.LAKE_LONG} write path isolated. Snowflake configuration changes can never affect the sync, and access can be revoked independently.
+
+<NumberedList>
+  <NumberedItem title="Create the IAM role">
+
+    Use the `API_AWS_IAM_USER_ARN` and `API_AWS_EXTERNAL_ID` values from the previous section:
+
+    ```shell
+    aws iam create-role \
+      --role-name snowflake-s3tables-reader \
+      --assume-role-policy-document '{
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "<API_AWS_IAM_USER_ARN>"
+            },
+            "Action": "sts:AssumeRole",
+            "Condition": {
+              "StringEquals": {
+                "sts:ExternalId": "<API_AWS_EXTERNAL_ID>"
+              }
+            }
+          }
+        ]
+      }'
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Attach read permissions to the role">
+
+    ```shell
+    aws iam put-role-policy \
+      --role-name snowflake-s3tables-reader \
+      --policy-name snowflake-s3tables-access \
+      --policy-document '{
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "GlueAccess",
+            "Effect": "Allow",
+            "Action": [
+              "glue:GetCatalog",
+              "glue:GetDatabase",
+              "glue:GetDatabases",
+              "glue:GetTable",
+              "glue:GetTables"
+            ],
+            "Resource": "*"
+          },
+          {
+            "Sid": "LakeFormationAccess",
+            "Effect": "Allow",
+            "Action": [
+              "lakeformation:GetDataAccess"
+            ],
+            "Resource": "*"
+          },
+          {
+            "Sid": "S3TablesReadAccess",
+            "Effect": "Allow",
+            "Action": [
+              "s3tables:GetTableBucket",
+              "s3tables:GetNamespace",
+              "s3tables:ListNamespaces",
+              "s3tables:GetTable",
+              "s3tables:ListTables",
+              "s3tables:GetTableData",
+              "s3tables:GetTableMetadataLocation"
+            ],
+            "Resource": [
+              "arn:aws:s3tables:<YOUR_AWS_REGION>:<YOUR_AWS_ACCOUNT_ID>:bucket/<YOUR_BUCKET_NAME>",
+              "arn:aws:s3tables:<YOUR_AWS_REGION>:<YOUR_AWS_ACCOUNT_ID>:bucket/<YOUR_BUCKET_NAME>/table/*"
+            ]
+          }
+        ]
+      }'
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Grant Lake Formation permissions">
+
+    Grant the Snowflake role `SELECT` and `DESCRIBE` access to all tables in your namespace:
+
+    ```shell
+    aws lakeformation grant-permissions \
+      --region <YOUR_AWS_REGION> \
+      --principal DataLakePrincipalIdentifier=arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/snowflake-s3tables-reader \
+      --resource '{
+        "Table": {
+          "CatalogId": "<YOUR_AWS_ACCOUNT_ID>:s3tablescatalog/<YOUR_BUCKET_NAME>",
+          "DatabaseName": "<YOUR_NAMESPACE>",
+          "TableWildcard": {}
+        }
+      }' \
+      --permissions "SELECT" "DESCRIBE"
+    ```
+
+  </NumberedItem>
+</NumberedList>
+
+## Register tables in Snowflake
+
+Each table that {C.LAKE_LONG} has synced must be registered once in Snowflake before it can be queried.
+
+<NumberedList>
+  <NumberedItem title="Create a database and schema in Snowflake">
+
+    ```sql
+    CREATE DATABASE IF NOT EXISTS tiger_data;
+    CREATE SCHEMA IF NOT EXISTS tiger_data.<YOUR_NAMESPACE>;
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="List the synced tables">
+
+    Run the following command to see which tables {C.LAKE_LONG} has written to your bucket:
+
+    ```shell
+    aws s3tables list-tables \
+      --table-bucket-arn arn:aws:s3tables:<YOUR_AWS_REGION>:<YOUR_AWS_ACCOUNT_ID>:bucket/<YOUR_BUCKET_NAME> \
+      --namespace <YOUR_NAMESPACE> \
+      --region <YOUR_AWS_REGION>
+    ```
+
+    The output lists your table names. These are your `<YOUR_TABLE_NAME>` values.
+
+  </NumberedItem>
+  <NumberedItem title="Register each table">
+
+    Run the following once per table name from the previous step:
+
+    ```sql
+    CREATE ICEBERG TABLE tiger_data.<YOUR_NAMESPACE>.<YOUR_TABLE_NAME>
+      CATALOG = 'tiger_s3tables_catalog'
+      CATALOG_TABLE_NAME = '<YOUR_TABLE_NAME>'
+      AUTO_REFRESH = TRUE;
+    ```
+
+    Each time {C.LAKE_LONG} syncs a new table, run this statement to make it queryable in Snowflake.
+
+  </NumberedItem>
+</NumberedList>
+
+## Verify the integration
+
+To confirm Snowflake can access your {C.SERVICE_LONG} data:
+
+<NumberedList>
+  <NumberedItem title="Verify catalog connectivity">
+
+    Run the following in a Snowflake worksheet:
+
+    ```sql
+    SELECT SYSTEM$VERIFY_CATALOG_INTEGRATION('tiger_s3tables_catalog');
+    ```
+
+    A successful response looks like:
+
+    ```json
+    { "success": true, "errorCode": "", "errorMessage": "" }
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Query a registered table">
+
+    Run a query against one of the tables you registered:
+
+    ```sql
+    SELECT * FROM tiger_data.<YOUR_NAMESPACE>.<YOUR_TABLE_NAME> LIMIT 10;
+    ```
+
+    You see the first ten rows of data synced from your {C.SERVICE_LONG}.
+
+    The real value is joining time-series data from {C.CLOUD_LONG} with reference data that lives natively in Snowflake, with no pipeline required. For example, given a `customers` table already in Snowflake and a `sensor_readings` {C.HYPERTABLE} synced from {C.CLOUD_LONG}:
+
+    ```sql
+    SELECT
+        c.customer_name,
+        DATE_TRUNC('hour', s.time) AS hour,
+        AVG(s.temperature)         AS avg_temp
+    FROM tiger_data.<YOUR_NAMESPACE>.sensor_readings AS s
+    JOIN snowflake_warehouse.public.customers AS c
+        ON s.customer_id = c.id
+    WHERE s.time >= DATEADD(day, -7, CURRENT_TIMESTAMP())
+    GROUP BY 1, 2
+    ORDER BY 2 DESC;
+    ```
+
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated Snowflake with {C.CLOUD_LONG}.
+
+## Refresh metadata on demand
+
+New rows inserted in {C.CLOUD_LONG} are visible in Snowflake within the `REFRESH_INTERVAL_SECONDS` window (120 seconds by default). To see changes immediately without waiting:
+
+```sql
+ALTER CATALOG INTEGRATION tiger_s3tables_catalog REFRESH;
+```
+
+## Troubleshooting
+
+- **`sts:AssumeRole not authorized`:** The `API_AWS_IAM_USER_ARN` or `API_AWS_EXTERNAL_ID` in the IAM role trust policy is incorrect or stale. Re-run the `DESC INTEGRATION` step and recreate the role with fresh values.
+- **`glue:GetCatalog not authorized`:** The Snowflake IAM role is missing Glue permissions. Re-run the `aws iam put-role-policy` step.
+- **`Unable to retrieve credentials from Lake Formation`:** The Snowflake IAM role is missing `lakeformation:GetDataAccess`. Re-run the `aws iam put-role-policy` step.
+- **`Insufficient Lake Formation permission on table`:** The Lake Formation grant is missing. Re-run the `aws lakeformation grant-permissions` step.
+- **`Unmatched catalog api type PUBLIC and authentication type SIGV4`:** `CATALOG_API_TYPE = AWS_GLUE` is missing from `REST_CONFIG`. Re-run the `CREATE OR REPLACE CATALOG INTEGRATION` step.
+- **Table not visible after `list-tables`:** {C.LAKE_LONG} has not completed a full sync cycle yet. Check connector status in {C.CONSOLE}.
+- **Stale data in Snowflake:** Run `ALTER CATALOG INTEGRATION tiger_s3tables_catalog REFRESH` to force a metadata refresh.
+- **{C.LAKE_LONG} write path failing:** The {C.LAKE_LONG} IAM role and the `snowflake-s3tables-reader` role are completely separate. Check that you have not modified the {C.LAKE_LONG} IAM role.
+
+## Limitations
+
+- Snowflake has read-only access to your S3 Tables data. Writing back to S3 via Snowflake is not supported.
+- Tables added by {C.LAKE_LONG} after initial setup are not automatically visible in Snowflake. Run `CREATE ICEBERG TABLE` for each new table.
+- This integration is not available for Azure deployments of {C.CLOUD_LONG}.
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Iceberg destination connector"
+    description="Set up or manage the Apache Iceberg destination connector that syncs your service data to Amazon S3 Tables."
+    href="/integrate/connectors/destination/tigerlake"
+  />
+  <RelatedContentCard
+    title="Snowflake integration cookbook"
+    description="End-to-end example using a real dataset with an analytical join between Iceberg and Snowflake-native tables."
+    href="https://github.com/timescale/cookbook-integrations/tree/start/integrations-cookbook/snowflake"
+  />
+</RelatedContentCards>

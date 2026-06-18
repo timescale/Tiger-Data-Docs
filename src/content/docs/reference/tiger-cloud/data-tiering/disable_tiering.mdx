@@ -1,0 +1,52 @@
+---
+title: disable_tiering()
+description: Disable tiering on a hypertable and remove its object storage catalog entries
+keywords: [data tiering, disable, object storage]
+---
+
+import * as C from "@constants";
+
+import ReturnsVoid from '@partials/_returns-void.mdx';
+
+Disable tiering on a {C.HYPERTABLE}. The foreign table that represents tiered {C.CHUNK}s is dropped and all object storage catalog entries for the {C.HYPERTABLE} are removed. After the call returns, the {C.HYPERTABLE} behaves as a regular {C.CLOUD_LONG} {C.HYPERTABLE} with no tiered storage attached.
+
+`disable_tiering` is only allowed when no tiered data exists for the {C.HYPERTABLE}. Before calling it you must:
+
+1. Remove the tiering policy with [`remove_tiering_policy`](/reference/tiger-cloud/data-tiering/remove_tiering_policy).
+2. Bring every tiered {C.CHUNK} back with [`untier_chunk`](/reference/tiger-cloud/data-tiering/untier_chunk).
+3. Clear any {C.CHUNK}s still waiting in the tiering queue with [`untier_chunk`](/reference/tiger-cloud/data-tiering/untier_chunk).
+
+## Samples
+
+- **Disable tiering on the `my_hypertable_name` hypertable**:
+
+  ```sql
+  SELECT disable_tiering('my_hypertable_name');
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT disable_tiering(
+    hypertable = '<hypertable_name>'
+);
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| `hypertable` | `REGCLASS` | - | ✔ | Name of the {C.HYPERTABLE} to disable tiering on. |
+
+## Returns
+
+<ReturnsVoid />
+
+## Errors
+
+`disable_tiering` raises an exception when:
+
+- The supplied relation is not a {C.HYPERTABLE}.
+- A tiering policy is still attached to the {C.HYPERTABLE}. Remove it with [`remove_tiering_policy`](/reference/tiger-cloud/data-tiering/remove_tiering_policy) first.
+- The {C.HYPERTABLE} has tiered {C.CHUNK}s. Untier them with [`untier_chunk`](/reference/tiger-cloud/data-tiering/untier_chunk) first.
+- The {C.HYPERTABLE} has {C.CHUNK}s queued for tiering. Clear them with [`untier_chunk`](/reference/tiger-cloud/data-tiering/untier_chunk) first.

@@ -25,7 +25,7 @@ Then use one of these blocks. **Tip** and **Note** are the most common; use **Im
 
 - **Note** (extra context):  
   `<Callout variant="note">Your text here.</Callout>`  
-  Optional: add `title="Your title"` to override the default "Note".
+  Optional: add `title="Your title"` to override the default "Note."
 
 - **Important** (don’t skip):  
   `<Callout variant="important">Your text here.</Callout>`
@@ -67,11 +67,11 @@ import { Callout } from "@stainless-api/docs/components";
 | `warning`     | Warning              | Cautions, limitations, or caveats    |
 | `callout`     | Callout with button  | Promo/CTA with an action button      |
 
-Optional prop for all variants: **`title`**: overrides the default heading (e.g. "Note", "Tips").
+Optional prop for all variants: **`title`**: overrides the default heading (for example, "Note," "Tips").
 
 For **`variant="callout"`** only:
 
-- **`buttonLabel`**: text on the button (e.g. `"Try for free"`).
+- **`buttonLabel`**: text on the button (for example, `"Try for free"`).
 - **`buttonHref`**: URL for the button. If both `buttonLabel` and `buttonHref` are set, the callout shows a CTA button.
 
 ### Examples
@@ -135,13 +135,13 @@ For **`variant="callout"`** only:
 <details>
 <summary><strong>When to use the primary (accent) button</strong></summary>
 
-The **main button** is the primary CTA style: dark background (`#0b0b0f` in light theme), light text, 4px radius, 16px padding. It’s used for the single most important action in a given context (e.g. “Try for free”, “Get started”).
+The **main button** is the primary CTA style: high-contrast background (the header “Get started” CTA uses `--tiger-black`, `#000000`, in light theme), contrasting text, 4px radius, 16px padding. It’s used for the single most important action in a given context (for example, “Try for free”, “Get started”).
 
 ### When to use
 
-- **One primary action per view**: e.g. “Get started” in the header, or “Try for free” inside a callout. Reserve it for the main conversion or next step you want the user to take.
-- **Header links**: In `astro.config.ts`, `header.links` entries are rendered as buttons; the **last** link is styled as the primary (accent) button. Use that slot for the top-level CTA (e.g. sign up, start trial, get started).
-- **In-content CTAs**: Use **Callout with button** (`variant="callout"` with `buttonLabel` and `buttonHref`) when you want a prominent CTA inside a doc (e.g. trial signup, product signup). That callout’s button uses the same primary style.
+- **One primary action per view**: for example, “Get started” in the header, or “Try for free” inside a callout. Reserve it for the main conversion or next step you want the user to take.
+- **Header links**: In `astro.config.ts`, `header.links` entries are rendered as buttons; the **last** link is styled as the primary (accent) button. Use that slot for the top-level CTA (for example, sign up, start trial, get started).
+- **In-content CTAs**: Use **Callout with button** (`variant="callout"` with `buttonLabel` and `buttonHref`) when you want a prominent CTA inside a doc (for example, trial signup, product signup). That callout’s button uses the same primary style.
 
 ### When not to use
 
@@ -156,11 +156,11 @@ The **main button** is the primary CTA style: dark background (`#0b0b0f` in ligh
 | **Header**            | `astro.config.ts` → `header.links`. Last item gets accent (primary) style.   |
 | **Callout with button**| `<Callout variant="callout" buttonLabel="…" buttonHref="…">…</Callout>` in MDX. |
 
-Styling is in `theme.css`: variables `--stl-button-primary-bg` and `--stl-button-primary-fg`, and classes `.stl-ui-button`, `.stl-ui-button--accent`. The callout CTA button shares these tokens so header and in-doc CTAs stay consistent.
+Styling lives under `src/styles/` (imported by the `theme.css` entry point): the variables `--stl-button-primary-bg` and `--stl-button-primary-fg` are defined in `tokens.css`, and the classes `.stl-ui-button`, `.stl-ui-button--accent` in `buttons.css`. The callout CTA button shares these tokens so header and in-doc CTAs stay consistent.
 
-### Outline + hover button (Figma 3245-9618, 3245-9617)
+### Outline + hover button
 
-The **Button** component implements the two Figma states: **enabled** (outline: light bg, dark border, dark text) and **hover** (filled: dark bg, white text). Use it for secondary actions that highlight on hover.
+The **Button** component implements two states: **enabled** (outline: light bg, dark border, dark text) and **hover** (filled: dark bg, white text). Use it for secondary actions that highlight on hover.
 
 Import and use in MDX or Astro:
 
@@ -177,7 +177,7 @@ import { Button } from "@stainless-api/docs/components";
 | `label` | Button text (required). |
 | `href` | If set, renders as `<a>`; otherwise `<button>`. |
 | `variant` | `"outline"` (default) = enabled → hover fill; `"accent"` = primary only. |
-| `icon` | `"down"` or `true` = show down-arrow icon (Figma “Arrow / With base / Down”). |
+| `icon` | `"down"` or `true` = show the down-arrow icon. |
 | `type` | For `<button>`: `"button"` \| `"submit"` \| `"reset"`. |
 | `class` | Extra CSS classes. |
 
@@ -199,7 +199,7 @@ These are **layout and chrome** components. You don’t use them directly in MDX
 | **PageTitle**    | Breadcrumbs, Stainless **AIDropdown** (copy MD / AI apps), H1, labels, description | `starlightCompat.components.PageTitle` → `src/components/PageTitle.astro` |
 | **Header**       | Site header (logo, nav)                                              | `starlightCompat.components.Header` → `src/components/Header.astro` |
 
-- **Breadcrumbs:** Built from the sidebar; group labels (e.g. “pgai”) link to the first page in that group. The current page is the last segment and is not a link.
+- **Breadcrumbs:** Built from the sidebar; group labels (for example, “Toolkit”) link to the first page in that group. The current page is the last segment and is not a link.
 - **PageNavigation:** Order follows the sidebar; “Previous” / “Next” show sibling or parent/child pages.
 
 No MDX import is required for these; they are part of the default layout.
@@ -213,50 +213,42 @@ No MDX import is required for these; they are part of the default layout.
 <details>
 <summary><strong>IntegrationPrereqs and related partials: cloud, self-hosted, or both</strong></summary>
 
-The **Integration Prereqs** partials are reusable MDX fragments that tell the reader what they need before following a doc (e.g. a Tiger Cloud service or a self-hosted instance). They live in `src/partials/`. Use the one that matches your page’s deployment options so readers get the right prerequisites and links.
+The **Integration Prereqs** partials are reusable MDX fragments that tell the reader what they need before following a doc (for example, a Tiger Cloud service or a self-hosted instance). They live in `src/partials/`. Use the one that matches your page’s deployment options so readers get the right prerequisites and links.
 
 ### Summary: which partial to use
 
 | Partial | Use when the doc applies to… | Rendered content (summary) |
 | ------- | --------------------------- | -------------------------- |
-| **IntegrationPrereqs** (`_integration-prereqs.mdx`) | **Cloud or self-hosted**; you want to mention “Real-time analytics” and connection details. | Create a target Tiger Cloud service (Real-time analytics) or use self-hosted; need connection details. |
-| **IntegrationPrereqs** (`_prereqs-cloud-and-self.mdx`) | **Cloud or self-hosted**; shorter, generic “procedure” wording. | Create a target Tiger Cloud service; procedure also works for self-hosted. |
-| **IntegrationPrereqsCloud** (`_integration-prereqs-cloud-only.mdx`) | **Tiger Cloud only.** | Create a target Tiger Cloud service (Real-time analytics); need connection details. |
-| **IntegrationPrereqsSelfOnly** (`_integration-prereqs-self-only.mdx`) | **Self-hosted only.** | Create a target self-hosted instance; need connection details. |
+| **IntegrationPrereqs** (`_prereqs-cloud-and-self.mdx`) | **Cloud or self-hosted**; the steps use Tiger Cloud but the same approach applies to self-hosted. | Create a Tiger Cloud service; note that the same approach applies to a self-hosted instance. |
+| **IntegrationPrereqs** (`_prereqs-cloud-or-self.mdx`) | **Cloud or self-hosted**; shorter single-line wording. | A Tiger Cloud service, or a running self-hosted instance. |
+| **IntegrationPrereqsCloud** (`_prereqs-cloud-no-connection.mdx`) | **Tiger Cloud only.** | Create a Tiger Cloud service. |
+| **IntegrationPrereqsSelfOnly** (`_prereqs-self-instance.mdx`) | **Self-hosted only.** | A self-hosted instance. |
+| **ConnectionDetails** (`_prereqs-connection-details.mdx`) | Any page that needs the reader’s connection details. | Your connection details. |
+| **RESTPrereqs** (`_prereqs-cloud-account-only.mdx`) | Pages needing only a Tiger Cloud account (for example, the REST API). | A Tiger Cloud account. |
 
 ### When to use which
 
 - **Learn, get-started, or general “follow along” pages** that work on both Tiger Cloud and self-hosted  
-  → Use **`_integration-prereqs.mdx`** (more detail: Real-time analytics, connection details) or **`_prereqs-cloud-and-self.mdx`** (shorter, “procedure also works for self-hosted”).  
-  Examples: get-started key-features, learn/fundamentals, build/examples (e.g. simulate-iot-sensor-data, analyze-energy-consumption).
+  → Use **`_prereqs-cloud-and-self.mdx`** (steps use Tiger Cloud, with a note that the same approach applies to self-hosted) or **`_prereqs-cloud-or-self.mdx`** (shorter, single-line “cloud or self-hosted”).  
+  Examples: get-started key-features, learn/fundamentals, build/examples (for example, simulate-iot-sensor-data, analyze-energy-consumption).
 
-- **Integrate guides** (tools, connectors, BI, observability, etc.) that support both cloud and self-hosted  
+- **Integrate guides** (tools, connectors, BI, observability, and so on) that support both cloud and self-hosted  
   → Use **`_prereqs-cloud-and-self.mdx`**.  
   Examples: integrate/query-administration (psql, pgAdmin, DBeaver), integrate/data-engineering-etl (Airflow, Fivetran), integrate/bi-vizualization (Tableau, Power BI).
 
-- **Integrate or deploy guides that are Tiger Cloud–only** (e.g. cloud-specific secure connectivity or exporters)  
-  → Use **`_integration-prereqs-cloud-only.mdx`**.  
+- **Integrate or deploy guides that are Tiger Cloud–only** (for example, cloud-specific secure connectivity or exporters)  
+  → Use **`_prereqs-cloud-no-connection.mdx`**.  
   Examples: integrate/secure-connectivity (AWS, GCP, Azure, corporate data center), integrate/observability (Grafana, Datadog, CloudWatch), connectors that target Tiger Cloud only.
 
-- **Guides that are self-hosted–only** (e.g. local or on-prem setup)  
-  → Use **`_integration-prereqs-self-only.mdx`**.  
-  Examples: start-coding-* partials (Node, Python, Ruby, etc.), Debezium self-hosted.
+- **Guides that are self-hosted–only** (for example, local or on-prem setup)  
+  → Use **`_prereqs-self-instance.mdx`**.  
+  Examples: start-coding-* partials (Node, Python, Ruby, and so on), Debezium self-hosted.
 
 ### Import and usage
 
 Import from `src/partials/` using the `@partials` alias (or a relative path from your doc). Use a single `<ComponentName />` in the **Prerequisites** (or equivalent) section.
 
-**Cloud + self-hosted (detailed – Real-time analytics + connection details):**
-
-```mdx
-import IntegrationPrereqs from '@partials/_integration-prereqs.mdx';
-
-## Prerequisites
-
-<IntegrationPrereqs />
-```
-
-**Cloud + self-hosted (shorter – “procedure also works for self-hosted”):**
+**Cloud + self-hosted (steps use Tiger Cloud, same approach applies to self-hosted):**
 
 ```mdx
 import IntegrationPrereqs from '@partials/_prereqs-cloud-and-self.mdx';
@@ -266,10 +258,20 @@ import IntegrationPrereqs from '@partials/_prereqs-cloud-and-self.mdx';
 <IntegrationPrereqs />
 ```
 
+**Cloud + self-hosted (shorter – single-line “cloud or self-hosted”):**
+
+```mdx
+import IntegrationPrereqs from '@partials/_prereqs-cloud-or-self.mdx';
+
+## Prerequisites
+
+<IntegrationPrereqs />
+```
+
 **Cloud only:**
 
 ```mdx
-import IntegrationPrereqsCloud from '@partials/_integration-prereqs-cloud-only.mdx';
+import IntegrationPrereqsCloud from '@partials/_prereqs-cloud-no-connection.mdx';
 
 ## Prerequisites
 
@@ -279,14 +281,14 @@ import IntegrationPrereqsCloud from '@partials/_integration-prereqs-cloud-only.m
 **Self-hosted only:**
 
 ```mdx
-import IntegrationPrereqsSelfOnly from '@partials/_integration-prereqs-self-only.mdx';
+import IntegrationPrereqsSelfOnly from '@partials/_prereqs-self-instance.mdx';
 
 ## Prerequisites
 
 <IntegrationPrereqsSelfOnly />
 ```
 
-If `@partials` is not configured in your environment, use a relative path from your doc to `src/partials/`, e.g. from `src/content/docs/build/examples/`:
+If `@partials` is not configured in your environment, use a relative path from your doc to `src/partials/`, for example, from `src/content/docs/build/examples/`:
 
 ```mdx
 import IntegrationPrereqs from "../../../../partials/_prereqs-cloud-and-self.mdx";
@@ -303,9 +305,9 @@ import IntegrationPrereqs from "../../../../partials/_prereqs-cloud-and-self.mdx
 
 Other project-specific components live under `src/components/` and are used in specific pages or layouts.
 
-### SecondaryButton (icon + label, default / subtle) – Figma 3245-9636, 3245-9637
+### SecondaryButton (icon + label, default / subtle)
 
-The **SecondaryButton** component implements the two Figma variants: **default** (white background) and **subtle** (light gray background). Both use a dark border, 12px Geist Medium label, and an optional icon (default: Copy). Use for secondary actions (e.g. copy, download) where the primary CTA is something else.
+The **SecondaryButton** component has two variants: **default** (white background) and **subtle** (light gray background). Both use a dark border, 12px Geist Medium label, and an optional icon (default: Copy). Use for secondary actions (for example, copy, download) where the primary CTA is something else.
 
 **Import (MDX or Astro):**
 
@@ -322,7 +324,7 @@ import SecondaryButton from "@components/SecondaryButton.astro";
 
 | Prop         | Description                                                                                   |
 |--------------|-----------------------------------------------------------------------------------------------|
-| `variant`    | `"default"` (white bg, Figma 3245-9636) or `"subtle"` (gray bg, Figma 3245-9637). Default: `"default"`. |
+| `variant`    | `"default"` (white bg) or `"subtle"` (gray bg). Default: `"default"`. |
 | `label`      | Button text (required).                                                                        |
 | `href`       | If set, renders as `<a>`; otherwise `<button>`.                                               |
 | `type`       | For `<button>`: `"button"` \| `"submit"` \| `"reset"`.                                        |
@@ -344,7 +346,7 @@ To drop the control into another layout (uncommon), use the same import; options
 
 ### CopyToClipboard (copy to clipboard) – Stainless-style
 
-The **CopyToClipboard** component is a button that copies a given string to the clipboard on click and shows “Copied!” feedback. It matches the same visual style as SecondaryButton (Figma 3245-9636, 3245-9637) so it fits the Stainless Docs Platform / Tiger Data design system. Use it for connection strings, one-line code snippets, or any text you want users to copy with one click. For full code blocks, rely on Starlight’s Expressive Code copy button.
+The **CopyToClipboard** component is a button that copies a given string to the clipboard on click and shows “Copied!” feedback. It matches the same visual style as SecondaryButton so it fits the Stainless Docs Platform / Tiger Data design system. Use it for connection strings, one-line code snippets, or any text you want users to copy with one click. For full code blocks, rely on Starlight’s Expressive Code copy button.
 
 **Import (MDX; React component, use `client:load`):**
 
@@ -368,11 +370,11 @@ import CopyToClipboard from "@components/CopyToClipboard";
 | `aria-label`   | Override accessible name (defaults to `label` or “Copy to clipboard”).                          |
 | `className`    | Optional CSS class(es) for the button.                                                          |
 
-**When to use which:** Use **CopyToClipboard** when the action is “copy this specific text” (e.g. connection string, env var, one-liner). Use **SecondaryButton** for other secondary actions (e.g. “Download”, “View repo”) that navigate or submit.
+**When to use which:** Use **CopyToClipboard** when the action is “copy this specific text” (for example, connection string, env var, one-liner). Use **SecondaryButton** for other secondary actions (for example, “Download”, “View repo”) that navigate or submit.
 
 ### Button (outline + hover, optional icon)
 
-The **Button** component matches Figma 3245-9618 (enabled) and 3245-9617 (hover). Use it for standalone actions: outline style by default, fills to primary on hover; optional down-arrow icon.
+The **Button** component has two states: enabled and hover. Use it for standalone actions: outline style by default, fills to primary on hover; optional down-arrow icon.
 
 **Import (in MDX or Astro):**
 

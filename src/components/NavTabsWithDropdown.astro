@@ -52,8 +52,39 @@ interface SidebarEntryLike {
   dropdownDescription?: string;
 }
 
+/**
+ * Dropdown-only landing-page overrides, keyed by sidebar section label.
+ *
+ * The header dropdown derives each section heading's link from the sidebar tree
+ * (`sectionIndexHref`). When a section's first entry is a subgroup, that heuristic
+ * falls through to the first *flat* link instead, which can be the wrong landing page
+ * (e.g. "Tiger Cloud on AWS" resolved to "Monitor your services"). These overrides fix
+ * the heading link without touching the left sidebar, which is generated from the same
+ * config but can't carry custom keys (Starlight's sidebar schema is strict).
+ */
+const SECTION_DROPDOWN_HREF: Record<string, string> = {
+  "Get hands on": "/build/how-to/your-first-hypertable",
+  "Tiger Cloud on AWS": "/deploy/tiger-cloud/tiger-cloud-aws/configuration/about-configuration",
+  "Tiger Cloud on Azure": "/deploy/tiger-cloud/tiger-cloud-azure/configuration/about-configuration",
+};
+
+const BASE_PREFIX = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+/**
+ * Strip the Astro base path (e.g. `/docs` in production) from a root-relative href.
+ * Tab links from the TABS virtual module arrive already base-prefixed, while sidebar
+ * entry links do not until `prefixNavTreeHrefs` runs. Normalizing both to a base-free
+ * form lets `filterOverviewDuplicate` compare them correctly regardless of base path.
+ */
+function stripBasePrefix(p: string): string {
+  if (!BASE_PREFIX) return p;
+  if (p === BASE_PREFIX) return "/";
+  if (p.startsWith(BASE_PREFIX + "/")) return p.slice(BASE_PREFIX.length);
+  return p;
+}
+
 function normalizePath(h: string): string {
-  return h.split("#")[0].replace(/\/$/, "") || "/";
+  return stripBasePrefix(h.split("#")[0]).replace(/\/$/, "") || "/";
 }
 
 /**
@@ -87,6 +118,8 @@ function firstDescendantLeafLink(items: unknown[] | undefined): string | undefin
  * Overview page, first matching link in the sidebar config, or first descendant page.
  */
 function sectionIndexHref(e: SidebarEntryLike): string | undefined {
+  const override = SECTION_DROPDOWN_HREF[e.label?.trim()];
+  if (override) return override;
   if (typeof e.link === "string") return e.link;
 
   const items = Array.isArray(e.items) ? e.items : [];
@@ -187,7 +220,10 @@ function buildNavTree(entries: unknown[] | undefined): NavTreeNode[] {
 function filterOverviewDuplicate(nodes: NavTreeNode[], tabLink: string): NavTreeNode[] {
   const tabPath = normalizePath(tabLink);
   return nodes.filter((n) => {
-    if (n.kind !== "link") return true;
+    // Drop any root entry — a plain link or a section group (e.g. Learn's "Overview"
+    // group whose href resolves to its first child) — labelled "Overview" that points at
+    // the tab's own index page. The dropdown header already links there.
+    if (typeof n.href !== "string") return true;
     return !(normalizePath(n.href) === tabPath && /^overview$/i.test(n.label.trim()));
   });
 }
@@ -203,8 +239,6 @@ function clearTreeDescriptions(nodes: NavTreeNode[]): void {
     }
   }
 }
-
-const BASE_PREFIX = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 /** Recursively prefix every href in the nav tree with the Astro base path. */
 function prefixNavTreeHrefs(nodes: NavTreeNode[]): void {
