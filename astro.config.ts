@@ -807,11 +807,17 @@ export default defineConfig({
                       collapsed: true,
                       items: [
                         {
-                          label: "Amazon Iceberg",
-                          link: "/integrate/connectors/destination/tigerlake",
-                          attrs: { "data-no-flatten": "true" },
+                          label: "Tiger Lake (Iceberg)",
+                          collapsed: true,
+                          items: [
+                            {
+                              label: "Overview and setup",
+                              link: "/integrate/connectors/destination/tigerlake",
+                              attrs: { "data-no-flatten": "true" },
+                            },
+                            { label: "Query from Snowflake", link: "/integrate/connectors/destination/snowflake" },
+                          ],
                         },
-                        { label: "Snowflake", link: "/integrate/connectors/destination/snowflake" },
                       ],
                     },
                   ],
