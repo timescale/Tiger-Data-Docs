@@ -172,6 +172,7 @@ House prose style follows the Google developer documentation style guide, enforc
 - **vale.yml**: lints prose against the Google style guide plus custom `TigerData` rules. Only the lines a PR changes are checked, and only errors gate. `TigerData.CompressionAPIs` is the only rule set to error (everything else is advisory). Failures are explained in the run's step summary plus inline annotations. See `.github/scripts/vale_pr_lint.py`.
 - **pr-checklist-check.yml**: ensures PR checklist items are addressed.
 - **affected-pages.yml**: posts preview links for changed pages on successful deploy.
+- **weekly-external-links.yml** (scheduled, Mondays): runs the `weekly-external-links` skill to draft `learnMore` right-rail cards from content published in [Tiger Den](https://den.tigerdata.com) and opens a draft review PR. Reads from Tiger Den with `TIGER_DEN_TOKEN` and matches to pages with `ANTHROPIC_API_KEY` (both repo secrets). Full guide and tuning knobs: [`.claude/skills/weekly-external-links/SKILL.md`](./.claude/skills/weekly-external-links/SKILL.md).
 
 ## Pull requests
 

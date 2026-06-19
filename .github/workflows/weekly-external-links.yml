@@ -1,0 +1,80 @@
+name: "Weekly external links"
+
+# Pulls content published in the last N days from Tiger Den
+# (Tiger Data's marketing content hub), matches it to docs pages, and opens a
+# pull request that adds `learnMore` right-rail cards for a human to review.
+#
+# Pipeline (all zero-dependency Python stdlib scripts, see the weekly-external-links skill):
+#   fetch_tiger_den.py -> build_doc_catalog.py -> match_content.py -> apply_cards.py
+# The matcher calls the Claude API; everything else is local.
+#
+# Triggers:
+#   - schedule: every Monday at 08:00 UTC.
+#   - workflow_dispatch: run by hand, optionally overriding the look-back window.
+#
+# Required repository secrets:
+#   - TIGER_DEN_TOKEN      read-only Tiger Den content token
+#   - ANTHROPIC_API_KEY    Claude API key (matching step)
+#   - ORG_AUTOMATION_TOKEN token used to open the PR (same as other workflows)
+
+on:
+  schedule:
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Look-back window in days"
+        required: false
+        default: "7"
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: weekly-external-links
+  cancel-in-progress: false
+
+jobs:
+  weekly-external-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Stamp the run date
+        id: meta
+        run: echo "date=$(date +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Refresh external links
+        env:
+          TIGER_DEN_TOKEN: ${{ secrets.TIGER_DEN_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DAYS: ${{ github.event.inputs.days || '7' }}
+        run: |
+          set -euo pipefail
+          S=.claude/skills/weekly-external-links/scripts
+          mkdir -p .learnmore-work
+          python3 "$S/fetch_tiger_den.py"   --days "$DAYS" --out .learnmore-work/tiger-den.json
+          python3 "$S/build_doc_catalog.py"                --out .learnmore-work/catalog.json
+          python3 "$S/match_content.py" --items .learnmore-work/tiger-den.json \
+              --catalog .learnmore-work/catalog.json --out .learnmore-work/mapping.json
+          python3 "$S/apply_cards.py" --mapping .learnmore-work/mapping.json \
+              --catalog .learnmore-work/catalog.json
+          python3 "$S/render_report.py" .learnmore-work/mapping.json > .learnmore-work/pr-body.md
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.ORG_AUTOMATION_TOKEN }}
+          branch: "docs/weekly-external-links-${{ steps.meta.outputs.date }}"
+          add-paths: |
+            src/content/docs/**
+          delete-branch: true
+          draft: true
+          title: "Weekly external links (${{ steps.meta.outputs.date }})"
+          body-path: .learnmore-work/pr-body.md
+          commit-message: "Add learnMore cards from Tiger Den (${{ steps.meta.outputs.date }})"
