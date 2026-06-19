@@ -226,7 +226,14 @@ Sparse indexes accelerate `SELECT`, `UPSERT`, `UPDATE`, and `DELETE` on {C.COLUM
 
 ### Default sparse indexes
 
-By default ([`timescaledb.auto_sparse_indexes`](/reference/timescaledb/configuration/gucs)), {C.TIMESCALE_DB} picks suitable sparse indexes automatically based on the {C.HYPERTABLE}'s existing B-tree indexes and column data types. Setting `tsdb.orderby` always creates an implicit sparse index on the orderby column. Since 2.28.0, {C.CHUNK}s newly converted to the {C.COLUMNSTORE} back the orderby column with a `first`/`last` index: it stores each batch's first and last orderby value, which bounds the batch for skipping range and equality predicates and lets recency queries that return the latest or earliest value (for example `max()` or `min()` on the orderby column, or `first(value, time)` / `last(value, time)`) read from the batch metadata index instead of scanning the full batches. {C.CHUNK}s converted before 2.28.0 keep their `minmax` orderby metadata until they are reconverted to the {C.COLUMNSTORE}.
+By default ([`timescaledb.auto_sparse_indexes`](/reference/timescaledb/configuration/gucs)), {C.TIMESCALE_DB} chooses sparse indexes for you, based on the {C.HYPERTABLE}'s existing B-tree indexes and column data types. Setting `tsdb.orderby` always adds an implicit sparse index on the orderby column.
+
+Since 2.28.0, that implicit index is a `first`/`last` index on {C.CHUNK}s newly converted to the {C.COLUMNSTORE}. It stores the first and last orderby value in each batch, which does two things:
+
+- Skips batches that can't match a range or equality filter, the same as `minmax`.
+- Answers latest- or earliest-value queries straight from the metadata, without scanning the full batches. This covers `max()` and `min()` on the orderby column, and `first(value, time)` / `last(value, time)`.
+
+{C.CHUNK}s converted before 2.28.0 keep their `minmax` orderby metadata until they are reconverted to the {C.COLUMNSTORE}.
 
 ### Configure sparse indexes
 
