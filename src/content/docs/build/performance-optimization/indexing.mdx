@@ -20,7 +20,7 @@ import CreateHypertablePolicyNote from "../../../../partials/_create-hypertable-
 Indexes shrink scan work for point lookups and selective filters. {C.TIMESCALE_DB} uses two complementary mechanisms:
 
 - **Regular {C.PG} indexes on the {C.ROWSTORE}** — B-tree indexes on recent, non-{C.COLUMNSTORE} {C.CHUNK}s, configured the same way as on a regular {C.PG} table.
-- **Sparse indexes on the {C.COLUMNSTORE}** — `bloom` and `minmax` summaries per {C.COLUMNSTORE} batch that let the engine skip batches that can't match a query. See [Sparse indexes on the {C.COLUMNSTORE}](#sparse-indexes-on-the-columnstore).
+- **Sparse indexes on the {C.COLUMNSTORE}** — `bloom`, `minmax`, and `first`/`last` summaries per {C.COLUMNSTORE} batch that let the engine skip batches that can't match a query. See [Sparse indexes on the {C.COLUMNSTORE}](#sparse-indexes-on-the-columnstore).
 
 For background on how the {C.COLUMNSTORE} stores compressed data, see [Compression methods](/learn/columnar-storage/compression-methods).
 
@@ -215,16 +215,18 @@ Time-series data uses `UNIQUE` indexes more rarely than relational data. When yo
 
 Once {C.CHUNK}s are converted to the {C.COLUMNSTORE}, regular B-tree indexes don't apply. Instead, {C.TIMESCALE_DB} maintains *sparse indexes* — small per-batch summaries that let the engine skip batches that can't match the query before reading or moving them back to the {C.ROWSTORE}.
 
-Two index types are available:
+You configure two index types explicitly:
 
 - **`bloom(<column>, ...)`** — probabilistic filter for equality predicates. Lets the engine answer "could this batch contain `column = X`?" without inspecting the batch's compressed data. Accepts one or more columns; a [composite bloom](#composite-bloom-filters) tests combined equality predicates across the listed columns.
 - **`minmax(<column>)`** — stores per-batch min and max for the column. Lets the engine answer range and equality predicates by comparing the predicate against the batch's bounds.
+
+A third type, **`first`/`last`**, is maintained automatically on `tsdb.orderby` columns and isn't configurable. See [Default sparse indexes](#default-sparse-indexes).
 
 Sparse indexes accelerate `SELECT`, `UPSERT`, `UPDATE`, and `DELETE` on {C.COLUMNSTORE} data. For DML, when a batch can't contain matching rows, {C.TIMESCALE_DB} skips it without moving it back to the {C.ROWSTORE} for checking — this is what delivers the headline speedups (more than 2× for upserts, up to 160× for `UPDATE`/`DELETE` with selective bloom matches).
 
 ### Default sparse indexes
 
-By default ([`timescaledb.auto_sparse_indexes`](/reference/timescaledb/configuration/gucs)), {C.TIMESCALE_DB} picks suitable sparse indexes automatically based on the {C.HYPERTABLE}'s existing B-tree indexes and column data types. Setting `tsdb.orderby` always creates an implicit `minmax` index on the orderby column.
+By default ([`timescaledb.auto_sparse_indexes`](/reference/timescaledb/configuration/gucs)), {C.TIMESCALE_DB} picks suitable sparse indexes automatically based on the {C.HYPERTABLE}'s existing B-tree indexes and column data types. Setting `tsdb.orderby` always creates an implicit sparse index on the orderby column. Since 2.28.0, {C.CHUNK}s newly converted to the {C.COLUMNSTORE} back the orderby column with a `first`/`last` index: it stores each batch's first and last orderby value, which bounds the batch for skipping range and equality predicates and lets recency queries that return the latest or earliest value (for example `max()` or `min()` on the orderby column, or `first(value, time)` / `last(value, time)`) read from the batch metadata index instead of scanning the full batches. {C.CHUNK}s converted before 2.28.0 keep their `minmax` orderby metadata until they are reconverted to the {C.COLUMNSTORE}.
 
 ### Configure sparse indexes
 
@@ -248,9 +250,9 @@ CREATE TABLE metrics (
 ### Restrictions
 
 - **Bloom on `tsdb.segmentby` columns**: not allowed, single-column or composite. A bloom whose column list includes any segmentby column is rejected.
-- **Single-column bloom on a `tsdb.orderby` column**: not allowed. The orderby column gets an implicit `minmax` automatically; use that for range filters. A composite `bloom(orderby_col, other_col)` that includes the orderby column **is** allowed.
+- **Single-column bloom on a `tsdb.orderby` column**: not allowed. The orderby column gets an implicit sparse index automatically; use that for range filters. A composite `bloom(orderby_col, other_col)` that includes the orderby column **is** allowed.
 - **Minmax on `tsdb.segmentby` columns**: not allowed.
-- **Minmax on a `tsdb.orderby` column**: redundant — an implicit `minmax` is already added; configuring one explicitly has the same effect.
+- **Minmax on a `tsdb.orderby` column**: accepted, but on 2.28.0 and later it replaces the orderby column's automatic `first`/`last` index with a legacy `minmax` one. Leave it unset unless you specifically need `minmax` there.
 - **One single-column sparse index per column**: you cannot have two indexes on the same single column (`bloom(region), minmax(region)` is rejected). Composite indexes are not affected by this rule (`bloom(region, dev), bloom(dev)` is valid).
 
 ### Composite bloom filters
