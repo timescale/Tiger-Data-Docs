@@ -6,6 +6,7 @@ products: [cloud]
 
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 Common issues you may hit while running a [Livesync replication](/migrate/livesync-replication) migration to {C.CLOUD_LONG}, and how to resolve them.
 
@@ -59,35 +60,48 @@ Other knobs to consider: lower `--table-sync-workers`, scale up target IOPS or C
 
 ## Restart a single table
 
-1. Remove the table from the publication on the source:
+<NumberedList>
+<NumberedItem title="Remove the table from the publication on the source">
 
-   ```sql
-   ALTER PUBLICATION <publication_name> DROP TABLE <schema>.<table>;
-   ```
+```sql
+ALTER PUBLICATION <publication_name> DROP TABLE <schema>.<table>;
+```
 
-2. Stop and restart Livesync to remove catalog objects for the dropped table.
-3. Confirm removal (this should return empty):
+</NumberedItem>
 
-   ```sql
-   psql "$TARGET" -c "
-     SELECT * FROM _ts_live_sync.subscription_rel
-     WHERE tablename = '<table>';
-   "
-   ```
+<NumberedItem title="Stop and restart Livesync to remove catalog objects for the dropped table">
+</NumberedItem>
 
-4. Truncate the table on the target:
+<NumberedItem title="Confirm removal (this should return empty)">
 
-   ```sql
-   TRUNCATE <schema>.<table>;
-   ```
+```sql
+psql "$TARGET" -c "
+  SELECT * FROM _ts_live_sync.subscription_rel
+  WHERE tablename = '<table>';
+"
+```
 
-5. Add the table back to the publication:
+</NumberedItem>
 
-   ```sql
-   ALTER PUBLICATION <publication_name> ADD TABLE <schema>.<table>;
-   ```
+<NumberedItem title="Truncate the table on the target">
 
-6. Stop and restart Livesync to begin syncing the re-added table.
+```sql
+TRUNCATE <schema>.<table>;
+```
+
+</NumberedItem>
+
+<NumberedItem title="Add the table back to the publication">
+
+```sql
+ALTER PUBLICATION <publication_name> ADD TABLE <schema>.<table>;
+```
+
+</NumberedItem>
+
+<NumberedItem title="Stop and restart Livesync to begin syncing the re-added table">
+</NumberedItem>
+</NumberedList>
 
 ## Restart everything
 
