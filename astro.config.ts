@@ -701,22 +701,33 @@ export default defineConfig({
             },
           ],
         },
-        // Migrate tab, logical order: overview → how to import/migrate → source-specific guides
+        // Migrate tab: data sync, file uploads, and full database migration
         {
           label: "Migrate",
           link: "/migrate",
           sidebar: [
             { label: "Overview", link: "/migrate" },
             {
-              label: "Import & migration methods",
+              label: "Migrate to Tiger Cloud",
               collapsed: false,
               items: [
-                { label: "Sync from Postgres", link: "/migrate/livesync-for-postgresql" },
-                { label: "Sync from S3", link: "/migrate/livesync-for-s3" },
-                { label: "Stream from Kafka", link: "/migrate/livesync-for-kafka" },
-                { label: "Upload a file (Console)", link: "/migrate/import-console" },
-                { label: "Upload a file (terminal)", link: "/migrate/import-terminal" },
-                { label: "Live migration", link: "/migrate/live-migration" },
+                {
+                  label: "Livesync replication",
+                  collapsed: true,
+                  items: [
+                    { label: "Livesync replication", link: "/migrate/livesync-replication" },
+                    { label: "Advanced topics", link: "/migrate/livesync-replication-advanced" },
+                    { label: "Troubleshooting", link: "/migrate/livesync-replication-troubleshooting" },
+                  ],
+                },
+                {
+                  label: "Live migration (deprecated)",
+                  collapsed: true,
+                  items: [
+                    { label: "Live migration (deprecated)", link: "/migrate/live-migration" },
+                    { label: "FAQ and troubleshooting", link: "/migrate/troubleshooting" },
+                  ],
+                },
                 { label: "Migrate with downtime", link: "/migrate/migrate-with-downtime" },
                 {
                   label: "Dual-write and backfill",
@@ -729,7 +740,23 @@ export default defineConfig({
                     { label: "timescaledb-backfill tool", link: "/migrate/dual-write-and-backfill/timescaledb-backfill" },
                   ],
                 },
-                { label: "FAQ and troubleshooting", link: "/migrate/troubleshooting" },
+              ],
+            },
+            {
+              label: "Sync and stream",
+              collapsed: false,
+              items: [
+                { label: "Sync from PostgreSQL", link: "/migrate/livesync-for-postgresql" },
+                { label: "Sync from S3", link: "/migrate/livesync-for-s3" },
+                { label: "Stream from Kafka", link: "/migrate/livesync-for-kafka" },
+              ],
+            },
+            {
+              label: "Upload files",
+              collapsed: false,
+              items: [
+                { label: "Upload in Tiger Console", link: "/migrate/import-console" },
+                { label: "Upload in the terminal", link: "/migrate/import-terminal" },
               ],
             },
           ],
