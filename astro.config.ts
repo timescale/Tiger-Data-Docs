@@ -708,7 +708,7 @@ export default defineConfig({
           sidebar: [
             { label: "Overview", link: "/migrate" },
             {
-              label: "Migration methods",
+              label: "Migrate to Tiger Cloud",
               collapsed: false,
               items: [
                 {
@@ -743,14 +743,20 @@ export default defineConfig({
               ],
             },
             {
-              label: "Sync methods",
+              label: "Sync and stream",
               collapsed: false,
               items: [
-                { label: "Sync from Postgres", link: "/migrate/livesync-for-postgresql" },
+                { label: "Sync from PostgreSQL", link: "/migrate/livesync-for-postgresql" },
                 { label: "Sync from S3", link: "/migrate/livesync-for-s3" },
                 { label: "Stream from Kafka", link: "/migrate/livesync-for-kafka" },
-                { label: "Upload a file (Console)", link: "/migrate/import-console" },
-                { label: "Upload a file (terminal)", link: "/migrate/import-terminal" },
+              ],
+            },
+            {
+              label: "Upload files",
+              collapsed: false,
+              items: [
+                { label: "Upload in Tiger Console", link: "/migrate/import-console" },
+                { label: "Upload in the terminal", link: "/migrate/import-terminal" },
               ],
             },
           ],

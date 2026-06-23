@@ -9,11 +9,10 @@ import * as C from "@constants";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
-import MigrationPrerequisites from "../../../partials/_migrate_prerequisites.mdx";
 import { Prerequisites } from "@components/Prerequisites";
 
 <Callout variant="tip">
-**Livesync replication vs. {C.PG_CONNECTOR}:** Livesync replication is a **one-time migration** to {C.CLOUD_LONG} with a cutover at the end. For **continuous ongoing replication** where {C.PG} stays the primary and {C.CLOUD_LONG} acts as a logical replica, see [Sync from Postgres](/migrate/livesync-for-postgresql) instead. Both features share the same underlying technology, but the workflows and end states differ.
+**Livesync replication vs. {C.PG_CONNECTOR}:** Livesync replication is a **one-time migration** to {C.CLOUD_LONG} with a cutover at the end. For **continuous ongoing replication** where {C.PG} stays the primary and {C.CLOUD_LONG} acts as a logical replica, see [Sync from {C.PG}](/migrate/livesync-for-postgresql) instead. Both features share the same underlying technology, but the workflows and end states differ.
 </Callout>
 
 <Callout variant="important">
@@ -22,7 +21,7 @@ The Livesync replication workflow is in **early access** and is not yet supporte
 
 Livesync replication uses the {C.PG} logical replication protocol to synchronize data from a source database to a {C.SERVICE_LONG}, then cut over once the target is caught up. Because it relies on the standard {C.PG} protocol, you get compatibility, familiarity, and a broad knowledge base.
 
-The same technology powers two distribution channels: the **self-hosted Docker image** (`timescale/live-sync`) is commonly referred to as **Livesync**, and the **managed {C.CLOUD_LONG} Console integration** is referred to as the **{C.PG_CONNECTOR_CAP}**. Both produce the same migration result; this page covers both.
+The same technology powers two distribution channels: the **self-hosted Docker image** (`timescale/live-sync`) is commonly referred to as **Livesync**, and the **managed {C.CONSOLE} integration** is referred to as the **{C.PG_CONNECTOR_CAP}**. Both produce the same migration result; this page covers both.
 
 This page replaces the older [Live migration](/migrate/live-migration) workflow.
 
@@ -33,14 +32,14 @@ The migration runs in four stages:
 3. **CDC:** real-time replication of ongoing changes up to 50K operations per second.
 4. **Cutover:** validate, stop sync, switch the application connection strings.
 
-You can drive Livesync replication from the {C.CLOUD_LONG} Console UI or from a self-hosted Docker container. The Console supports multiple Livesync instances per service, dropdown-based schema and table selection, and live progress metadata (rows copied during initial data copy, replication lag during CDC).
+You can drive Livesync replication from the {C.CONSOLE} UI or from a self-hosted Docker container. {C.CONSOLE} supports multiple Livesync instances per service, dropdown-based schema and table selection, and live progress metadata (rows copied during initial data copy, replication lag during CDC).
 
 <Prerequisites context="procedure">
-<MigrationPrerequisites />
 
 - **Source:** {C.PG} 13 or later with `wal_level = logical`. The source must be a primary, not a read replica or standby.
 - **Target:** A {C.SERVICE_LONG} with real-time analytics enabled. Target spec should be close to the source spec for a full migration. Minimum 4 CPU / 16 GB RAM on both source and target for roughly 300 GB/hr to 2.2 TB/hr transfer. `tsdbadmin` credentials.
-- **Migration host:** Docker, `psql`, `pg_dump`, and `vacuumdb` installed, with network access to both source and target databases.
+- **Migration host:** A separate machine to run the migration commands, with Docker, `psql`, `pg_dump`, and `vacuumdb` installed and network access to both source and target databases.
+- An [adjusted maintenance window](/deploy/tiger-cloud/tiger-cloud-aws/upgrades#define-your-maintenance-window) to prevent maintenance from running during migration.
 - Environment variables for the source and target connections:
 
   ```bash
@@ -257,7 +256,7 @@ psql "$TARGET" -f roles.sql
 Choose the section matching your source database type.
 
 <Tabs>
-<TabItem label="From TimescaleDB">
+<TabItem label={`From ${C.TIMESCALE_DB}`}>
 
 <NumberedList>
 <NumberedItem title="Dump and restore the schema">
@@ -562,6 +561,8 @@ SELECT add_retention_policy('<schema>.<table>', drop_after => INTERVAL '90 days'
 </TabItem>
 </Tabs>
 
+Whichever source type you migrated from, finish schema migration by applying privileges.
+
 ### Apply privileges
 
 After restoring the schema on the target, export privileges from the source and apply them to the migrated objects:
@@ -810,16 +811,16 @@ psql "$TARGET" -c "
 </NumberedList>
 
 </TabItem>
-<TabItem label="Tiger Cloud Console">
+<TabItem label={C.CONSOLE}>
 
 <NumberedList>
 <NumberedItem title="Create the connector">
 
-1. In Tiger Console, select the target service.
+1. In {C.CONSOLE}, select the target service.
 2. Click `Connectors` > `Source Postgres Connector`.
 3. Set a name for the connector (click the pencil icon).
 4. Check `Set wal_level to logical` and `Update your credentials`, then click `Continue`.
-5. Enter the source database credentials or a {C.PG} connection string, then click `Connect to database`. Tiger Console connects and retrieves the schema.
+5. Enter the source database credentials or a {C.PG} connection string, then click `Connect to database`. {C.CONSOLE} connects and retrieves the schema.
 
 </NumberedItem>
 
@@ -827,10 +828,10 @@ psql "$TARGET" -c "
 
 1. In the `Select table` dropdown, choose the tables to sync.
 2. Click `Select tables +`.
-3. Tiger Console checks each table schema and suggests a time-dimension column for {C.HYPERTABLE} conversion where possible.
+3. {C.CONSOLE} checks each table schema and suggests a time-dimension column for {C.HYPERTABLE} conversion where possible.
 4. Click `Create Connector`.
 
-Tiger Console starts the connector and displays progress.
+{C.CONSOLE} starts the connector and displays progress.
 
 </NumberedItem>
 
