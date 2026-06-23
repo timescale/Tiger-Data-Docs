@@ -8,6 +8,7 @@ pageLabels: [Early access]
 import * as C from "@constants";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 import MigrationPrerequisites from "../../../partials/_migrate_prerequisites.mdx";
 import { Prerequisites } from "@components/Prerequisites";
 
@@ -59,9 +60,10 @@ You can drive Livesync replication from the {C.CLOUD_LONG} Console UI or from a 
 
   If you can't upgrade, the practical mitigations are: keep chunks that may receive writes uncompressed (for example, the last three months), pause compression policies during the migration, or plan to re-sync affected hypertables.
 
-## 1. Source setup
+## Source setup
 
-### 1.1 Database parameters
+<NumberedList>
+<NumberedItem title="Database parameters">
 
 Livesync requires logical replication on the source. How you enable it depends on where your source database runs.
 
@@ -171,7 +173,9 @@ psql "$SOURCE" -c "SHOW wal_level;"  -- expect: logical
 </TabItem>
 </Tabs>
 
-### 1.2 Migration user
+</NumberedItem>
+
+<NumberedItem title="Migration user">
 
 Create a dedicated migration user on the source:
 
@@ -228,7 +232,10 @@ Switch to this user for all subsequent steps:
 export SOURCE="postgres://livesync_migrate:<password>@<source_host>:<port>/<db_name>"
 ```
 
-## 2. Roles
+</NumberedItem>
+</NumberedList>
+
+## Roles
 
 Dump roles from the source and apply to the target:
 
@@ -245,14 +252,15 @@ psql "$TARGET" -f roles.sql
 
 `pg_dumpall --roles-only` includes passwords (from `pg_authid`), role attributes, and memberships. You may need to edit out `postgres`, `tsdbadmin`, and other system roles before applying to the target.
 
-## 3. Schema migration
+## Schema migration
 
 Choose the section matching your source database type.
 
 <Tabs>
 <TabItem label="From TimescaleDB">
 
-### 3.1 Dump and restore the schema
+<NumberedList>
+<NumberedItem title="Dump and restore the schema">
 
 ```bash
 pg_dump "$SOURCE" \
@@ -274,15 +282,17 @@ pg_dump "$SOURCE" \
   --file=schema_dump.sql
 ```
 
-This dumps {C.HYPERTABLE}s as regular tables. {C.CAGG}s are included as regular views; they are dropped and recreated properly in step 3.3.
+This dumps {C.HYPERTABLE}s as regular tables. {C.CAGG}s are included as regular views; they are dropped and recreated properly in the continuous aggregates step.
 
 ```bash
 psql "$TARGET" -f schema_dump.sql
 ```
 
-### 3.2 Create hypertables
+</NumberedItem>
 
-#### 3.2.1 Primary dimension
+<NumberedItem title="Create hypertables">
+
+**Primary dimension**
 
 ```bash
 psql "$SOURCE" -t -A <<'EOF' > create_hypertables.sql
@@ -308,7 +318,7 @@ cat create_hypertables.sql
 psql "$TARGET" -f create_hypertables.sql
 ```
 
-#### 3.2.2 Additional dimensions (optional)
+**Additional dimensions (optional)**
 
 {C.TIMESCALE_DB} generally discourages using more than one dimension. Additional dimensions carry a risk of [partition explosion](/learn/hypertables#partition-by-dimension) and prevent the use of [data tiering](/learn/data-tiering/about-data-tiering#low-cost-storage) (tiered storage requires single-dimension hypertables). Only add extra dimensions if the source explicitly uses them and you have validated the need.
 
@@ -341,7 +351,9 @@ cat add_dimensions.sql
 psql "$TARGET" -f add_dimensions.sql
 ```
 
-### 3.3 Continuous aggregates
+</NumberedItem>
+
+<NumberedItem title="Continuous aggregates">
 
 Drop the views that `pg_dump` created (they are not proper {C.CAGG}s), then recreate them correctly:
 
@@ -361,7 +373,9 @@ cat continuous_aggregates.sql
 psql "$TARGET" -f continuous_aggregates.sql
 ```
 
-### 3.4 Columnstore
+</NumberedItem>
+
+<NumberedItem title="Columnstore">
 
 ```bash
 psql "$SOURCE" -t -A <<'EOF' > enable_columnstore.sql
@@ -386,9 +400,11 @@ psql "$TARGET" -f enable_columnstore.sql
 
 `timescaledb_information.hypertable_columnstore_settings` requires {C.TIMESCALE_DB} 2.18.0 or later on the source.
 
-### 3.5 Save policies for later
+</NumberedItem>
 
-Generate the {C.COLUMNSTORE}, refresh, and retention policy scripts now, but apply them only after data sync completes (see [Post-sync](#7-post-sync)).
+<NumberedItem title="Save policies for later">
+
+Generate the {C.COLUMNSTORE}, refresh, and retention policy scripts now, but apply them only after data sync completes (see [Post-sync](#post-sync)).
 
 ```bash
 # Columnstore policies
@@ -433,10 +449,14 @@ ORDER BY j.hypertable_schema, j.hypertable_name;
 EOF
 ```
 
-</TabItem>
-<TabItem label="From PostgreSQL">
+</NumberedItem>
+</NumberedList>
 
-### 3.1 Dump and restore the schema
+</TabItem>
+<TabItem label={`From ${C.PG}`}>
+
+<NumberedList>
+<NumberedItem title="Dump and restore the schema">
 
 ```bash
 pg_dump "$SOURCE" \
@@ -452,7 +472,9 @@ pg_dump "$SOURCE" \
 psql "$TARGET" -f schema_dump.sql
 ```
 
-### 3.2 Convert tables to hypertables
+</NumberedItem>
+
+<NumberedItem title="Convert tables to hypertables">
 
 Good candidates for [{C.HYPERTABLE}s](/learn/hypertables):
 
@@ -482,7 +504,9 @@ COMMIT;
 
 Primary key and unique constraints must include the partition column.
 
-### 3.3 Enable columnstore
+</NumberedItem>
+
+<NumberedItem title="Enable columnstore">
 
 ```sql
 ALTER TABLE <schema>.<table> SET (
@@ -494,7 +518,9 @@ ALTER TABLE <schema>.<table> SET (
 
 {C.COLUMNSTORE_CAP} policies are added after data sync. See [Hypercore (columnstore)](/learn/columnar-storage/understand-hypercore) for details on compression methods and configuration.
 
-### 3.4 Create continuous aggregates (optional)
+</NumberedItem>
+
+<NumberedItem title="Create continuous aggregates (optional)">
 
 ```sql
 CREATE MATERIALIZED VIEW <schema>.<cagg_name>
@@ -509,9 +535,11 @@ GROUP BY 1, 2
 WITH NO DATA;
 ```
 
-### 3.5 Save policies for later
+</NumberedItem>
 
-Define {C.COLUMNSTORE}, refresh, and retention policies now, but apply them only after data sync (see [Post-sync](#7-post-sync)):
+<NumberedItem title="Save policies for later">
+
+Define {C.COLUMNSTORE}, refresh, and retention policies now, but apply them only after data sync (see [Post-sync](#post-sync)):
 
 ```sql
 -- Columnstore policy
@@ -528,10 +556,13 @@ SELECT add_continuous_aggregate_policy('<schema>.<cagg>',
 SELECT add_retention_policy('<schema>.<table>', drop_after => INTERVAL '90 days');
 ```
 
+</NumberedItem>
+</NumberedList>
+
 </TabItem>
 </Tabs>
 
-### 3.6 Apply privileges
+### Apply privileges
 
 After restoring the schema on the target, export privileges from the source and apply them to the migrated objects:
 
@@ -579,7 +610,7 @@ cat privileges.sql
 psql "$TARGET" -f privileges.sql
 ```
 
-## 4. Publication
+## Publication
 
 Create a [{C.PG} `PUBLICATION`](https://www.postgresql.org/docs/current/sql-createpublication.html) on the source. This defines what Livesync syncs. You can create more than one publication (for example, to group tables by domain), but avoid creating one per table.
 
@@ -638,7 +669,7 @@ Validate:
 psql "$SOURCE" -c "SELECT * FROM pg_publication_tables WHERE pubname = '<publication_name>';"
 ```
 
-## 5. Replication identity
+## Replication identity
 
 Skip this section for `INSERT`-only workloads.
 
@@ -682,14 +713,15 @@ EOF
 
 Review the output, then pipe it to `psql "$SOURCE"` to apply.
 
-## 6. Data migration
+## Data migration
 
 Choose one of the two approaches below.
 
 <Tabs>
 <TabItem label="Self-hosted Docker">
 
-### 6.1 Start Livesync
+<NumberedList>
+<NumberedItem title="Start Livesync">
 
 Best practice is to run as a Docker daemon:
 
@@ -705,7 +737,7 @@ docker run -d --rm --name livesync timescale/live-sync:<version-tag> run \
 
 | Flag | Description |
 | --- | --- |
-| `--publication` | Publication name as created in step 4. Repeat the flag for multiple publications. |
+| `--publication` | Publication name as created in the publication step. Repeat the flag for multiple publications. |
 | `--subscription` | Name that identifies the subscription on the target. |
 | `--source` | Connection string to the source {C.PG} database. |
 | `--target` | Connection string to the target {C.SERVICE_LONG}. |
@@ -713,13 +745,15 @@ docker run -d --rm --name livesync timescale/live-sync:<version-tag> run \
 | `--table-sync-workers` | (Optional) Number of parallel workers for initial table sync. Default: 4. |
 | `--copy-data` | (Optional) Set to `false` to skip initial data copy and only replicate changes made after replication slot creation. Useful for dry-run testing. Default: `true`. |
 
-### 6.2 Monitor
+</NumberedItem>
+
+<NumberedItem title="Monitor">
 
 ```bash
 docker logs -f livesync
 ```
 
-#### Table sync status
+**Table sync status**
 
 ```bash
 psql "$TARGET" -c "
@@ -739,7 +773,7 @@ Tables with errors appear as separate rows grouped by `last_error`.
 | `s` | Synchronized; waiting for the main apply worker to take over. |
 | `r` | Table is ready; applying changes in real time. |
 
-#### COPY progress during initial sync
+**COPY progress during initial sync**
 
 Monitor that the initial data copy is progressing as expected. The number of rows returned should usually match the `--table-sync-workers` value.
 
@@ -747,7 +781,7 @@ Monitor that the initial data copy is progressing as expected. The number of row
 psql "$SOURCE" -c "SELECT * FROM pg_stat_progress_copy;"
 ```
 
-#### Replication lag
+**Replication lag**
 
 On the source using `pg_replication_slots`:
 
@@ -772,10 +806,14 @@ psql "$TARGET" -c "
 "
 ```
 
+</NumberedItem>
+</NumberedList>
+
 </TabItem>
 <TabItem label="Tiger Cloud Console">
 
-### 6.1 Create the connector
+<NumberedList>
+<NumberedItem title="Create the connector">
 
 1. In Tiger Console, select the target service.
 2. Click `Connectors` > `Source Postgres Connector`.
@@ -783,7 +821,9 @@ psql "$TARGET" -c "
 4. Check `Set wal_level to logical` and `Update your credentials`, then click `Continue`.
 5. Enter the source database credentials or a {C.PG} connection string, then click `Connect to database`. Tiger Console connects and retrieves the schema.
 
-### 6.2 Select tables
+</NumberedItem>
+
+<NumberedItem title="Select tables">
 
 1. In the `Select table` dropdown, choose the tables to sync.
 2. Click `Select tables +`.
@@ -792,25 +832,33 @@ psql "$TARGET" -c "
 
 Tiger Console starts the connector and displays progress.
 
-### 6.3 Monitor
+</NumberedItem>
+
+<NumberedItem title="Monitor">
 
 - **Data flow:** click `Connectors` to view the overall diagram showing connector status and data replicated.
 - **Per-table progress:** click `Connectors` > `Source connectors`, then select your connector name.
 
-### 6.4 Manage
+</NumberedItem>
+
+<NumberedItem title="Manage">
 
 - **Edit** (rename, add or remove tables): click `Connectors` > `Source connectors`, then select the connector name.
 - **Pause:** open the three-dot menu on the right > `Pause`.
 - **Delete:** pause first, then three-dot menu > `Delete`.
 
+</NumberedItem>
+</NumberedList>
+
 </TabItem>
 </Tabs>
 
-## 7. Post-sync
+## Post-sync
 
 After all tables reach state `r` or `s`:
 
-### 7.1 Apply policies
+<NumberedList>
+<NumberedItem title="Apply policies">
 
 Apply the {C.COLUMNSTORE}, refresh, and retention policies saved earlier:
 
@@ -838,13 +886,17 @@ SELECT remove_continuous_aggregate_policy('<schema>.<cagg>');
 -- Apply the saved refresh policy
 ```
 
-### 7.2 Update statistics
+</NumberedItem>
+
+<NumberedItem title="Update statistics">
 
 ```bash
 vacuumdb --analyze --verbose --jobs=8 --dbname="$TARGET"
 ```
 
-### 7.3 Apply database and role settings
+</NumberedItem>
+
+<NumberedItem title="Apply database and role settings">
 
 Settings applied on the source via `ALTER DATABASE ... SET` or `ALTER ROLE ... IN DATABASE ... SET` (for example, `search_path`, `timezone`, `statement_timeout`, `default_transaction_isolation`) are **not** included in `pg_dump --schema-only` or `pg_dumpall --roles-only`. If your application relies on them, generate equivalent statements from the source catalogs and apply them on the target.
 
@@ -894,9 +946,13 @@ psql "$TARGET" -f db_settings.sql
 
 Review the generated statements before applying. Some settings (for example, shared library paths, filesystem paths, replication-specific parameters) may not apply to a managed {C.SERVICE_LONG} and should be removed.
 
-## 8. Cutover
+</NumberedItem>
+</NumberedList>
 
-### 8.1 Validate
+## Cutover
+
+<NumberedList>
+<NumberedItem title="Validate">
 
 Confirm all tables are in state `r` or `s`:
 
@@ -919,7 +975,9 @@ psql "$SOURCE" -c "
 "
 ```
 
-### 8.2 Stop write traffic to the source
+</NumberedItem>
+
+<NumberedItem title="Stop write traffic to the source">
 
 Stop all application writes to the source database. Then wait for replication lag to reach near zero:
 
@@ -934,7 +992,9 @@ psql "$SOURCE" -c "
 
 Re-run until lag is near 0 bytes.
 
-### 8.3 Reset sequences
+</NumberedItem>
+
+<NumberedItem title="Reset sequences">
 
 <Callout variant="important">
 Livesync does not replicate sequence values. Skipping this step causes serial or identity columns to reuse already-existing values after cutover, resulting in primary key or unique constraint violations.
@@ -988,17 +1048,24 @@ EOF
 </TabItem>
 </Tabs>
 
-### 8.4 Stop Livesync
+</NumberedItem>
+
+<NumberedItem title="Stop Livesync">
 
 ```bash
 docker stop livesync
 ```
 
-### 8.5 Connect application
+</NumberedItem>
+
+<NumberedItem title="Connect application">
 
 Update connection strings to point to {C.CLOUD_LONG}.
 
-## 9. Cleanup
+</NumberedItem>
+</NumberedList>
+
+## Cleanup
 
 After the application is fully running on {C.CLOUD_LONG}:
 
@@ -1011,7 +1078,6 @@ docker run -it --rm --name livesync-cleanup \
 ```
 
 Then drop the migration user on the source.
-
 
 ## Next steps
 
