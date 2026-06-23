@@ -96,19 +96,33 @@ Ignition will automatically create the table in {C.SERVICE_LONG}, but will not s
     Chunk size must be defined in milliseconds. Recommended chunk size should aim for about 1-20 million records per chunk. That's about 1 day (86,400,000ms) for 10,000 tags/min or 1 hour (3,600,000ms) for 300,000 tags/min.
     </Callout>
   </NumberedItem>
+  <NumberedItem title={`Tell ${C.TIMESCALE_DB} what the current time is`}>
+    Ignition stores `t_stamp` as a Unix epoch timestamp in milliseconds, not as a {C.PG} `timestamp`. Automated jobs such as columnstore and retention policies work out the age of each {C.CHUNK} relative to the current time, so you must tell {C.TIMESCALE_DB} how to read "now" for this integer column with [`set_integer_now_func`](/reference/timescaledb/hypertables/set_integer_now_func). The function must return milliseconds to match `t_stamp`:
+
+    ```sql
+    CREATE OR REPLACE FUNCTION unix_now_ms() RETURNS BIGINT
+      LANGUAGE SQL STABLE AS $$ SELECT (extract(epoch from now()) * 1000)::BIGINT $$;
+
+    SELECT set_integer_now_func('sqlth_1_data', 'unix_now_ms');
+    ```
+  </NumberedItem>
   <NumberedItem title={`Optional: enable the ${C.COLUMNSTORE} and add a policy`}>
+    Because `t_stamp` is an integer column, the policy `after` argument is a number of milliseconds rather than an `INTERVAL`. For example, `604800000` is 7 days:
+
     ```sql
     ALTER TABLE sqlth_1_data SET (
     timescaledb.enable_columnstore = true,
     timescaledb.segmentby = 'tagid',
     timescaledb.orderby = 't_stamp DESC'
     );
-    SELECT add_columnstore_policy('sqlth_1_data', after => INTERVAL '7 days');
+    SELECT add_columnstore_policy('sqlth_1_data', after => 604800000);
     ```
   </NumberedItem>
   <NumberedItem title="Optional: add retention policy">
+    As with the columnstore policy, `drop_after` is a number of milliseconds. For example, `31536000000` is 365 days:
+
     ```sql
-    SELECT add_retention_policy('tag_table', INTERVAL '1 year');
+    SELECT add_retention_policy('sqlth_1_data', drop_after => 31536000000);
     ```
   </NumberedItem>
 </NumberedList>
