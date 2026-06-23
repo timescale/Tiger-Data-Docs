@@ -1,0 +1,58 @@
+---
+title: untier_chunk()
+description: Move a tiered chunk from object storage back to local storage
+keywords: [data tiering, chunks, untier]
+---
+
+import * as C from "@constants";
+
+import { Callout } from '@stainless-api/docs/components';
+
+Move a previously tiered {C.CHUNK} from object storage back to local {C.CLOUD_LONG} storage. After the call returns, the {C.CHUNK} behaves like any other local {C.CHUNK} and is no longer billed against object storage.
+
+If the {C.CHUNK} is still in the tiering queue and has not yet been uploaded to object storage, `untier_chunk` simply unfreezes it and removes it from the queue without any data copy.
+
+Otherwise, the {C.CHUNK}'s contents are copied from object storage into a temporary table named `osm_tmp<chunk_name>` in the {C.CHUNK}'s original schema. The copied row count is compared against the count recorded in the catalog; if they differ the procedure aborts and the temporary table is left in place for inspection.
+
+Once the copy is verified, the {C.CHUNK} is re-attached to its {C.HYPERTABLE} and the tiered copy is removed from the object store catalog.
+
+`untier_chunk` is a `PROCEDURE` and must be invoked with `CALL`.
+
+<Callout variant="note">
+  If a check constraint defined on the parent {C.HYPERTABLE} is violated by rows in the tiered {C.CHUNK}, `untier_chunk` raises an exception. The temporary `osm_tmp<chunk_name>` table is preserved so you can fix the offending rows and re-run `untier_chunk` to resume.
+</Callout>
+
+## Samples
+
+- **Move a tiered chunk back into local storage**:
+
+  ```sql
+  CALL untier_chunk('_hyper_1_1_chunk');
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+CALL untier_chunk(
+    osm_chunk_name = '<chunk_name>'
+);
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| `osm_chunk_name` | `TEXT` | - | ✔ | Name of the tiered {C.CHUNK}, as recorded in the object storage catalog. This is the {C.CHUNK}'s table name without the schema prefix. |
+
+## Returns
+
+This procedure returns no value.
+
+## Errors
+
+`untier_chunk` raises an exception when:
+
+- The supplied {C.CHUNK} name does not exist in the object storage catalog.
+- The number of rows copied from object storage does not match the row count recorded in the catalog.
+- A check constraint on the parent {C.HYPERTABLE} is violated by rows in the {C.CHUNK}.
+- The {C.CHUNK} could not be unfrozen.

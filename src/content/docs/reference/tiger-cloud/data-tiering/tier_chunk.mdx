@@ -1,0 +1,55 @@
+---
+title: tier_chunk()
+description: Manually tier an individual chunk to object storage
+keywords: [data tiering, chunks, tier]
+---
+
+import * as C from "@constants";
+
+import ReturnsVoid from '@partials/_returns-void.mdx';
+
+Manually tier a single {C.CHUNK} to object storage. Use this to ship a specific {C.CHUNK} to the object store without waiting for the tiering policy to pick it up, or in environments where no tiering policy is configured.
+
+The {C.CHUNK} is frozen in place and added to the tiering queue. An asynchronous worker uploads the {C.CHUNK} to the configured object store and removes the local copy when the upload completes. If tiering has not yet been set up for the {C.HYPERTABLE}, the foreign table backing the tiered {C.CHUNK}s is created on first call.
+
+## Samples
+
+- **Tier a specific chunk**:
+
+  ```sql
+  SELECT tier_chunk('_timescaledb_internal._hyper_1_1_chunk');
+  ```
+
+- **Tier a chunk, ignoring the call when the chunk is already in the tiering queue**:
+
+  ```sql
+  SELECT tier_chunk('_timescaledb_internal._hyper_1_1_chunk', if_not_tiered => true);
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT tier_chunk(
+    chunk = '<chunk_name>',
+    if_not_tiered = true | false
+);
+```
+
+| Name | Type | Default | Required | Description |
+|------|------|---------|----------|-------------|
+| `chunk` | `REGCLASS` | - | ✔ | Name of the {C.CHUNK} to tier. Must be a real {C.CHUNK} of a {C.HYPERTABLE}, not the foreign table representing already-tiered data. |
+| `if_not_tiered` | `BOOLEAN` | `false` | - | When `true`, emit a notice rather than an error if the {C.CHUNK} is already queued for tiering. |
+
+## Returns
+
+<ReturnsVoid />
+
+## Errors
+
+`tier_chunk` raises an exception when:
+
+- The supplied relation cannot be found as a {C.CHUNK} of a {C.HYPERTABLE}.
+- The {C.CHUNK} is already queued for tiering and `if_not_tiered` is `false`.
+- The {C.CHUNK} could not be frozen.
