@@ -804,6 +804,7 @@ export default defineConfig({
                     { label: "Ignition", link: "/integrate/data-ingestion-streaming/ignition" },
                     { label: "Litmus Edge", link: "/integrate/data-ingestion-streaming/litmus-edge" },
                     { label: "Node-RED", link: "/integrate/data-ingestion-streaming/node-red" },
+                    { label: "ThingWorx", link: "/integrate/data-ingestion-streaming/thingworx" },
                   ],
                 },
                 {

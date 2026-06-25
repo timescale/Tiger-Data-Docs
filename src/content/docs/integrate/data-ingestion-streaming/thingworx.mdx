@@ -1,0 +1,150 @@
+---
+title: Integrate ThingWorx with Tiger Cloud
+description: Connect ThingWorx to Tiger Cloud and stream industrial IoT data into a hypertable using a Database Thing.
+integrationCategory: data-ingestion-streaming
+integrationPlatforms: [aws, azure, self-hosted]
+integrationIndustry: [iot, manufacturing, energy]
+keywords: [thingworx, industrial iot, iiot, jdbc, data streaming]
+integrationCardLogo: thingworx.png
+integrationCardLogoDark: thingworx-dark.png
+sidebar:
+  label: ThingWorx
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-and-self.mdx";
+import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
+
+[ThingWorx](https://www.ptc.com/en/products/thingworx) is PTC's industrial IoT platform for building, deploying, and managing connected applications and digital twins.
+
+This page shows you how to connect ThingWorx to your {C.SERVICE_LONG} using a Database Thing backed by the {C.PG} JDBC driver, so that device and sensor data flowing through ThingWorx is written to a {C.HYPERTABLE} in {C.CLOUD_LONG}.
+
+In this integration guide, you:
+
+- Prepare your {C.SERVICE_LONG} to receive industrial IoT data.
+- Configure a Database Thing in ThingWorx that connects to your {C.SERVICE_SHORT} over JDBC.
+- Verify that property changes flow end to end into your {C.HYPERTABLE}.
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+
+- A [ThingWorx](https://www.ptc.com/en/products/thingworx) Foundation installation with administrator access to ThingWorx Composer.
+- The [{C.PG} JDBC driver](https://jdbc.postgresql.org/) imported into ThingWorx as a relational database extension.
+</Prerequisites>
+
+## Create a target table in {C.CLOUD_LONG}
+
+Prepare a {C.HYPERTABLE} that matches the shape of the data ThingWorx sends.
+
+<NumberedList>
+  <NumberedItem title={`Connect to your ${C.SERVICE_SHORT}`}>
+
+    Use the [{C.CONSOLE}](/build/data-management/run-queries-from-tiger-console), `psql`, or any other SQL editor to connect to your {C.SERVICE_LONG}.
+
+  </NumberedItem>
+  <NumberedItem title={`Create a ${C.HYPERTABLE} for device data`}>
+
+    Create a {C.HYPERTABLE} that stores the event time, the source thing and property names, and the numeric reading:
+
+    ```sql
+    CREATE TABLE thingworx_data (
+      ts            TIMESTAMPTZ      NOT NULL,
+      thing_name    TEXT             NOT NULL,
+      property_name TEXT             NOT NULL,
+      value         DOUBLE PRECISION
+    ) WITH (
+      tsdb.hypertable,
+      tsdb.partition_column = 'ts',
+      tsdb.chunk_interval = '1 day'
+    );
+    ```
+
+    Adjust the columns to match the properties you bind to in ThingWorx. Run `\d thingworx_data` to confirm the table was created.
+
+  </NumberedItem>
+</NumberedList>
+
+## Configure ThingWorx
+
+Create a Database Thing in ThingWorx Composer that connects to your {C.SERVICE_SHORT}, then write a service that inserts property values into your {C.HYPERTABLE}.
+
+<NumberedList>
+  <NumberedItem title="Create a Database Thing">
+
+    In ThingWorx Composer, create a new Thing based on the **Database** Thing Template. This Thing represents the connection from ThingWorx to your {C.SERVICE_LONG}.
+
+  </NumberedItem>
+  <NumberedItem title="Configure the JDBC connection">
+
+    On the Database Thing's **Configuration** page, set the connection properties using the [connection details](/integrate/find-connection-details) for your {C.SERVICE_LONG}:
+
+    - **JDBC Driver Class Name**: `org.postgresql.Driver`
+    - **JDBC Connection String**: `jdbc:postgresql://<host>:<port>/<dbname>?sslmode=require`
+    - **Database User Name**: your {C.SERVICE_SHORT} `user`
+    - **Database Password**: your {C.SERVICE_SHORT} `password`
+
+    <Callout variant="warning">
+    {C.CLOUD_LONG} requires TLS. Keep `?sslmode=require` in the connection string, otherwise ThingWorx cannot connect to your {C.SERVICE_LONG}.
+    </Callout>
+
+    Save the configuration, then check that the Thing's connection status reports as connected.
+
+  </NumberedItem>
+  <NumberedItem title="Create a SQL Command service to insert data">
+
+    On the Database Thing, add a SQL Command service that inserts a row into `thingworx_data`. ThingWorx binds service inputs into the statement with the `[[parameter]]` syntax:
+
+    ```sql
+    INSERT INTO thingworx_data (ts, thing_name, property_name, value)
+    VALUES (now(), [[thingName]], [[propertyName]], [[value]]);
+    ```
+
+    Add `thingName`, `propertyName`, and `value` as service inputs with matching base types, then save the service.
+
+  </NumberedItem>
+  <NumberedItem title={`Push property changes to your ${C.SERVICE_SHORT}`}>
+
+    On the device Thing whose data you want to persist, add a subscription to the property **DataChange** event. In the subscription script, call the Database Thing's insert service and pass the changed property:
+
+    ```javascript
+    Things["YourDatabaseThing"].InsertReading({
+      thingName: me.name,
+      propertyName: eventData.name,
+      value: eventData.newValue.value
+    });
+    ```
+
+    Enable the subscription and save the device Thing.
+
+  </NumberedItem>
+</NumberedList>
+
+## Verify the integration
+
+To confirm ThingWorx is writing to your {C.SERVICE_LONG}:
+
+
+<NumberedList>
+  <NumberedItem title="Trigger a property change in ThingWorx">
+
+    Update the bound property on the device Thing, either from a connected device or by setting the value manually in Composer. The DataChange subscription fires and calls the insert service.
+
+  </NumberedItem>
+  <NumberedItem title={`Query your ${C.SERVICE_SHORT} to confirm the data arrived`}>
+
+    Query the {C.HYPERTABLE} from the [{C.CONSOLE}](/build/data-management/run-queries-from-tiger-console) or any SQL editor:
+
+    ```sql
+    SELECT * FROM thingworx_data ORDER BY ts DESC LIMIT 10;
+    ```
+
+    You see one row per property change, with the thing name, property name, and value that ThingWorx sent.
+
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated ThingWorx with {C.CLOUD_LONG}.
