@@ -1,0 +1,377 @@
+---
+title: Build a SCADA data pipeline with Ignition
+description: Run Ignition in Docker, capture simulated industrial data in Tiger Cloud with the Tag Historian, then optimize, aggregate, and chart it in an Ignition Perspective view
+products: [cloud, self_hosted]
+keywords: [tutorials, Ignition, SCADA, OPC UA, Tag Historian, industrial data, IoT, continuous aggregates, columnstore, Perspective, visualization]
+learnMore:
+  relatedPostsHeading: Related reading
+  relatedPosts:
+    - label: "Ignition and TimescaleDB: the perfect pairing"
+      href: https://www.tigerdata.com/blog/ignition-and-timescaledb-perfect-pairing
+    - label: "A unified namespace determines your historian schema, not the other way around"
+      href: https://www.tigerdata.com/blog/unified-namespace-historian-schema
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+import { Prerequisites } from "@components/Prerequisites";
+
+On a factory floor, the data never stops: temperatures, pressures, motor speeds, and tank levels stream in by the second from every machine on the line. [Ignition](https://inductiveautomation.com/) by Inductive Automation is the SCADA platform that ties all of that together, and it speaks fluent SQL. That makes {C.CLOUD_LONG} a natural home for the firehose of industrial time-series data Ignition collects.
+
+This tutorial walks you through a complete pipeline: you run Ignition in Docker, generate simulated sensor data, capture it in your {C.SERVICE_LONG} with Ignition's Tag Historian, then turn that raw history table into something fast and queryable with the {C.COLUMNSTORE} and a {C.CAGG}. Finally, you close the loop by charting the aggregated data back inside an Ignition Perspective view.
+
+Here are the two halves of the stack you are connecting:
+
+- **Ignition** is an industrial application platform for SCADA, HMI, and IIoT. It connects to equipment over protocols like OPC UA, then stores, visualizes, and acts on the data. Its Tag Historian logs tag values straight into a SQL database, and it ships with a bundled {C.PG} JDBC driver, so it talks to {C.CLOUD_LONG} out of the box.
+- **{C.CLOUD_LONG}** is {C.PG} built for time-series and analytics. {C.HYPERTABLE}s partition your data automatically, the {C.COLUMNSTORE} compresses it by up to 98%, and {C.CAGG}s keep rollups fresh in the background so dashboards stay snappy no matter how much history you accumulate.
+
+By the end of this tutorial, you will know how to:
+
+- Run an Ignition Gateway in Docker and connect it to {C.CLOUD_LONG}
+- Generate simulated OPC UA tag data with the built-in device simulator
+- Capture tag history in {C.CLOUD_LONG} with Ignition's Tag Historian
+- Convert the historian table into a {C.HYPERTABLE} and optimize it with the {C.COLUMNSTORE} and a retention policy
+- Roll the raw data up into a {C.CAGG} for fast analytical queries
+- Visualize the aggregated data in an Ignition Perspective Time Series Chart
+
+<Prerequisites>
+- A [{C.SERVICE_LONG}](/get-started/quickstart/create-service), or a running instance of [{C.SELF_LONG}](/get-started/choose-your-path/install-timescaledb)
+- Your [connection details](/integrate/find-connection-details) for that service
+- [Docker](https://docs.docker.com/get-started/get-docker/) installed and running on your machine
+- A SQL client such as [`psql`](/integrate/query-administration/psql) or the [{C.CLOUD_EDITOR}](/build/data-management/run-queries-from-tiger-console)
+</Prerequisites>
+
+<Callout variant="note">
+The Docker image runs every Ignition module in a two-hour trial. When the trial expires, the data flow pauses. Open the Gateway home page and click `Reset Trial` to start a fresh two-hour window. You can reset it as many times as you need to finish this tutorial.
+</Callout>
+
+---
+
+## Step 1: Run the Ignition Gateway in Docker
+
+The Ignition Gateway is the central server that hosts your connections, projects, and the web UI you configure everything from. The official Docker image gets you a running Gateway in a single command.
+
+<NumberedList>
+<NumberedItem title="Start the Gateway container">
+
+In your terminal, run the following command. It pulls the official image, accepts the license agreement, seeds an admin account so the Gateway boots straight past the commissioning wizard, and persists Gateway state in a named volume:
+
+```bash
+docker run -d \
+  --name ignition \
+  -p 8088:8088 \
+  -v ignition-data:/usr/local/bin/ignition/data \
+  -e ACCEPT_IGNITION_EULA=Y \
+  -e GATEWAY_ADMIN_USERNAME=admin \
+  -e GATEWAY_ADMIN_PASSWORD=password \
+  -e IGNITION_EDITION=standard \
+  -e TZ=Etc/UTC \
+  inductiveautomation/ignition:8.3 \
+  -n tiger-gateway
+```
+
+<Callout variant="warning">
+`GATEWAY_ADMIN_PASSWORD=password` is fine for a local sandbox, but never ship a hardcoded password. For anything beyond this tutorial, pass secrets through Docker secrets or the `GATEWAY_ADMIN_PASSWORD_FILE` variable instead.
+</Callout>
+
+</NumberedItem>
+<NumberedItem title="Sign in to the Gateway">
+
+Wait about a minute for the Gateway to start, then open [http://localhost:8088](http://localhost:8088) in your browser. Sign in with the username `admin` and password `password` you set above.
+
+You should land on the Gateway home page, which shows your trial status and a navigation menu down the left side.
+
+</NumberedItem>
+</NumberedList>
+
+## Step 2: Connect Ignition to your {C.SERVICE_LONG}
+
+Ignition reaches {C.CLOUD_LONG} through a standard {C.PG} database connection. The driver is already bundled, so all you supply is the connection URL and credentials from your service.
+
+<NumberedList>
+<NumberedItem title="Create a database connection">
+
+In the Gateway, go to `Config` > `Databases` > `Connections` and click `Create new Database Connection`. Select the `PostgreSQL JDBC Driver` and click `Next`.
+
+</NumberedItem>
+<NumberedItem title="Enter your connection details">
+
+Fill in the form using your [{C.SERVICE_LONG} connection details](/integrate/find-connection-details):
+
+- **Name**: `tiger-cloud`
+- **Connect URL**: `jdbc:postgresql://<host>:<port>/tsdb`
+- **Username**: `tsdbadmin`
+- **Password**: your service password
+
+{C.CLOUD_LONG} requires TLS, so expand `Show advanced properties` and set the `Extra Connection Properties` field to enable SSL:
+
+```text
+ssl=true&sslmode=require
+```
+
+</NumberedItem>
+<NumberedItem title="Verify the connection">
+
+Click `Create new Database Connection`. Ignition tests the connection immediately. On the `Connections` page, confirm the status reads `Valid`. If it shows a fault, double-check the host, port, and that the SSL properties are present.
+
+</NumberedItem>
+</NumberedList>
+
+## Step 3: Set up your {C.SERVICE_LONG} as a historian
+
+The Tag Historian is Ignition's built-in mechanism for logging tag values to a SQL database. You point a historian at your `tiger-cloud` connection, and Ignition creates and manages the history tables for you.
+
+<NumberedList>
+<NumberedItem title="Create a historian">
+
+In the Gateway, go to `Services` > `Historians` and click `Create Historian`. Select `SQL Historian`.
+
+</NumberedItem>
+<NumberedItem title="Name it and disable partitioning">
+
+Give the historian a name, and select the `tiger-cloud` connection as the `Data Source`. Disable `Partitioning`.
+
+<Callout variant="warning">
+If you don't disable partitioning during the initial setup and then log data beyond the partition length, Ignition creates multiple history tables. That makes the {C.CLOUD_LONG} optimizations below harder to apply and splits your data across tables. Keeping everything in one table is what you want here.
+</Callout>
+
+</NumberedItem>
+<NumberedItem title="Verify the historian is running">
+
+Back on the `Historians` page, confirm the new historian is enabled and running.
+
+</NumberedItem>
+</NumberedList>
+
+## Step 4: Generate simulated data and enable history
+
+Rather than wire up real equipment, use Ignition's built-in device simulator. It exposes a set of OPC UA tags, such as sine waves and realistic-looking values, that behave like live sensor feeds. Once you enable history on those tags, Ignition starts logging them to your {C.SERVICE_LONG} and creates the history table automatically.
+
+<NumberedList>
+<NumberedItem title="Add the simulator device">
+
+In the Gateway, go to `Config` > `OPC UA` > `Device Connections` and click `Create new Device`. Choose `Programmable Device Simulator`, click `Next`, name it `Sim`, and create the device. Then click `More` > `edit program`, load the built-in `Generic` program, and click `Save Program`.
+
+The simulator now publishes tags such as `Sine0` and `Realistic0` on the Ignition OPC UA server. Confirm the `Sim` device status reads `Connected`.
+
+</NumberedItem>
+<NumberedItem title="Install and launch the Designer">
+
+Tags and tag history are configured in the Ignition Designer, a desktop application that connects to your Gateway. On the Gateway home page, download the `Designer Launcher` for your operating system and install it. Open the launcher, add your Gateway at `http://localhost:8088`, sign in with your admin credentials, then create and open a new project named `tiger-demo`.
+
+</NumberedItem>
+<NumberedItem title="Bring the simulator tags into the tag browser">
+
+In the Designer, open the `OPC Browser` panel. Expand `Ignition OPC UA Server` > `Sim` and drag the `Sine0` and `Realistic0` items into the `Tag Browser`. This creates OPC tags in the default tag provider that mirror the live simulator values.
+
+</NumberedItem>
+<NumberedItem title="Enable history on the tags">
+
+Select both tags in the `Tag Browser` and open the tag editor. Set `History Enabled` to `true` and choose the historian you created in [Step 3](#step-3-set-up-your-tiger-cloud-service-as-a-historian) as the storage provider. Save the tags.
+
+Ignition immediately creates its history tables in {C.CLOUD_LONG} and starts logging tag values.
+
+</NumberedItem>
+<NumberedItem title="Verify data is flowing">
+
+In your SQL client, confirm rows are arriving in the historian's data table:
+
+```sql
+SELECT * FROM sqlth_1_data ORDER BY t_stamp DESC LIMIT 10;
+```
+
+You should see new rows appearing, each with a `tagid`, a `floatvalue`, and a `t_stamp`:
+
+```text
+ tagid | intvalue |     floatvalue     | stringvalue | datevalue |   t_stamp     | dataintegrity
+-------+----------+--------------------+-------------+-----------+---------------+---------------
+     2 |          |  37.41985643012204 |             |           | 1751120467512 |           192
+     1 |          |  0.951056516295154 |             |           | 1751120467512 |           192
+     2 |          |  36.92837451200133 |             |           | 1751120466498 |           192
+...
+```
+
+<Callout variant="note">
+The exact data table name depends on your historian and driver configuration. If `sqlth_1_data` does not exist, list your tables (`\dt` in `psql`) to find the one Ignition created, and use that name in the rest of this tutorial.
+</Callout>
+
+</NumberedItem>
+</NumberedList>
+
+## Step 5: Convert the historian table to a {C.HYPERTABLE}
+
+Ignition created the history table as a plain {C.PG} table. Convert it to a {C.HYPERTABLE} so {C.CLOUD_LONG} partitions it automatically and you can apply time-series optimizations. The history is already in the table, so this is a conversion rather than a fresh `CREATE TABLE`.
+
+<NumberedList>
+<NumberedItem title={`Convert the table to a ${C.HYPERTABLE}`}>
+
+Run the following in your SQL client. Because the table already holds rows, pass `migrate_data => true` so existing history moves into {C.CHUNK}s:
+
+```sql
+SELECT create_hypertable(
+  'sqlth_1_data', 't_stamp',
+  migrate_data => true,
+  chunk_time_interval => 86400000
+);
+```
+
+<Callout variant="note">
+Ignition stores `t_stamp` as a Unix epoch timestamp in milliseconds, not as a {C.PG} `timestamp`, so the {C.CHUNK} interval is also in milliseconds. Aim for 1 to 20 million rows per {C.CHUNK}: roughly 1 day (`86400000` ms) for 10,000 tags/min, or 1 hour (`3600000` ms) for 300,000 tags/min.
+</Callout>
+
+</NumberedItem>
+<NumberedItem title={`Tell ${C.TIMESCALE_DB} what the current time is`}>
+
+Automated jobs such as the {C.COLUMNSTORE}, retention, and {C.CAGG} policies work out the age of each {C.CHUNK} relative to "now". Because `t_stamp` is an integer column rather than a `timestamptz`, you must tell {C.TIMESCALE_DB} how to read "now" for it with [`set_integer_now_func`](/reference/timescaledb/hypertables/set_integer_now_func). The function must return milliseconds to match `t_stamp`:
+
+```sql
+CREATE OR REPLACE FUNCTION unix_now_ms() RETURNS BIGINT
+  LANGUAGE SQL STABLE AS $$ SELECT (extract(epoch from now()) * 1000)::BIGINT $$;
+
+SELECT set_integer_now_func('sqlth_1_data', 'unix_now_ms');
+```
+
+</NumberedItem>
+</NumberedList>
+
+## Step 6: Optimize the {C.HYPERTABLE}
+
+With the table converted, enable the {C.COLUMNSTORE} to compress older {C.CHUNK}s, and add a retention policy so raw, high-resolution data does not pile up forever. Run these in your SQL client.
+
+<NumberedList>
+<NumberedItem title={`Enable the ${C.COLUMNSTORE} and add a policy`}>
+
+Segmenting by `tagid` groups each tag's history together in the {C.COLUMNSTORE}, which makes per-tag queries fast and compresses extremely well. Because `t_stamp` is an integer column, the policy's `after` argument is a number of milliseconds rather than an `INTERVAL`. Here, `604800000` is 7 days:
+
+```sql
+ALTER TABLE sqlth_1_data SET (
+  timescaledb.enable_columnstore = true,
+  timescaledb.segmentby = 'tagid',
+  timescaledb.orderby = 't_stamp DESC'
+);
+
+SELECT add_columnstore_policy('sqlth_1_data', after => 604800000);
+```
+
+</NumberedItem>
+<NumberedItem title="Add a retention policy">
+
+As with the {C.COLUMNSTORE} policy, `drop_after` is a number of milliseconds. Here, `31536000000` is 365 days. Your aggregated rollups in the next step are retained separately, so you keep long-term trends while discarding the second-by-second detail you no longer need:
+
+```sql
+SELECT add_retention_policy('sqlth_1_data', drop_after => 31536000000);
+```
+
+</NumberedItem>
+</NumberedList>
+
+## Step 7: Roll the data up with a {C.CAGG}
+
+Charting raw, per-second data over a long window is slow and noisy. A {C.CAGG} is a {C.HYPERTABLE} that {C.TIMESCALE_DB} refreshes automatically in the background as new data arrives, giving you pre-computed rollups that stay current without you re-running the aggregation each time.
+
+<NumberedList>
+<NumberedItem title="Create a one-minute rollup per tag">
+
+In your SQL client, create a {C.CAGG} that averages each tag's `floatvalue` into one-minute buckets. Because `t_stamp` is an integer column of milliseconds, `time_bucket` takes a bucket width in milliseconds (`60000` is one minute):
+
+```sql
+CREATE MATERIALIZED VIEW sensor_readings_1m
+WITH (timescaledb.continuous) AS
+SELECT
+  tagid,
+  time_bucket(60000, t_stamp) AS bucket,
+  avg(floatvalue) AS avg_value
+FROM sqlth_1_data
+GROUP BY tagid, bucket;
+```
+
+</NumberedItem>
+<NumberedItem title="Keep the rollup fresh">
+
+Add a refresh policy so the {C.CAGG} updates automatically as new readings land. The offsets are in milliseconds to match `t_stamp`, while the schedule interval is a normal `INTERVAL`:
+
+```sql
+SELECT add_continuous_aggregate_policy('sensor_readings_1m',
+  start_offset      => 3600000,
+  end_offset        => 60000,
+  schedule_interval => INTERVAL '1 minute');
+```
+
+</NumberedItem>
+<NumberedItem title="Query the rollup">
+
+Querying a {C.CAGG} works just like querying any table, and {C.CLOUD_LONG} transparently combines materialized buckets with the most recent raw data so results are always up to date. Join `sqlth_te` to turn the numeric `tagid` back into a readable tag path:
+
+```sql
+SELECT
+  to_timestamp(c.bucket / 1000) AS minute,
+  te.tagpath,
+  c.avg_value
+FROM sensor_readings_1m c
+JOIN sqlth_te te ON te.id = c.tagid
+WHERE c.bucket > (extract(epoch FROM now()) - 900) * 1000
+ORDER BY minute;
+```
+
+</NumberedItem>
+</NumberedList>
+
+## Step 8: Visualize the data in a Perspective chart
+
+To close the loop, display the aggregated data back inside Ignition. Perspective is Ignition's web-based visualization module, and its Time Series Chart reads SQL results through a named query.
+
+<NumberedList>
+<NumberedItem title="Create a named query against the rollup">
+
+In the Designer's `Project Browser`, right-click `Named Queries` and create a new query named `sensor_rollup`. Set its `Database` to the `tiger-cloud` connection and enter the following SQL. It reads the last hour from your {C.CAGG}, converts the millisecond buckets back to timestamps, and pivots the two tags into separate columns so each becomes its own line on the chart:
+
+```sql
+SELECT
+  to_timestamp(c.bucket / 1000) AS t,
+  avg(c.avg_value) FILTER (WHERE te.tagpath LIKE '%Sine0')      AS sine,
+  avg(c.avg_value) FILTER (WHERE te.tagpath LIKE '%Realistic0') AS realistic
+FROM sensor_readings_1m c
+JOIN sqlth_te te ON te.id = c.tagid
+WHERE c.bucket > (extract(epoch FROM now()) - 3600) * 1000
+GROUP BY c.bucket
+ORDER BY c.bucket;
+```
+
+Run the query in the Named Query Workspace to confirm it returns rows.
+
+</NumberedItem>
+<NumberedItem title="Add a Time Series Chart to a Perspective view">
+
+Create a new Perspective view, then drag a `Time Series Chart` component from the component palette onto it.
+
+</NumberedItem>
+<NumberedItem title="Bind the chart to the named query">
+
+Select the chart, find its `data` property, and add a `Query` binding pointing at the `sensor_rollup` named query. Set the binding's polling mode so it refreshes on an interval, for example every `5` seconds.
+
+The Time Series Chart expects an array of objects with a time field and one field per series, which is exactly the shape your query returns (`t`, `sine`, `realistic`).
+
+</NumberedItem>
+<NumberedItem title="View your live dashboard">
+
+Save the project and open the view. You see a live chart of the smoothed sine and realistic signals, updating as new one-minute buckets are materialized. You have built an end-to-end pipeline: simulated data flows from Ignition into {C.CLOUD_LONG}, gets compressed and aggregated, and flows back into Ignition for visualization.
+
+</NumberedItem>
+</NumberedList>
+
+## Going further
+
+- **Log more tags**: Enable history on more simulator or device tags. Because the historian keys every reading by `tagid`, new tags just add rows to the same table, no schema change required.
+- **Build hierarchical rollups**: Create [{C.CAGG}s on top of your {C.CAGG}s](/learn/continuous-aggregates/hierarchical-continuous-aggregates) to power hour, day, and month views from the same source data.
+- **Tune the {C.COLUMNSTORE}**: Adjust the policy's `after` window to match how soon your data goes cold. See [the {C.COLUMNSTORE} reference](/reference/timescaledb/hypercore/add_columnstore_policy).
+- **Model a unified namespace**: How you structure tag paths shapes your historian schema. See [A unified namespace determines your historian schema](https://www.tigerdata.com/blog/unified-namespace-historian-schema).
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard title="Integrate Ignition with Tiger Cloud" description={`A concise reference for connecting Ignition's Tag Historian to ${C.CLOUD_LONG}`} href="/integrate/data-ingestion-streaming/ignition" />
+  <RelatedContentCard title="Simulate an IoT sensor dataset" description={`Generate a synthetic sensor dataset directly in ${C.CLOUD_LONG}`} href="/build/examples/simulate-iot-sensor-data" />
+  <RelatedContentCard title="Analyze energy consumption" description={`Visualize ${C.CAGG} data with Grafana and ${C.CLOUD_LONG}`} href="/build/examples/analyze-energy-consumption" />
+</RelatedContentCards>

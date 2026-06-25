@@ -538,6 +538,7 @@ export default defineConfig({
                     { label: "Analyze transport and geospatial data", link: "/build/examples/analyze-transport-data" },
                     { label: "Analyze Bitcoin blockchain", link: "/build/examples/analyze-blockchain" },
                     { label: "Analyze energy consumption", link: "/build/examples/analyze-energy-consumption" },
+                    { label: "Build a SCADA data pipeline with Ignition", link: "/build/examples/ignition-scada-pipeline" },
                   ],
                 },
                 { label: "Tiger Data cookbook", link: "/build/examples/cookbook" },
