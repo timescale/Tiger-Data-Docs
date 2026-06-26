@@ -18,6 +18,7 @@
  * </ChangelogEntry>
  */
 
+import GithubSlugger from 'github-slugger';
 import ChangelogTag from './ChangelogTag.astro';
 
 interface Props {
@@ -40,11 +41,11 @@ interface Props {
 
 const { title, date, tags } = Astro.props;
 
-// Generate URL-friendly ID from title
-const id = title
-  .toLowerCase()
-  .replace(/[^a-z0-9]+/g, '-')
-  .replace(/(^-|-$)/g, '');
+// Generate the same id rehype-slug assigns to the rendered <h2> so the permalink
+// resolves. rehype-slug uses github-slugger; a hand-rolled regex diverges on
+// punctuation (e.g. "v2.24" -> "v2-24" here vs "v224" in the heading id),
+// which silently breaks the permalink for versioned titles.
+const id = new GithubSlugger().slug(title);
 
 // Parse the YYYY-MM-DD date string as a UTC date to avoid timezone shifts
 const [year, month, day] = date.split('-').map(Number);
@@ -79,7 +80,7 @@ const isoDate = date;
         #
       </a>
     </div>
-    <slot name="heading" />
+    <h2 class="changelog-entry__title">{title}</h2>
   </header>
   
   <div class="changelog-entry__content">
@@ -223,8 +224,11 @@ const isoDate = date;
   }
 
   .changelog-entry__title {
-    margin: 0 0 0.375rem 0;
-    font-size: 1.375rem;
+    /* Match the prose h2 the authored heading used to get from Starlight
+       (font-size var(--sl-text-h2), 1.5em top margin), now that the component
+       renders this heading itself. */
+    margin: 1.5em 0 0.375rem 0;
+    font-size: var(--sl-text-h2);
     font-weight: 600;
     line-height: 1.25;
     color: light-dark(#111827, #f9fafb);

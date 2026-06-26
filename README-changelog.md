@@ -47,13 +47,13 @@ So each logical “entry” is: one `##` heading + one `<ChangelogEntry>`.
 
 **Place:** right after the `##` heading, still inside `div.changelog-page-toc`.
 
-The component takes **props** and **two slots** (heading + body).
+The component takes **props** and a **body** (default slot). The visible card title is generated from the `title` prop, so you do **not** add a heading inside the component.
 
 #### Props (opening tag)
 
 | Prop   | Required | Format        | Description |
 |--------|----------|---------------|-------------|
-| `title`| Yes      | String        | Full title of the entry. Must match the `##` heading and the H2 in the heading slot. Used for the card and for anchor IDs. |
+| `title`| Yes      | String        | Full title of the entry. Must be **plain literal text** (no `{C.X}` constants) and **match the `##` heading exactly**. Used for the visible card title, the anchor ID, and the deep-link permalink. |
 | `date` | Yes      | `YYYY-MM-DD`  | Release or announcement date. Shown as “Month Day, Year” (for example, February 18, 2026). Use UTC to avoid timezone issues. |
 | `tags` | Yes      | Array of tag keys | One or more of the allowed tags (see below). Used for filtering and the pill labels on the card. |
 
@@ -72,25 +72,17 @@ Example:
 
 ---
 
-### 3. The heading slot (card title)
+### 3. The card title (generated, do not add it)
 
-**Place:** first content **inside** `<ChangelogEntry>`, right after the opening tag.
+The visible card title is rendered by the component from the `title` prop. **Do not add an `<h2 slot="heading">` inside `<ChangelogEntry>`** — that pattern is removed. The component also derives the deep-link anchor from `title` (via the same slugger Starlight uses), so the permalink always matches the heading.
 
-**Purpose:** this is the main title shown on the card (and used for deep links). It must be an `<h2>` with `slot="heading"` and `class="changelog-entry__title"`.
-
-**Format:** the text should match the `title` prop and the `##` heading.
-
-```mdx
-<h2 slot="heading" class="changelog-entry__title">Your entry title here</h2>
-```
-
-**Why it’s a slot:** The component puts this H2 in the card header (above the date and tags). Using a slot keeps the title in the page TOC and in the card without duplicating markup.
+**Do not use `{C.X}` constants in changelog entries.** This is a deliberate exception to the repo-wide "use constants for product names" rule. The `title` prop is a plain HTML attribute, so `{C.PG}` inside it is **not** interpolated: it renders the literal characters `{C.PG}` and produces a permalink whose slug never matches the heading. Write product names out in full (`PostgreSQL`, `Tiger Cloud`, `TimescaleDB`, and so on) in both the `##` heading and the `title` prop. (The `TigerData.ProductConstants` Vale rule may still suggest constants here; ignore it for `new.mdx`.)
 
 ---
 
 ### 4. The body (default slot)
 
-**Place:** everything after the heading slot, until `</ChangelogEntry>`.
+**Place:** everything after the opening `<ChangelogEntry>` tag, until `</ChangelogEntry>`.
 
 **Purpose:** the main content of the entry: description, bullet lists, links, and so on.
 
@@ -130,7 +122,6 @@ Here’s a complete new entry as it would appear at the top of the list in `new.
   date="2026-03-01"
   tags={["new-feature"]}
 >
-<h2 slot="heading" class="changelog-entry__title">My new feature</h2>
 
 ### What's new
 
@@ -145,8 +136,9 @@ See [docs link](https://...) for details.
 
 **Checklist:**
 
-- [ ] `##` heading matches the card title.
-- [ ] `title` prop matches the `##` and the H2 text.
+- [ ] `title` prop matches the `##` heading exactly.
+- [ ] No `{C.X}` constants; product names written out in full.
+- [ ] No `<h2 slot="heading">` inside the component (the title is generated).
 - [ ] `date` is `YYYY-MM-DD`.
 - [ ] `tags` is an array of allowed tag keys.
 - [ ] Body opens with a `###` subsection (typical) or a short intro paragraph.
@@ -160,15 +152,15 @@ See [docs link](https://...) for details.
 |-------------------------|----------------|
 | File to edit            | `src/content/docs/get-started/news/new.mdx` |
 | Position of new entry   | At the top, immediately after `<div class="changelog-page-toc">` and before the first existing `##` / `<ChangelogEntry>` |
-| TOC heading             | `## Entry title` (above the card) |
-| Card title (visible H2) | `<h2 slot="heading" class="changelog-entry__title">Entry title</h2>` (first thing inside `<ChangelogEntry>`) |
+| TOC heading             | `## Entry title` (above the card; must match `title`, no constants) |
+| Card title              | Generated from the `title` prop — do not add an `<h2>` inside `<ChangelogEntry>` |
 | Date & tags             | `date="YYYY-MM-DD"` and `tags={["tag1", "tag2"]}` on `<ChangelogEntry>` |
-| Body content            | After the H2; start with `### Subsection`, then paragraphs/lists/links |
+| Body content            | Inside `<ChangelogEntry>`; start with `### Subsection`, then paragraphs/lists/links |
 
 ---
 
 ## Tips
 
-- **Keep titles consistent:** use the same string for the `##` heading, the `title` prop, and the H2 in the heading slot so the TOC and card stay in sync.
+- **Keep titles consistent:** use the same literal string for the `##` heading and the `title` prop (no `{C.X}` constants) so the TOC, card, and permalink stay in sync.
 - **One or more tags:** use the tags that best describe the entry; multiple tags (for example, `["new-feature", "improvement"]`) are fine.
 - **Body structure:** starting with a `###` and using more `###` for sub-topics keeps the changelog scannable and the layout consistent across entries.
