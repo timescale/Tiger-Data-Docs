@@ -18,7 +18,9 @@ pnpm build:local      # Production build without Stainless
 pnpm preview          # Preview production build
 pnpm format           # Prettier formatting
 pnpm lint:prose       # Vale prose lint on changed *.md/*.mdx (pnpm lint:prose -- --all for everything)
-pnpm lint:links       # Build with link checking (CHECK_LINKS=true)
+pnpm lint:links       # Build, then validate internal links/anchors against the built HTML
+pnpm lint:links:local # Same, without Stainless (no API key needed)
+pnpm check:links      # Validate an existing build in dist/ (no rebuild)
 ```
 
 **Stainless auth:** generating the API reference requires `stl auth login` or `STAINLESS_API_KEY` in `.env`. The `dev:local` / `build:local` variants skip Stainless for faster local work.
@@ -131,7 +133,7 @@ Put first-party images in `src/assets/images/` and reference them with an `impor
 
 ### Links
 
-Use root-absolute internal links of the form `/section/page`, with no `.mdx` extension and no trailing slash (for example `/get-started/quickstart/create-service`). `starlight-links-validator` checks links during `pnpm lint:links`.
+Use root-absolute internal links of the form `/section/page`, with no `.mdx` extension and no trailing slash (for example `/get-started/quickstart/create-service`). `pnpm lint:links` validates internal links and anchors against the **built HTML** (`scripts/check-built-links.mjs`): it builds the site, then checks every rendered `<a href>` resolves to a real page or redirect (Astro + Vercel) and that anchors exist. Use `pnpm lint:links:local` to run it without a Stainless key, or `pnpm check:links` against an existing `dist/`.
 
 ### SQL in examples
 

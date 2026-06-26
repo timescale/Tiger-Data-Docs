@@ -1,0 +1,47 @@
+name: Link check
+
+# Validates internal links and anchors against the BUILT site, not the markdown
+# source: it builds the docs (without Stainless, so no API key is needed) and
+# runs scripts/check-built-links.mjs over the rendered HTML in dist/. This
+# catches broken page links and missing anchors, and resolves Astro + Vercel
+# redirects so legitimate redirected links don't false-positive. See
+# `pnpm lint:links` / `README` for the local equivalent.
+
+on:
+  pull_request:
+    paths:
+      - "src/content/**"
+      - "src/partials/**"
+      - "src/components/**"
+      - "astro.config.ts"
+      - "vercel.json"
+      - "scripts/check-built-links.mjs"
+      - ".github/workflows/links.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    name: Built-site link check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and check links
+        run: pnpm lint:links:local
