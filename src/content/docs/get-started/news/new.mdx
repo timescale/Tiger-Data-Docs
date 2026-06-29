@@ -119,6 +119,44 @@ import imgHighPerformanceStorageTigerConsole from "../../../../assets/images/bui
 
 <div class="changelog-page-toc">
 
+## {C.TIMESCALE_DB} v2.27.2 now on {C.CLOUD_LONG}
+
+<ChangelogEntry
+  title="TimescaleDB v2.27.2 now on Tiger Cloud"
+  date="2026-06-22"
+  tags={["bug-fix", "security-fix"]}
+>
+<h2 slot="heading" class="changelog-entry__title">{C.TIMESCALE_DB} v2.27.2 now on {C.CLOUD_LONG}</h2>
+
+{C.TIMESCALE_DB} v2.27.2 is a stability and security patch that supersedes 2.27.1 on {C.CLOUD_LONG}. Together, 2.27.1 and 2.27.2 close three access-control gaps in the jobs and policy subsystems, fix a correctness bug in grouped aggregation on the {C.COLUMNSTORE}, refine the {C.COLUMNSTORE} query planner, and ship upgrade-compatibility scripts for composite bloom filter metadata. {C.TIMESCALE_DB} 2.27.1 was released on May 19, 2026 and 2.27.2 on June 2, 2026; both are delivered to {C.CLOUD_LONG} as 2.27.2 starting June 22, 2026.
+
+### Highlighted fixes in {C.TIMESCALE_DB} v2.27.2
+
+**Tightened access controls**
+
+Three independent fixes in the jobs and policy subsystems close cases where users could observe or act on objects they did not own.
+
+- **Hypertable ownership enforced before recompression:** Recompression operations now verify ownership before proceeding. Previously, users could trigger recompression on hypertables they did not own.
+
+- **`job_errors` view restricted to owners:** Failed-job visibility is now scoped — only owners see failure rows for their own jobs. Previously, non-owners could read failure information they should not have had access to.
+
+- **`policy_reorder_remove` ownership check added:** The policy-management operation now enforces ownership before allowing changes, closing a path that previously leaked policy-existence information to non-owners.
+
+**Correctness and planner refinements on the {C.COLUMNSTORE}**
+
+- **Correct results for `GROUP BY` columns not in the `SELECT` list:** Queries grouping by a column not included in the `SELECT` list could return incorrect rows or crash when running through vectorized aggregation or `ColumnarIndexScan`. This is now fixed — no SQL change required.
+
+- **Safer `ColumnarIndexScan` planning:** The path now correctly bypasses query shapes it can't safely handle — including `GROUPING SETS` / `ROLLUP` / `CUBE`, grouping by expressions, and `WHERE` clauses containing subplans — avoiding inefficient or incorrect plan choices.
+
+**Operational fixes**
+
+- **Columnstore policy creation no longer blocked by stale refresh-policy check:** Adding a columnstore policy was failing in some workflows due to an unnecessary check on existing refresh policies. The check has been removed.
+
+- **Upgrade compatibility:** The upgrade path now cleans up orphaned `compression_settings` rows before migrating the catalog, and ships migration scripts for installations carrying composite bloom filter metadata (complementing the format change in 2.27.0).
+
+For complete details, refer to the [{C.TIMESCALE_DB} 2.27.1 release notes](https://github.com/timescale/timescaledb/releases/tag/2.27.1) and the [{C.TIMESCALE_DB} 2.27.2 release notes](https://github.com/timescale/timescaledb/releases/tag/2.27.2).
+</ChangelogEntry>
+
 ## Automated chunk tuning is now GA
 
 <ChangelogEntry 
