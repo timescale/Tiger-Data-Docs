@@ -319,7 +319,7 @@ psql "$TARGET" -f create_hypertables.sql
 
 **Additional dimensions (optional)**
 
-{C.TIMESCALE_DB} generally discourages using more than one dimension. Additional dimensions carry a risk of [partition explosion](/learn/hypertables#partition-by-dimension) and prevent the use of [data tiering](/learn/data-tiering/about-data-tiering#low-cost-storage) (tiered storage requires single-dimension hypertables). Only add extra dimensions if the source explicitly uses them and you have validated the need.
+{C.TIMESCALE_DB} generally discourages using more than one dimension. Additional dimensions carry a risk of [partition explosion](/learn/hypertables/partitioning-hypertables#space-partitioning-hash-dimension) and prevent the use of [data tiering](/learn/data-lifecycle/storage/about-storage-tiers#low-cost-storage) (tiered storage requires single-dimension hypertables). Only add extra dimensions if the source explicitly uses them and you have validated the need.
 
 ```bash
 psql "$SOURCE" -t -A <<'EOF' > add_dimensions.sql
@@ -475,9 +475,9 @@ psql "$TARGET" -f schema_dump.sql
 
 <NumberedItem title="Convert tables to hypertables">
 
-Good candidates for [{C.HYPERTABLE}s](/learn/hypertables):
+Good candidates for [{C.HYPERTABLE}s](/learn/hypertables/understand-hypertables):
 
-- **Tables with a time-based column:** any column of type `TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, or `INTEGER`/`BIGINT` (epoch). See [supported partition column types](/learn/hypertables/hypertable-crud).
+- **Tables with a time-based column:** any column of type `TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, or `INTEGER`/`BIGINT` (epoch). See [supported partition column types](/learn/hypertables/creating-and-configuring-hypertables).
 - **Append-mostly tables:** sensor readings, metrics, events, logs, or any table where rows are predominantly inserted in time order and rarely updated.
 - **{C.PG} declarative partitioned tables:** these can be converted directly to {C.HYPERTABLE}s. Rename the partitioned table, create a regular table with the same name, then convert (see example below).
 - **Large tables with time-range queries:** tables frequently queried with `WHERE ts > now() - interval '...'` benefit most from chunk exclusion.
