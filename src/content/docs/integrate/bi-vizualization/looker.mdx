@@ -1,0 +1,165 @@
+---
+title: Integrate Looker with Tiger Data
+description: Connect Looker to Tiger Cloud or self-hosted TimescaleDB to model, explore, and visualize your data.
+integrationCategory: bi-vizualization
+integrationPlatforms: [aws, azure, self-hosted]
+integrationIndustry: [saas, fintech, iot]
+keywords: [looker, business intelligence, dashboards, data modeling, analytics, postgresql]
+integrationCardLogo: looker.png
+sidebar:
+  label: Looker
+---
+
+import * as C from "@constants";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-or-self.mdx";
+import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+
+[Looker](https://cloud.google.com/looker) is a business intelligence and data modeling platform that lets you explore, analyze, and visualize data, then share governed dashboards across your organization.
+
+This page shows you how to connect Looker to {C.COMPANY} as a data source, so that you can model and visualize the data in your service or database.
+
+In this integration guide, you:
+
+- Create a dedicated Looker role and scratch schema in your service or database.
+- Add the connection in Looker.
+- Verify that Looker can query your data.
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+- A [Looker](https://cloud.google.com/looker) instance, with administrator access to create connections.
+</Prerequisites>
+
+## Prepare your service or database
+
+Looker connects with a dedicated database role and uses a scratch schema to materialize persistent derived tables (PDTs). Create both before you add the connection.
+
+<NumberedList>
+  <NumberedItem title="Connect to your service or database">
+
+    Connect to your service or database as a user with privileges to create roles and schemas, using your [connection details](/integrate/find-connection-details).
+
+  </NumberedItem>
+  <NumberedItem title="Create a role for Looker">
+
+    Create a dedicated role with a strong password:
+
+    ```sql
+    CREATE USER looker WITH ENCRYPTED PASSWORD '<password>';
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Grant read access">
+
+    Allow the role to connect and read your data. Replace `<dbname>` with your database name:
+
+    ```sql
+    GRANT CONNECT ON DATABASE "<dbname>" TO looker;
+    GRANT USAGE ON SCHEMA public TO looker;
+    GRANT SELECT ON ALL TABLES IN SCHEMA public TO looker;
+    GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO looker;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO looker;
+    ```
+
+    The `ALTER DEFAULT PRIVILEGES` statement makes sure Looker can also read tables you create later.
+
+  </NumberedItem>
+  <NumberedItem title="Create a scratch schema for persistent derived tables">
+
+    Create a schema owned by the `looker` role for Looker to write PDTs into, then set the role's search path:
+
+    ```sql
+    CREATE SCHEMA looker_scratch AUTHORIZATION looker;
+    ALTER USER looker SET search_path TO public, looker_scratch;
+    ```
+
+    Looker uses `looker_scratch` for temporary and derived tables, keeping them separate from your application data.
+
+  </NumberedItem>
+</NumberedList>
+
+## Add the connection in Looker
+
+Point Looker at your service or database using the role you created.
+
+<NumberedList>
+  <NumberedItem title="Open the connection settings">
+
+    In Looker, go to **Admin** > **Database** > **Connections**, then click `Add Connection`.
+
+  </NumberedItem>
+  <NumberedItem title="Enter your connection details">
+
+    Give the connection a name, then from the **Dialect** list select `PostgreSQL`. Enter your [connection details](/integrate/find-connection-details):
+
+    - **Host**: your service or database `host`.
+    - **Port**: your `port`, usually `5432`.
+    - **Database**: your `dbname`.
+    - **Username** and **Password**: `looker` and the password you set.
+
+  </NumberedItem>
+  <NumberedItem title="Configure persistent derived tables">
+
+    Turn on `Persistent Derived Tables` and set the **Temp Database** to `looker_scratch`, the scratch schema you created.
+
+    If your service or database requires encrypted connections, enable SSL. When Looker is hosted, add Looker's egress IP addresses to your network or firewall allowlist so it can reach your service or database.
+
+  </NumberedItem>
+  <NumberedItem title="Test and save">
+
+    Click `Test` to confirm Looker can connect, then `Connect` to save.
+
+    All connection tests should pass, confirming Looker can reach your service or database and use the scratch schema.
+
+  </NumberedItem>
+</NumberedList>
+
+## Verify the integration
+
+To confirm Looker is working with your service or database:
+
+<NumberedList>
+  <NumberedItem title="Open SQL Runner">
+
+    In Looker, go to **Develop** > **SQL Runner** and select your connection.
+
+  </NumberedItem>
+  <NumberedItem title="Run a query">
+
+    Run a simple query against one of your tables:
+
+    ```sql
+    SELECT * FROM <table_name> LIMIT 10;
+    ```
+
+    You see rows from your service or database in the results, confirming that Looker can read your data.
+
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated Looker with {C.COMPANY}.
+
+## Troubleshooting
+
+- **Connection test fails on PDTs:** confirm the `looker_scratch` schema is owned by the `looker` role and that the role's `search_path` includes it.
+- **Connection times out:** for hosted Looker, make sure Looker's egress IP addresses are allowlisted in your network, and that SSL is enabled for {C.CLOUD_LONG}.
+
+For other connectivity and authentication issues, see [Troubleshoot {C.CLOUD_LONG} integrations](/integrate/troubleshooting).
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Find your connection details"
+    description="Locate the host, port, database, user, and password for your service or database."
+    href="/integrate/find-connection-details"
+  />
+  <RelatedContentCard
+    title="Integrate Tableau with Tiger Data"
+    description="Connect Tableau to your service or database to build dashboards."
+    href="/integrate/bi-vizualization/tableau"
+  />
+</RelatedContentCards>
