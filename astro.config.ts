@@ -869,6 +869,7 @@ export default defineConfig({
                   collapsed: true,
                   items: [
                     { label: "Overview", link: "/integrate/code" },
+                    { label: "Auth.js", link: "/integrate/code/auth-js" },
                     { label: "Connect your app", link: "/integrate/code/connect-your-app" },
                   ],
                 },

@@ -1,0 +1,204 @@
+---
+title: Integrate Auth.js with Tiger Data
+description: Store Auth.js users, accounts, and sessions in Tiger Cloud or self-hosted TimescaleDB using the official PostgreSQL adapter.
+integrationCategory: code
+integrationPlatforms: [aws, azure, self-hosted]
+integrationIndustry: [saas, fintech, e-commerce]
+keywords: [auth.js, nextauth, authentication, postgresql adapter, next.js, session storage]
+integrationCardLogo: auth-js.png
+sidebar:
+  label: Auth.js
+---
+
+import * as C from "@constants";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-or-self.mdx";
+import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
+import { Callout } from "@stainless-api/docs/components";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+
+[Auth.js](https://authjs.dev/) (formerly NextAuth.js) is an open-source authentication library that handles sign-in, sessions, and account management for web applications across many frameworks and providers.
+
+This page shows you how to integrate Auth.js with {C.COMPANY} using the official [{C.PG} adapter](https://authjs.dev/getting-started/adapters/pg), so that Auth.js persists users, accounts, and sessions in your service or database instead of an external store.
+
+In this integration guide, you:
+
+- Create the tables that Auth.js requires in your service or database.
+- Configure the {C.PG} adapter in your application to connect to {C.COMPANY}.
+- Verify that authentication data is persisted.
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+- A [Next.js](https://nextjs.org/docs/app/getting-started/installation) application using Auth.js v5 (`next-auth@beta`). Auth.js also supports Qwik, SvelteKit, and Express, with equivalent configuration.
+- [Node.js](https://nodejs.org/) and a package manager such as npm, pnpm, yarn, or bun.
+</Prerequisites>
+
+## Create the Auth.js schema in your service or database
+
+The {C.PG} adapter expects four tables: `users`, `accounts`, `sessions`, and `verification_token`. Because {C.CLOUD_LONG} and {C.SELF_LONG} are built on {C.PG}, the adapter works against them with no changes.
+
+<NumberedList>
+  <NumberedItem title="Connect to your service or database">
+
+    Connect to your service or database with your [connection details](/integrate/find-connection-details), using `psql` or the SQL editor of your choice.
+
+  </NumberedItem>
+  <NumberedItem title="Create the Auth.js tables">
+
+    Run the following SQL to create the schema the adapter expects:
+
+    ```sql
+    CREATE TABLE verification_token (
+      identifier TEXT NOT NULL,
+      expires TIMESTAMPTZ NOT NULL,
+      token TEXT NOT NULL,
+      PRIMARY KEY (identifier, token)
+    );
+
+    CREATE TABLE accounts (
+      id SERIAL,
+      "userId" INTEGER NOT NULL,
+      type VARCHAR(255) NOT NULL,
+      provider VARCHAR(255) NOT NULL,
+      "providerAccountId" VARCHAR(255) NOT NULL,
+      refresh_token TEXT,
+      access_token TEXT,
+      expires_at BIGINT,
+      id_token TEXT,
+      scope TEXT,
+      session_state TEXT,
+      token_type TEXT,
+      PRIMARY KEY (id)
+    );
+
+    CREATE TABLE sessions (
+      id SERIAL,
+      "userId" INTEGER NOT NULL,
+      expires TIMESTAMPTZ NOT NULL,
+      "sessionToken" VARCHAR(255) NOT NULL,
+      PRIMARY KEY (id)
+    );
+
+    CREATE TABLE users (
+      id SERIAL,
+      name VARCHAR(255),
+      email VARCHAR(255),
+      "emailVerified" TIMESTAMPTZ,
+      image TEXT,
+      PRIMARY KEY (id)
+    );
+    ```
+
+    Run `\dt` in `psql` to confirm that all four tables exist.
+
+  </NumberedItem>
+</NumberedList>
+
+## Configure the adapter in your application
+
+Point Auth.js at your service or database, then wire the adapter into your Auth.js configuration.
+
+<NumberedList>
+  <NumberedItem title="Install the adapter and the PostgreSQL driver">
+
+    In your application directory, install the {C.PG} adapter and the `pg` driver:
+
+    ```bash
+    npm install @auth/pg-adapter pg
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Set your connection environment variables">
+
+    Add your [connection details](/integrate/find-connection-details) to your environment, for example in `.env.local`:
+
+    ```bash
+    DATABASE_HOST=<host>
+    DATABASE_NAME=<dbname>
+    DATABASE_USER=<user>
+    DATABASE_PASSWORD=<password>
+    ```
+
+    <Callout variant="note">
+    Auth.js also requires an `AUTH_SECRET` and at least one configured authentication provider. See [Auth.js installation](https://authjs.dev/getting-started/installation) for the base setup.
+    </Callout>
+
+  </NumberedItem>
+  <NumberedItem title="Configure Auth.js to use the adapter">
+
+    Create `./auth.ts` and pass a `pg` connection pool to `PostgresAdapter`:
+
+    ```typescript
+    import NextAuth from "next-auth"
+    import PostgresAdapter from "@auth/pg-adapter"
+    import { Pool } from "pg"
+
+    const pool = new Pool({
+      host: process.env.DATABASE_HOST,
+      user: process.env.DATABASE_USER,
+      password: process.env.DATABASE_PASSWORD,
+      database: process.env.DATABASE_NAME,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
+    })
+
+    export const { handlers, auth, signIn, signOut } = NextAuth({
+      adapter: PostgresAdapter(pool),
+      providers: [],
+    })
+    ```
+
+    Add your authentication providers to the `providers` array. Auth.js now reads and writes session and account data through your service or database.
+
+  </NumberedItem>
+</NumberedList>
+
+## Verify the integration
+
+To confirm Auth.js is persisting data in your service or database:
+
+<NumberedList>
+  <NumberedItem title="Sign in through your application">
+
+    Start your application with `npm run dev`, open it in a browser, and complete a sign-in with one of your configured providers.
+
+  </NumberedItem>
+  <NumberedItem title="Query your service or database to confirm the data arrived">
+
+    Connect to your service or database and query the `users` table:
+
+    ```sql
+    SELECT id, name, email FROM users;
+    ```
+
+    You see a row for the account you just signed in with, confirming that Auth.js is writing authentication data to {C.COMPANY}.
+
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated Auth.js with {C.COMPANY}.
+
+## Troubleshooting
+
+- **`relation "users" does not exist`:** create the Auth.js schema before starting your application — run the SQL in [Create the Auth.js schema](#create-the-authjs-schema-in-your-service-or-database).
+- **`column "userId" does not exist`:** the adapter relies on case-sensitive, double-quoted column names. Create the tables with the exact SQL above so the quoted identifiers match.
+
+For other connectivity and authentication issues, see [Troubleshoot {C.CLOUD_LONG} integrations](/integrate/troubleshooting).
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Find your connection details"
+    description="Locate the host, port, database, user, and password for your service or database."
+    href="/integrate/find-connection-details"
+  />
+  <RelatedContentCard
+    title="Connect your app"
+    description="Connect to your database from your preferred programming language."
+    href="/integrate/code/connect-your-app"
+  />
+</RelatedContentCards>
