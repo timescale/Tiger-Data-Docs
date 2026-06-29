@@ -714,7 +714,14 @@ export default defineConfig({
           label: "Migrate",
           link: "/migrate",
           sidebar: [
-            { label: "Overview", link: "/migrate" },
+            {
+              label: "Overview",
+              collapsed: true,
+              items: [
+                { label: "Overview", link: "/migrate" },
+                { label: "Choose a migration approach", link: "/migrate/choose-your-approach" },
+              ],
+            },
             {
               label: "Migrate to Tiger Cloud",
               collapsed: false,
