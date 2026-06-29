@@ -244,6 +244,14 @@ export default defineConfig({
       favicon: "favicon.ico",
       customCss: ["./theme.css", "./osano.css", "./src/styles/layout-root.css"],
       lastUpdated: true,
+      // Adds a "Suggest an edit to this page" link in the footer of every content
+      // page, pointing at the page's Markdown source on GitHub. Starlight appends the
+      // page's source path (relative to the repo root) to this base URL, so the link
+      // opens GitHub's editor for that exact file. Auto-generated pages (the Tiger
+      // Cloud REST reference) have no source file, so no link is rendered for them.
+      editLink: {
+        baseUrl: "https://github.com/timescale/Tiger-Data-Docs/edit/main/",
+      },
       head: [
         {
           // Segment
