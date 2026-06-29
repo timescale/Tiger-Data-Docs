@@ -1,0 +1,214 @@
+---
+title: Integrate Auth0 with Tiger Data
+description: Use Tiger Cloud or self-hosted TimescaleDB as the user store for an Auth0 custom database connection.
+integrationCategory: code
+integrationPlatforms: [aws, azure, self-hosted]
+integrationIndustry: [saas, fintech, e-commerce]
+keywords: [auth0, authentication, custom database, identity, user store, postgresql]
+integrationCardLogo: auth0.png
+sidebar:
+  label: Auth0
+---
+
+import * as C from "@constants";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-or-self.mdx";
+import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
+import { Callout } from "@stainless-api/docs/components";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+
+[Auth0](https://auth0.com/) is an identity platform that provides authentication and authorization as a service. With a custom database connection, Auth0 authenticates users against a database you own instead of storing them in Auth0.
+
+This page shows you how to use {C.COMPANY} as the user store for an Auth0 custom database connection, so that your users live in your service or database while Auth0 handles the login flow.
+
+<Callout variant="warning">
+Auth0 runs custom database action scripts from its own infrastructure, so it must reach your service or database over the network. For {C.CLOUD_LONG}, allowlist [Auth0's IP addresses](https://auth0.com/docs/secure/security-guidance/data-security/allowlist-ip-addresses) for your region. A self-hosted {C.SELF_LONG} instance must be reachable from Auth0, either directly or through a tunnel. Never expose a database to the internet without appropriate firewalling and TLS.
+</Callout>
+
+In this integration guide, you:
+
+- Create the users table in your service or database.
+- Configure an Auth0 custom database connection with action scripts.
+- Verify that Auth0 reads and writes users in your service or database.
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+- An [Auth0 account](https://auth0.com/signup) with access to a tenant.
+</Prerequisites>
+
+## Create the users schema in your service or database
+
+Auth0's PostgreSQL action scripts hash passwords with bcrypt and read and write a `users` table. Create that table before you configure the connection.
+
+<NumberedList>
+  <NumberedItem title="Connect to your service or database">
+
+    Connect to your service or database with your [connection details](/integrate/find-connection-details).
+
+  </NumberedItem>
+  <NumberedItem title="Create the users table">
+
+    Run the following SQL, adapted from Auth0's reference schema:
+
+    ```sql
+    CREATE TABLE users (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      password VARCHAR(255) NOT NULL,
+      nickname VARCHAR(255),
+      email_verified BOOLEAN
+    );
+    ```
+
+    The `password` column stores a bcrypt hash, which the action scripts compute. Tiger Data never sees plaintext passwords.
+
+  </NumberedItem>
+</NumberedList>
+
+## Configure the custom database connection in Auth0
+
+Create a database connection in Auth0, store your connection details, and add the action scripts that read and write your `users` table.
+
+<NumberedList>
+  <NumberedItem title="Create a database connection">
+
+    In the Auth0 Dashboard, go to **Authentication** > **Database**, then click `Create DB Connection`. Give the connection a name and create it.
+
+  </NumberedItem>
+  <NumberedItem title="Enable your own database">
+
+    Open the connection, select the **Custom Database** tab, and turn on `Use my own database`. The **Database Action Scripts** editor appears.
+
+  </NumberedItem>
+  <NumberedItem title="Store your connection string">
+
+    In the **Settings** section below the script editor, add a parameter for your [connection details](/integrate/find-connection-details), for example `DATABASE_CONNECTION_STRING`, with a value like:
+
+    ```text
+    postgres://<user>:<password>@<host>:<port>/<dbname>?sslmode=require
+    ```
+
+    The action scripts read this value from the `configuration` object, so your credentials stay out of the script body. {C.CLOUD_LONG} requires TLS, so keep `sslmode=require`.
+
+  </NumberedItem>
+  <NumberedItem title="Add the Login script">
+
+    Select the `Login` script, choose the `PostgreSQL` template, and adapt it to read your connection string from `configuration`:
+
+    ```js
+    function login(email, password, callback) {
+      const bcrypt = require('bcrypt');
+      const postgres = require('pg');
+
+      const conString = configuration.DATABASE_CONNECTION_STRING;
+      postgres.connect(conString, function (err, client, done) {
+        if (err) return callback(err);
+
+        const query = 'SELECT id, nickname, email, password FROM users WHERE email = $1';
+        client.query(query, [email], function (err, result) {
+          done();
+          if (err || result.rows.length === 0) {
+            return callback(err || new WrongUsernameOrPasswordError(email));
+          }
+
+          const user = result.rows[0];
+          bcrypt.compare(password, user.password, function (err, isValid) {
+            if (err || !isValid) {
+              return callback(err || new WrongUsernameOrPasswordError(email));
+            }
+            return callback(null, {
+              user_id: user.id,
+              nickname: user.nickname,
+              email: user.email,
+            });
+          });
+        });
+      });
+    }
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Add the Create and Get User scripts">
+
+    Add the `Create` script so Auth0 can register new users, hashing the password with bcrypt before insert:
+
+    ```js
+    function create(user, callback) {
+      const bcrypt = require('bcrypt');
+      const postgres = require('pg');
+
+      const conString = configuration.DATABASE_CONNECTION_STRING;
+      postgres.connect(conString, function (err, client, done) {
+        if (err) return callback(err);
+
+        bcrypt.hash(user.password, 10, function (err, hashedPassword) {
+          if (err) return callback(err);
+
+          const query = 'INSERT INTO users(email, password) VALUES ($1, $2)';
+          client.query(query, [user.email, hashedPassword], function (err) {
+            done();
+            return callback(err);
+          });
+        });
+      });
+    }
+    ```
+
+    Add the `Get User` script the same way, reading from `configuration.DATABASE_CONNECTION_STRING`. For the remaining `Verify`, `Change Password`, and `Delete` scripts, start from the [PostgreSQL templates](https://auth0.com/docs/authenticate/database-connections/custom-db/templates) and apply the same connection-string change.
+
+  </NumberedItem>
+  <NumberedItem title="Save the scripts">
+
+    Click `Save`. Auth0 connects to your service or database when a user authenticates against this connection.
+
+  </NumberedItem>
+</NumberedList>
+
+## Verify the integration
+
+To confirm Auth0 is working with your service or database:
+
+<NumberedList>
+  <NumberedItem title="Create a user through Auth0">
+
+    In the Auth0 Dashboard, go to **User Management** > **Users**, click `Create User`, and select your custom database connection. Alternatively, sign up through an application that uses this connection.
+
+  </NumberedItem>
+  <NumberedItem title="Query your service or database to confirm the user arrived">
+
+    Connect to your service or database and query the `users` table:
+
+    ```sql
+    SELECT id, email, nickname FROM users;
+    ```
+
+    You see a row for the user you just created, with a bcrypt hash in the `password` column, confirming that Auth0 is writing to {C.COMPANY}.
+
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated Auth0 with {C.COMPANY}.
+
+## Troubleshooting
+
+- **Connection timeouts in the script editor:** confirm Auth0 can reach your service or database. For {C.CLOUD_LONG}, allowlist Auth0's IP addresses; self-hosted instances must be reachable from Auth0.
+- **`WrongUsernameOrPasswordError` on valid credentials:** make sure the `Login` and `Create` scripts use the same bcrypt hashing, and that existing rows store bcrypt hashes in the `password` column.
+
+For other connectivity and authentication issues, see [Troubleshoot {C.CLOUD_LONG} integrations](/integrate/troubleshooting).
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Find your connection details"
+    description="Locate the host, port, database, user, and password for your service or database."
+    href="/integrate/find-connection-details"
+  />
+  <RelatedContentCard
+    title="Connect your app"
+    description="Connect to your database from your preferred programming language."
+    href="/integrate/code/connect-your-app"
+  />
+</RelatedContentCards>
