@@ -255,9 +255,18 @@ We have updated the Goals flow Actions in Tiger Cloud to make them more effectiv
           continuous_aggregate => 'metrics_hourly',
           start_offset => INTERVAL '30 days',
           end_offset   => INTERVAL '1 hour',
-          schedule_interval => INTERVAL '1 hour',
-          config => '{"compress_after_refresh": true}'::jsonb
+          schedule_interval => INTERVAL '1 hour'
         );
+
+        add_continuous_aggregate_policy
+        ---------------------------------
+                                  1001
+        (1 row)
+
+        SELECT alter_job(1001, config => jsonb_set(
+          (SELECT config FROM _timescaledb_catalog.bgw_job WHERE id = 1001), 
+          '{compress_after_refresh}', 'true'
+        ));
         ```
 
 - **Smarter {C.CHUNK} exclusion**
