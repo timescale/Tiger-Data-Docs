@@ -1,67 +1,109 @@
 ---
-title: "Integrate Power BI with Tiger Cloud"
-description: "Create interactive reports and dashboards to analyze and share insights from your data"
-integrationCategory: "bi-vizualization"
-integrationPlatforms: ["aws", "azure", "self-hosted"]
-integrationIndustry: ["manufacturing", "healthcare", "energy"]
-keywords: ["business intelligence","data visualization","dashboards","reporting","power bi integration","analytics","odbc"]
-integrationCardLogo: "power-bi.png"
+title: Integrate Power BI with Tiger Data
+description: Create interactive reports and dashboards to analyze and share insights from your data.
+integrationCategory: bi-vizualization
+integrationPlatforms: [aws, azure, self-hosted]
+integrationIndustry: [manufacturing, healthcare, energy]
+keywords: [business intelligence, data visualization, dashboards, reporting, power bi integration, analytics]
+integrationCardLogo: powerbi.png
 sidebar:
-  label: "Power BI"
+  label: Power BI
 ---
 
 import * as C from "@constants";
-
-import IntegrationPrereqs from '@partials/_prereqs-cloud-and-self.mdx';
-import ConnectionDetails from '@partials/_prereqs-connection-details.mdx';
 import { Prerequisites } from "@components/Prerequisites";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-or-self.mdx";
+import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
 
 [Power BI](https://www.microsoft.com/en-us/power-platform/products/power-bi/) is a business analytics tool for visualizing data, creating interactive reports, and sharing insights across an organization.
 
-This page explains how to integrate Power BI with {C.CLOUD_LONG} using the {C.PG} ODBC driver, so that you can build interactive reports based on the data in your {C.SERVICE_LONG}.
+This page shows you how to connect Power BI to {C.COMPANY} using the built-in {C.PG} connector, so that you can build interactive reports based on the data in your service or database.
+
+In this integration guide, you:
+
+- Connect Power BI to your service or database.
+- Import data and verify that it loads.
 
 <Prerequisites context="integration">
 <IntegrationPrereqs />
 <ConnectionDetails />
-
-- [Power BI Desktop](https://www.microsoft.com/en-us/power-platform/products/power-bi/downloads) installed on your Microsoft Windows machine.
-- The [{C.PG} ODBC driver](https://www.postgresql.org/ftp/odbc/releases/) installed.
+- [Power BI Desktop](https://www.microsoft.com/en-us/power-platform/products/power-bi/downloads) installed. Power BI Desktop has bundled the Npgsql data provider since December 2019, so no separate driver installation is needed for current versions.
 </Prerequisites>
 
-## Add your service as an ODBC data source
+## Connect to your service or database from Power BI
 
-Use the {C.PG} ODBC driver to connect Power BI to {C.CLOUD_LONG}.
+Power BI connects to your service or database with the built-in {C.PG} connector.
 
 <NumberedList>
-  <NumberedItem title="Open the ODBC data sources">
-    On your Windows machine, search for and select `ODBC Data Sources`.
+  <NumberedItem title="Select the PostgreSQL connector">
+
+    In Power BI Desktop, click `Get data`, select the `Database` category, choose `PostgreSQL database`, then click `Connect`.
+
   </NumberedItem>
-  <NumberedItem title={`Connect to your ${C.SERVICE_LONG}`}>
-    1. Under `User DSN`, click `Add`.
-    1. Choose `PostgreSQL Unicode` and click `Finish`.
-    1. Use your [connection details](/integrate/find-connection-details) to configure the data source.
-    1. Click `Test` to ensure the connection works, then click `Save`.
+  <NumberedItem title="Enter your service or database">
+
+    In the `PostgreSQL database` dialog, use your [connection details](/integrate/find-connection-details) to enter the **Server** (your `host`, optionally with `:port`) and the **Database** name (your `dbname`).
+
+    Select `Import` to load a copy of the data into Power BI, or `DirectQuery` to query your service or database live, then click `OK`.
+
+  </NumberedItem>
+  <NumberedItem title="Authenticate">
+
+    On the `Database` tab, enter your `user` and `password` from your connection details, then click `Connect`.
+
+    If you are prompted that the connection isn't encrypted, set up SSL on your service or database for an encrypted connection, or click `OK` to continue without encryption.
+
+  </NumberedItem>
+  <NumberedItem title="Load your tables">
+
+    In `Navigator`, select the tables you want, then click `Load` to import them, or `Transform Data` to shape the data first.
+
+    The selected tables appear in the `Data` pane.
+
   </NumberedItem>
 </NumberedList>
 
-## Import the data from your service into Power BI
+## Verify the integration
 
-Establish a connection and import data from your {C.SERVICE_LONG} into Power BI:
+To confirm Power BI is working with your service or database:
 
 <NumberedList>
-  <NumberedItem title={`Connect Power BI to your ${C.SERVICE_LONG}`}>
-    1. Open Power BI, then click `Get data from other sources`.
-    1. Search for and select `ODBC`, then click `Connect`.
-    1. In `Data source name (DSN)`, select the {C.CLOUD_LONG} data source and click `OK`.
-    1. Use your [connection details](/integrate/find-connection-details) to enter your `User Name` and `Password`, then click `Connect`.
+  <NumberedItem title="Check your imported tables">
 
-    After connecting, `Navigator` displays the available tables and schemas.
+    In the `Data` pane, expand one of the tables you loaded and confirm its columns and rows match your service or database.
+
   </NumberedItem>
-  <NumberedItem title="Import your data into Power BI">
-    1. Select the tables to import and click `Load`. The `Data` pane shows your imported tables.
-    1. To visualize your data and build reports, drag fields from the tables onto the canvas.
+  <NumberedItem title="Build a visualization">
+
+    On the report canvas, drag fields from a table onto a visual.
+
+    The visual renders with data from your service or database, confirming that Power BI can read your data.
+
   </NumberedItem>
 </NumberedList>
 
-You have successfully integrated Power BI with {C.CLOUD_LONG}.
+You have successfully integrated Power BI with {C.COMPANY}.
+
+## Troubleshooting
+
+- **The {C.PG} connector is missing:** update to a current version of Power BI Desktop, which bundles the Npgsql provider. Older versions require a separate [Npgsql](https://github.com/npgsql/npgsql/releases) installation.
+- **Connection fails over a gateway:** if you publish to the Power BI service, configure the {C.PG} connector on an on-premises or virtual network data gateway that can reach your service or database.
+
+For other connectivity and authentication issues, see [Troubleshoot {C.CLOUD_LONG} integrations](/integrate/troubleshooting).
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Find your connection details"
+    description="Locate the host, port, database, user, and password for your service or database."
+    href="/integrate/find-connection-details"
+  />
+  <RelatedContentCard
+    title="Integrate Tableau with Tiger Data"
+    description="Connect Tableau to your service or database to build dashboards."
+    href="/integrate/bi-vizualization/tableau"
+  />
+</RelatedContentCards>
