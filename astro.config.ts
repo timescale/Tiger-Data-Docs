@@ -284,7 +284,7 @@ export default defineConfig({
         // Env var: PUBLIC_STATSIG_CLIENT_KEY (set in Vercel + .env.local)
         {
           tag: "script",
-          content: `!function(){try{var k="${ENV.PUBLIC_STATSIG_CLIENT_KEY ?? ""}";if(!k||k==="undefined"){console.debug("Statsig: no client key, skipping");return}var e=document.cookie.match(/ajs_anonymous_id=([^;]+)/);if(e&&e[1]){var t=document.createElement("script");t.async=!0;t.src="https://cdn.jsdelivr.net/npm/@statsig/js-client@3/build/statsig-js-client+session-replay+web-analytics.min.js";t.onload=function(){try{var s=new window.__STATSIG__.StatsigClient(k,{userID:decodeURIComponent(e[1])});s.initializeAsync().then(function(){s.checkGate("new_docs_site_rollout")})}catch(err){console.debug("Statsig init error:",err)}};document.head.appendChild(t)}}catch(err){console.debug("Statsig setup error:",err)}}();`,
+          content: `!function(){try{var k="${import.meta.env.PUBLIC_STATSIG_CLIENT_KEY}";if(!k||k==="undefined"){console.debug("Statsig: no client key, skipping");return}var e=document.cookie.match(/ajs_anonymous_id=([^;]+)/);if(e&&e[1]){var t=document.createElement("script");t.async=!0;t.src="https://cdn.jsdelivr.net/npm/@statsig/js-client@3/build/statsig-js-client+session-replay+web-analytics.min.js";t.onload=function(){try{var s=new window.__STATSIG__.StatsigClient(k,{userID:decodeURIComponent(e[1])});s.initializeAsync().then(function(){s.checkGate("new_docs_site_rollout")})}catch(err){console.debug("Statsig init error:",err)}};document.head.appendChild(t)}}catch(err){console.debug("Statsig setup error:",err)}}();`,
         },
         // ──── END STATSIG ────
         // ──── BEGIN POSTHOG ────
