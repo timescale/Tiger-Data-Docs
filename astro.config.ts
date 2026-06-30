@@ -198,6 +198,7 @@ export default defineConfig({
   base: BASE,
   trailingSlash: "never",
   markdown: {
+    gfm: true,
     remarkPlugins: [remarkResolveConstantsInHeadings],
     rehypePlugins: [[rehypeBasePath, { base: BASE }], rehypePagefindWeight],
   },
@@ -243,6 +244,14 @@ export default defineConfig({
       favicon: "favicon.ico",
       customCss: ["./theme.css", "./osano.css", "./src/styles/layout-root.css"],
       lastUpdated: true,
+      // Adds a "Suggest an edit to this page" link in the footer of every content
+      // page, pointing at the page's Markdown source on GitHub. Starlight appends the
+      // page's source path (relative to the repo root) to this base URL, so the link
+      // opens GitHub's editor for that exact file. Auto-generated pages (the Tiger
+      // Cloud REST reference) have no source file, so no link is rendered for them.
+      editLink: {
+        baseUrl: "https://github.com/timescale/Tiger-Data-Docs/edit/main/",
+      },
       head: [
         {
           // Segment
@@ -264,6 +273,17 @@ export default defineConfig({
           // Twitter/X ads pixel
           tag: "script",
           content: `!function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);},s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='//static.ads-twitter.com/uwt.js',a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');twq('init','o8fs3');twq('track','PageView');`,
+        },
+        {
+          // Sidebar active-branch expander: Starlight persists open/closed sidebar
+          // groups in sessionStorage and restores them on load, which can override the
+          // server-rendered open state and leave the current page hidden inside a
+          // collapsed parent group (e.g. a page nested one level down in a subgroup).
+          // After the persister runs, force every <details> ancestor of the active link
+          // open so the current page is always revealed. Setting `.open` directly does
+          // not fire the persister's click handler, so no loop or stored-state changes.
+          tag: "script",
+          content: `(function(){function exp(){var b=document.getElementById("starlight__sidebar");if(!b)return;var a=b.querySelector('[aria-current="page"]');if(!a)return;var e=a.parentElement;while(e&&e!==b){if(e.tagName==="DETAILS")e.open=true;e=e.parentElement;}}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",exp);}else{exp();}document.addEventListener("astro:page-load",exp);})();`,
         },
         // ──── BEGIN STATSIG ────
         // Statsig client-side SDK: session replay, web analytics, and gate exposure logging.
@@ -501,11 +521,7 @@ export default defineConfig({
           label: "Build",
           link: "/build",
           sidebar: [
-            {
-              label: "Build with Tiger Data",
-              collapsed: true,
-              items: [{ label: "Build with Tiger Data", link: "/build" }],
-            },
+            { label: "Overview", link: "/build" },
             // --- Get hands on: merged Tutorials + How-to + Examples ---
             {
               label: "Get hands on",
@@ -550,9 +566,8 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-                { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
                 { label: "Set up hypercore", link: "/build/columnar-storage/setup-hypercore" },
-                { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
+                { label: "Create a continuous aggregate", link: "/build/continuous-aggregates/create-a-continuous-aggregate" },
                 { label: "Manage storage and tiering", link: "/build/data-management/storage/manage-storage" },
                 { label: "Create a retention policy", link: "/build/data-management/data-retention/create-a-retention-policy" },
                 { label: "Create and manage custom jobs", link: "/build/data-management/create-and-manage-jobs" },
@@ -703,26 +718,40 @@ export default defineConfig({
             },
           ],
         },
-        // Migrate tab, logical order: overview → how to import/migrate → source-specific guides
+        // Migrate tab: data sync, file uploads, and full database migration
         {
           label: "Migrate",
           link: "/migrate",
           sidebar: [
             {
-              label: "Migrate to Tiger Data",
+              label: "Overview",
               collapsed: true,
-              items: [{ label: "Migrate to Tiger Data", link: "/migrate" }],
+              items: [
+                { label: "Overview", link: "/migrate" },
+                { label: "Choose a migration approach", link: "/migrate/choose-your-approach" },
+              ],
             },
             {
-              label: "Import & migration methods",
+              label: "Migrate to Tiger Cloud",
               collapsed: false,
               items: [
-                { label: "Sync from Postgres", link: "/migrate/livesync-for-postgresql" },
-                { label: "Sync from S3", link: "/migrate/livesync-for-s3" },
-                { label: "Stream from Kafka", link: "/migrate/livesync-for-kafka" },
-                { label: "Upload a file (Console)", link: "/migrate/import-console" },
-                { label: "Upload a file (terminal)", link: "/migrate/import-terminal" },
-                { label: "Live migration", link: "/migrate/live-migration" },
+                {
+                  label: "Livesync replication",
+                  collapsed: true,
+                  items: [
+                    { label: "Livesync replication", link: "/migrate/livesync-replication" },
+                    { label: "Advanced topics", link: "/migrate/livesync-replication-advanced" },
+                    { label: "Troubleshooting", link: "/migrate/livesync-replication-troubleshooting" },
+                  ],
+                },
+                {
+                  label: "Live migration (deprecated)",
+                  collapsed: true,
+                  items: [
+                    { label: "Live migration (deprecated)", link: "/migrate/live-migration" },
+                    { label: "FAQ and troubleshooting", link: "/migrate/troubleshooting" },
+                  ],
+                },
                 { label: "Migrate with downtime", link: "/migrate/migrate-with-downtime" },
                 {
                   label: "Dual-write and backfill",
@@ -735,7 +764,23 @@ export default defineConfig({
                     { label: "timescaledb-backfill tool", link: "/migrate/dual-write-and-backfill/timescaledb-backfill" },
                   ],
                 },
-                { label: "FAQ and troubleshooting", link: "/migrate/troubleshooting" },
+              ],
+            },
+            {
+              label: "Sync and stream",
+              collapsed: false,
+              items: [
+                { label: "Sync from PostgreSQL", link: "/migrate/livesync-for-postgresql" },
+                { label: "Sync from S3", link: "/migrate/livesync-for-s3" },
+                { label: "Stream from Kafka", link: "/migrate/livesync-for-kafka" },
+              ],
+            },
+            {
+              label: "Upload files",
+              collapsed: false,
+              items: [
+                { label: "Upload in Tiger Console", link: "/migrate/import-console" },
+                { label: "Upload in the terminal", link: "/migrate/import-terminal" },
               ],
             },
           ],
@@ -745,11 +790,7 @@ export default defineConfig({
           label: "Integrate",
           link: "/integrate",
           sidebar: [
-            {
-              label: "Integrations",
-              collapsed: true,
-              items: [{ label: "Integrations", link: "/integrate" }],
-            },
+            { label: "Overview", link: "/integrate" },
             {
               label: "Find connection details",
               collapsed: true,
@@ -779,12 +820,14 @@ export default defineConfig({
                   collapsed: true,
                   items: [
                     { label: "Overview", link: "/integrate/data-ingestion-streaming" },
+                    { label: "EMQX", link: "/integrate/data-ingestion-streaming/emqx" },
                     { label: "Fivetran", link: "/integrate/data-ingestion-streaming/fivetran" },
                     { label: "HighByte", link: "/integrate/data-ingestion-streaming/highbyte" },
                     { label: "Kepware KEPServerEX", link: "/integrate/data-ingestion-streaming/kepware-kepserverex" },
                     { label: "HiveMQ", link: "/integrate/data-ingestion-streaming/hivemq" },
                     { label: "Ignition", link: "/integrate/data-ingestion-streaming/ignition" },
                     { label: "Litmus Edge", link: "/integrate/data-ingestion-streaming/litmus-edge" },
+                    { label: "Node-RED", link: "/integrate/data-ingestion-streaming/node-red" },
                   ],
                 },
                 {
@@ -815,9 +858,16 @@ export default defineConfig({
                       collapsed: true,
                       items: [
                         {
-                          label: "Amazon Iceberg",
-                          link: "/integrate/connectors/destination/tigerlake",
-                          attrs: { "data-no-flatten": "true" },
+                          label: "TigerLake (Iceberg)",
+                          collapsed: true,
+                          items: [
+                            {
+                              label: "Overview and setup",
+                              link: "/integrate/connectors/destination/tigerlake",
+                              attrs: { "data-no-flatten": "true" },
+                            },
+                            { label: "Query from Snowflake", link: "/integrate/connectors/destination/snowflake" },
+                          ],
                         },
                       ],
                     },
@@ -943,11 +993,7 @@ export default defineConfig({
           label: "Deploy",
           link: "/deploy",
           sidebar: [
-            {
-              label: "Deploy Tiger Data",
-              collapsed: true,
-              items: [{ label: "Deploy Tiger Data", link: "/deploy" }],
-            },
+            { label: "Overview", link: "/deploy" },
             {
               label: "Tiger Cloud on AWS",
               collapsed: true,
@@ -1015,6 +1061,8 @@ export default defineConfig({
                     },
                     { label: "Maintenance and upgrades", link: "/deploy/tiger-cloud/tiger-cloud-aws/upgrades" },
                     { label: "Billing and account management", link: "/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management" },
+                    { label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" },
+                    { label: "Vectorizer and LLM calls migration guide", link: "/deploy/tiger-cloud/vectorizer-deprecation" },
               ],
             },
             {
@@ -1082,18 +1130,12 @@ export default defineConfig({
                     },
                     { label: "Maintenance and upgrades", link: "/deploy/tiger-cloud/tiger-cloud-azure/upgrades" },
                     { label: "Billing and account management", link: "/deploy/tiger-cloud/tiger-cloud-azure/pricing-and-account-management" },
+                    { label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" },
+                    { label: "Vectorizer and LLM calls migration guide", link: "/deploy/tiger-cloud/vectorizer-deprecation" },
               ],
             },
             {
-              label: "Tiger Cloud operations",
-              collapsed: true,
-              items: [
-                { label: "Troubleshoot", link: "/deploy/tiger-cloud/troubleshoot" },
-                { label: "Vectorizer and LLM calls migration guide", link: "/deploy/tiger-cloud/vectorizer-deprecation" },
-              ],
-            },
-            {
-              label: "Self-Hosted",
+              label: "Self-hosted TimescaleDB",
               collapsed: true,
               items: [
                 { label: "Self-hosted TimescaleDB", link: "/deploy/self-hosted" },
@@ -1166,7 +1208,7 @@ export default defineConfig({
               ],
             },
             {
-              label: "Managed service (MST)",
+              label: "Managed Service for TimescaleDB",
               collapsed: true,
               items: [
                 { label: "Managed Service for TimescaleDB", link: "/deploy/mst" },
@@ -1227,16 +1269,12 @@ export default defineConfig({
           label: "Reference",
           link: "/reference",
           sidebar: [
-            {
-              label: "API and CLI reference",
-              collapsed: false,
-              items: [{ label: "API and CLI reference", link: "/reference" }],
-            },
+            { label: "Overview", link: "/reference" },
             {
               label: "TimescaleDB",
-              collapsed: false,
+              collapsed: true,
               items: [
-                { label: "TimescaleDB reference", link: "/reference/timescaledb" },
+                { label: "Overview", link: "/reference/timescaledb" },
                 {
                   label: "Hypertables and chunks",
                   collapsed: true,
@@ -1244,6 +1282,7 @@ export default defineConfig({
                     { label: "Overview", link: "/reference/timescaledb/hypertables" },
                     {
                       label: "Table creation",
+                      collapsed: true,
                       items: [
                         { label: "CREATE TABLE", link: "/reference/timescaledb/hypertables/create_table" },
                         { label: "create_hypertable()", link: "/reference/timescaledb/hypertables/create_hypertable" },
@@ -1253,6 +1292,7 @@ export default defineConfig({
                     },
                     {
                       label: "Chunk management",
+                      collapsed: true,
                       items: [
                         { label: "create_chunk()", link: "/reference/timescaledb/hypertables/create_chunk" },
                         { label: "show_chunks()", link: "/reference/timescaledb/hypertables/show_chunks" },
@@ -1274,6 +1314,7 @@ export default defineConfig({
                     },
                     {
                       label: "Size and statistics",
+                      collapsed: true,
                       items: [
                         { label: "hypertable_size()", link: "/reference/timescaledb/hypertables/hypertable_size" },
                         { label: "hypertable_detailed_size()", link: "/reference/timescaledb/hypertables/hypertable_detailed_size" },
@@ -1285,6 +1326,7 @@ export default defineConfig({
                     },
                     {
                       label: "Tablespace management",
+                      collapsed: true,
                       items: [
                         { label: "attach_tablespace()", link: "/reference/timescaledb/hypertables/attach_tablespace" },
                         { label: "detach_tablespace()", link: "/reference/timescaledb/hypertables/detach_tablespace" },
@@ -1294,6 +1336,7 @@ export default defineConfig({
                     },
                     {
                       label: "Reordering and policies",
+                      collapsed: true,
                       items: [
                         { label: "add_reorder_policy()", link: "/reference/timescaledb/hypertables/add_reorder_policy" },
                         { label: "remove_reorder_policy()", link: "/reference/timescaledb/hypertables/remove_reorder_policy" },
@@ -1301,6 +1344,7 @@ export default defineConfig({
                     },
                     {
                       label: "Query optimization",
+                      collapsed: true,
                       items: [
                         { label: "enable_chunk_skipping()", link: "/reference/timescaledb/hypertables/enable_chunk_skipping" },
                         { label: "disable_chunk_skipping()", link: "/reference/timescaledb/hypertables/disable_chunk_skipping" },
@@ -1315,6 +1359,7 @@ export default defineConfig({
                     { label: "Overview", link: "/reference/timescaledb/hypercore" },
                     {
                       label: "Policies",
+                      collapsed: true,
                       items: [
                         { label: "add_columnstore_policy()", link: "/reference/timescaledb/hypercore/add_columnstore_policy" },
                         { label: "remove_columnstore_policy()", link: "/reference/timescaledb/hypercore/remove_columnstore_policy" },
@@ -1322,6 +1367,7 @@ export default defineConfig({
                     },
                     {
                       label: "Manual conversion",
+                      collapsed: true,
                       items: [
                         { label: "ALTER TABLE (hypercore)", link: "/reference/timescaledb/hypercore/alter_table" },
                         { label: "convert_to_columnstore()", link: "/reference/timescaledb/hypercore/convert_to_columnstore" },
@@ -1330,6 +1376,7 @@ export default defineConfig({
                     },
                     {
                       label: "Statistics and information",
+                      collapsed: true,
                       items: [
                         { label: "chunk_columnstore_stats()", link: "/reference/timescaledb/hypercore/chunk_columnstore_stats" },
                         { label: "hypertable_columnstore_stats()", link: "/reference/timescaledb/hypercore/hypertable_columnstore_stats" },
@@ -1346,6 +1393,7 @@ export default defineConfig({
                     { label: "Overview", link: "/reference/timescaledb/continuous-aggregates" },
                     {
                       label: "Create and modify CAGGs",
+                      collapsed: true,
                       items: [
                         { label: "CREATE MATERIALIZED VIEW", link: "/reference/timescaledb/continuous-aggregates/create_materialized_view" },
                         { label: "ALTER MATERIALIZED VIEW", link: "/reference/timescaledb/continuous-aggregates/alter_materialized_view" },
@@ -1356,6 +1404,7 @@ export default defineConfig({
                     },
                     {
                       label: "Manage policies",
+                      collapsed: true,
                       items: [
                         { label: "add_continuous_aggregate_policy()", link: "/reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy" },
                         { label: "remove_continuous_aggregate_policy()", link: "/reference/timescaledb/continuous-aggregates/remove_continuous_aggregate_policy" },
@@ -1363,6 +1412,7 @@ export default defineConfig({
                     },
                     {
                       label: "Experimental policy management",
+                      collapsed: true,
                       items: [
                         { label: "add_policies()", link: "/reference/timescaledb/continuous-aggregates/add_policies" },
                         { label: "alter_policies()", link: "/reference/timescaledb/continuous-aggregates/alter_policies" },
@@ -1380,6 +1430,7 @@ export default defineConfig({
                     { label: "Overview", link: "/reference/timescaledb/hyperfunctions" },
                     {
                       label: "Time series utilities",
+                      collapsed: true,
                       items: [
                         { label: "days_in_month()", link: "/reference/timescaledb/hyperfunctions/time-series-utilities/days_in_month" },
                         { label: "first()", link: "/reference/timescaledb/hyperfunctions/time-series-utilities/first" },
@@ -1391,6 +1442,7 @@ export default defineConfig({
                     },
                     {
                       label: "Distribution analysis",
+                      collapsed: true,
                       items: [
                         { label: "approximate_row_count()", link: "/reference/timescaledb/hyperfunctions/distribution-analysis/approximate_row_count" },
                         { label: "histogram()", link: "/reference/timescaledb/hyperfunctions/distribution-analysis/histogram" },
@@ -1398,6 +1450,7 @@ export default defineConfig({
                     },
                     {
                       label: "Gapfilling",
+                      collapsed: true,
                       items: [
                         { label: "interpolate()", link: "/reference/timescaledb/hyperfunctions/time_bucket_gapfill/interpolate" },
                         { label: "locf()", link: "/reference/timescaledb/hyperfunctions/time_bucket_gapfill/locf" },
@@ -1446,6 +1499,7 @@ export default defineConfig({
                     { label: "Overview", link: "/reference/timescaledb/informational-views" },
                     {
                       label: "Hypertable and chunk information",
+                      collapsed: true,
                       items: [
                         { label: "timescaledb_information.chunks", link: "/reference/timescaledb/informational-views/chunks" },
                         { label: "timescaledb_information.dimensions", link: "/reference/timescaledb/informational-views/dimensions" },
@@ -1455,6 +1509,7 @@ export default defineConfig({
                     },
                     {
                       label: "Columnstore information",
+                      collapsed: true,
                       items: [
                         { label: "chunk_columnstore_settings", link: "/reference/timescaledb/informational-views/chunk_columnstore_settings" },
                         { label: "hypertable_columnstore_settings", link: "/reference/timescaledb/informational-views/hypertable_columnstore_settings" },
@@ -1462,6 +1517,7 @@ export default defineConfig({
                     },
                     {
                       label: "Jobs and policies",
+                      collapsed: true,
                       items: [
                         { label: "timescaledb_information.job_errors", link: "/reference/timescaledb/informational-views/job_errors" },
                         { label: "timescaledb_information.job_history", link: "/reference/timescaledb/informational-views/job_history" },
@@ -1496,9 +1552,9 @@ export default defineConfig({
             },
             {
               label: "TimescaleDB Toolkit",
-              collapsed: false,
+              collapsed: true,
               items: [
-                { label: "Toolkit reference", link: "/reference/toolkit" },
+                { label: "Overview", link: "/reference/toolkit" },
                 {
                   label: "Approximate count distinct",
                   collapsed: true,
@@ -1517,6 +1573,7 @@ export default defineConfig({
                     { label: "Overview", link: "/reference/toolkit/statistical-and-regression-analysis" },
                     {
                       label: "One variable",
+                      collapsed: true,
                       items: [
                         { label: "average()", link: "/reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/average" },
                         { label: "kurtosis()", link: "/reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/kurtosis" },
@@ -1532,6 +1589,7 @@ export default defineConfig({
                     },
                     {
                       label: "Two variables",
+                      collapsed: true,
                       items: [
                         { label: "average_y() | average_x()", link: "/reference/toolkit/statistical-and-regression-analysis/stats_agg-two-variables/average_y_x" },
                         { label: "corr()", link: "/reference/toolkit/statistical-and-regression-analysis/stats_agg-two-variables/corr" },
@@ -1560,6 +1618,7 @@ export default defineConfig({
                     { label: "Overview", link: "/reference/toolkit/minimum-and-maximum" },
                     {
                       label: "Minimum values",
+                      collapsed: true,
                       items: [
                         { label: "into_array()", link: "/reference/toolkit/minimum-and-maximum/min_n/into_array" },
                         { label: "into_values()", link: "/reference/toolkit/minimum-and-maximum/min_n/into_values" },
@@ -1569,6 +1628,7 @@ export default defineConfig({
                     },
                     {
                       label: "Maximum values",
+                      collapsed: true,
                       items: [
                         { label: "into_array()", link: "/reference/toolkit/minimum-and-maximum/max_n/into_array" },
                         { label: "into_values()", link: "/reference/toolkit/minimum-and-maximum/max_n/into_values" },
@@ -1578,6 +1638,7 @@ export default defineConfig({
                     },
                     {
                       label: "Minimum values by",
+                      collapsed: true,
                       items: [
                         { label: "into_values()", link: "/reference/toolkit/minimum-and-maximum/min_n_by/into_values" },
                         { label: "min_n_by()", link: "/reference/toolkit/minimum-and-maximum/min_n_by/min_n_by" },
@@ -1586,6 +1647,7 @@ export default defineConfig({
                     },
                     {
                       label: "Maximum values by",
+                      collapsed: true,
                       items: [
                         { label: "into_values()", link: "/reference/toolkit/minimum-and-maximum/max_n_by/into_values" },
                         { label: "max_n_by()", link: "/reference/toolkit/minimum-and-maximum/max_n_by/max_n_by" },
@@ -1620,6 +1682,7 @@ export default defineConfig({
                     { label: "Overview", link: "/reference/toolkit/percentile-approximation" },
                     {
                       label: "UddSketch",
+                      collapsed: true,
                       items: [
                         { label: "approx_percentile()", link: "/reference/toolkit/percentile-approximation/uddsketch/approx_percentile" },
                         { label: "approx_percentile_array()", link: "/reference/toolkit/percentile-approximation/uddsketch/approx_percentile_array" },
@@ -1635,6 +1698,7 @@ export default defineConfig({
                     },
                     {
                       label: "t-digest",
+                      collapsed: true,
                       items: [
                         { label: "approx_percentile()", link: "/reference/toolkit/percentile-approximation/tdigest/approx_percentile" },
                         { label: "approx_percentile_rank()", link: "/reference/toolkit/percentile-approximation/tdigest/approx_percentile_rank" },
@@ -1656,6 +1720,7 @@ export default defineConfig({
                     { label: "Overview", link: "/reference/toolkit/counters-and-gauges" },
                     {
                       label: "Counter aggregation",
+                      collapsed: true,
                       items: [
                         { label: "corr()", link: "/reference/toolkit/counters-and-gauges/counter_agg/corr" },
                         { label: "counter_agg()", link: "/reference/toolkit/counters-and-gauges/counter_agg/counter_agg" },
@@ -1686,6 +1751,7 @@ export default defineConfig({
                     },
                     {
                       label: "Gauge aggregation",
+                      collapsed: true,
                       items: [
                         { label: "corr()", link: "/reference/toolkit/counters-and-gauges/gauge_agg/corr" },
                         { label: "delta()", link: "/reference/toolkit/counters-and-gauges/gauge_agg/delta" },
@@ -1752,6 +1818,7 @@ export default defineConfig({
                     { label: "Overview", link: "/reference/toolkit/frequency-analysis" },
                     {
                       label: "Frequency aggregation",
+                      collapsed: true,
                       items: [
                         { label: "freq_agg()", link: "/reference/toolkit/frequency-analysis/freq_agg/freq_agg" },
                         { label: "into_values()", link: "/reference/toolkit/frequency-analysis/freq_agg/into_values" },
@@ -1764,6 +1831,7 @@ export default defineConfig({
                     },
                     {
                       label: "Count-min sketch",
+                      collapsed: true,
                       items: [
                         { label: "approx_count()", link: "/reference/toolkit/frequency-analysis/count_min_sketch/approx_count" },
                         { label: "count_min_sketch()", link: "/reference/toolkit/frequency-analysis/count_min_sketch/count_min_sketch" },
@@ -1778,6 +1846,7 @@ export default defineConfig({
                     { label: "Overview", link: "/reference/toolkit/state-tracking" },
                     {
                       label: "Compact state aggregation",
+                      collapsed: true,
                       items: [
                         { label: "compact_state_agg()", link: "/reference/toolkit/state-tracking/compact_state_agg/compact_state_agg" },
                         { label: "duration_in()", link: "/reference/toolkit/state-tracking/compact_state_agg/duration_in" },
@@ -1788,6 +1857,7 @@ export default defineConfig({
                     },
                     {
                       label: "State aggregation",
+                      collapsed: true,
                       items: [
                         { label: "duration_in()", link: "/reference/toolkit/state-tracking/state_agg/duration_in" },
                         { label: "interpolated_duration_in()", link: "/reference/toolkit/state-tracking/state_agg/interpolated_duration_in" },
@@ -1803,6 +1873,7 @@ export default defineConfig({
                     },
                     {
                       label: "Heartbeat aggregation",
+                      collapsed: true,
                       items: [
                         { label: "dead_ranges()", link: "/reference/toolkit/state-tracking/heartbeat_agg/dead_ranges" },
                         { label: "downtime()", link: "/reference/toolkit/state-tracking/heartbeat_agg/downtime" },
@@ -1834,24 +1905,45 @@ export default defineConfig({
                 },
               ],
             },
-            DOCS_LOCAL_WITHOUT_STAINLESS
-              ? {
-                  label: "Tiger Cloud REST API",
-                  collapsed: false,
+            {
+              label: "Tiger Cloud",
+              collapsed: true,
+              items: [
+                { label: "Overview", link: "/reference/tiger-cloud" },
+                {
+                  label: "Data tiering",
+                  collapsed: true,
                   items: [
-                    {
-                      label: "Local preview (generated API disabled)",
-                      link: "/reference/tiger-cloud-rest-local-preview",
-                    },
+                    { label: "Overview", link: "/reference/tiger-cloud/data-tiering" },
+                    { label: "add_tiering_policy()", link: "/reference/tiger-cloud/data-tiering/add_tiering_policy" },
+                    { label: "remove_tiering_policy()", link: "/reference/tiger-cloud/data-tiering/remove_tiering_policy" },
+                    { label: "tier_chunk()", link: "/reference/tiger-cloud/data-tiering/tier_chunk" },
+                    { label: "untier_chunk()", link: "/reference/tiger-cloud/data-tiering/untier_chunk" },
+                    { label: "disable_tiering()", link: "/reference/tiger-cloud/data-tiering/disable_tiering" },
                   ],
-                }
-              : {
-                  label: "Tiger Cloud REST API",
-                  collapsed: false,
-                  items: generateAPIReferenceItems({
-                    excludeResourceOverviewPages: true,
-                  }),
                 },
+                { label: "Tiger CLI", link: "/reference/tiger-cloud/tiger-cli" },
+                { label: "Tiger MCP", link: "/reference/tiger-cloud/tiger-mcp" },
+                DOCS_LOCAL_WITHOUT_STAINLESS
+                  ? {
+                      label: "Tiger Cloud REST API",
+                      collapsed: true,
+                      items: [
+                        {
+                          label: "Local preview (generated API disabled)",
+                          link: "/reference/tiger-cloud-rest-local-preview",
+                        },
+                      ],
+                    }
+                  : {
+                      label: "Tiger Cloud REST API",
+                      collapsed: true,
+                      items: generateAPIReferenceItems({
+                        excludeResourceOverviewPages: true,
+                      }),
+                    },
+              ],
+            },
           ],
         },
       ],

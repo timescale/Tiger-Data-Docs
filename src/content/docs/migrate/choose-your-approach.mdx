@@ -1,0 +1,205 @@
+---
+title: Choose a migration approach
+description: Compare the tools for moving data to Tiger Cloud and pick the right approach for your source database, size, and downtime budget
+products: [cloud]
+keywords: [migration, livesync, pg_dump, backfill, dual-write]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+
+This guide helps you pick a migration approach based on your source database, its size, and how much downtime you can tolerate. Once you have chosen an approach, follow the linked guide for step-by-step instructions.
+
+For {C.PG} and {C.TIMESCALE_DB} sources, [Livesync replication](/migrate/livesync-replication) is the default low-downtime path. For non-{C.PG} sources, use dual writes and backfill for low downtime, or a CSV export and backfill when downtime is acceptable. For small databases where downtime is acceptable, [migrating with downtime](/migrate/migrate-with-downtime) using `pg_dump` is the simplest option.
+
+## Migrate from PostgreSQL or TimescaleDB
+
+[Livesync replication](/migrate/livesync-replication) is the recommended default for most migrations. The table below shows when another approach fits better.
+
+| Scenario | Approach | Tool | Estimated effort |
+| --- | --- | --- | --- |
+| Low or zero downtime, any size | Continuous sync | [Livesync replication](/migrate/livesync-replication) | Days (setup and sync) |
+| Low downtime with very large tables (over 1 TB) | Hybrid: sync new data, backfill historical data | [Livesync replication](/migrate/livesync-replication) plus a [backfill tool](#backfill-tool-comparison) | Days to weeks |
+| Under 100 GB, downtime acceptable | Full dump and restore | [Migrate with downtime](/migrate/migrate-with-downtime) (`pg_dump`) | Hours |
+
+## Migrate from a non-PostgreSQL database
+
+For non-{C.PG} sources, the application layer handles the transition. New data is written to both the old and new systems while historical data is exported and backfilled.
+
+| Scenario | Approach | New data | Historical data |
+| --- | --- | --- | --- |
+| Low or zero downtime required | [Dual writes and backfill](/migrate/dual-write-and-backfill) | Application writes to both old and new systems | CSV export, then a [backfill tool](#backfill-tool-comparison) |
+| Downtime acceptable | Offline CSV export and import | Stop writes, then cut over | CSV export, then a [backfill tool](#backfill-tool-comparison) |
+
+## Backfill tool comparison
+
+When you backfill historical data, choose the tool based on your source data type and infrastructure.
+
+| Tool | Source type | Requires S3 | Columnstore chunks | Managed UI | Notes |
+| --- | --- | --- | --- | --- | --- |
+| [`timescaledb-backfill`](/migrate/dual-write-and-backfill/timescaledb-backfill) | Hypertable | No | Yes | No | Requires matching {C.TIMESCALE_DB} versions |
+| [S3 connector](/integrate/connectors/source/sync-from-s3) | CSV or Parquet | Yes | N/A | Yes | Preferred for CSV or Parquet when S3 is available |
+| [`timescaledb-parallel-copy`](https://github.com/timescale/timescaledb-parallel-copy) | CSV | No | N/A | No | Self-hosted; more manual control over parallelism |
+
+## Tool reference
+
+### Livesync replication
+
+Recommended for {C.PG} or {C.TIMESCALE_DB} sources with a low or near-zero downtime requirement, at any database size.
+
+**Capabilities:**
+
+- Continuous replication with low downtime.
+- {C.PG} and {C.TIMESCALE_DB} versions do not need to match between source and target.
+- Handles multi-tenant consolidation and splitting (many databases to one, or multi-tenant logical databases to a schema per tenant).
+- Can convert native partitions (`pg_partman` or similar) to hypertables on the fly.
+- Supports phased migration: selectively add or remove tables, and stream only new data while you backfill historical data separately.
+
+**Limitations:**
+
+- Schema migration is handled separately. Use your existing schema management solution, or fall back to `pg_dump --schema-only`.
+- Sequences must be updated manually during cutover.
+- Large tables require a backfill plan for historical data.
+- More operational setup and monitoring than a simple downtime migration.
+
+**Prerequisites:**
+
+- Network connectivity from the source to {C.CLOUD_LONG} (firewall rules, VPN, or peering).
+- A {C.PG} user with replication privileges on the source.
+- The schema pre-created on the target (using a schema management tool or `pg_dump --schema-only`).
+- Sufficient disk on the target to accommodate incoming data during sync.
+
+**Cutover sequence:** once Livesync replication has caught up and lag is minimal:
+
+1. Verify that sync lag is near zero.
+1. Stop writes to the source database by putting the application in read-only or maintenance mode.
+1. Wait for the final sync to complete. This typically takes seconds.
+1. Update sequences on the target to match or exceed the source values.
+1. Validate row counts and spot-check data integrity.
+1. Switch application connection strings to {C.CLOUD_LONG}.
+1. Verify application health, then tear down the sync.
+
+For setup instructions, see [Livesync replication](/migrate/livesync-replication) and [Advanced topics](/migrate/livesync-replication-advanced). If sync falls behind, see [Troubleshooting](/migrate/livesync-replication-troubleshooting).
+
+### Migrate with downtime using pg_dump
+
+Best for databases under 100 GB where downtime is acceptable. This is the simplest possible migration path.
+
+**Capabilities:**
+
+- Well-understood, standard {C.PG} tooling with broad community support, using [`pg_dump`](https://www.postgresql.org/docs/current/app-pgdump.html) and [`pg_restore`](https://www.postgresql.org/docs/current/app-pgrestore.html).
+- Single-command dump and restore, with minimal operational overhead.
+
+**Limitations:**
+
+- Requires full downtime during dump and restore.
+- Fragile with large datasets: network interruptions or transient errors require restarting from scratch.
+- Not suitable for databases approaching or exceeding 100 GB, because of the extended downtime window.
+
+**Rough time estimates:**
+
+| Database size | Approximate downtime |
+| --- | --- |
+| Under 10 GB | 30 minutes to 1 hour |
+| 10 to 50 GB | 1 to 4 hours |
+| 50 to 100 GB | 4 to 12 hours |
+
+Times vary significantly based on network bandwidth, table complexity, and index count.
+
+For step-by-step instructions, see [Migrate with downtime](/migrate/migrate-with-downtime).
+
+### Live migration
+
+<Callout variant="warning">
+Live migration is deprecated in favor of [Livesync replication](/migrate/livesync-replication). It is not recommended for new migrations.
+</Callout>
+
+**Capabilities:**
+
+- Migrates both schema and data in a single operation.
+- Low downtime with continuous sync.
+- Can copy chunks in the columnstore directly, without converting them back to the rowstore.
+
+**Limitations:**
+
+- Strict version matching is required: the {C.TIMESCALE_DB} version must match between source and target.
+- Only supports 1:1 migrations, with no multi-tenant consolidation or splitting.
+
+If you are continuing an existing migration with this tool, see [Live migration](/migrate/live-migration) and its [FAQ and troubleshooting](/migrate/troubleshooting).
+
+### Dual writes and backfill
+
+Use when the source is a non-{C.PG} database (for example, MySQL, DynamoDB, or InfluxDB) and low or near-zero downtime is required.
+
+The application is modified to write to both the old database and {C.CLOUD_LONG} simultaneously. While dual writes handle new data, historical data is exported to CSV and loaded with a backfill tool. Once historical data is loaded and validated, the application cuts over to {C.CLOUD_LONG} exclusively.
+
+**Capabilities:**
+
+- Enables near-zero downtime for non-{C.PG} sources.
+- Allows a phased cutover, with time for data validation and reconciliation.
+
+**Limitations:**
+
+- Requires application-level code changes to implement dual writes.
+- Careful validation and reconciliation are needed to ensure data consistency between the old and new systems.
+- More operationally complex than offline approaches.
+
+For step-by-step instructions, see [Dual-write and backfill](/migrate/dual-write-and-backfill).
+
+### CSV export and backfill
+
+Use when downtime is acceptable and the source can export to CSV. This is the simplest path for non-{C.PG} migrations.
+
+**Capabilities:**
+
+- Operationally simpler than dual-write approaches.
+- Works for any source database that can export CSV.
+
+**Limitations:**
+
+- Full downtime during the export and import cycle.
+- Not suitable when near-zero downtime is a requirement.
+
+Export your data to CSV, then load it with the [S3 connector](/integrate/connectors/source/sync-from-s3) or [`timescaledb-parallel-copy`](https://github.com/timescale/timescaledb-parallel-copy). See the [Backfill tool comparison](#backfill-tool-comparison) to choose between them. For a worked `timescaledb-parallel-copy` example in a backfill, see [Dual-write from other databases](/migrate/dual-write-and-backfill/dual-write-from-other).
+
+## Backfill best practices
+
+Whichever backfill tool you use, follow these practices for a smooth and performant data load.
+
+- **Insert in chronological order.** Always load data from oldest to newest. This aligns with the natural order of chunk creation in {C.TIMESCALE_DB} and significantly improves write performance.
+- **Tune batch size and parallelization.** Insert data in manageable batches to avoid overwhelming memory or exceeding transaction limits. A batch size of 10,000 to 100,000 rows per insert is a good starting point. Use parallel workers to improve throughput, but ensure time ranges across workers do not overlap, to prevent contention.
+- **Pause retention policies and automated jobs.** Pause retention policies and any automated background jobs, such as continuous aggregate refresh, during the backfill. This prevents data from being deleted or transformed mid-load.
+- **Disable the columnstore during backfill.** Writing into the columnstore adds processing overhead and can significantly slow ingestion. Re-enable columnstore policies after the backfill is complete and validated.
+- **Start small, then scale up.** Begin with a small batch, such as one day of data, to observe how the target handles the load. If performance looks good and resources are not strained, increase the batch size to cover larger time ranges, reducing the total number of import cycles.
+
+<Callout variant="important">
+If the target {C.SERVICE_SHORT} is already handling production traffic, [open a support ticket](https://console.cloud.tigerdata.com/dashboard/support) before starting a large backfill to ensure sufficient resource provisioning for the additional ingestion load.
+</Callout>
+
+## Frequently asked questions
+
+### What if the source is Amazon RDS or Aurora?
+
+RDS and Aurora are {C.PG}-compatible, so the {C.PG} decision flow applies. [Livesync replication](/migrate/livesync-replication) works with RDS and Aurora as long as logical replication is enabled. Set `rds.logical_replication = 1` in the parameter group. Aurora may require a reboot after you enable this setting.
+
+### What about foreign keys and constraints during backfill?
+
+For large backfills, consider temporarily disabling foreign key checks and non-essential indexes on the target to improve throughput. Re-enable and validate them after the backfill completes. Document which constraints you disable so nothing is missed.
+
+### What if Livesync replication falls behind?
+
+Monitor replication lag. If lag grows persistently, check for long-running transactions on the source, network bandwidth bottlenecks, or target write throughput limits. In extreme cases, you may need to increase target {C.SERVICE_SHORT} resources or pause non-critical workloads during catch-up. See [Livesync replication troubleshooting](/migrate/livesync-replication-troubleshooting).
+
+### What is the rollback strategy?
+
+- **Livesync replication and live migration:** the source database remains untouched throughout. If the migration fails, the application continues using the source and no data is lost.
+- **`pg_dump`:** the source is read-only during the dump. If the restore fails on the target, the source is still intact. Retry the dump and restore cycle.
+- **Dual writes:** disable the dual-write code path and revert to writing to the old database only. Because the application is already writing to both, rolling back is a configuration change.
+
+### Can I migrate only specific tables or schemas?
+
+Yes. [Livesync replication](/migrate/livesync-replication) supports selective table migration. You can add or remove tables from the sync configuration at any time. `pg_dump` also supports per-table and per-schema exports with the `-t` and `-n` flags.
+
+### What about extensions?
+
+Check that all required {C.PG} extensions are available on {C.CLOUD_LONG} before you start. Most common extensions, such as PostGIS and `pg_stat_statements`, are supported. See [{C.PG} extensions](/deploy/tiger-cloud/tiger-cloud-aws/tiger-cloud-extensions) for the full list, and [open a support ticket](https://console.cloud.tigerdata.com/dashboard/support) for uncommon extensions.

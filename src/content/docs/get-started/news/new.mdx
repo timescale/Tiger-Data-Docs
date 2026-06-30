@@ -84,6 +84,8 @@ import imgExplorerJobList from "../../../../assets/images/get-started/news/explo
 import imgVectorizerSetup from "../../../../assets/images/get-started/news/vectorizer-setup.png";
 import imgChunkIntervalRecommendation from "../../../../assets/images/get-started/news/chunk-interval-recommendation.png";
 import imgHypertableCreationWizard1 from "../../../../assets/images/get-started/news/hypertable-creation-wizard-1.png";
+import imgCreateHypertable1 from "../../../../assets/images/get-started/news/create-hypertable-1.png";
+import imgCreateHypertable2 from "../../../../assets/images/get-started/news/create-hypertable-2.png";
 import imgTimescaleConsoleActionsTab from "../../../../assets/images/get-started/news/timescale-console-actions-tab.png";
 import imgMysqlImportInstructions from "../../../../assets/images/get-started/news/mysql-import-instructions.png";
 import imgCurrentLockContention from "../../../../assets/images/get-started/news/current-lock-contention.png";
@@ -116,6 +118,102 @@ import imgHighPerformanceStorageTigerConsole from "../../../../assets/images/bui
 <ChangelogFilter />
 
 <div class="changelog-page-toc">
+
+## {C.TIMESCALE_DB} v2.27.2 now on {C.CLOUD_LONG}
+
+<ChangelogEntry
+  title="TimescaleDB v2.27.2 now on Tiger Cloud"
+  date="2026-06-22"
+  tags={["bug-fix", "security-fix"]}
+>
+<h2 slot="heading" class="changelog-entry__title">{C.TIMESCALE_DB} v2.27.2 now on {C.CLOUD_LONG}</h2>
+
+{C.TIMESCALE_DB} v2.27.2 is a stability and security patch that supersedes 2.27.1 on {C.CLOUD_LONG}. Together, 2.27.1 and 2.27.2 close three access-control gaps in the jobs and policy subsystems, fix a correctness bug in grouped aggregation on the {C.COLUMNSTORE}, refine the {C.COLUMNSTORE} query planner, and ship upgrade-compatibility scripts for composite bloom filter metadata. {C.TIMESCALE_DB} 2.27.1 was released on May 19, 2026 and 2.27.2 on June 2, 2026; both are delivered to {C.CLOUD_LONG} as 2.27.2 starting June 22, 2026.
+
+### Highlighted fixes in {C.TIMESCALE_DB} v2.27.2
+
+**Tightened access controls**
+
+Three independent fixes in the jobs and policy subsystems close cases where users could observe or act on objects they did not own.
+
+- **Hypertable ownership enforced before recompression:** Recompression operations now verify ownership before proceeding. Previously, users could trigger recompression on hypertables they did not own.
+
+- **`job_errors` view restricted to owners:** Failed-job visibility is now scoped — only owners see failure rows for their own jobs. Previously, non-owners could read failure information they should not have had access to.
+
+- **`policy_reorder_remove` ownership check added:** The policy-management operation now enforces ownership before allowing changes, closing a path that previously leaked policy-existence information to non-owners.
+
+**Correctness and planner refinements on the {C.COLUMNSTORE}**
+
+- **Correct results for `GROUP BY` columns not in the `SELECT` list:** Queries grouping by a column not included in the `SELECT` list could return incorrect rows or crash when running through vectorized aggregation or `ColumnarIndexScan`. This is now fixed — no SQL change required.
+
+- **Safer `ColumnarIndexScan` planning:** The path now correctly bypasses query shapes it can't safely handle — including `GROUPING SETS` / `ROLLUP` / `CUBE`, grouping by expressions, and `WHERE` clauses containing subplans — avoiding inefficient or incorrect plan choices.
+
+**Operational fixes**
+
+- **Columnstore policy creation no longer blocked by stale refresh-policy check:** Adding a columnstore policy was failing in some workflows due to an unnecessary check on existing refresh policies. The check has been removed.
+
+- **Upgrade compatibility:** The upgrade path now cleans up orphaned `compression_settings` rows before migrating the catalog, and ships migration scripts for installations carrying composite bloom filter metadata (complementing the format change in 2.27.0).
+
+For complete details, refer to the [{C.TIMESCALE_DB} 2.27.1 release notes](https://github.com/timescale/timescaledb/releases/tag/2.27.1) and the [{C.TIMESCALE_DB} 2.27.2 release notes](https://github.com/timescale/timescaledb/releases/tag/2.27.2).
+</ChangelogEntry>
+
+## Automated chunk tuning is now GA
+
+<ChangelogEntry 
+  title="Automated chunk tuning is now GA"
+  date="2026-06-26"
+  tags={["ga"]}
+>
+
+<h2 slot="heading" class="changelog-entry__title">Automated chunk tuning is now GA</h2>
+
+Automated chunk tuning is now GA for all services. Enable the feature for each hypertable through the Explorer without having to request access.
+
+When enabled, Tiger Cloud continuously evaluates your hypertable and adjusts the interval on your behalf when it detects it is no longer optimal. Note that updated chunk intervals apply to new chunks only.
+
+<Image src={imgAutomatedChunkTuning} alt="Chunk auto-tuning in Tiger Console" />
+
+See the [docs](/build/performance-optimization/improve-hypertable-performance#automated-tuning) for details.
+
+</ChangelogEntry>
+
+## New Azure regions for Tiger Cloud services
+
+<ChangelogEntry
+  title="New Azure regions for Tiger Cloud services"
+  date="2026-06-24"
+  tags={["new-feature"]}
+>
+<h2 slot="heading" class="changelog-entry__title">New Azure regions for Tiger Cloud services</h2>
+
+You can now create Tiger Cloud services in two more Microsoft Azure regions:
+
+- `germanywestcentral` (Frankfurt)
+- `southeastasia` (Singapore)
+
+See all available regions in [Supported regions](/learn/tiger-cloud/regions).
+
+</ChangelogEntry>
+
+## Updates to the Goals flow in Tiger Console
+
+<ChangelogEntry
+  title="Updates to the Goals flow in Tiger Console"
+  date="2026-06-09"
+  tags={["improvement"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Updates to the Goals flow in Tiger Console</h2>
+
+We have updated the Goals flow Actions in Tiger Cloud to make them more effective and easier to use.
+
+- **Add columns from the UI:** The Action for creating a hypertable now lets you define columns directly in the Console instead of writing SQL.
+- **Set up columnstore at creation time:** You can configure a columnstore for your hypertable as part of the same creation flow, without a separate step.
+
+<Image src={imgCreateHypertable1} alt="Create a hypertable wizard" />
+
+<Image src={imgCreateHypertable2} alt="Completed Create a hypertable Action" />
+
+</ChangelogEntry>
 
 ## {C.TIMESCALE_DB} v2.27 now on {C.CLOUD_LONG}
 
@@ -157,9 +255,18 @@ import imgHighPerformanceStorageTigerConsole from "../../../../assets/images/bui
           continuous_aggregate => 'metrics_hourly',
           start_offset => INTERVAL '30 days',
           end_offset   => INTERVAL '1 hour',
-          schedule_interval => INTERVAL '1 hour',
-          config => '{"compress_after_refresh": true}'::jsonb
+          schedule_interval => INTERVAL '1 hour'
         );
+
+        add_continuous_aggregate_policy
+        ---------------------------------
+                                  1001
+        (1 row)
+
+        SELECT alter_job(1001, config => jsonb_set(
+          (SELECT config FROM _timescaledb_catalog.bgw_job WHERE id = 1001), 
+          '{compress_after_refresh}', 'true'
+        ));
         ```
 
 - **Smarter {C.CHUNK} exclusion**
@@ -662,7 +769,7 @@ There are walkthroughs for MacOS, Linux, and Windows. Find the actions in the pr
 >
 <h2 slot="heading" class="changelog-entry__title">Jobs timeline view</h2>
 
-We have added a timeline view to the `Jobs` page so you can easily see the status of all of your recent job runs at a glance. Hover over each run for more detail, or click on a specific job to go into the deep dive jobs view. See [Monitor your {C.SERVICE_LONG}s](/deploy/tiger-cloud/tiger-cloud-aws/monitoring/#jobs).
+We have added a timeline view to the `Jobs` page so you can easily see the status of all of your recent job runs at a glance. Hover over each run for more detail, or click on a specific job to go into the deep dive jobs view. See [Monitor your {C.SERVICE_LONG}s](/deploy/tiger-cloud/tiger-cloud-aws/monitoring#jobs).
 
 <Image src={imgTigerConsoleJobsTimelineView} alt="Tiger Cloud jobs timeline" />
 
@@ -850,21 +957,21 @@ We have updated the design of the navigation in Console to improve consistency, 
 
 </ChangelogEntry>
 
-## S3 connector GA and Tiger Lake public beta
+## S3 connector GA and TigerLake public beta
 
 <ChangelogEntry 
-  title="S3 connector GA and Tiger Lake public beta"
+  title="S3 connector GA and TigerLake public beta"
   date="2025-11-28"
   tags={["ga", "beta"]}
 >
-<h2 slot="heading" class="changelog-entry__title">S3 connector GA and Tiger Lake public beta</h2>
+<h2 slot="heading" class="changelog-entry__title">S3 connector GA and TigerLake public beta</h2>
 ### S3 source connector general availability
 
 The S3 source connector is now production-ready, delivering major improvements in reliability, performance, and correctness across the entire ingestion pipeline.
 
-### Tiger Lake public beta
+### TigerLake public beta
 
-Tiger Lake is now available in public beta with full DML support, high-performance ingestion, enhanced resilience and self-healing, and improved deployment experience.
+TigerLake is now available in public beta with full DML support, high-performance ingestion, enhanced resilience and self-healing, and improved deployment experience.
 
 Read the [documentation](https://www.tigerdata.com/docs/use-timescale/latest/tigerlake) to get started.
 </ChangelogEntry>
@@ -1144,11 +1251,11 @@ View catalog objects in the Console Explorer to understand database inner workin
 ## Iceberg destination connector (Tiger lake)
 
 <ChangelogEntry 
-  title="Iceberg Destination Connector (Tiger Lake)"
+  title="Iceberg Destination Connector (TigerLake)"
   date="2025-07-18"
   tags={["beta", "integration"]}
 >
-<h2 slot="heading" class="changelog-entry__title">Iceberg Destination Connector (Tiger Lake)</h2>
+<h2 slot="heading" class="changelog-entry__title">Iceberg Destination Connector (TigerLake)</h2>
 ### Beta availability
 
 Beta Iceberg destination connector enables Scale and Enterprise users to integrate Tiger Cloud with Amazon S3 tables. For setup details, see the [Iceberg destination connector documentation](https://www.tigerdata.com/docs/use-timescale/latest/tigerlake/).

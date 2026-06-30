@@ -1,0 +1,1086 @@
+---
+title: Livesync replication
+description: Migrate your entire PostgreSQL or TimescaleDB database to Tiger Cloud with near-zero downtime using Livesync
+products: [cloud]
+pageLabels: [Early access]
+---
+
+import * as C from "@constants";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { Prerequisites } from "@components/Prerequisites";
+
+<Callout variant="tip">
+**Livesync replication vs. {C.PG_CONNECTOR}:** Livesync replication is a **one-time migration** to {C.CLOUD_LONG} with a cutover at the end. For **continuous ongoing replication** where {C.PG} stays the primary and {C.CLOUD_LONG} acts as a logical replica, see [Sync from {C.PG}](/migrate/livesync-for-postgresql) instead. Both features share the same underlying technology, but the workflows and end states differ.
+</Callout>
+
+<Callout variant="important">
+The Livesync replication workflow is in **early access** and is not yet supported for production use. For questions or feedback, visit [#livesync in the {C.CLOUD_LONG} Community](https://app.slack.com/client/T4GT3N2JK/C086NU9EZ88).
+</Callout>
+
+Livesync replication uses the {C.PG} logical replication protocol to synchronize data from a source database to a {C.SERVICE_LONG}, then cut over once the target is caught up. Because it relies on the standard {C.PG} protocol, you get compatibility, familiarity, and a broad knowledge base.
+
+The same technology powers two distribution channels: the **self-hosted Docker image** (`timescale/live-sync`) is commonly referred to as **Livesync**, and the **managed {C.CONSOLE} integration** is referred to as the **{C.PG_CONNECTOR_CAP}**. Both produce the same migration result; this page covers both.
+
+This page replaces the older [Live migration](/migrate/live-migration) workflow.
+
+The migration runs in four stages:
+
+1. **Schema migration:** export structure from the source, apply it to the target.
+2. **Initial data copy:** bulk `COPY` at 300 GB/hr to 2.2 TB/hr depending on `--table-sync-workers` tuning, target bandwidth, and IOPS. Publication tables are copied in parallel; large individual tables still use a single connection. Foreign key validation is disabled during sync.
+3. **CDC:** real-time replication of ongoing changes up to 50K operations per second.
+4. **Cutover:** validate, stop sync, switch the application connection strings.
+
+You can drive Livesync replication from the {C.CONSOLE} UI or from a self-hosted Docker container. {C.CONSOLE} supports multiple Livesync instances per service, dropdown-based schema and table selection, and live progress metadata (rows copied during initial data copy, replication lag during CDC).
+
+<Prerequisites context="procedure">
+
+- **Source:** {C.PG} 13 or later with `wal_level = logical`. The source must be a primary, not a read replica or standby.
+- **Target:** A {C.SERVICE_LONG} with real-time analytics enabled. Target spec should be close to the source spec for a full migration. Minimum 4 CPU / 16 GB RAM on both source and target for roughly 300 GB/hr to 2.2 TB/hr transfer. `tsdbadmin` credentials.
+- **Migration host:** A separate machine to run the migration commands, with Docker, `psql`, `pg_dump`, and `vacuumdb` installed and network access to both source and target databases.
+- An [adjusted maintenance window](/deploy/tiger-cloud/tiger-cloud-aws/upgrades#define-your-maintenance-window) to prevent maintenance from running during migration.
+- Environment variables for the source and target connections:
+
+  ```bash
+  export SOURCE="postgres://<user>:<password>@<source_host>:<port>/<db_name>"
+  export TARGET="postgres://tsdbadmin:<password>@<target_host>:<port>/tsdb?sslmode=require"
+  ```
+</Prerequisites>
+
+## Limitations
+
+- **{C.TIMESCALE_DB} source must be on 2.16.0 or newer** if any chunk is ever compressed or decompressed during the migration. Earlier versions don't emit the decompression-boundary markers that Livesync needs to deduplicate the WAL stream, so the target ends up with duplicate records. This affects all of:
+  - `INSERT`s into a chunk that the compression policy later compresses.
+  - Explicit `convert_to_columnstore()` or `convert_to_rowstore()` calls.
+  - `UPDATE` or `DELETE` on a compressed chunk, which decompresses, mutates, then recompresses.
+
+  The pre-2.16.0 GUC `timescaledb.enable_decompression_logrep_markers` is incomplete (it doesn't cover compression policies or explicit compress/decompress) and requires {C.PG} 14 or later to do anything.
+
+  If you can't upgrade, the practical mitigations are: keep chunks that may receive writes uncompressed (for example, the last three months), pause compression policies during the migration, or plan to re-sync affected hypertables.
+
+## Source setup
+
+<NumberedList>
+<NumberedItem title="Database parameters">
+
+Livesync requires logical replication on the source. How you enable it depends on where your source database runs.
+
+<Tabs>
+<TabItem label="Self-hosted">
+
+Apply the parameters with `ALTER SYSTEM`. A restart is required afterwards.
+
+```bash
+psql "$SOURCE" <<'EOF'
+ALTER SYSTEM SET wal_level = 'logical';
+ALTER SYSTEM SET max_wal_senders = 30;
+ALTER SYSTEM SET max_replication_slots = 30;
+ALTER SYSTEM SET wal_sender_timeout = 0;
+ALTER SYSTEM SET max_locks_per_transaction = 1200;
+EOF
+```
+
+After restart, validate:
+
+```bash
+psql "$SOURCE" <<'EOF'
+SHOW wal_level;
+SHOW max_wal_senders;
+SHOW max_replication_slots;
+SHOW wal_sender_timeout;
+SHOW max_locks_per_transaction;
+EOF
+```
+
+</TabItem>
+<TabItem label="AWS RDS / Aurora">
+
+RDS and Aurora do not permit `ALTER SYSTEM`. Set the parameters in a custom parameter group:
+
+1. In the RDS console, create a parameter group for your {C.PG} major version, or edit the cluster parameter group for Aurora.
+2. Set:
+   - `rds.logical_replication = 1` (enables `wal_level=logical`)
+   - `max_wal_senders = 30`
+   - `max_replication_slots = 30`
+   - `wal_sender_timeout = 0`
+   - `max_locks_per_transaction = 1200`
+3. Attach the parameter group to your instance or cluster.
+4. Reboot the instance or cluster (for Aurora, reboot the writer) to apply.
+
+Validate:
+
+```bash
+psql "$SOURCE" -c "SHOW rds.logical_replication;"  -- expect: on
+psql "$SOURCE" -c "SHOW wal_level;"                -- expect: logical
+```
+
+</TabItem>
+<TabItem label="Neon">
+
+Neon manages logical replication settings through its console.
+
+1. Open the Neon Console, go to your project, then click `Settings` > `Logical Replication`.
+2. Click `Enable`.
+
+No restart or `ALTER SYSTEM` is required. Validate:
+
+```bash
+psql "$SOURCE" <<'EOF'
+SHOW wal_level;            -- expect: logical
+SHOW max_wal_senders;      -- expect: 10
+SHOW max_replication_slots;-- expect: 10
+EOF
+```
+
+Neon computes may auto-suspend on idle. For long initial copies, raise the auto-suspend timeout in `Settings` > `Compute`, or pick a plan that disables it.
+
+`wal_sender_timeout` can only be changed via a Neon support case. Ask support to disable it (set to `0`) or set it to a high value such as 12 hours to avoid timeouts during the initial copy of large tables.
+
+</TabItem>
+<TabItem label="Supabase">
+
+Supabase {C.PG} has logical replication enabled by default; no `ALTER SYSTEM` or reboot is required.
+
+Validate:
+
+```bash
+psql "$SOURCE" -c "SHOW wal_level;"  -- expect: logical
+```
+
+Recommended changes (apply via the [Supabase custom Postgres config](https://supabase.com/docs/guides/database/custom-postgres-config)):
+
+- `max_slot_wal_keep_size = 102400` (100 GB) prevents the replication slot from being dropped during long-running transactions.
+
+Use the **direct connection string**, not the connection pooler: pgBouncer doesn't support logical replication. In `Project Settings` > `Database` > `Connection parameters`, disable `Display connection pooler`.
+
+</TabItem>
+<TabItem label="Azure Flexible Server">
+
+Azure does not permit `ALTER SYSTEM`. Set the parameters via the `Server parameters` blade in the Azure portal, or with `az postgres flexible-server parameter set`:
+
+1. Set `wal_level = logical`.
+2. Set `max_wal_senders = 30`, `max_replication_slots = 30`, `wal_sender_timeout = 0`, `max_locks_per_transaction = 1200`.
+3. Save. Azure prompts to restart the server. Restart now.
+
+Validate:
+
+```bash
+psql "$SOURCE" -c "SHOW wal_level;"  -- expect: logical
+```
+
+</TabItem>
+</Tabs>
+
+</NumberedItem>
+
+<NumberedItem title="Migration user">
+
+Create a dedicated migration user on the source:
+
+```sql
+psql "$SOURCE" <<'EOF'
+CREATE USER livesync_migrate PASSWORD '<strong_password>';
+ALTER ROLE livesync_migrate WITH SUPERUSER REPLICATION;
+GRANT CREATE ON DATABASE <db_name> TO livesync_migrate;
+EOF
+```
+
+`SUPERUSER` is only needed on {C.SELF_LONG}. New {C.HYPERTABLE} chunks are created on the fly by the extension, and {C.PG} requires the role calling `ALTER PUBLICATION ... ADD TABLE` to either own the table or be a superuser. Without `SUPERUSER`, chunks created during the migration won't get added to the publication and their data is skipped. If you can't grant `SUPERUSER`, make `livesync_migrate` the owner of every {C.HYPERTABLE} in the publication instead.
+
+<Callout variant="note">
+**Azure Database for PostgreSQL:** managed Azure instances don't allow creating a new `SUPERUSER`. Skip the `CREATE USER` step and use the existing server administrator account instead, after granting it replication:
+
+```sql
+ALTER ROLE <admin_user> WITH REPLICATION;
+```
+
+Then set:
+
+```bash
+export SOURCE="postgres://<admin_user>:<password>@<host>:<port>/<db>"
+```
+
+If the admin lacks ownership of the application's hypertables, transfer ownership (or use `GRANT ... TO <admin_user> WITH ADMIN OPTION`) before creating the publication.
+</Callout>
+
+Grant the migration user access to all user schemas:
+
+```bash
+psql "$SOURCE" -t -A <<'EOF' | psql "$SOURCE"
+SELECT
+  'GRANT USAGE ON SCHEMA ' || quote_ident(nspname) || ' TO livesync_migrate;' || chr(10) ||
+  'GRANT SELECT ON ALL TABLES IN SCHEMA ' || quote_ident(nspname) || ' TO livesync_migrate;' || chr(10) ||
+  'ALTER DEFAULT PRIVILEGES IN SCHEMA ' || quote_ident(nspname) ||
+  ' GRANT SELECT ON TABLES TO livesync_migrate;'
+FROM pg_namespace
+WHERE nspname NOT IN ('information_schema')
+  AND nspname NOT LIKE '_timescale%'
+  AND nspname NOT LIKE 'pg\_%' ESCAPE '\'
+  AND nspname NOT LIKE 'pg_toast%'
+  AND nspname NOT LIKE 'pg_temp_%'
+  AND nspname NOT LIKE 'timescaledb%'
+  AND nspname NOT LIKE 'toolkit%'
+ORDER BY nspname;
+EOF
+```
+
+Switch to this user for all subsequent steps:
+
+```bash
+export SOURCE="postgres://livesync_migrate:<password>@<source_host>:<port>/<db_name>"
+```
+
+</NumberedItem>
+</NumberedList>
+
+## Roles
+
+Dump roles from the source and apply to the target:
+
+```bash
+pg_dumpall --roles-only -d "$SOURCE" > roles.sql
+```
+
+Review and apply:
+
+```bash
+cat roles.sql
+psql "$TARGET" -f roles.sql
+```
+
+`pg_dumpall --roles-only` includes passwords (from `pg_authid`), role attributes, and memberships. You may need to edit out `postgres`, `tsdbadmin`, and other system roles before applying to the target.
+
+## Schema migration
+
+Choose the section matching your source database type.
+
+<Tabs>
+<TabItem label={`From ${C.TIMESCALE_DB}`}>
+
+<NumberedList>
+<NumberedItem title="Dump and restore the schema">
+
+```bash
+pg_dump "$SOURCE" \
+  --schema-only \
+  --no-privileges \
+  --no-owner \
+  --no-publications \
+  --no-subscriptions \
+  --no-table-access-method \
+  --no-tablespaces \
+  --exclude-schema='_timescaledb_cache' \
+  --exclude-schema='_timescaledb_catalog' \
+  --exclude-schema='_timescaledb_config' \
+  --exclude-schema='_timescaledb_debug' \
+  --exclude-schema='_timescaledb_functions' \
+  --exclude-schema='_timescaledb_internal' \
+  --exclude-schema='timescaledb_experimental' \
+  --exclude-schema='timescaledb_information' \
+  --file=schema_dump.sql
+```
+
+This dumps {C.HYPERTABLE}s as regular tables. {C.CAGG}s are included as regular views; they are dropped and recreated properly in the continuous aggregates step.
+
+```bash
+psql "$TARGET" -f schema_dump.sql
+```
+
+</NumberedItem>
+
+<NumberedItem title="Create hypertables">
+
+**Primary dimension**
+
+```bash
+psql "$SOURCE" -t -A <<'EOF' > create_hypertables.sql
+SELECT format(
+  'SELECT create_hypertable(%L, by_range(%L%s), create_default_indexes => false, if_not_exists => true);',
+  format('%I.%I', d.hypertable_schema, d.hypertable_name),
+  d.column_name,
+  CASE WHEN d.time_interval IS NOT NULL
+    THEN format(', %L::interval', d.time_interval::text)
+    ELSE ''
+  END
+)
+FROM timescaledb_information.dimensions d
+JOIN timescaledb_information.hypertables h
+  ON d.hypertable_schema = h.hypertable_schema
+ AND d.hypertable_name = h.hypertable_name
+WHERE d.dimension_number = 1
+  AND h.hypertable_name NOT LIKE '_materialized_hypertable_%'
+ORDER BY d.hypertable_schema, d.hypertable_name;
+EOF
+
+cat create_hypertables.sql
+psql "$TARGET" -f create_hypertables.sql
+```
+
+**Additional dimensions (optional)**
+
+{C.TIMESCALE_DB} generally discourages using more than one dimension. Additional dimensions carry a risk of [partition explosion](/learn/hypertables/partitioning-hypertables#space-partitioning-hash-dimension) and prevent the use of [data tiering](/learn/data-lifecycle/storage/about-storage-tiers#low-cost-storage) (tiered storage requires single-dimension hypertables). Only add extra dimensions if the source explicitly uses them and you have validated the need.
+
+```bash
+psql "$SOURCE" -t -A <<'EOF' > add_dimensions.sql
+SELECT format(
+  'SELECT add_dimension(%L, %s);',
+  format('%I.%I', d.hypertable_schema, d.hypertable_name),
+  CASE
+    WHEN d.num_partitions IS NOT NULL THEN
+      format('by_hash(%L, %s)', d.column_name, d.num_partitions)
+    ELSE
+      format('by_range(%L%s)', d.column_name,
+        CASE WHEN d.time_interval IS NOT NULL
+          THEN format(', %L::interval', d.time_interval::text)
+          ELSE ''
+        END)
+  END
+)
+FROM timescaledb_information.dimensions d
+JOIN timescaledb_information.hypertables h
+  ON d.hypertable_schema = h.hypertable_schema
+ AND d.hypertable_name = h.hypertable_name
+WHERE d.dimension_number > 1
+  AND h.hypertable_name NOT LIKE '_materialized_hypertable_%'
+ORDER BY d.hypertable_schema, d.hypertable_name, d.dimension_number;
+EOF
+
+cat add_dimensions.sql
+psql "$TARGET" -f add_dimensions.sql
+```
+
+</NumberedItem>
+
+<NumberedItem title="Continuous aggregates">
+
+Drop the views that `pg_dump` created (they are not proper {C.CAGG}s), then recreate them correctly:
+
+```bash
+psql "$SOURCE" -t -A <<'EOF' > continuous_aggregates.sql
+SELECT format(
+  E'DROP VIEW IF EXISTS %I.%I CASCADE;\nCREATE MATERIALIZED VIEW %I.%I\nWITH (timescaledb.continuous) AS\n%s\nWITH NO DATA;\n',
+  view_schema, view_name,
+  view_schema, view_name,
+  rtrim(view_definition, ';')
+)
+FROM timescaledb_information.continuous_aggregates
+ORDER BY view_schema, view_name;
+EOF
+
+cat continuous_aggregates.sql
+psql "$TARGET" -f continuous_aggregates.sql
+```
+
+</NumberedItem>
+
+<NumberedItem title="Columnstore">
+
+```bash
+psql "$SOURCE" -t -A <<'EOF' > enable_columnstore.sql
+SELECT format(
+  E'ALTER TABLE %s SET (\n  timescaledb.enable_columnstore = true%s%s\n);\n',
+  hypertable::text,
+  CASE WHEN segmentby IS NOT NULL AND segmentby <> ''
+    THEN E',\n  timescaledb.segmentby = ''' || segmentby || ''''
+    ELSE '' END,
+  CASE WHEN orderby IS NOT NULL AND orderby <> ''
+    THEN E',\n  timescaledb.orderby = ''' || orderby || ''''
+    ELSE '' END
+)
+FROM timescaledb_information.hypertable_columnstore_settings
+WHERE hypertable::text NOT LIKE '\_timescaledb%' ESCAPE '\'
+ORDER BY hypertable::text;
+EOF
+
+cat enable_columnstore.sql
+psql "$TARGET" -f enable_columnstore.sql
+```
+
+`timescaledb_information.hypertable_columnstore_settings` requires {C.TIMESCALE_DB} 2.18.0 or later on the source.
+
+</NumberedItem>
+
+<NumberedItem title="Save policies for later">
+
+Generate the {C.COLUMNSTORE}, refresh, and retention policy scripts now, but apply them only after data sync completes (see [Post-sync](#post-sync)).
+
+```bash
+# Columnstore policies
+psql "$SOURCE" -t -A <<'EOF' > columnstore_policies.sql
+SELECT format(
+  E'CALL add_columnstore_policy(%L, after => INTERVAL %L);\n',
+  format('%I.%I', j.hypertable_schema, j.hypertable_name),
+  j.config->>'compress_after'
+)
+FROM timescaledb_information.jobs j
+WHERE j.proc_name = 'policy_compression'
+ORDER BY j.hypertable_schema, j.hypertable_name;
+EOF
+
+# Continuous aggregate refresh policies
+psql "$SOURCE" -t -A <<'EOF' > refresh_policies.sql
+SELECT format(
+  E'SELECT add_continuous_aggregate_policy(%L,\n  start_offset => INTERVAL %L,\n  end_offset => INTERVAL %L,\n  schedule_interval => INTERVAL %L\n);\n',
+  format('%I.%I', ca.view_schema, ca.view_name),
+  coalesce(j.config->>'start_offset', '30 days'),
+  coalesce(j.config->>'end_offset', '1 hour'),
+  j.schedule_interval::text
+)
+FROM timescaledb_information.jobs j
+JOIN timescaledb_information.continuous_aggregates ca
+  ON j.hypertable_schema = ca.view_schema
+ AND j.hypertable_name = ca.view_name
+WHERE j.proc_name = 'policy_refresh_continuous_aggregate'
+ORDER BY ca.view_schema, ca.view_name;
+EOF
+
+# Retention policies
+psql "$SOURCE" -t -A <<'EOF' > retention_policies.sql
+SELECT format(
+  E'SELECT add_retention_policy(%L, drop_after => INTERVAL %L);\n',
+  format('%I.%I', j.hypertable_schema, j.hypertable_name),
+  j.config->>'drop_after'
+)
+FROM timescaledb_information.jobs j
+WHERE j.proc_name = 'policy_retention'
+ORDER BY j.hypertable_schema, j.hypertable_name;
+EOF
+```
+
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+<TabItem label={`From ${C.PG}`}>
+
+<NumberedList>
+<NumberedItem title="Dump and restore the schema">
+
+```bash
+pg_dump "$SOURCE" \
+  --schema-only \
+  --no-privileges \
+  --no-owner \
+  --no-publications \
+  --no-subscriptions \
+  --no-table-access-method \
+  --no-tablespaces \
+  --file=schema_dump.sql
+
+psql "$TARGET" -f schema_dump.sql
+```
+
+</NumberedItem>
+
+<NumberedItem title="Convert tables to hypertables">
+
+Good candidates for [{C.HYPERTABLE}s](/learn/hypertables/understand-hypertables):
+
+- **Tables with a time-based column:** any column of type `TIMESTAMPTZ`, `TIMESTAMP`, `DATE`, or `INTEGER`/`BIGINT` (epoch). See [supported partition column types](/learn/hypertables/creating-and-configuring-hypertables).
+- **Append-mostly tables:** sensor readings, metrics, events, logs, or any table where rows are predominantly inserted in time order and rarely updated.
+- **{C.PG} declarative partitioned tables:** these can be converted directly to {C.HYPERTABLE}s. Rename the partitioned table, create a regular table with the same name, then convert (see example below).
+- **Large tables with time-range queries:** tables frequently queried with `WHERE ts > now() - interval '...'` benefit most from chunk exclusion.
+
+Convert on the target:
+
+```sql
+-- Regular table
+SELECT create_hypertable(
+  '<schema>.<table>',
+  by_range('<time_column>', INTERVAL '7 days'),
+  create_default_indexes => false,
+  if_not_exists => true
+);
+
+-- PostgreSQL declarative partitioned table
+BEGIN;
+ALTER TABLE <schema>.<table> RENAME TO <table>_part;
+CREATE TABLE <schema>.<table>(LIKE <schema>.<table>_part INCLUDING ALL);
+SELECT create_hypertable('<schema>.<table>', by_range('<time_column>', INTERVAL '7 days'));
+COMMIT;
+```
+
+Primary key and unique constraints must include the partition column.
+
+</NumberedItem>
+
+<NumberedItem title="Enable columnstore">
+
+```sql
+ALTER TABLE <schema>.<table> SET (
+  timescaledb.enable_columnstore = true,
+  timescaledb.segmentby = '<segment_column>',
+  timescaledb.orderby = '<time_column> DESC'
+);
+```
+
+{C.COLUMNSTORE_CAP} policies are added after data sync. See [Hypercore (columnstore)](/learn/columnar-storage/understand-hypercore) for details on compression methods and configuration.
+
+</NumberedItem>
+
+<NumberedItem title="Create continuous aggregates (optional)">
+
+```sql
+CREATE MATERIALIZED VIEW <schema>.<cagg_name>
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('1 hour', <time_column>) AS bucket,
+  <group_column>,
+  avg(<value_column>) AS avg_value,
+  count(*) AS cnt
+FROM <schema>.<table>
+GROUP BY 1, 2
+WITH NO DATA;
+```
+
+</NumberedItem>
+
+<NumberedItem title="Save policies for later">
+
+Define {C.COLUMNSTORE}, refresh, and retention policies now, but apply them only after data sync (see [Post-sync](#post-sync)):
+
+```sql
+-- Columnstore policy
+CALL add_columnstore_policy('<schema>.<table>', after => INTERVAL '7 days');
+
+-- Refresh policy
+SELECT add_continuous_aggregate_policy('<schema>.<cagg>',
+  start_offset => INTERVAL '3 days',
+  end_offset   => INTERVAL '1 hour',
+  schedule_interval => INTERVAL '1 hour'
+);
+
+-- Retention (optional)
+SELECT add_retention_policy('<schema>.<table>', drop_after => INTERVAL '90 days');
+```
+
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+</Tabs>
+
+Whichever source type you migrated from, finish schema migration by applying privileges.
+
+### Apply privileges
+
+After restoring the schema on the target, export privileges from the source and apply them to the migrated objects:
+
+```bash
+psql "$SOURCE" -t -A <<'EOF' > privileges.sql
+-- Schema privileges
+SELECT 'GRANT ' || acl.privilege_type ||
+  ' ON SCHEMA ' || quote_ident(nspname) ||
+  ' TO ' || CASE WHEN acl.grantee = 0 THEN 'PUBLIC'
+    ELSE acl.grantee::regrole::text END ||
+  CASE WHEN acl.is_grantable THEN ' WITH GRANT OPTION' ELSE '' END || ';'
+FROM pg_namespace, LATERAL aclexplode(nspacl) AS acl
+WHERE nspacl IS NOT NULL
+  AND nspname NOT IN ('pg_catalog', 'information_schema')
+  AND nspname NOT LIKE '_timescale%'
+  AND nspname NOT LIKE 'timescaledb%'
+  AND nspname NOT LIKE 'toolkit%'
+  AND acl.grantee::regrole::text NOT LIKE 'pg_%'
+  AND acl.grantee::regrole::text NOT LIKE 'timescaledb%'
+  AND acl.grantee::regrole::text NOT IN ('postgres')
+ORDER BY nspname;
+
+-- Table privileges
+SELECT 'GRANT ' || acl.privilege_type ||
+  ' ON TABLE ' || format('%I.%I', n.nspname, c.relname) ||
+  ' TO ' || CASE WHEN acl.grantee = 0 THEN 'PUBLIC'
+    ELSE acl.grantee::regrole::text END ||
+  CASE WHEN acl.is_grantable THEN ' WITH GRANT OPTION' ELSE '' END || ';'
+FROM pg_class c
+JOIN pg_namespace n ON c.relnamespace = n.oid,
+LATERAL aclexplode(relacl) AS acl
+WHERE relacl IS NOT NULL
+  AND relkind IN ('r', 'v', 'm', 'f', 'p')
+  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+  AND n.nspname NOT LIKE '_timescale%'
+  AND n.nspname NOT LIKE 'timescaledb%'
+  AND n.nspname NOT LIKE 'toolkit%'
+  AND acl.grantee::regrole::text NOT LIKE 'pg_%'
+  AND acl.grantee::regrole::text NOT LIKE 'timescaledb%'
+  AND acl.grantee::regrole::text NOT IN ('postgres')
+ORDER BY n.nspname, c.relname;
+EOF
+
+cat privileges.sql
+psql "$TARGET" -f privileges.sql
+```
+
+## Publication
+
+Create a [{C.PG} `PUBLICATION`](https://www.postgresql.org/docs/current/sql-createpublication.html) on the source. This defines what Livesync syncs. You can create more than one publication (for example, to group tables by domain), but avoid creating one per table.
+
+<Callout variant="important">
+**Do not use `FOR ALL TABLES`.** It includes the `_timescaledb_catalog.*` tables, and replicating those onto the target corrupts the {C.TIMESCALE_DB} catalog there. Always list tables explicitly (`FOR TABLE ...`) or scope to user schemas (`FOR TABLES IN SCHEMA <user_schema>, ...`).
+</Callout>
+
+```sql
+psql "$SOURCE" <<'EOF'
+CREATE PUBLICATION <publication_name> FOR TABLE <table_name>, <table_name>;
+EOF
+```
+
+To sync every table across one or more user schemas ({C.PG} 15 or later only), list the schemas explicitly and exclude the {C.TIMESCALE_DB} ones:
+
+```sql
+psql "$SOURCE" <<'EOF'
+CREATE PUBLICATION <publication_name>
+  FOR TABLES IN SCHEMA <user_schema_1>, <user_schema_2>;
+EOF
+```
+
+To add or remove tables after creating the publication:
+
+```sql
+ALTER PUBLICATION <publication_name> ADD TABLE <table_name>;
+ALTER PUBLICATION <publication_name> DROP TABLE <table_name>;
+```
+
+Publication changes are picked up only after a Livesync stop/start, or by running the `refresh-publication` command:
+
+```bash
+docker run -it --rm --name livesync-refresh \
+  timescale/live-sync:<version-tag> refresh-publication \
+  --subscription <subscription_name> \
+  --source "$SOURCE" \
+  --target "$TARGET"
+```
+
+If you have {C.PG} declarative partitioned tables in the publication:
+
+```sql
+ALTER PUBLICATION <publication_name> SET (publish_via_partition_root = true);
+```
+
+To selectively replicate only specific DML events (by default all `INSERT`, `UPDATE`, `DELETE`, and `TRUNCATE` are replicated):
+
+```sql
+CREATE PUBLICATION <publication_name> FOR TABLE <table_name>
+  WITH (publish = 'insert, update');
+```
+
+Validate:
+
+```bash
+psql "$SOURCE" -c "SELECT * FROM pg_publication_tables WHERE pubname = '<publication_name>';"
+```
+
+## Replication identity
+
+Skip this section for `INSERT`-only workloads.
+
+Tables without a primary key need an explicit replica identity for `UPDATE` and `DELETE` replication. The query below finds such tables and generates the appropriate `ALTER TABLE` statement, using a unique index if one exists, otherwise falling back to `REPLICA IDENTITY FULL`.
+
+```bash
+psql "$SOURCE" -t -A <<'EOF'
+SELECT
+  CASE
+    WHEN i.indexrelid IS NOT NULL THEN
+      format('ALTER TABLE %I.%I REPLICA IDENTITY USING INDEX %I;',
+        n.nspname, c.relname, ic.relname)
+    ELSE
+      format('ALTER TABLE %I.%I REPLICA IDENTITY FULL;',
+        n.nspname, c.relname)
+  END
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+LEFT JOIN pg_constraint pk ON pk.conrelid = c.oid AND pk.contype = 'p'
+LEFT JOIN LATERAL (
+  SELECT i.indrelid, i.indexrelid
+  FROM pg_index i
+  WHERE i.indrelid = c.oid
+    AND i.indisunique AND i.indisvalid AND i.indpred IS NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM unnest(i.indkey) k
+      JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k
+      WHERE NOT a.attnotnull
+    )
+  LIMIT 1
+) i ON true
+LEFT JOIN pg_class ic ON ic.oid = i.indexrelid
+WHERE c.relkind = 'r'
+  AND pk.oid IS NULL
+  AND n.nspname NOT IN ('information_schema')
+  AND n.nspname NOT LIKE '_timescale%'
+  AND n.nspname NOT LIKE 'pg\_%' ESCAPE '\'
+ORDER BY n.nspname, c.relname;
+EOF
+```
+
+Review the output, then pipe it to `psql "$SOURCE"` to apply.
+
+## Data migration
+
+Choose one of the two approaches below.
+
+<Tabs>
+<TabItem label="Self-hosted Docker">
+
+<NumberedList>
+<NumberedItem title="Start Livesync">
+
+Best practice is to run as a Docker daemon:
+
+```bash
+docker run -d --rm --name livesync timescale/live-sync:<version-tag> run \
+  --publication <publication_name> \
+  --subscription <subscription_name> \
+  --source "$SOURCE" \
+  --target "$TARGET"
+```
+
+`<version-tag>` is the latest available version. See [Docker Hub](https://hub.docker.com/r/timescale/live-sync).
+
+| Flag | Description |
+| --- | --- |
+| `--publication` | Publication name as created in the publication step. Repeat the flag for multiple publications. |
+| `--subscription` | Name that identifies the subscription on the target. |
+| `--source` | Connection string to the source {C.PG} database. |
+| `--target` | Connection string to the target {C.SERVICE_LONG}. |
+| `--table-map` | (Optional) JSON mapping source tables to target tables. Repeat for multiple mappings. Example: `--table-map '{"source": {"schema": "public", "table": "metrics"}, "target": {"schema": "public", "table": "metrics_data"}}'` |
+| `--table-sync-workers` | (Optional) Number of parallel workers for initial table sync. Default: 4. |
+| `--copy-data` | (Optional) Set to `false` to skip initial data copy and only replicate changes made after replication slot creation. Useful for dry-run testing. Default: `true`. |
+
+</NumberedItem>
+
+<NumberedItem title="Monitor">
+
+```bash
+docker logs -f livesync
+```
+
+**Table sync status**
+
+```bash
+psql "$TARGET" -c "
+  SELECT state, last_error, count(*)
+  FROM _ts_live_sync.subscription_rel
+  GROUP BY 1, 2 ORDER BY 1, 2;
+"
+```
+
+Tables with errors appear as separate rows grouped by `last_error`.
+
+| State | Meaning |
+| --- | --- |
+| `i` | Initial state; table data sync not started. |
+| `d` | Initial table data sync is in progress. |
+| `f` | Initial table data sync completed; catching up with incremental changes. |
+| `s` | Synchronized; waiting for the main apply worker to take over. |
+| `r` | Table is ready; applying changes in real time. |
+
+**COPY progress during initial sync**
+
+Monitor that the initial data copy is progressing as expected. The number of rows returned should usually match the `--table-sync-workers` value.
+
+```bash
+psql "$SOURCE" -c "SELECT * FROM pg_stat_progress_copy;"
+```
+
+**Replication lag**
+
+On the source using `pg_replication_slots`:
+
+```bash
+psql "$SOURCE" -c "
+  SELECT slot_name,
+    pg_size_pretty(pg_current_wal_flush_lsn() - confirmed_flush_lsn) AS lag
+  FROM pg_replication_slots
+  WHERE slot_name LIKE 'live_sync_%' AND slot_type = 'logical';
+"
+```
+
+On the target using `_ts_live_sync.subscription` (also shows `last_error` if any):
+
+```bash
+psql "$TARGET" -c "
+  SELECT
+    pg_size_pretty(source_flush_lsn - last_replicated_lsn) AS lag_bytes,
+    (metrics_updated_at - last_replicated_txn_time) AS lag_duration,
+    *
+  FROM _ts_live_sync.subscription;
+"
+```
+
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+<TabItem label={C.CONSOLE}>
+
+<NumberedList>
+<NumberedItem title="Create the connector">
+
+1. In {C.CONSOLE}, select the target service.
+2. Click `Connectors` > `Source Postgres Connector`.
+3. Set a name for the connector (click the pencil icon).
+4. Check `Set wal_level to logical` and `Update your credentials`, then click `Continue`.
+5. Enter the source database credentials or a {C.PG} connection string, then click `Connect to database`. {C.CONSOLE} connects and retrieves the schema.
+
+</NumberedItem>
+
+<NumberedItem title="Select tables">
+
+1. In the `Select table` dropdown, choose the tables to sync.
+2. Click `Select tables +`.
+3. {C.CONSOLE} checks each table schema and suggests a time-dimension column for {C.HYPERTABLE} conversion where possible.
+4. Click `Create Connector`.
+
+{C.CONSOLE} starts the connector and displays progress.
+
+</NumberedItem>
+
+<NumberedItem title="Monitor">
+
+- **Data flow:** click `Connectors` to view the overall diagram showing connector status and data replicated.
+- **Per-table progress:** click `Connectors` > `Source connectors`, then select your connector name.
+
+</NumberedItem>
+
+<NumberedItem title="Manage">
+
+- **Edit** (rename, add or remove tables): click `Connectors` > `Source connectors`, then select the connector name.
+- **Pause:** open the three-dot menu on the right > `Pause`.
+- **Delete:** pause first, then three-dot menu > `Delete`.
+
+</NumberedItem>
+</NumberedList>
+
+</TabItem>
+</Tabs>
+
+## Post-sync
+
+After all tables reach state `r` or `s`:
+
+<NumberedList>
+<NumberedItem title="Apply policies">
+
+Apply the {C.COLUMNSTORE}, refresh, and retention policies saved earlier:
+
+```bash
+# From TimescaleDB source
+psql "$TARGET" -f columnstore_policies.sql
+psql "$TARGET" -f refresh_policies.sql
+psql "$TARGET" -f retention_policies.sql
+```
+
+For {C.CAGG}s, do a full initial refresh first:
+
+```sql
+SELECT add_continuous_aggregate_policy('<schema>.<cagg>',
+  start_offset => NULL,
+  end_offset   => INTERVAL '30 seconds',
+  schedule_interval => INTERVAL '1 hour'
+);
+```
+
+Wait for completion, then switch to production intervals:
+
+```sql
+SELECT remove_continuous_aggregate_policy('<schema>.<cagg>');
+-- Apply the saved refresh policy
+```
+
+</NumberedItem>
+
+<NumberedItem title="Update statistics">
+
+```bash
+vacuumdb --analyze --verbose --jobs=8 --dbname="$TARGET"
+```
+
+</NumberedItem>
+
+<NumberedItem title="Apply database and role settings">
+
+Settings applied on the source via `ALTER DATABASE ... SET` or `ALTER ROLE ... IN DATABASE ... SET` (for example, `search_path`, `timezone`, `statement_timeout`, `default_transaction_isolation`) are **not** included in `pg_dump --schema-only` or `pg_dumpall --roles-only`. If your application relies on them, generate equivalent statements from the source catalogs and apply them on the target.
+
+Both `ALTER DATABASE ... SET` and `ALTER ROLE ... IN DATABASE ... SET` settings live in `pg_db_role_setting`, distinguished by `setrole = 0` (database-level) versus `setrole != 0` (role-specific). The query below reads settings from the source and generates statements that reference the target database name. Source and target database names typically differ (for example, source `migrate`, target `tsdb`):
+
+```bash
+# Resolve the target database name
+TGT_DB=$(psql "$TARGET" -t -A -c "SELECT current_database();")
+
+psql "$SOURCE" -t -A -v tgt_db="$TGT_DB" <<'EOF' > db_settings.sql
+WITH pairs AS (
+  SELECT
+    drs.setrole,
+    r.rolname,
+    split_part(s, '=', 1) AS guc,
+    CASE
+      WHEN substring(s FROM position('=' IN s) + 1) LIKE '"%"' THEN
+        replace(
+          substring(s FROM position('=' IN s) + 2 FOR length(s) - position('=' IN s) - 2),
+          '""', '"')
+      ELSE
+        substring(s FROM position('=' IN s) + 1)
+    END AS val
+  FROM pg_db_role_setting drs
+  JOIN pg_database d ON d.oid = drs.setdatabase
+  LEFT JOIN pg_roles r ON r.oid = drs.setrole,
+  LATERAL unnest(drs.setconfig) s
+  WHERE d.datname = current_database()
+    AND (drs.setrole = 0
+         OR (r.rolname NOT LIKE 'pg_%'
+             AND r.rolname NOT IN ('postgres', 'tsdbadmin')))
+)
+SELECT
+  CASE
+    WHEN setrole = 0 THEN
+      format('ALTER DATABASE %I SET %I = %L;', :'tgt_db', guc, val)
+    ELSE
+      format('ALTER ROLE %I IN DATABASE %I SET %I = %L;', rolname, :'tgt_db', guc, val)
+  END
+FROM pairs
+ORDER BY setrole, guc;
+EOF
+
+cat db_settings.sql
+psql "$TARGET" -f db_settings.sql
+```
+
+Review the generated statements before applying. Some settings (for example, shared library paths, filesystem paths, replication-specific parameters) may not apply to a managed {C.SERVICE_LONG} and should be removed.
+
+</NumberedItem>
+</NumberedList>
+
+## Cutover
+
+<NumberedList>
+<NumberedItem title="Validate">
+
+Confirm all tables are in state `r` or `s`:
+
+```bash
+psql "$TARGET" -c "
+  SELECT state, last_error, count(*)
+  FROM _ts_live_sync.subscription_rel
+  GROUP BY 1, 2 ORDER BY 1, 2;
+"
+```
+
+Confirm replication lag is near zero:
+
+```bash
+psql "$SOURCE" -c "
+  SELECT slot_name,
+    pg_size_pretty(pg_current_wal_flush_lsn() - confirmed_flush_lsn) AS lag
+  FROM pg_replication_slots
+  WHERE slot_name LIKE 'live_sync_%' AND slot_type = 'logical';
+"
+```
+
+</NumberedItem>
+
+<NumberedItem title="Stop write traffic to the source">
+
+Stop all application writes to the source database. Then wait for replication lag to reach near zero:
+
+```bash
+psql "$SOURCE" -c "
+  SELECT slot_name,
+    pg_size_pretty(pg_current_wal_flush_lsn() - confirmed_flush_lsn) AS lag
+  FROM pg_replication_slots
+  WHERE slot_name LIKE 'live_sync_%' AND slot_type = 'logical';
+"
+```
+
+Re-run until lag is near 0 bytes.
+
+</NumberedItem>
+
+<NumberedItem title="Reset sequences">
+
+<Callout variant="important">
+Livesync does not replicate sequence values. Skipping this step causes serial or identity columns to reuse already-existing values after cutover, resulting in primary key or unique constraint violations.
+</Callout>
+
+<Tabs>
+<TabItem label="copy-sequences command">
+
+```bash
+docker run -it --rm --name livesync-copy-sequences \
+  timescale/live-sync:<version-tag> copy-sequences \
+  --subscription <subscription_name> \
+  --source "$SOURCE" \
+  --target "$TARGET"
+```
+
+</TabItem>
+<TabItem label="Manual SQL">
+
+```sql
+psql "$TARGET" <<'EOF'
+DO $$
+DECLARE
+  rec RECORD;
+BEGIN
+  FOR rec IN (
+    SELECT
+      sr.target_schema AS table_schema,
+      sr.target_table AS table_name,
+      col.column_name,
+      pg_get_serial_sequence(
+        format('%I.%I', sr.target_schema, sr.target_table),
+        col.column_name
+      ) AS seqname
+    FROM _ts_live_sync.subscription_rel AS sr
+    JOIN information_schema.columns AS col
+      ON col.table_schema = sr.target_schema
+     AND col.table_name = sr.target_table
+    WHERE col.column_default LIKE 'nextval(%'
+  ) LOOP
+    EXECUTE format(
+      'SELECT setval(%L, COALESCE((SELECT MAX(%I) FROM %I.%I), 0) + 1, false);',
+      rec.seqname, rec.column_name, rec.table_schema, rec.table_name
+    );
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+EOF
+```
+
+</TabItem>
+</Tabs>
+
+</NumberedItem>
+
+<NumberedItem title="Stop Livesync">
+
+```bash
+docker stop livesync
+```
+
+</NumberedItem>
+
+<NumberedItem title="Connect application">
+
+Update connection strings to point to {C.CLOUD_LONG}.
+
+</NumberedItem>
+</NumberedList>
+
+## Cleanup
+
+After the application is fully running on {C.CLOUD_LONG}:
+
+```bash
+docker run -it --rm --name livesync-cleanup \
+  timescale/live-sync:<version-tag> drop \
+  --subscription <subscription_name> \
+  --source "$SOURCE" \
+  --target "$TARGET"
+```
+
+Then drop the migration user on the source.
+
+## Next steps
+
+- [Troubleshooting](/migrate/livesync-replication-troubleshooting): common issues you may hit during migration and how to resolve them.
+- [Advanced topics](/migrate/livesync-replication-advanced): {C.CAGG}s, compressed {C.HYPERTABLE}s on older {C.TIMESCALE_DB} versions, and `GENERATED ALWAYS AS IDENTITY` columns.

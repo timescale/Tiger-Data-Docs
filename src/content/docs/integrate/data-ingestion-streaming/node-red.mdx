@@ -1,0 +1,200 @@
+---
+title: "Integrate Node-RED with Tiger Cloud"
+description: "Use Node-RED to stream events into Tiger Data and persist them in a hypertable."
+integrationCategory: "data-ingestion-streaming"
+integrationPlatforms: ["aws", "azure", "self-hosted"]
+integrationIndustry: ["iot", "manufacturing", "industrial-automation"]
+keywords: ["Node-RED", "node-red", "postgresql", "data ingestion", "iot"]
+integrationCardLogo: "node-red.png"
+sidebar:
+  label: "Node-RED"
+---
+
+import * as C from "@constants";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-and-self.mdx";
+import ConnectionDetails from '@partials/_prereqs-connection-details.mdx';
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+
+[Node-RED](https://nodered.org/) is a flow-based programming tool for wiring together hardware devices, APIs, and services using a browser-based editor.
+
+This page shows you how to use Node-RED to write events into your {C.COMPANY} service or database so you can persist, query, and analyze them in a {C.HYPERTABLE}.
+
+In this integration guide, you:
+
+- Create a {C.HYPERTABLE} to receive Node-RED events.
+- Configure Node-RED with a {C.PG} / {C.TIMESCALE_DB} node and connection details.
+- Send a test event from Node-RED and verify it arrived in your {C.HYPERTABLE}.
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+- A running Node-RED instance that can reach your {C.SERVICE_LONG} on port `5432` (install instructions: https://nodered.org/docs/getting-started/).
+- The `node-red-contrib-postgresql` (or equivalent PostgreSQL) node installed in Node-RED.
+- A database user with INSERT privileges on the target database in your {C.SERVICE_LONG}.
+</Prerequisites>
+
+## Prepare your database
+
+Create a {C.HYPERTABLE} that matches the event columns you plan to send from Node-RED. This example uses `ts` as the time partition, `tag_id` to identify the source, and `value` for the measurement:
+
+<NumberedList>
+  <NumberedItem title={`Connect to your ${C.SERVICE_LONG}`}>
+    Use the [{C.CONSOLE}](/build/data-management/run-queries-from-tiger-console), `psql`, or any SQL editor to connect to your service.
+  </NumberedItem>
+  <NumberedItem title={`Create a ${C.HYPERTABLE} for Node-RED events`}>
+    Run the following SQL to create the table as a {C.HYPERTABLE} with explicit chunk interval:
+
+    ```sql
+    CREATE TABLE node_red_events (
+      ts      TIMESTAMPTZ NOT NULL,
+      tag_id  TEXT        NOT NULL,
+      value   DOUBLE PRECISION
+    ) WITH (
+      timescaledb.hypertable,
+      timescaledb.chunk_interval = '7 days'
+    );
+    ```
+
+    Modify this schema to match your data. If you send additional fields from Node-RED (such as device ID, location, or unit), add them as columns — for example, `device_id TEXT`, `unit TEXT`, or `location TEXT`. You can also change `value` to `NUMERIC`, `INT`, or `TEXT` if your measurements are non-numeric.
+
+    The `chunk_interval` setting controls how much data each {C.CHUNK} holds. Aim for chunks that fit the most recent working set in memory — a good starting point is an interval that produces chunks roughly 25% of your service's RAM. For a light event stream publishing a few events per second, 7 days is a reasonable default; for higher throughput, reduce the interval to hours or even minutes. You can change the interval later with [`set_chunk_time_interval()`](/reference/timescaledb/hypertables/set_chunk_time_interval) — it only affects new chunks.
+  </NumberedItem>
+</NumberedList>
+
+## Configure Node-RED to send data to your database
+
+This section shows a minimal Node-RED flow: an `inject` node produces a sample payload, a `function` node formats the values, and a PostgreSQL node performs an `INSERT` using the service connection details.
+
+<NumberedList>
+  <NumberedItem title="Install the PostgreSQL node in Node-RED">
+    Open the Node-RED palette manager and install `node-red-contrib-postgresql` (or your preferred PostgreSQL client node). Restart Node-RED if required.
+  </NumberedItem>
+
+  <NumberedItem title="Configure the PostgreSQL node connection">
+    In the PostgreSQL node configuration, create a new server config and enter the `host`, `port`, `database`, `user`, and `password` from your connection details. Enable SSL/TLS if your service requires it.
+
+    Example connection settings (fill from your connection details):
+
+    - Host: YOUR_SERVICE_HOST
+    - Port: 5432
+    - Database: tsdb
+    - User: tsdbadmin
+    - Password: (from your connection details)
+    - SSL/TLS: enabled (for {C.CLOUD_LONG})
+
+    The PostgreSQL node typically accepts an SQL string and an array of parameters (for example, `msg.params`).
+  </NumberedItem>
+
+  <NumberedItem title="Build a flow that inserts events">
+    Create a simple flow:
+
+    1. `inject` node — sends a test JSON object.
+    1. `function` node — maps the incoming JSON to `msg.topic` (SQL) and `msg.params` (parameters array).
+    1. `postgresql` node — configured to run parameterized SQL using `msg.topic` and `msg.params`.
+
+    **Single-row INSERT (simplest approach):**
+
+    ```js
+    // msg.payload is the event object
+    const ev = msg.payload || {
+      tag_id: 'sensor-001',
+      value: 22.5
+    };
+
+    msg.topic = 'INSERT INTO node_red_events (ts, tag_id, value) VALUES (NOW(), $1, $2)';
+    msg.params = [ev.tag_id, ev.value];
+    return msg;
+    ```
+
+    **Batched INSERT (for higher throughput):**
+
+    For production workloads, buffer multiple events and send them in a single multi-row INSERT to reduce commit overhead. This example flushes every 2 seconds to balance throughput with latency:
+
+    ```js
+    // Accumulate events into context.batch with timestamps
+    if (!context.batch) {
+      context.batch = [];
+      context.batchStart = null;
+    }
+
+    const ev = msg.payload;
+    if (ev) {
+      context.batch.push(ev);
+      
+      // Record start time on first event
+      if (!context.batchStart) {
+        context.batchStart = Date.now();
+      }
+    }
+
+    // Flush if 2 seconds have elapsed OR if explicitly triggered
+    const elapsed = Date.now() - context.batchStart;
+    const shouldFlush = context.batch.length > 0 && (elapsed >= 2000 || msg.flush);
+
+    if (shouldFlush) {
+      const batch = context.batch;
+      context.batch = [];
+      context.batchStart = null;
+
+      // Build multi-row VALUES clause
+      const values = batch.map((_, i) => {
+        const offset = i * 2;
+        return `(NOW(), $${offset + 1}, $${offset + 2})`;
+      }).join(', ');
+
+      const params = batch.flatMap(e => [e.tag_id, e.value]);
+
+      msg.topic = `INSERT INTO node_red_events (ts, tag_id, value) VALUES ${values}`;
+      msg.params = params;
+      return msg;
+    }
+
+    // Don't send if not flushing yet
+    return null;
+    ```
+
+    Set up a `delay` node (2 seconds) that feeds back into the function node and inject a message with `msg.flush = true`. This ensures that even during quiet periods, partial batches are flushed every 2 seconds so data never waits too long.
+
+    Deploy the flow and trigger the `inject` node to send the test event.
+  </NumberedItem>
+</NumberedList>
+
+## Send a test event and verify data arrived
+
+<NumberedList>
+  <NumberedItem title="Send a test event from Node-RED">
+    Trigger the `inject` node you created. The PostgreSQL node should return success and the flow sidebar will show the node status.
+  </NumberedItem>
+
+  <NumberedItem title={`Query ${C.SERVICE_LONG} to confirm events arrived`}>
+    Connect to your service and run:
+
+    ```sql
+    SELECT ts, tag_id, value
+    FROM node_red_events
+    ORDER BY ts DESC
+    LIMIT 10;
+    ```
+
+    You should see one or more rows matching the test event you injected, with `payload` containing the JSON you sent.
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated Node-RED with {C.COMPANY}.
+
+## Troubleshooting
+
+- **No rows appear after inject:** Verify the PostgreSQL node connection details (host/port/user/password) and check the Node-RED logs for errors. Confirm TLS is enabled if using {C.CLOUD_LONG}.
+- **Parameter/placeholder errors:** Some PostgreSQL nodes expect `$1,$2` parameter placeholders; others use `?`. Use the syntax required by your Node-RED PostgreSQL node.
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Find connection details"
+    description={`Where to find the host, port, user, and password for your ${C.SERVICE_LONG}.`}
+    href="/integrate/find-connection-details"
+  />
+</RelatedContentCards>

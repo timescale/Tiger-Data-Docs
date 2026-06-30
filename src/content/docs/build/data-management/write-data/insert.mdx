@@ -2,9 +2,21 @@
 title: Insert data
 description: Insert single and multiple rows and bulk load data into TimescaleDB with SQL
 products: [cloud, mst, self_hosted]
+learnMore:
+  relatedPostsHeading: Related resources
+  relatedPosts:
+    - label: "Write amplification in Postgres: the 3-4x tax on every insert"
+      href: https://www.tigerdata.com/blog/write-amplification-in-postgres-the-3-4x-tax-on-every-insert
+    - label: "When continuous ingestion breaks traditional Postgres"
+      href: https://www.tigerdata.com/blog/when-continuous-ingestion-breaks-traditional-postgres
+    - label: "How sequential UUIDv7 boosts ingestion performance"
+      href: https://www.tigerdata.com/blog/how-sequential-uuidv7-boosts-ingestion-performance
+    - label: "Video: 5 ways to improve your PostgreSQL INSERT performance"
+      href: https://www.youtube.com/watch?v=4SLpMTH1RcU
 ---
 
 import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
 import HypercoreDirectCompress from "../../../../../partials/_hypercore-direct-compress.mdx";
 
 Inserts into a {C.HYPERTABLE} are normal {C.PG} writes. Use the usual commands, and lean on batching when you can:
@@ -105,6 +117,35 @@ bulk data loading, `COPY` can be 2-3x faster or more than `INSERT`, especially w
 
 If you `COPY` unsorted data, call [`convert_to_columnstore('<chunk_name>', recompress => true)`](/reference/timescaledb/hypercore/convert_to_columnstore)
 on the {C.CHUNK} to reorder and optimize your data.
+
+### Skip {C.CAGG} invalidation during bulk loads
+
+Available in {C.TIMESCALE_DB} 2.28.0 and later.
+
+Every write to a {C.HYPERTABLE} that has {C.CAGG}s records an invalidation entry, so the next
+refresh knows which time ranges changed. During a large bulk load, this tracking adds overhead. To
+skip it for the current session or transaction, set `timescaledb.skip_cagg_invalidation`. Use
+`SET LOCAL` inside a transaction so the setting reverts automatically when the transaction ends:
+
+```sql
+BEGIN;
+SET LOCAL timescaledb.skip_cagg_invalidation = on;
+COPY conditions FROM '/path/to/data.csv' WITH (FORMAT CSV, HEADER);
+COMMIT;
+```
+
+Because no invalidations are recorded, a normal refresh treats the loaded buckets as up-to-date. After
+the load, refresh the time ranges you touched with `force => true` to bring each {C.CAGG} back in sync:
+
+```sql
+CALL refresh_continuous_aggregate('conditions_daily', '<load_start>', '<load_end>', force => true);
+```
+
+<Callout variant="warning">
+If you skip the forced refresh, the {C.CAGG} is left out of sync with the {C.HYPERTABLE}: queries return
+stale results for the time ranges you loaded. Only use `timescaledb.skip_cagg_invalidation` for bulk or
+migration workloads where you control the follow-up refresh.
+</Callout>
 
 ## Improve performance with direct compress
 
