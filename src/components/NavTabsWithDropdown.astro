@@ -67,7 +67,17 @@ const SECTION_DROPDOWN_HREF: Record<string, string> = {
   "Migrate to Tiger Cloud": "/migrate/livesync-replication",
   "Tiger Cloud on AWS": "/deploy/tiger-cloud/tiger-cloud-aws/configuration/about-configuration",
   "Tiger Cloud on Azure": "/deploy/tiger-cloud/tiger-cloud-azure/configuration/about-configuration",
+  "Tiger Cloud REST API": "/reference/tiger-cloud-rest",
 };
+
+/**
+ * Dropdown-only: sidebar sections whose children are promoted to individual
+ * dropdown entries instead of a single section link. Used for the Reference
+ * "Tiger Cloud" group so the dropdown lists Tiger CLI, Tiger MCP, and the REST API
+ * as separate entries (not one "Tiger Cloud" overview link), without changing the
+ * left sidebar. The "Overview" and "Data tiering" children are dropped.
+ */
+const SECTION_DROPDOWN_EXPAND = new Set<string>(["Tiger Cloud"]);
 
 const BASE_PREFIX = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -185,6 +195,14 @@ function buildNavTree(entries: unknown[] | undefined): NavTreeNode[] {
 
     const items = Array.isArray(e.items) ? e.items : [];
     const hasItems = items.length > 0;
+
+    if (hasItems && SECTION_DROPDOWN_EXPAND.has(e.label.trim())) {
+      const childNodes = buildNavTree(items).filter(
+        (n) => !/^(overview|data tiering)$/i.test(n.label.trim())
+      );
+      out.push(...childNodes);
+      continue;
+    }
 
     if (hasItems) {
       const href = sectionIndexHref(e);

@@ -1,16 +1,90 @@
 import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
 
-{C.MCP_LONG} exposes the following tools to your AI assistant. **Parameter names and required/optional fields may change with new {C.MCP_SHORT} versions**; use `tiger mcp get <tool_name>` for current definitions.
+{C.MCP_LONG} exposes the following tools to your AI assistant. You do not call these directly; you describe what you want and the assistant selects the tool.
 
-| Tool | Key parameters | Description |
-|------|----------------|-------------|
-| `service_list` | (none) | List {C.SERVICE_SHORT}s in the current {C.PROJECT_SHORT}. |
-| `service_get` | `service_id` (required), `with_password` | Detailed info for one {C.SERVICE_SHORT}. Only set `with_password` if the user explicitly asks for the password. |
-| `service_create` | `name`, `addons`, `region`, `cpu_memory`, `replicas`, `wait`, `timeout_minutes`, `set_default`, `with_password` | Create a new {C.SERVICE_SHORT}. **WARNING:** creates billable resources. Addons: `time-series` ({C.TIMESCALE_DB}), `ai` (AI/vector). |
-| `service_fork` | `service_id` (required), `fork_strategy` (required: NOW \| LAST_SNAPSHOT \| PITR), `target_time` (for PITR), `name`, `cpu_memory`, `wait`, `timeout_minutes`, `set_default`, `with_password` | Fork a {C.SERVICE_SHORT}. **WARNING:** creates billable resources. |
-| `service_update_password` | `service_id` (required), `password` (required) | Update `tsdbadmin` password; may disconnect existing sessions. |
-| `service_start` | `service_id` (required), `wait`, `timeout_minutes` | Start a stopped {C.SERVICE_SHORT}. |
-| `service_stop` | `service_id` (required), `wait`, `timeout_minutes` | Stop a running {C.SERVICE_SHORT}. |
-| `service_resize` | `service_id` (required), `cpu_memory` (required), `wait`, `timeout_minutes` | Change CPU/memory. **WARNING:** affects billing; {C.SERVICE_SHORT} may be briefly unavailable. |
-| `service_logs` | `service_id` (required), `tail`, `since`, `until`, `node` | Fetch {C.SERVICE_SHORT} logs (for example, tail length, time range, node). |
-| `db_execute_query` | `service_id` (required), `query` (required), `parameters`, `timeout_seconds`, `role`, `pooled` | Run a single SQL statement. **WARNING:** can run destructive SQL (INSERT/UPDATE/DELETE/DDL). Multi-statement not supported. |
+<Callout variant="note" title="Definitions can change">
+Parameter names and required or optional fields can change with new {C.MCP_SHORT} versions. Run `tiger mcp get <tool_name>` for the current definition of any tool.
+</Callout>
+
+## Service tools
+
+### `service_list`
+
+List the {C.SERVICE_SHORT}s in the current {C.PROJECT_SHORT}. No parameters.
+
+### `service_get`
+
+Show detailed information about one {C.SERVICE_SHORT}.
+
+- `service_id` (required): the target {C.SERVICE_SHORT}.
+- `with_password`: include the password. Only set this if you explicitly ask for the password.
+
+### `service_create`
+
+Create a new {C.SERVICE_SHORT}. Addons: `time-series` ({C.TIMESCALE_DB}) and `ai` (AI/vector).
+
+- `name`, `addons`, `region`, `cpu_memory`, `replicas`, `wait`, `timeout_minutes`, `set_default`, `with_password`.
+
+<Callout variant="warning" title="Creates billable resources">
+`service_create` provisions billable infrastructure.
+</Callout>
+
+### `service_fork`
+
+Fork a {C.SERVICE_SHORT} into an independent copy.
+
+- `service_id` (required): the source {C.SERVICE_SHORT}.
+- `fork_strategy` (required): `NOW`, `LAST_SNAPSHOT`, or `PITR`.
+- `target_time`: point in time, for `PITR`.
+- `name`, `cpu_memory`, `wait`, `timeout_minutes`, `set_default`, `with_password`.
+
+<Callout variant="warning" title="Creates billable resources">
+`service_fork` provisions billable infrastructure.
+</Callout>
+
+### `service_resize`
+
+Change a {C.SERVICE_SHORT}'s CPU and memory.
+
+- `service_id` (required), `cpu_memory` (required), `wait`, `timeout_minutes`.
+
+<Callout variant="warning" title="Affects billing">
+`service_resize` affects billing, and the {C.SERVICE_SHORT} may be briefly unavailable.
+</Callout>
+
+### `service_start`
+
+Start a stopped {C.SERVICE_SHORT}.
+
+- `service_id` (required), `wait`, `timeout_minutes`.
+
+### `service_stop`
+
+Stop a running {C.SERVICE_SHORT}.
+
+- `service_id` (required), `wait`, `timeout_minutes`.
+
+### `service_update_password`
+
+Update the `tsdbadmin` password. May disconnect existing sessions.
+
+- `service_id` (required), `password` (required).
+
+### `service_logs`
+
+Fetch {C.SERVICE_SHORT} logs.
+
+- `service_id` (required), `tail`, `since`, `until`, `node`.
+
+## Database tools
+
+### `db_execute_query`
+
+Run a single SQL statement against a {C.SERVICE_SHORT}.
+
+- `service_id` (required), `query` (required), `parameters`, `timeout_seconds`, `role`, `pooled`.
+
+<Callout variant="warning" title="Can run destructive SQL">
+`db_execute_query` can run `INSERT`, `UPDATE`, `DELETE`, and DDL. Multi-statement queries are not supported. In [read-only mode](/build/tiger-cli-mcp/agent-best-practices), writes and DDL are rejected by the server.
+</Callout>
