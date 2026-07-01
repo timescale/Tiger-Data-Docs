@@ -99,7 +99,7 @@ keywords: [topic, technology]    # optional, improves search
 ```
 
 - `title` is required. `description` is strongly recommended.
-- `products` accepts `cloud`, `mst`, and `self_hosted`. It weights Pagefind search (cloud-only pages rank higher); it does not hide or gate page content.
+- `products` is required on every content page. Use `cloud` and/or `self_hosted`; use `mst` only on pages under `deploy/mst`.
 - Frontmatter is plain YAML, so it can't use `{C.X}` constants. Write product names out here (for example `PostgreSQL`, not `{C.PG}`).
 - Other optional fields (`seoDescription`, `pageLabels`, `learnMore`, integration metadata) are defined in `src/content.config.ts`.
 

@@ -791,9 +791,9 @@ export default defineConfig({
           sidebar: [
             { label: "Overview", link: "/integrate" },
             {
-              label: "Find connection details",
+              label: "Connect to Tiger Data",
               collapsed: true,
-              items: [{ label: "Find connection details", link: "/integrate/find-connection-details" }],
+              items: [{ label: "Connect to Tiger Data", link: "/integrate/find-connection-details" }],
             },
             // --- Type of Tool (matches integrationCategory) ---
             {
@@ -1974,7 +1974,6 @@ export default defineConfig({
       "/get-started/create-service": "/get-started/quickstart/create-service",
       "/get-started/connect-your-app": "/get-started/quickstart/connect-your-app",
       "/integrate/code/start-coding-with-tigerdata": "/integrate/code/connect-your-app",
-      "/get-started/next-steps": "/get-started/quickstart/next-steps",
       "/get-started/create-mst-service": "/deploy/mst/create-mst-service",
       "/get-started/install-timescaledb": "/get-started/choose-your-path/install-timescaledb",
       "/get-started/supported-platforms": "/get-started/choose-your-path/supported-platforms",
