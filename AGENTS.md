@@ -40,7 +40,9 @@ All product/brand names are centralized in `src/constants.ts`. Import as:
 import * as C from "@constants";
 ```
 
-Then use `{C.CLOUD_LONG}`, `{C.PG}`, `{C.TIMESCALE_DB}`, and so on in MDX content. The `TigerData.ProductConstants` Vale rule nudges literals toward their constant. Exceptions: inside backticks, URLs, frontmatter, and image alts. Treat `src/constants.ts` as the source of truth for available constants.
+Then use `{C.CLOUD_LONG}`, `{C.PG}`, `{C.TIMESCALE_DB}`, and so on in MDX content. The `TigerData.ProductConstants` Vale rule nudges literals toward their constant. Exceptions: inside backticks, URLs, frontmatter, image alts, and the changelog (see below). Treat `src/constants.ts` as the source of truth for available constants.
+
+**Do not use constants in the changelog.** `src/content/docs/get-started/news/new.mdx` uses literal product names (`Tiger Cloud`, `PostgreSQL`, `TimescaleDB`, and so on), not `{C.X}` constants. Changelog entries are a permanent historical record, so they must not shift when a constant's value changes; write the product names out as they were at the time of the entry.
 
 ### TypeScript path aliases
 
@@ -210,4 +212,4 @@ Deeper, authoritative guides in the repo. Prefer these over re-deriving conventi
 - `src/content/docs/get-started/contributing.mdx`: the human-facing contributor and writing-style guide.
 - [`.github/templates/template-tutorial.mdx`](./.github/templates/template-tutorial.mdx): starting-point MDX for a new tutorial (copy into a content directory). The `write-docs-tutorial` skill builds on it.
 - [`README-statsig.md`](./README-statsig.md): the Statsig analytics integration (inline script in `astro.config.ts` between the `BEGIN STATSIG`/`END STATSIG` markers, `PUBLIC_STATSIG_CLIENT_KEY` env var), and the checklist to remove it. Read this before touching the `head[]` block or analytics env vars.
-- **Changelog**: add an entry by editing `src/content/docs/get-started/news/new.mdx`, following the structure in [`README-changelog.md`](./README-changelog.md).
+- **Changelog**: add an entry by editing `src/content/docs/get-started/news/new.mdx`, following the structure in [`README-changelog.md`](./README-changelog.md). Write product names as literal strings, not `{C.X}` constants (see [Constants system](#constants-system-critical)).
