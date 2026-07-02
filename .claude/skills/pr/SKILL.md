@@ -9,11 +9,11 @@ effort: medium
 
 # Create a pull request
 
-Run this repo's checks, commit, push, and open a **draft** PR using `.github/pull_request_template.md`. This repo has no test suite, no secrets scanner, and no Claude auto-review bot — don't invent steps that don't apply here. Do not skip or reorder the steps below.
+Run this repo's checks, commit, push, and open a **draft** PR using `.github/pull_request_template.md`. This repo has no test suite, no secrets scanner, and no Claude auto-review bot: don't invent steps that don't apply here. Do not skip or reorder the steps below.
 
 **PRs are opened as draft by default.** The `git-bounce` workflow (`.github/workflows/pr-checklist-check.yml`) only enforces the PR-template checklist once a PR leaves draft, so keeping work in draft avoids a red check on unfinished work. After the checks pass and the PR is created, the skill asks whether to flip it to ready.
 
-`$ARGUMENTS` — if a one-line summary was passed, treat it as the authoritative description of the change and use it for the commit message and PR "Describe your changes" section. If not given, derive the summary from the diff and conversation context; if that's not enough to write an honest one-liner, ask the user.
+`$ARGUMENTS`: if a one-line summary was passed, treat it as the authoritative description of the change and use it for the commit message and PR "Describe your changes" section. If not given, derive the summary from the diff and conversation context; if that's not enough to write an honest one-liner, ask the user.
 
 ## 1. Verify branch
 
@@ -45,7 +45,7 @@ Run `build` and `lint:prose` in parallel since they don't share write targets; r
 wait
 ```
 
-If either fails, show the tail of the failing log and stop — do not commit until it's fixed. `TigerData.CompressionAPIs` is the only Vale rule that gates; other Vale findings are advisory, so use judgment on whether to fix them now or leave them for reviewer discussion (never silently ignore a `CompressionAPIs` failure).
+If either fails, show the tail of the failing log and stop: do not commit until it's fixed. `TigerData.CompressionAPIs` is the only Vale rule that gates; other Vale findings are advisory, so use judgment on whether to fix them now or leave them for reviewer discussion (never silently ignore a `CompressionAPIs` failure).
 
 ## 4. Commit
 
@@ -61,21 +61,21 @@ git rebase origin/main
 git push -u origin HEAD
 ```
 
-If the rebase conflicts, stop and report the conflicting files — the user resolves them, don't guess.
+If the rebase conflicts, stop and report the conflicting files. The user resolves them; don't guess.
 
 ## 6. Create the PR as draft
 
-Use the repo's actual template (`.github/pull_request_template.md`) — don't invent a different shape. Tick only the checklist boxes you can honestly verify from the steps above; leave the rest unchecked for the human reviewer:
+Use the repo's actual template (`.github/pull_request_template.md`): don't invent a different shape. Tick only the checklist boxes you can honestly verify from the steps above; leave the rest unchecked for the human reviewer:
 
-- `[ ] This is ready for review. If not, raise as a draft PR` — leave **unchecked**; this flips only in step 7.
-- `[ ] I have reviewed my changes.` — tick, since you walked the diff in step 2.
-- `[ ] I have confirmed the content is technically accurate.` — leave unchecked (requires human/domain judgment).
-- `[ ] I have tested any code that is added or updated on the latest available version.` — leave unchecked unless the user explicitly confirmed they tested SQL/code snippets.
-- `[ ] I have confirmed the content is free of typos or grammar errors.` — tick only if `pnpm lint:prose` passed clean with no advisory findings left unaddressed.
-- `[ ] I have verified all images and videos are clear and match production (or dev for unreleased features).` — leave unchecked unless the diff has no image/video changes, in which case tick it (nothing to verify).
-- `[ ] This references a feature that is public. If not, add a note and we can schedule the merge for after the feature release.` — leave unchecked unless the user has confirmed the referenced feature is public.
+- `[ ] This is ready for review. If not, raise as a draft PR` : leave **unchecked**; this flips only in step 7.
+- `[ ] I have reviewed my changes.`: tick, since you walked the diff in step 2.
+- `[ ] I have confirmed the content is technically accurate.`: leave unchecked (requires human/domain judgment).
+- `[ ] I have tested any code that is added or updated on the latest available version.`: leave unchecked unless the user explicitly confirmed they tested SQL/code snippets.
+- `[ ] I have confirmed the content is free of typos or grammar errors.`: tick only if `pnpm lint:prose` passed clean with no advisory findings left unaddressed.
+- `[ ] I have verified all images and videos are clear and match production (or dev for unreleased features).`: leave unchecked unless the diff has no image/video changes, in which case tick it (nothing to verify).
+- `[ ] This references a feature that is public. If not, add a note and we can schedule the merge for after the feature release.`: leave unchecked unless the user has confirmed the referenced feature is public.
 
-Leave "Affected pages" as the template's placeholder text — the `affected-pages.yml` bot fills it in once the build runs.
+Leave "Affected pages" as the template's placeholder text. The `affected-pages.yml` bot fills it in once the build runs.
 
 ```bash
 gh pr create --draft --title "<title, under 70 chars>" --body "$(cat <<'EOF'
@@ -97,7 +97,7 @@ Issue: <#number, or omit this line if none>
 - [x] - I have reviewed my changes.
 - [ ] - I have confirmed the content is technically accurate.
 - [ ] - I have tested any code that is added or updated on the latest available version.
-- [x] - I have confirmed the content is free of typos or grammar errors.
+- [ ] - I have confirmed the content is free of typos or grammar errors.
 - [ ] - I have verified all images and videos are clear and match production (or dev for unreleased features).
 - [ ] - This references a feature that is public. If not, add a note and we can schedule the merge for after the feature release.
 
@@ -106,11 +106,11 @@ EOF
 )"
 ```
 
-Adjust the ticked boxes per the rules above before running — the template shown has example ticks, not fixed defaults.
+Adjust the ticked boxes per the rules above before running: the template shown has example ticks, not fixed defaults.
 
 ## 7. Confirm and offer to flip to ready
 
 - Print the PR URL.
 - Ask: "Ready to mark this PR as ready for review?"
-  - **Yes**: edit the PR body to tick `This is ready for review`, then run `gh pr ready <PR_NUMBER>`. Remind the user that `git-bounce` will now check that every listed box is ticked truthfully — go back and tick any remaining ones only if they're actually true.
+  - **Yes**: `git-bounce` requires every checklist box to be ticked before it passes, and its own guidance is: if a box doesn't apply, check it and add "n/a" next to it. Walk the still-unticked boxes with the user now, one at a time: for each, either (a) they confirm it's true and you tick it plainly, or (b) it doesn't apply to this change and you tick it with a trailing "(n/a: <reason>)", or (c) it's not actually satisfied yet, in which case stop and let them address it before proceeding. Once every box is ticked (plainly or with an n/a annotation), also tick `This is ready for review` and run `gh pr ready <PR_NUMBER>`.
   - **No**: leave it in draft. Note that they can re-invoke `/pr` or run `gh pr ready <PR_NUMBER>` themselves once ready.

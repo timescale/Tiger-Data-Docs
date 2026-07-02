@@ -13,7 +13,7 @@ If you're an external contributor looking to report a docs issue, suggest a chan
   pnpm dev
   ```
   Visit [localhost:4321](http://localhost:4321/).
-- No Stainless API key handy? Use `pnpm dev:local` instead — it skips generating the Tiger Cloud REST API reference and stubs that page.
+- No Stainless API key handy? Use `pnpm dev:local` instead: it skips generating the Tiger Cloud REST API reference and stubs that page.
 - Full setup details, environment variables, and other commands: [`README.md`](./README.md).
 
 ## Conventions
@@ -39,6 +39,6 @@ pnpm lint:links      # if your change touches links or adds/moves pages
 - **Open PRs as draft until they're ready for review.** The `git-bounce` workflow (`.github/workflows/pr-checklist-check.yml`) only enforces the PR-template checklist once a PR leaves draft, so keep work-in-progress PRs in draft to avoid a red check for something you're not done with yet.
 - **"Ready for review" means:** every checklist box in the PR template reflects reality (not rubber-stamped), the `affected-pages.yml` bot's preview links have been clicked through, and the Vale annotations on your diff have been addressed or consciously left (advisory rules can be judgment calls; `TigerData.CompressionAPIs` is the only rule that gates).
 - **What reviewers should do:** confirm technical accuracy, skim the Vale/affected-pages CI output, spot-check rendered output for anything visual, and verify the checklist boxes are actually true rather than just checked.
-- Fill out the PR template's sections rather than replacing them — see `.github/pull_request_template.md`.
+- Fill out the PR template's sections rather than replacing them. See `.github/pull_request_template.md`.
 
 For issue templates (doc feedback, doc correction, changelog request) and what makes a good vs. weak issue, see the published [Contribute to the docs](https://tigerdata.com/docs/get-started/contributing) guide.
