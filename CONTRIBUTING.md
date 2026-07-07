@@ -31,7 +31,6 @@ Run these locally so CI doesn't surprise you:
 ```bash
 pnpm build          # fails on any MDX/component error
 pnpm lint:prose      # Vale, checked files only (pnpm lint:prose -- --all for everything)
-pnpm lint:links      # if your change touches links or adds/moves pages
 ```
 
 ## PR workflow and etiquette
