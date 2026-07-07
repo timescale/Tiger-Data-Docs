@@ -375,7 +375,7 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Get started with Tiger CLI", link: "/get-started/quickstart/tiger-cli" },
-                { label: "Integrate Tiger Cloud with your AI assistant", link: "/get-started/quickstart/mcp-cli" },
+                { label: "Integrate Tiger Cloud with your AI agent", link: "/get-started/quickstart/mcp-cli" },
                 { label: "Get started with the REST API", link: "/get-started/quickstart/rest-api" },
               ],
             },
