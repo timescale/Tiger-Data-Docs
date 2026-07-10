@@ -1916,18 +1916,6 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Overview", link: "/reference/tiger-cloud" },
-                {
-                  label: "Data tiering",
-                  collapsed: true,
-                  items: [
-                    { label: "Overview", link: "/reference/tiger-cloud/data-tiering" },
-                    { label: "add_tiering_policy()", link: "/reference/tiger-cloud/data-tiering/add_tiering_policy" },
-                    { label: "remove_tiering_policy()", link: "/reference/tiger-cloud/data-tiering/remove_tiering_policy" },
-                    { label: "tier_chunk()", link: "/reference/tiger-cloud/data-tiering/tier_chunk" },
-                    { label: "untier_chunk()", link: "/reference/tiger-cloud/data-tiering/untier_chunk" },
-                    { label: "disable_tiering()", link: "/reference/tiger-cloud/data-tiering/disable_tiering" },
-                  ],
-                },
                 { label: "Tiger CLI", link: "/reference/tiger-cloud/tiger-cli" },
                 { label: "Tiger MCP", link: "/reference/tiger-cloud/tiger-mcp" },
                 DOCS_LOCAL_WITHOUT_STAINLESS
@@ -1948,6 +1936,18 @@ export default defineConfig({
                         excludeResourceOverviewPages: true,
                       }),
                     },
+                {
+                  label: "Data tiering",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/reference/tiger-cloud/data-tiering" },
+                    { label: "add_tiering_policy()", link: "/reference/tiger-cloud/data-tiering/add_tiering_policy" },
+                    { label: "remove_tiering_policy()", link: "/reference/tiger-cloud/data-tiering/remove_tiering_policy" },
+                    { label: "tier_chunk()", link: "/reference/tiger-cloud/data-tiering/tier_chunk" },
+                    { label: "untier_chunk()", link: "/reference/tiger-cloud/data-tiering/untier_chunk" },
+                    { label: "disable_tiering()", link: "/reference/tiger-cloud/data-tiering/disable_tiering" },
+                  ],
+                },
               ],
             },
           ],
