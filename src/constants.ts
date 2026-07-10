@@ -50,6 +50,7 @@ export const REST_LONG = `${PRODUCT_PREFIX} REST API`;
 export const REST_SHORT = 'REST API';
 export const MCP_LONG = `${PRODUCT_PREFIX} MCP`;
 export const MCP_SHORT = `${PRODUCT_PREFIX} MCP`;
+export const CLI_REPO_URL = 'https://github.com/timescale/tiger-cli';
 export const AGENTS_LONG = `${PRODUCT_PREFIX} Agents for Work`;
 export const AGENTS_SHORT = `${PRODUCT_PREFIX} Agent`;
 export const AGENTS_CLI = `${AGENTS_SHORT} CLI`;
