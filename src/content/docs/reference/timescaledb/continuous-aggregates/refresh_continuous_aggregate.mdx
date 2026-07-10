@@ -89,8 +89,8 @@ The syntax is:
 ```sql
 CALL refresh_continuous_aggregate(
     continuous_aggregate = '<view_name>',
-    window_start = <interval>,
-    window_end = <interval>,
+    window_start = <window_start>,
+    window_end = <window_end>,
     force = true | false,
     options = '<jsonb_options>'
 );
@@ -104,11 +104,12 @@ CALL refresh_continuous_aggregate(
 | `force` | BOOLEAN | `FALSE` | - | Force refresh every bucket in the time range between `window_start` and `window_end`, even when the bucket has already been refreshed. This can be very expensive when a lot of data is refreshed. |
 | `options` | JSONB | `NULL` | - | JSONB object with additional options. See [Options](#options). |
 
-You must specify the `window_start` and `window_end` parameters differently,
-depending on the type of the time column of the {C.HYPERTABLE}. For {C.HYPERTABLE}s with
-`TIMESTAMP`, `TIMESTAMPTZ`, and `DATE` time columns, set the refresh window as
-an `INTERVAL` type. For {C.HYPERTABLE}s with integer-based timestamps, set the
-refresh window as an `INTEGER` type.
+Match the type of `window_start` and `window_end` to the time column of the
+{C.HYPERTABLE}. For {C.HYPERTABLE}s with `TIMESTAMP`, `TIMESTAMPTZ`, or `DATE`
+time columns, pass either an absolute timestamp or date, or an `INTERVAL`. An
+`INTERVAL` is interpreted relative to the current transaction time, so
+`window_start => INTERVAL '1 month'` means one month before now. For
+{C.HYPERTABLE}s with integer-based time columns, pass an `INTEGER`.
 
 <Callout variant="note">
   A `NULL` value for `window_start` is equivalent to the lowest changed element
