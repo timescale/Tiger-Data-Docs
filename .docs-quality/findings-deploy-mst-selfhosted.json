@@ -1,0 +1,82 @@
+[
+  {
+    "checklistItem": "D1",
+    "category": "drifted-duplicate",
+    "severity": "high",
+    "pages": ["/deploy/self-hosted/uninstall"],
+    "evidence": "MacPorts tab, step 'Remove TimescaleDB from shared_preload_libraries': `nano /opt/homebrew/var/postgresql@14/postgresql.conf` followed a few steps later by `port reload postgresql` (MacPorts command syntax).",
+    "why": "The MacPorts uninstall steps were evidently copy-pasted from the Homebrew tab (which correctly uses `/opt/homebrew/var/postgresql@17/postgresql.conf`) but the path was only partially adapted: MacPorts does not install under `/opt/homebrew` (that is the Homebrew Apple-Silicon prefix), so a MacPorts user following this step will edit a file that does not exist and never actually disable the timescaledb preload library. It also disagrees with the Homebrew tab's PostgreSQL version (postgresql@14 vs postgresql@17), reinforcing that this is stale, unadapted copy.",
+    "suggestedFix": "Replace the MacPorts config-file path with the actual MacPorts PostgreSQL config location (typically under `/opt/local/var/db/postgresqlNN/defaultdb/postgresql.conf`, matching the port-installed PostgreSQL version), and confirm the target PostgreSQL version matches what `port install timescaledb` currently pulls in.",
+    "deferCheck": "This is not a broken link or build error; it is a factual claim about where a file lives on disk, verifiable by inspecting MacPorts' own install layout, so it is in scope for the engine rather than the link checker or build."
+  },
+  {
+    "checklistItem": "E2",
+    "category": "concept-coherence",
+    "severity": "high",
+    "pages": ["/deploy/mst/failover", "/deploy/mst/about-mst", "/deploy/mst/manage-backups"],
+    "evidence": "failover.mdx intro: 'One standby read-only replica server is configured, for each Managed Service for TimescaleDB service on a Pro plan.' Later in the same page, 'Controlled failover during upgrades': 'When applying upgrades or plan changes on business or premium plans, the standby server is replaced... For premium plans, this step is executed for both replica servers before the master server is replaced.' about-mst.mdx and manage-backups.mdx both name the tiers 'Basic', 'Dev', and 'Pro' throughout (e.g. manage-backups.mdx's retention table: 'Dev | 1 day', 'Basic | 2 days', 'Pro | 3 days').",
+    "why": "The same page uses two different plan-naming schemes for the same concept (service tiers) — 'Pro plan' in the intro, then 'business' and 'premium' plans later — and 'business'/'premium' never appear anywhere else in the current plan-tier vocabulary (about-mst.mdx, manage-backups.mdx), so a reader cannot tell whether their plan is covered by the failover behavior described.",
+    "suggestedFix": "Replace 'business or premium plans' and 'premium plans' in failover.mdx with the current tier names ('Pro plan', and clarify whether the two-replica behavior applies to Pro plans specifically), matching the naming already used in about-mst.mdx and manage-backups.mdx.",
+    "deferCheck": "This is a factual naming contradiction within and across pages describing the same product concept, not a prose/style issue Vale would catch."
+  },
+  {
+    "checklistItem": "F1",
+    "category": "code-identifiers",
+    "severity": "high",
+    "pages": ["/deploy/self-hosted/upgrades/major-upgrade"],
+    "evidence": "'Export your policy settings' step runs: `COPY (SELECT * FROM timescaledb_information.policy_stats) TO policy_stats.csv csv header`, `COPY (SELECT * FROM timescaledb_information.continuous_aggregate_stats) TO continuous_aggregate_stats.csv csv header`, `COPY (SELECT * FROM timescaledb_information.drop_chunks_policies) TO drop_chunk_policies.csv csv header`, and `COPY (SELECT * FROM timescaledb_information.reorder_policies) TO reorder_policies.csv csv header`.",
+    "why": "None of `policy_stats`, `continuous_aggregate_stats`, `drop_chunks_policies`, or `reorder_policies` appear anywhere in the current reference/timescaledb/informational-views pages (which only document `policies`, `jobs`, `job_stats`, `job_history`, `job_errors`, `hypertables`, `continuous_aggregates`, `chunks`, `dimensions`, and the columnstore-settings views) or anywhere else in the corpus. These look like leftover TimescaleDB 1.x views from the original 1-to-2 migration guide, presented here as a required step for any current-day major upgrade; a reader on a supported 2.x install will likely hit 'relation does not exist' errors.",
+    "suggestedFix": "Verify against the current TimescaleDB source/catalog whether these views still exist; if not, replace this step with equivalent queries against `timescaledb_information.policies`/`jobs`/`job_stats`, or scope this step explicitly to legacy TimescaleDB 1.x-to-2.x upgraders only.",
+    "deferCheck": "This flags a suspected-nonexistent identifier for verification against the reference pages (the internal source of truth per the checklist), not a certification that the SQL fails to run — that certification is the doc testing tool's job."
+  },
+  {
+    "checklistItem": "K2",
+    "category": "prose-code-agreement",
+    "severity": "medium",
+    "pages": ["/deploy/self-hosted/tooling/install-toolkit"],
+    "evidence": "Kubernetes tab, 'Uninstall TimescaleDB Toolkit' step: code block `DROP EXTENSION timescaledb_toolkit;` (no CASCADE, no IF EXISTS) immediately followed by `<Callout variant=\"warning\">Using \\`CASCADE\\` drops all objects that depend on the Toolkit extension...</Callout>`. The Docker tab's equivalent step correctly pairs `DROP EXTENSION IF EXISTS timescaledb_toolkit CASCADE;` with the identical warning text.",
+    "why": "The warning talks about the consequences of `CASCADE`, but the Kubernetes command shown doesn't use `CASCADE` at all — a sign the step was duplicated across OS/platform tabs and drifted, leaving a caution that doesn't match the adjacent code.",
+    "suggestedFix": "Add `IF EXISTS ... CASCADE` to the Kubernetes tab's `DROP EXTENSION` command to match the Docker/Linux/macOS tabs and the warning text, or remove the CASCADE-specific warning if CASCADE is intentionally omitted there.",
+    "deferCheck": "This is a factual mismatch between a warning's claim and the code it annotates, not a formatting/callout-variant issue."
+  },
+  {
+    "checklistItem": "K1",
+    "category": "prose-code-agreement",
+    "severity": "medium",
+    "pages": ["/deploy/self-hosted/migration/schema-then-data"],
+    "evidence": "\"If your tables are very large, you can migrate each table in multiple pieces... For example: \\COPY (SELECT * FROM <TABLE_NAME> WHERE time > '2021-11-01' AND time < '2011-11-02') TO <TABLE_NAME_DATE_RANGE>.csv CSV\"",
+    "why": "The end date '2011-11-02' is earlier than the start date '2021-11-01', so as written the WHERE clause can never match any row (an impossible/empty range) — almost certainly a typo for '2021-11-02'. A reader copying this example to split a large table migration would get an empty file with no error, silently losing data from that range.",
+    "suggestedFix": "Change '2011-11-02' to '2021-11-02' so the example date range is valid.",
+    "deferCheck": "This is a factual/logical defect in example code (an internally inconsistent value), not a prose or link issue, and not something the build would catch since the SQL is syntactically valid."
+  },
+  {
+    "checklistItem": "B2",
+    "category": "version-availability",
+    "severity": "medium",
+    "pages": ["/deploy/mst/aiven-client"],
+    "evidence": "'Create a read-only replica' example: `avn service create replica-fork --project fork-project\\n-t pg --plan timescale-basic-100-compute-optimized\\n--cloud timescale-aws-us-east-1 -c pg_read_replica=true\\n-c service_to_fork_from=timescaledb -c\\npg_version=11 -c variant=timescale`",
+    "why": "PostgreSQL 11 is long past its community EOL and other MST/self-hosted pages in this same corpus reference current PostgreSQL 15-18 (for example uninstall.mdx and upgrade-pg.mdx). A copy-pasteable example hardcoding `pg_version=11` is very likely to fail against MST's currently supported PostgreSQL versions or mislead readers about what's supported.",
+    "suggestedFix": "Verify against MST's currently supported PostgreSQL major versions and update the example to a supported version (matching the versions used elsewhere in the deploy docs).",
+    "deferCheck": "This flags a suspected stale/unsupported version in a live example command for verification against the product, not a claim the engine certifies on its own."
+  },
+  {
+    "checklistItem": "O1",
+    "category": "destructive-ops",
+    "severity": "medium",
+    "pages": ["/deploy/self-hosted/replication-and-ha/configure-replication"],
+    "evidence": "'Create a base backup on the replica' > 'Delete the existing data if applicable': \"If the replica database already contains data, delete it before you run the backup, by removing the PostgreSQL data directory: ```rm -rf <DATA_DIRECTORY>/*```\"",
+    "why": "`rm -rf <DATA_DIRECTORY>/*` is an irreversible filesystem deletion shown as a plain instruction with no callout warning about consequences (contrast with uninstall.mdx, which wraps every comparable `rm -rf`/`DROP ... CASCADE` step in an explicit warning Callout). If a reader runs this against the wrong host, or the directory variable is wrong, there is no accompanying caution to stop them.",
+    "suggestedFix": "Add a `<Callout variant=\"warning\">` noting this permanently deletes the target directory's contents and that it must only be run against the replica (never the primary), consistent with how the rest of the deploy docs flag destructive commands.",
+    "deferCheck": "This is a content-completeness gap (a dangerous action lacking its required caution), the exact pattern O1 targets — not a prose/formatting nit."
+  },
+  {
+    "checklistItem": "N2",
+    "category": "lifecycle-staleness",
+    "severity": "low",
+    "pages": ["/deploy/mst/create-mst-service"],
+    "evidence": "Example `\\dx` and connection output: \"psql (13.3, server 13.4)\" and \"Name | timescaledb / Version | 2.5.1 / ... Enables scalable inserts and complex queries for time-series data\"",
+    "why": "These illustrative outputs show PostgreSQL 13 and TimescaleDB 2.5.1, both several years out of date compared to the versions referenced elsewhere in the current deploy docs (PostgreSQL 15-18, TimescaleDB 2.17+); a new user creating a service today would see very different, newer version numbers and might wonder if something is wrong.",
+    "suggestedFix": "Refresh the example psql banner and \\dx output to reflect a current PostgreSQL/TimescaleDB version, or generalize the version numbers so they don't read as a specific expected version.",
+    "deferCheck": "Suspected-only staleness in an illustrative example, flagged per N2's deferral (real current version is a product fact, not certified here) rather than a formatting concern."
+  }
+]
