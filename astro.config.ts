@@ -363,13 +363,20 @@ export default defineConfig({
               ],
             },
             {
-              label: "Tiger Cloud",
+              label: "Tiger Console",
               collapsed: true,
               items: [
                 { label: "5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
                 { label: "Create a Tiger Cloud service", link: "/get-started/quickstart/create-service" },
-                { label: "Get started with the command line", link: "/get-started/quickstart/cli-rest-api" },
-                { label: "Integrate Tiger Cloud with your AI assistant", link: "/get-started/quickstart/mcp-cli" },
+              ],
+            },
+            {
+              label: "Tiger CLI and MCP",
+              collapsed: true,
+              items: [
+                { label: "Get started with Tiger CLI", link: "/get-started/quickstart/tiger-cli" },
+                { label: "Integrate Tiger Cloud with your AI agent", link: "/get-started/quickstart/mcp-cli" },
+                { label: "Get started with the REST API", link: "/get-started/quickstart/rest-api" },
               ],
             },
             {
@@ -1913,18 +1920,6 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Overview", link: "/reference/tiger-cloud" },
-                {
-                  label: "Data tiering",
-                  collapsed: true,
-                  items: [
-                    { label: "Overview", link: "/reference/tiger-cloud/data-tiering" },
-                    { label: "add_tiering_policy()", link: "/reference/tiger-cloud/data-tiering/add_tiering_policy" },
-                    { label: "remove_tiering_policy()", link: "/reference/tiger-cloud/data-tiering/remove_tiering_policy" },
-                    { label: "tier_chunk()", link: "/reference/tiger-cloud/data-tiering/tier_chunk" },
-                    { label: "untier_chunk()", link: "/reference/tiger-cloud/data-tiering/untier_chunk" },
-                    { label: "disable_tiering()", link: "/reference/tiger-cloud/data-tiering/disable_tiering" },
-                  ],
-                },
                 { label: "Tiger CLI", link: "/reference/tiger-cloud/tiger-cli" },
                 { label: "Tiger MCP", link: "/reference/tiger-cloud/tiger-mcp" },
                 DOCS_LOCAL_WITHOUT_STAINLESS
@@ -1945,6 +1940,18 @@ export default defineConfig({
                         excludeResourceOverviewPages: true,
                       }),
                     },
+                {
+                  label: "Data tiering",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/reference/tiger-cloud/data-tiering" },
+                    { label: "add_tiering_policy()", link: "/reference/tiger-cloud/data-tiering/add_tiering_policy" },
+                    { label: "remove_tiering_policy()", link: "/reference/tiger-cloud/data-tiering/remove_tiering_policy" },
+                    { label: "tier_chunk()", link: "/reference/tiger-cloud/data-tiering/tier_chunk" },
+                    { label: "untier_chunk()", link: "/reference/tiger-cloud/data-tiering/untier_chunk" },
+                    { label: "disable_tiering()", link: "/reference/tiger-cloud/data-tiering/disable_tiering" },
+                  ],
+                },
               ],
             },
           ],
@@ -1982,8 +1989,9 @@ export default defineConfig({
       "/get-started/install-timescaledb": "/get-started/choose-your-path/install-timescaledb",
       "/get-started/supported-platforms": "/get-started/choose-your-path/supported-platforms",
       "/get-started/timescaledb-editions": "/get-started/choose-your-path/timescaledb-editions",
-      "/get-started/cli-rest-api": "/get-started/quickstart/cli-rest-api",
-      "/get-started/tools/cli-rest-api": "/get-started/quickstart/cli-rest-api",
+      "/get-started/cli-rest-api": "/get-started/quickstart/tiger-cli",
+      "/get-started/tools/cli-rest-api": "/get-started/quickstart/tiger-cli",
+      "/get-started/quickstart/cli-rest-api": "/get-started/quickstart/tiger-cli",
       "/get-started/mcp-cli": "/get-started/quickstart/mcp-cli",
       "/get-started/tools/mcp-cli": "/get-started/quickstart/mcp-cli",
       "/get-started/key-features-timescale": "/learn/tiger-cloud/tiger-cloud-essentials",
