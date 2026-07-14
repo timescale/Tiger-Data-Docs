@@ -806,7 +806,6 @@ export default defineConfig({
                     { label: "Overview", link: "/integrate/data-engineering-etl" },
                     { label: "Amazon SageMaker", link: "/integrate/data-engineering-etl/amazon-sagemaker" },
                     { label: "Apache Airflow", link: "/integrate/data-engineering-etl/apache-airflow" },
-                    { label: "Apache Kafka", link: "/integrate/data-engineering-etl/apache-kafka" },
                     { label: "AWS Lambda", link: "/integrate/data-engineering-etl/aws-lambda" },
                     { label: "Debezium", link: "/integrate/data-engineering-etl/debezium" },
                     { label: "Decodable", link: "/integrate/data-engineering-etl/decodable" },
@@ -818,12 +817,13 @@ export default defineConfig({
                   collapsed: true,
                   items: [
                     { label: "Overview", link: "/integrate/data-ingestion-streaming" },
+                    { label: "Apache Kafka", link: "/integrate/data-ingestion-streaming/apache-kafka" },
                     { label: "EMQX", link: "/integrate/data-ingestion-streaming/emqx" },
                     { label: "Fivetran", link: "/integrate/data-ingestion-streaming/fivetran" },
                     { label: "HighByte", link: "/integrate/data-ingestion-streaming/highbyte" },
-                    { label: "Kepware KEPServerEX", link: "/integrate/data-ingestion-streaming/kepware-kepserverex" },
                     { label: "HiveMQ", link: "/integrate/data-ingestion-streaming/hivemq" },
                     { label: "Ignition", link: "/integrate/data-ingestion-streaming/ignition" },
+                    { label: "Kepware KEPServerEX", link: "/integrate/data-ingestion-streaming/kepware-kepserverex" },
                     { label: "Litmus Edge", link: "/integrate/data-ingestion-streaming/litmus-edge" },
                     { label: "Node-RED", link: "/integrate/data-ingestion-streaming/node-red" },
                   ],
@@ -1962,6 +1962,7 @@ export default defineConfig({
             "/reference/tiger-cloud-rest": "/reference/tiger-cloud-rest-local-preview",
           }
         : {}),
+      "/integrate/data-engineering-etl/apache-kafka": "/integrate/data-ingestion-streaming/apache-kafka",
       "/api": "/reference/tiger-cloud-rest",
       "/api/api-reference": "/reference/tiger-cloud-rest",
       "/build/data-management/query-data/skipscan": "/build/performance-optimization/skipscan",
@@ -1991,7 +1992,7 @@ export default defineConfig({
       "/deploy/self-hosted/install-and-update/install-self-hosted":
         "/get-started/choose-your-path/install-timescaledb",
       // Content moved from Learn → Build (same pages; old URLs redirect)
-      "/learn/examples": "/build/examples",
+      "/learn/examples": "/build",
       "/learn/examples/simulate-iot-sensor-data": "/build/examples/simulate-iot-sensor-data",
       "/learn/examples/analyze-financial-tick-data": "/build/examples/analyze-financial-tick-data",
       "/learn/examples/ingest-real-time-financial-data": "/build/examples/ingest-real-time-financial-data",
@@ -2001,7 +2002,7 @@ export default defineConfig({
       "/learn/examples/aggregate-organizational-data-with-ai": "/build/examples/aggregate-organizational-data-with-ai",
       "/learn/examples/cookbook": "/build/examples/cookbook",
       "/learn/examples/create-services-with-terraform": "/build/examples/create-services-with-terraform",
-      "/learn/examples/00-template-tutorial-render": "/build/examples/",
+      "/learn/examples/00-template-tutorial-render": "/build",
       "/learn/examples/aggregate-organizational-data-with-ai-2": "/build/examples/aggregate-organizational-data-with-ai",
       "/learn/production-patterns": "/build/",
       "/build/production-patterns": "/build/",
