@@ -546,7 +546,6 @@ export default defineConfig({
                 { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
                 { label: "Build hybrid search with BM25 and vectors", link: "/build/examples/hybrid-search" },
                 { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
-                { label: "All guided projects", link: "/build/examples" },
                 { label: "Simulate an IoT sensor dataset", link: "/build/examples/simulate-iot-sensor-data" },
                 { label: "Visualize financial tick data with Grafana", link: "/build/examples/analyze-financial-tick-data" },
                 { label: "Analyze stock market data", link: "/build/examples/analyze-stock-market-data" },
