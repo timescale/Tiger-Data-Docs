@@ -1,0 +1,508 @@
+---
+title: Analyze NYC taxi data
+description: Get started with TimescaleDB using New York City taxi trip data, with location-based analytics and time-series aggregations
+products: [self_hosted]
+keywords: [NYC taxi, columnstore, time_bucket, segmentby, analytics, time-series, transportation, Docker]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+Get started with {C.TIMESCALE_DB} using New York City taxi trip data. This example demonstrates how to handle high-volume transportation data with location-based analytics and time-series aggregations.
+
+If you would rather visualize a taxi-style dataset on a live dashboard, see [Visualize transport and geospatial data with Grafana](/build/examples/analyze-transport-data).
+
+## What you learn
+
+- How to model high-volume transportation data with latitude and longitude coordinates.
+- Time-series aggregations with `time_bucket()`.
+- Optimal segmentation strategies for compression.
+- Revenue and usage pattern analysis.
+- Loading data with direct to {C.COLUMNSTORE} for instant performance.
+
+<Prerequisites context="tutorial">
+
+- Docker installed
+- The `psql` {C.PG} client
+
+</Prerequisites>
+
+## Set up and query the data
+
+<NumberedList>
+<NumberedItem title={`Start ${C.TIMESCALE_DB}`}>
+
+Start {C.TIMESCALE_DB} using one of these options.
+
+<Tabs>
+<TabItem label="One-line install (recommended)">
+
+The easiest way to get started:
+
+<Callout variant="important">
+This script is intended for local development and testing only. Do not use it for production deployments. For production-ready installation options, see the [{C.TIMESCALE_DB} installation guide](/get-started/choose-your-path/install-timescaledb).
+</Callout>
+
+On Linux or Mac:
+
+```sh
+curl -sL https://tsdb.co/start-local | sh
+```
+
+This command:
+
+- Downloads and starts {C.TIMESCALE_DB}, if not already downloaded.
+- Exposes {C.PG} on port `6543`, a non-standard port that avoids conflicts with other {C.PG} instances on port 5432.
+- Automatically tunes settings for your environment using timescaledb-tune.
+- Sets up a persistent data volume.
+
+</TabItem>
+<TabItem label="Manual Docker command">
+
+Run {C.TIMESCALE_DB} directly with Docker. This option also works on Windows:
+
+```bash
+docker run -d --name timescaledb \
+    -p 6543:5432 \
+    -e POSTGRES_PASSWORD=password \
+    timescale/timescaledb-ha:pg18
+```
+
+This example uses port `6543`, mapped to container port 5432, to avoid conflicts if you have other {C.PG} instances running on the standard port 5432.
+
+</TabItem>
+</Tabs>
+
+Wait about 1 to 2 minutes for {C.TIMESCALE_DB} to download and initialize.
+
+</NumberedItem>
+<NumberedItem title={`Connect to ${C.TIMESCALE_DB}`}>
+
+Connect using `psql`:
+
+```bash
+psql -h localhost -p 6543 -U postgres
+# When prompted, enter password: password
+```
+
+You should see the {C.PG} prompt. Verify {C.TIMESCALE_DB} is installed:
+
+```sql
+SELECT extname, extversion FROM pg_extension WHERE extname = 'timescaledb';
+```
+
+Expected output:
+
+```
+   extname   | extversion
+-------------+------------
+ timescaledb | 2.x.x
+```
+
+<Callout variant="tip">
+Prefer a GUI? If you would rather use a graphical tool instead of the command line, you can download [pgAdmin](https://www.pgadmin.org/download/) and connect to {C.TIMESCALE_DB} using the same connection details (host: `localhost`, port: `6543`, user: `postgres`, password: `password`).
+</Callout>
+
+</NumberedItem>
+<NumberedItem title="Create the schema">
+
+Create the optimized {C.HYPERTABLE} by running this SQL in your `psql` session:
+
+```sql
+-- Create the hypertable with optimal settings for NYC Taxi data
+-- This automatically enables columnstore for fast analytical queries
+CREATE TABLE trips (
+    vendor_id TEXT,
+    pickup_boroname VARCHAR,
+    pickup_datetime TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    dropoff_datetime TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    passenger_count NUMERIC,
+    trip_distance NUMERIC,
+    pickup_longitude NUMERIC,
+    pickup_latitude NUMERIC,
+    rate_code INTEGER,
+    dropoff_longitude NUMERIC,
+    dropoff_latitude NUMERIC,
+    payment_type VARCHAR,
+    fare_amount NUMERIC,
+    extra NUMERIC,
+    mta_tax NUMERIC,
+    tip_amount NUMERIC,
+    tolls_amount NUMERIC,
+    improvement_surcharge NUMERIC,
+    total_amount NUMERIC
+) WITH (
+    tsdb.hypertable,
+    tsdb.partition_column='pickup_datetime',
+    tsdb.enable_columnstore=true,
+    tsdb.segmentby='pickup_boroname',
+    tsdb.orderby='pickup_datetime DESC'
+);
+
+-- Create indexes 
+CREATE INDEX idx_trips_pickup_time ON trips (pickup_datetime DESC);
+CREATE INDEX idx_trips_borough_time ON trips (pickup_boroname, pickup_datetime DESC);
+```
+
+This creates a `trips` table with:
+
+- Automatic time-based partitioning on `pickup_datetime`.
+- {C.COLUMNSTORE_CAP} enabled for fast analytical queries.
+- Segmentation by `pickup_boroname` for optimal compression (6 boroughs).
+- Full trip details including fares, distances, and coordinates.
+
+You can also download the schema, with column comments, as a runnable script: [`nyc-taxi-schema.sql`](/files/nyc-taxi/nyc-taxi-schema.sql).
+
+</NumberedItem>
+<NumberedItem title="Load the sample data">
+
+First, download and decompress the sample data:
+
+```bash
+# Download the sample data
+wget https://assets.timescale.com/timescaledb-datasets/nyc_taxi_sample_nov_dec_2015.csv.gz
+
+# Decompress the CSV file
+gunzip nyc_taxi_sample_nov_dec_2015.csv.gz
+
+# This will create nyc_taxi_sample_nov_dec_2015.csv ready for loading
+```
+
+Load the data using one of these approaches.
+
+<Tabs>
+<TabItem label={`Direct to ${C.COLUMNSTORE} (recommended)`}>
+
+This approach writes data directly to the {C.COLUMNSTORE}, bypassing the {C.ROWSTORE} entirely. You get instant analytical performance.
+
+From the command line:
+
+```bash
+psql -h localhost -p 6543 -U postgres \
+  -v ON_ERROR_STOP=1 \
+  -c "SET timescaledb.enable_direct_compress_copy = on;
+      COPY trips FROM STDIN WITH (FORMAT csv, HEADER true);" \
+  < nyc_taxi_sample_nov_dec_2015.csv
+```
+
+This command reads the CSV file from your local filesystem and pipes it to {C.PG}, which loads it directly into the {C.COLUMNSTORE}.
+
+Verify the data loaded:
+
+```sql
+SELECT COUNT(*) FROM trips;
+```
+
+</TabItem>
+<TabItem label="Standard COPY (fallback)">
+
+This approach loads data into the {C.ROWSTORE} first. Data is converted to the {C.COLUMNSTORE} by a background policy (12 to 24 hours) for faster querying.
+
+From the command line:
+
+```bash
+psql -h localhost -p 6543 -U postgres \
+  -v ON_ERROR_STOP=1 \
+  -c "COPY trips FROM STDIN WITH (FORMAT csv, HEADER true);" \
+  < nyc_taxi_sample_nov_dec_2015.csv
+```
+
+Verify the data loaded:
+
+```sql
+SELECT COUNT(*) FROM trips;
+```
+
+If you loaded data using standard copy, a background process converts your {C.ROWSTORE} data to the {C.COLUMNSTORE} in 12 to 24 hours. To get the best query performance immediately, you can convert it manually:
+
+```sql
+DO $$
+DECLARE ch TEXT;
+BEGIN
+    FOR ch IN SELECT show_chunks('trips') LOOP
+        CALL convert_to_columnstore(ch);
+    END LOOP;
+END $$;
+```
+
+</TabItem>
+</Tabs>
+
+</NumberedItem>
+<NumberedItem title="Run sample queries">
+
+Now explore the data with some analytical queries. Run these in your `psql` session.
+
+Query 1: overall statistics.
+
+```sql
+\timing on
+
+SELECT
+    COUNT(*) as total_trips,
+    ROUND(SUM(fare_amount)::numeric, 2) as total_revenue,
+    ROUND(AVG(fare_amount)::numeric, 2) as avg_fare,
+    ROUND(AVG(trip_distance)::numeric, 2) as avg_distance
+FROM trips;
+```
+
+Query 2: breakdown by vendor.
+
+```sql
+SELECT
+    vendor_id,
+    COUNT(*) as trips,
+    ROUND(AVG(fare_amount)::numeric, 2) as avg_fare,
+    ROUND(AVG(tip_amount)::numeric, 2) as avg_tip,
+    ROUND(AVG(passenger_count)::numeric, 2) as avg_passengers
+FROM trips
+GROUP BY vendor_id
+ORDER BY trips DESC;
+```
+
+Query 3: hourly patterns using `time_bucket`.
+
+```sql
+SELECT
+    time_bucket('1 hour', pickup_datetime) AS hour,
+    COUNT(*) as trips,
+    ROUND(AVG(fare_amount)::numeric, 2) as avg_fare,
+    ROUND(SUM(tip_amount)::numeric, 2) as total_tips
+FROM trips
+GROUP BY hour
+ORDER BY hour DESC
+LIMIT 24;
+```
+
+Query 4: payment type analysis.
+
+```sql
+SELECT
+    payment_type,
+    COUNT(*) as trip_count,
+    ROUND(SUM(fare_amount)::numeric, 2) as total_revenue,
+    ROUND(AVG(trip_distance)::numeric, 2) as avg_distance,
+    ROUND(AVG(tip_amount)::numeric, 2) as avg_tip
+FROM trips
+GROUP BY payment_type
+ORDER BY total_revenue DESC;
+```
+
+Query 5: daily statistics by borough.
+
+```sql
+SELECT
+    time_bucket('1 day', pickup_datetime) AS day,
+    pickup_boroname,
+    COUNT(*) as trips,
+    ROUND(AVG(fare_amount)::numeric, 2) as avg_fare,
+    ROUND(MAX(fare_amount)::numeric, 2) as max_fare
+FROM trips
+GROUP BY day, pickup_boroname
+ORDER BY day DESC, pickup_boroname
+LIMIT 20;
+```
+
+Query 6: trips by distance category.
+
+```sql
+SELECT
+    CASE
+        WHEN trip_distance < 1 THEN 'Short (< 1 mile)'
+        WHEN trip_distance < 5 THEN 'Medium (1-5 miles)'
+        WHEN trip_distance < 10 THEN 'Long (5-10 miles)'
+        ELSE 'Very Long (> 10 miles)'
+    END as distance_category,
+    COUNT(*) as trips,
+    ROUND(AVG(fare_amount)::numeric, 2) as avg_fare,
+    ROUND(AVG(tip_amount)::numeric, 2) as avg_tip
+FROM trips
+GROUP BY distance_category
+ORDER BY trips DESC;
+```
+
+</NumberedItem>
+</NumberedList>
+
+## Sample queries explained
+
+You can download the complete set of queries as a runnable script: [`nyc-taxi-queries.sql`](/files/nyc-taxi/nyc-taxi-queries.sql). Run it with `psql -f nyc-taxi-queries.sql`. Each query demonstrates:
+
+1. Total trips and revenue: simple aggregations across all data.
+1. Breakdown by vendor: segmentation analysis by taxi vendor.
+1. Hourly patterns: using `time_bucket()` for time-based aggregation.
+1. Payment type analysis: analyzing payment methods.
+1. Daily statistics: multi-dimensional aggregation (time and borough).
+1. Distance categories: `CASE` statement with aggregations.
+
+## What's happening behind the scenes?
+
+### {C.HYPERTABLE_CAP}s
+
+When you create a table with `tsdb.hypertable`, {C.TIMESCALE_DB} automatically:
+
+- Partitions your data into time-based {C.CHUNK}s (default: 7 days per {C.CHUNK}).
+- Manages {C.CHUNK} lifecycle automatically.
+- Optimizes queries to scan only relevant {C.CHUNK}s.
+
+### {C.COLUMNSTORE_CAP} compression
+
+With `tsdb.enable_columnstore=true`:
+
+- Data is stored in a hybrid row-columnar format.
+- Analytical queries only scan the columns they need, for a large speedup.
+- Typical compression ratios: 90% or more for time-series data.
+- Compression happens transparently, with no changes to your queries.
+
+### Direct to {C.COLUMNSTORE}
+
+When you use `SET timescaledb.enable_direct_compress_copy = on`:
+
+- Data loads directly into compressed {C.COLUMNSTORE} format.
+- Bypasses the {C.ROWSTORE} entirely.
+- Provides instant analytical performance, with no waiting for background compression.
+- Works well for bulk data loads and migrations.
+
+### Segmentation
+
+The `tsdb.segmentby='pickup_boroname'` setting:
+
+- Groups data by pickup borough within each {C.CHUNK} (6 unique values: Manhattan, Brooklyn, Queens, Bronx, Staten Island, EWR).
+- Improves compression ratios by keeping similar data together.
+- Speeds up queries that filter by `pickup_boroname`.
+- Provides better cardinality than `vendor_id` (6 values versus 2) for optimal compression.
+- Is automatically optimized without manual tuning.
+
+### time_bucket() function
+
+The `time_bucket()` function is like {C.PG}'s `date_trunc()` but more powerful:
+
+- Works with any interval: `5 minutes`, `1 hour`, `1 day`, and so on.
+- Is optimized for time-series queries.
+- Integrates seamlessly with {C.CAGG}s.
+- Is essential for time-series analytics.
+
+## Schema design choices
+
+Why these settings?
+
+**partition_column='pickup_datetime'**
+
+- Time is the natural partition key for time-series data.
+- Enables automatic {C.CHUNK} pruning for time-range queries.
+- The default {C.CHUNK} interval (7 days) works well for taxi data.
+
+**segmentby='pickup_boroname'**
+
+- Optimal cardinality with 6 borough values (Manhattan, Brooklyn, Queens, Bronx, Staten Island, EWR).
+- Frequently used in `WHERE` clauses and `GROUP BY` for location-based analytics.
+- Improves compression by grouping geographically similar trips.
+- Better than `vendor_id` (only 2 values) for compression efficiency.
+
+**orderby='pickup_datetime DESC'**
+
+- Most queries want recent data first.
+- Optimizes for latest-trips queries.
+- Improves query performance for time-range scans.
+
+## Continuous aggregates (Advanced)
+
+For real-time dashboards, you can create {C.CAGG}s that automatically update:
+
+```sql
+-- Create a continuous aggregate for hourly statistics by borough
+CREATE MATERIALIZED VIEW trips_hourly
+WITH (timescaledb.continuous) AS
+SELECT
+    time_bucket('1 hour', pickup_datetime) AS hour,
+    pickup_boroname,
+    COUNT(*) as trip_count,
+    AVG(fare_amount) as avg_fare,
+    SUM(fare_amount) as total_revenue,
+    AVG(trip_distance) as avg_distance
+FROM trips
+GROUP BY hour, pickup_boroname;
+
+-- Add a refresh policy to keep it updated
+SELECT add_continuous_aggregate_policy('trips_hourly',
+    start_offset => INTERVAL '2 hours',
+    end_offset => INTERVAL '1 hour',
+    schedule_interval => INTERVAL '1 hour');
+```
+
+Now you can query `trips_hourly` for instant results on pre-aggregated data.
+
+## Troubleshooting
+
+### Data didn't load
+
+- Check the CSV file path is correct.
+- Ensure the CSV header matches the schema columns.
+- Try loading a few rows first to test: `LIMIT 10` in your data file.
+
+### Direct to {C.COLUMNSTORE} not working
+
+- Verify {C.TIMESCALE_DB} version 2.24 or later: `SELECT extversion FROM pg_extension WHERE extname = 'timescaledb';`.
+- Ensure you ran `SET timescaledb.enable_direct_compress_copy = on;` in the same session.
+- Check for error messages in the output.
+
+### Queries seem slow
+
+- Verify the {C.COLUMNSTORE} is enabled: `SELECT * FROM timescaledb_information.hypertables WHERE hypertable_name = 'trips';`.
+- Check if data is compressed: `SELECT * FROM timescaledb_information.chunks WHERE hypertable_name = 'trips';`.
+- Ensure you're querying with time ranges, which enables {C.CHUNK} exclusion.
+
+### Out of memory during load
+
+- Reduce batch size in the `COPY` command.
+- Increase Docker memory allocation.
+- Consider loading data in smaller time-range batches.
+
+## Use cases
+
+This NYC Taxi example demonstrates patterns applicable to:
+
+- **Ride-sharing platforms**: track trips, drivers, and pricing.
+- **Fleet management**: vehicle tracking and route optimization.
+- **Delivery services**: order tracking, delivery times, and driver analytics.
+- **Public transportation**: route analysis, passenger counts, and schedule optimization.
+- **Urban planning**: traffic patterns, popular routes, and demand forecasting.
+- **Logistics**: shipment tracking, route efficiency, and cost analysis.
+
+## Clean up
+
+When you're done experimenting, remove the container and data.
+
+If you used the one-line install:
+
+```bash
+# Stop the container
+docker stop timescaledb-ha-pg18-quickstart
+
+# Remove the container
+docker rm timescaledb-ha-pg18-quickstart
+
+# Remove the persistent data volume
+docker volume rm timescaledb_data
+
+# (Optional) Remove the Docker image
+docker rmi timescale/timescaledb-ha:pg18
+```
+
+If you used the manual Docker command:
+
+```bash
+# Stop the container
+docker stop timescaledb
+
+# Remove the container
+docker rm timescaledb
+
+# (Optional) Remove the Docker image
+docker rmi timescale/timescaledb-ha:pg18
+```
+
+If you created a named volume with the manual Docker command, you can remove it with `docker volume rm <volume_name>`.
