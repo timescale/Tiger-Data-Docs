@@ -28,7 +28,7 @@ This page replaces the older [Live migration](/migrate/live-migration) workflow.
 The migration runs in four stages:
 
 1. **Schema migration:** export structure from the source, apply it to the target.
-2. **Initial data copy:** bulk `COPY` at 300 GB/hr to 2.2 TB/hr depending on `--table-sync-workers` tuning, target bandwidth, and IOPS. Publication tables are copied in parallel; large individual tables still use a single connection. Foreign key validation is disabled during sync.
+2. **Initial data copy:** bulk `COPY` at 300 GB/hr to 2.2 TB/hr depending on `--table-sync-workers` tuning, target bandwidth, and IOPS. Publication tables are copied in parallel; large individual tables still use a single connection, except {C.PG} declarative partitioned tables published with `publish_via_partition_root = false`, which Livesync (v0.23.0 and later) copies leaf partition by leaf partition in parallel, the same way hypertable chunks are copied. Foreign key validation is disabled during sync.
 3. **CDC:** real-time replication of ongoing changes up to 50K operations per second.
 4. **Cutover:** validate, stop sync, switch the application connection strings.
 
@@ -651,7 +651,13 @@ docker run -it --rm --name livesync-refresh \
   --target "$TARGET"
 ```
 
-If you have {C.PG} declarative partitioned tables in the publication:
+If you have {C.PG} declarative partitioned tables in the publication, leave `publish_via_partition_root` at its {C.PG} default of `false`. Since Livesync v0.23.0, this makes the initial copy of the partitioned table both parallel (each leaf partition is copied by its own worker, like hypertable chunks) and resumable (already-copied leaves aren't recopied if the sync is interrupted):
+
+```sql
+ALTER PUBLICATION <publication_name> SET (publish_via_partition_root = false);
+```
+
+Set `publish_via_partition_root = true` only if you need the older serial, whole-table copy, for example for compatibility with a Livesync version older than v0.23.0:
 
 ```sql
 ALTER PUBLICATION <publication_name> SET (publish_via_partition_root = true);
