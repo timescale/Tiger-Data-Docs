@@ -529,19 +529,20 @@ export default defineConfig({
           link: "/build",
           sidebar: [
             { label: "Overview", link: "/build" },
-            // --- Get hands on: merged Tutorials + How-to + Examples ---
+            // --- Quickstarts ---
             {
-              label: "Get hands on",
+              label: "Quickstarts",
               collapsed: true,
               items: [
-                {
-                  label: "Quickstarts",
-                  collapsed: true,
-                  items: [
-                    { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-                    { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
-                  ],
-                },
+                { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
+                { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
+              ],
+            },
+            // --- Tutorials: combined tutorials, guided projects, and cookbook ---
+            {
+              label: "Tutorials",
+              collapsed: true,
+              items: [
                 {
                   label: "Tutorials",
                   collapsed: true,
