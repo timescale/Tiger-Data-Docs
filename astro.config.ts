@@ -930,6 +930,7 @@ export default defineConfig({
                   collapsed: true,
                   items: [
                     { label: "Overview", link: "/integrate/configuration-deployment" },
+                    { label: "CloudNativePG", link: "/integrate/configuration-deployment/cloudnativepg" },
                     { label: "Kubernetes", link: "/integrate/configuration-deployment/kubernetes" },
                     { label: "Terraform", link: "/integrate/configuration-deployment/terraform" },
                   ],
