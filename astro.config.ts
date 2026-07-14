@@ -543,6 +543,7 @@ export default defineConfig({
               label: "Tutorials",
               collapsed: true,
               items: [
+                { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
                 { label: "Simulate an IoT sensor dataset", link: "/build/examples/simulate-iot-sensor-data" },
                 { label: "Ingest real-time financial data", link: "/build/examples/ingest-real-time-financial-data" },
                 { label: "Analyze application events with UUIDv7", link: "/build/examples/analyze-events-with-uuidv7" },
@@ -554,7 +555,6 @@ export default defineConfig({
                 { label: "Analyze energy consumption", link: "/build/examples/analyze-energy-consumption" },
                 { label: "Visualize financial tick data with Grafana", link: "/build/examples/analyze-financial-tick-data" },
                 { label: "Visualize transport and geospatial data with Grafana", link: "/build/examples/analyze-transport-data" },
-                { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
                 { label: "Tiger Data cookbook", link: "/build/examples/cookbook" },
               ],
             },
