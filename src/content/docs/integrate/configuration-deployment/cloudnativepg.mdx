@@ -1,0 +1,396 @@
+---
+title: "Integrate TimescaleDB with CloudNativePG on Kubernetes"
+description: "Deploy and operate TimescaleDB on Kubernetes with CloudNativePG for production-ready time-series workloads"
+products: [self_hosted]
+integrationCategory: "configuration-deployment"
+integrationPlatforms: ["self-hosted"]
+integrationIndustry: ["iot", "infrastructure", "fintech"]
+keywords: ["kubernetes", "cloudnativepg", "postgres operator", "container orchestration", "database automation", "high availability", "time-series"]
+integrationCardLogo: "kubernetes.png"
+sidebar:
+  label: "CloudNativePG"
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+import AuthorByline from "@components/AuthorByline.astro";
+
+<AuthorByline
+  name="Husn E Rabbi"
+  githubUsername="shusaan"
+  linkedinUrl="http://www.linkedin.com/in/husn-e-rabbi"
+/>
+
+Managing {C.POSTGRESQL} on Kubernetes has come a long way. While deploying a database is relatively straightforward, operating it reliably in production is where the real challenge begins.
+
+Backups, failover, upgrades, monitoring, and disaster recovery all require careful planning. Traditionally, this meant combining Helm charts with custom scripts or manually managing {C.POSTGRESQL} images as requirements evolved.
+
+[CloudNativePG](https://cloudnative-pg.io/) takes a different approach.
+
+Rather than treating {C.POSTGRESQL} as just another container, CloudNativePG manages it as a Kubernetes-native resource. You declare the desired state of your {C.POSTGRESQL} cluster, and the operator continuously reconciles the cluster to match it. Tasks such as provisioning, failover, backups, rolling updates, and lifecycle management become automated.
+
+With CloudNativePG's {C.POSTGRESQL} extension containers, you can also deploy {C.TIMESCALE_DB} without maintaining custom {C.POSTGRESQL} images. {C.POSTGRESQL} and its extensions are managed independently, making upgrades significantly easier.
+
+This integration guide walks you through deploying {C.TIMESCALE_DB} on CloudNativePG, enabling the extension, and creating your first hypertable.
+
+<Prerequisites context="integration">
+- Kubernetes cluster (v1.31 or later recommended)
+- `kubectl` configured
+- A default StorageClass
+- Cluster-admin permissions
+- A running Kubernetes node with persistent storage
+</Prerequisites>
+
+## Architecture Overview
+
+The deployment architecture is intentionally simple.
+
+```text
++------------------------------------------------+
+|                Kubernetes Cluster              |
++------------------------------------------------+
+                    |
+                    ▼
+        CloudNativePG Operator
+                    |
+                    ▼
+         PostgreSQL Cluster (CNPG)
+                    |
+                    ▼
+    TimescaleDB OSS Extension Container
+                    |
+                    ▼
+     Time-Series Applications & Services
+```
+
+CloudNativePG manages the {C.POSTGRESQL} cluster lifecycle, while the {C.TIMESCALE_DB} extension container provides the required extension binaries. This separation allows {C.POSTGRESQL} and extensions to evolve independently.
+
+## Why Extension Containers?
+
+Historically, installing {C.POSTGRESQL} extensions in Kubernetes often required building and maintaining custom {C.POSTGRESQL} images.
+
+That approach introduces several operational challenges:
+
+- Custom image maintenance
+- Rebuilding images for {C.POSTGRESQL} upgrades
+- Managing extension compatibility
+- Larger CI/CD pipelines
+- More complex image security scanning
+
+CloudNativePG extension containers eliminate these problems. Instead of embedding every extension into the {C.POSTGRESQL} image, extensions are packaged separately. During cluster initialization, CloudNativePG mounts the extension container into {C.POSTGRESQL}, making the extension available without modifying the base database image.
+
+This keeps {C.POSTGRESQL} images small, simplifies upgrades, and makes extension lifecycle management significantly cleaner.
+
+## Verify Kubernetes Feature Gates
+
+CloudNativePG extension containers rely on the Kubernetes `ImageVolume` feature. Ensure your Kubernetes cluster supports this feature before continuing.
+
+If you're using a managed Kubernetes service, consult your provider's documentation to verify support.
+
+To confirm the API server has the feature gate enabled, run:
+
+```bash
+kubectl get pods -n kube-system \
+  -l component=kube-apiserver \
+  -o yaml | grep -A 20 "containers:" | grep -E "args:|feature-gates"
+```
+
+You should see output similar to:
+
+```text
+--feature-gates=ImageVolume=true
+```
+
+If the feature gate is not enabled, extension containers will not function correctly.
+
+## Creating a Local Kubernetes Cluster with Kind
+
+If you don't already have a Kubernetes cluster available, Kind (Kubernetes in Docker) is one of the easiest ways to create a local development environment.
+
+Create a configuration file named `kind-config.yaml`.
+
+```yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ops
+featureGates:
+  ImageVolume: true
+```
+
+Create the cluster:
+
+```bash
+kind create cluster --config kind-config.yaml
+```
+
+Check the nodes:
+
+```bash
+kubectl get nodes
+```
+
+You should see something similar to:
+
+```text
+NAME                 STATUS   ROLES           AGE   VERSION
+ops-control-plane    Ready    control-plane   1m    v1.34.x
+```
+
+## Installing CloudNativePG
+
+At the time of writing, CloudNativePG 1.30 is the latest stable release in the 1.30 series.
+
+<NumberedList>
+  <NumberedItem title="Install the operator">
+    Install the operator:
+
+    ```bash
+    kubectl apply --server-side -f \
+      https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.30/releases/cnpg-1.30.0.yaml
+    ```
+  </NumberedItem>
+  <NumberedItem title="Verify that the operator is running">
+    Verify that the operator is running:
+
+    ```bash
+    kubectl rollout status deployment -n cnpg-system cnpg-controller-manager
+    ```
+
+    Once the deployment is successfully rolled out, your Kubernetes cluster is ready to manage {C.POSTGRESQL} resources.
+  </NumberedItem>
+</NumberedList>
+
+## Deploying TimescaleDB
+
+### Step 1 – Create the PostgreSQL Cluster
+
+Create a file named `cluster-timescaledb.yaml`.
+
+```yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cluster-timescaledb
+spec:
+  imageName: ghcr.io/cloudnative-pg/postgresql:18-system-trixie
+  instances: 1
+  storage:
+    size: 1Gi
+  postgresql:
+    shared_preload_libraries:
+      - "timescaledb"
+    parameters:
+      timescaledb.telemetry_level: 'off'
+      max_locks_per_transaction: '128'
+    extensions:
+      - name: timescaledb-oss
+        image:
+          reference: ghcr.io/cloudnative-pg/timescaledb-oss:2.27.2-18-trixie
+```
+
+A few things are worth noting:
+
+- `2.27.2` is the {C.TIMESCALE_DB} version.
+- `18` represents the {C.POSTGRESQL} major version.
+- `trixie` indicates the Debian base image.
+
+Deploy the cluster:
+
+```bash
+kubectl apply -f cluster-timescaledb.yaml
+```
+
+CloudNativePG provisions the {C.POSTGRESQL} instance and automatically mounts the {C.TIMESCALE_DB} extension container.
+
+### Step 2 – Create a Database
+
+Create `database-timescaledb.yaml`.
+
+```yaml
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: cluster-timescaledb-app
+spec:
+  name: app
+  owner: app
+  cluster:
+    name: cluster-timescaledb
+  extensions:
+    - name: timescaledb
+      version: "2.27.2"
+```
+
+Apply it:
+
+```bash
+kubectl apply -f database-timescaledb.yaml
+```
+
+CloudNativePG creates the database and enables the {C.TIMESCALE_DB} extension automatically.
+
+### Step 3 – Verify Installation
+
+After deploying the cluster and database resources, connect to {C.POSTGRESQL} and verify that the {C.TIMESCALE_DB} extension has been installed successfully.
+
+<NumberedList>
+  <NumberedItem title="Open a shell inside the PostgreSQL pod">
+    Open a shell inside the PostgreSQL pod:
+
+    ```bash
+    kubectl exec -it cluster-timescaledb-1 -- sh
+    ```
+  </NumberedItem>
+  <NumberedItem title="Launch the PostgreSQL client">
+    Launch the PostgreSQL client:
+
+    ```bash
+    psql
+    ```
+  </NumberedItem>
+  <NumberedItem title="Connect to the application database">
+    Connect to the application database:
+
+    ```sql
+    \c app
+    ```
+  </NumberedItem>
+  <NumberedItem title="List installed extensions">
+    List installed extensions:
+
+    ```sql
+    \dx
+    ```
+
+    You should see output similar to:
+
+    ```text
+                   List of installed extensions
+        Name     | Version |   Schema   |         Description
+    -------------+---------+------------+------------------------------
+     plpgsql     | 1.0     | pg_catalog | PL/pgSQL procedural language
+     timescaledb | 2.27.2  | public     | TimescaleDB OSS
+    ```
+
+    The {C.TIMESCALE_DB} extension is now active and ready for use.
+  </NumberedItem>
+</NumberedList>
+
+## Creating Your First Hypertable
+
+Create a hypertable for sensor readings.
+
+```sql
+CREATE TABLE sensor_data (
+  time TIMESTAMPTZ NOT NULL,
+  sensor_id INTEGER,
+  temperature DOUBLE PRECISION,
+  humidity DOUBLE PRECISION
+) WITH (tsdb.hypertable, tsdb.partition_column = 'time');
+```
+
+Unlike regular {C.POSTGRESQL} tables, hypertables automatically partition data by time while presenting a single logical table to applications.
+
+### Insert Sample Data
+
+Populate the table with some test data.
+
+```sql
+INSERT INTO sensor_data
+SELECT
+    NOW() - (g || ' minutes')::interval,
+    (random()*10)::int,
+    random()*30,
+    random()*100
+FROM generate_series(1,10000) g;
+```
+
+### Query Time-Series Data
+
+Now let's use one of {C.TIMESCALE_DB}'s most popular functions.
+
+Calculate the average temperature per hour.
+
+```sql
+SELECT
+  time_bucket('1 hour', time) AS bucket,
+  avg(temperature) AS avg_temperature
+FROM sensor_data
+GROUP BY bucket
+ORDER BY bucket;
+```
+
+The `time_bucket()` function groups timestamps into fixed intervals, making time-series aggregations both intuitive and efficient. This is one of the key capabilities that distinguishes {C.TIMESCALE_DB} from standard {C.POSTGRESQL}.
+
+## Production Considerations
+
+This guide intentionally keeps the deployment simple. For production environments, you'll typically want to enable additional capabilities.
+
+### High Availability
+
+Deploy multiple {C.POSTGRESQL} instances.
+
+```yaml
+instances: 3
+```
+
+CloudNativePG automatically manages leader election and failover.
+
+### Automated Backups
+
+CloudNativePG supports several backup strategies:
+
+- S3-compatible object storage
+- Google Cloud Storage
+- Azure Blob Storage
+- CSI VolumeSnapshots
+
+Choose the approach that aligns with your storage platform and recovery objectives.
+
+### Point-in-Time Recovery
+
+CloudNativePG supports restoring your database to an exact point in time using archived WAL files.
+
+This capability is essential for recovering from accidental deletes or application errors.
+
+### Monitoring
+
+Production databases should expose metrics to Prometheus and visualize them using Grafana dashboards.
+
+Typical metrics include:
+
+- Query latency
+- Replication lag
+- Storage usage
+- WAL generation
+- Connection count
+
+### Storage
+
+Database performance depends heavily on storage.
+
+Use SSD-backed persistent volumes with an appropriate StorageClass, and size volumes based on expected data growth and retention requirements.
+
+### Upgrading PostgreSQL and TimescaleDB
+
+One advantage of CloudNativePG extension containers is that {C.POSTGRESQL} and extension upgrades become independent operations.
+
+Instead of rebuilding custom {C.POSTGRESQL} images every time a new {C.TIMESCALE_DB} release becomes available, you can update the extension container version while allowing CloudNativePG to manage {C.POSTGRESQL} upgrades according to its lifecycle.
+
+This significantly reduces operational overhead and helps keep both {C.POSTGRESQL} and {C.TIMESCALE_DB} current with minimal effort.
+
+## Conclusion
+
+CloudNativePG and {C.TIMESCALE_DB} complement each other exceptionally well.
+
+CloudNativePG simplifies {C.POSTGRESQL} operations through Kubernetes-native automation, while {C.TIMESCALE_DB} extends {C.POSTGRESQL} with powerful time-series capabilities such as hypertables and time-based analytics.
+
+Together they provide a clean, declarative, and production-ready platform for building time-series applications on Kubernetes.
+
+By leveraging CloudNativePG's extension container framework, you can avoid maintaining custom {C.POSTGRESQL} images, simplify upgrades, and keep your deployment aligned with cloud-native best practices.
+
+Whether you're collecting IoT telemetry, monitoring infrastructure, processing financial events, or analyzing application metrics, this architecture provides a scalable foundation with minimal operational complexity.
