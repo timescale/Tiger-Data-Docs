@@ -357,7 +357,8 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Compare Tiger Data products", link: "/get-started/feature-comparison" },
-                { label: "Cloud-exclusive features", link: "/get-started/cloud-exclusive-features" },
+                { label: "Why Tiger Cloud", link: "/get-started/cloud-exclusive-features" },
+                { label: "Why TimescaleDB Enterprise", link: "/learn/enterprise/enterprise-exclusive-features" },
                 { label: "Compare TimescaleDB editions", link: "/get-started/choose-your-path/timescaledb-editions" },
                 { label: "Supported platforms", link: "/get-started/choose-your-path/supported-platforms" },
               ],
@@ -389,6 +390,16 @@ export default defineConfig({
               ],
             },
             {
+              label: "TimescaleDB Enterprise",
+              collapsed: true,
+              items: [
+                { label: "Install the console", link: "/get-started/enterprise/install-console" },
+                { label: "Register infrastructure hosts", link: "/get-started/enterprise/register-hosts" },
+                { label: "Deploy your first cluster", link: "/get-started/enterprise/deploy-cluster" },
+                { label: "System requirements", link: "/get-started/enterprise/requirements" },
+              ],
+            },
+            {
               label: "News and updates",
               collapsed: true,
               autogenerate: { directory: "get-started/news" },
@@ -415,11 +426,19 @@ export default defineConfig({
               ],
             },
             {
+              label: "TimescaleDB Enterprise",
+              collapsed: true,
+              items: [
+                { label: "Meet TimescaleDB Enterprise", link: "/learn/enterprise" },
+                { label: "What it adds", link: "/learn/enterprise/enterprise-exclusive-features" },
+              ],
+            },
+            {
               label: "Tiger Cloud",
               collapsed: true,
               items: [
-                { label: "Tiger Cloud", link: "/learn/tiger-cloud" },
-                { label: "Cloud-exclusive features", link: "/learn/tiger-cloud/cloud-exclusive-features" },
+                { label: "Meet Tiger Cloud", link: "/learn/tiger-cloud" },
+                { label: "What it adds", link: "/learn/tiger-cloud/cloud-exclusive-features" },
                 { label: "Supported regions", link: "/learn/tiger-cloud/regions" },
                 { label: "Tiger Cloud essentials", link: "/learn/tiger-cloud/tiger-cloud-essentials" },
               ],
@@ -1216,6 +1235,19 @@ export default defineConfig({
                 },
                 { label: "Uninstall self-hosted TimescaleDB", link: "/deploy/self-hosted/uninstall" },
                 { label: "Troubleshooting", link: "/deploy/self-hosted/troubleshooting" },
+              ],
+            },
+            {
+              label: "TimescaleDB Enterprise",
+              collapsed: true,
+              items: [
+                { label: "Overview", link: "/deploy/enterprise" },
+                { label: "Monitor your cluster", link: "/deploy/enterprise/monitoring" },
+                { label: "Back up and restore", link: "/deploy/enterprise/backup-and-restore" },
+                { label: "Manage your cluster", link: "/deploy/enterprise/cluster-management" },
+                { label: "Upgrade TimescaleDB and PostgreSQL", link: "/deploy/enterprise/upgrades" },
+                { label: "Generate a support bundle", link: "/deploy/enterprise/support-bundle" },
+                { label: "Troubleshooting", link: "/deploy/enterprise/troubleshooting" },
               ],
             },
             {
