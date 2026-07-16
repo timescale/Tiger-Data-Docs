@@ -431,6 +431,8 @@ export default defineConfig({
               items: [
                 { label: "Meet TimescaleDB Enterprise", link: "/learn/enterprise" },
                 { label: "What it adds", link: "/learn/enterprise/enterprise-exclusive-features" },
+                { label: "About high availability", link: "/learn/enterprise/high-availability" },
+                { label: "Hybrid architectures with Cloud Sync", link: "/learn/enterprise/hybrid-architectures" },
               ],
             },
             {
@@ -1232,12 +1234,28 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Overview", link: "/deploy/enterprise" },
-                { label: "Monitor your cluster", link: "/deploy/enterprise/monitoring" },
-                { label: "Back up and restore", link: "/deploy/enterprise/backup-and-restore" },
+                { label: "Use the admin console", link: "/deploy/enterprise/admin-console-guide" },
                 { label: "Manage your cluster", link: "/deploy/enterprise/cluster-management" },
+                {
+                  label: "Backup and restore",
+                  collapsed: true,
+                  items: [
+                    { label: "Back up your cluster", link: "/deploy/enterprise/backup-and-restore" },
+                    { label: "Restore to a point in time", link: "/deploy/enterprise/backup-and-restore/pitr-recovery" },
+                  ],
+                },
+                { label: "Monitor your cluster", link: "/deploy/enterprise/monitoring" },
                 { label: "Upgrade TimescaleDB and PostgreSQL", link: "/deploy/enterprise/upgrades" },
-                { label: "Generate a support bundle", link: "/deploy/enterprise/support-bundle" },
-                { label: "Troubleshooting", link: "/deploy/enterprise/troubleshooting" },
+                { label: "Configure high availability", link: "/deploy/enterprise/high-availability" },
+                { label: "Configure Cloud Sync", link: "/deploy/enterprise/cloud-sync" },
+                {
+                  label: "Support and troubleshooting",
+                  collapsed: true,
+                  items: [
+                    { label: "Generate a support bundle", link: "/deploy/enterprise/support" },
+                    { label: "Troubleshooting", link: "/deploy/enterprise/support/troubleshooting" },
+                  ],
+                },
               ],
             },
             {
