@@ -534,6 +534,7 @@ export default defineConfig({
               label: "Quickstarts",
               collapsed: true,
               items: [
+                { label: "Overview", link: "/build/how-to" },
                 { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
                 { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
               ],
@@ -543,6 +544,7 @@ export default defineConfig({
               label: "Tutorials",
               collapsed: true,
               items: [
+                { label: "Overview", link: "/build/examples" },
                 { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
                 { label: "Simulate an IoT sensor dataset", link: "/build/examples/simulate-iot-sensor-data" },
                 { label: "Ingest real-time financial data", link: "/build/examples/ingest-real-time-financial-data" },
@@ -1963,6 +1965,8 @@ export default defineConfig({
           }
         : {}),
       "/integrate/data-engineering-etl/apache-kafka": "/integrate/data-ingestion-streaming/apache-kafka",
+      "/tutorials": "/build/examples",
+      "/quickstarts": "/build/how-to",
       "/api": "/reference/tiger-cloud-rest",
       "/api/api-reference": "/reference/tiger-cloud-rest",
       "/build/data-management/query-data/skipscan": "/build/performance-optimization/skipscan",
