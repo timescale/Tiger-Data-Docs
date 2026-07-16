@@ -548,44 +548,34 @@ export default defineConfig({
           link: "/build",
           sidebar: [
             { label: "Overview", link: "/build" },
-            // --- Get hands on: merged Tutorials + How-to + Examples ---
+            // --- Quickstarts ---
             {
-              label: "Get hands on",
+              label: "Quickstarts",
               collapsed: true,
               items: [
-                {
-                  label: "Quickstarts",
-                  collapsed: true,
-                  items: [
-                    { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
-                    { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
-                  ],
-                },
-                {
-                  label: "Tutorials",
-                  collapsed: true,
-                  items: [
-                    { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
-                    { label: "Build hybrid search with BM25 and vectors", link: "/build/examples/hybrid-search" },
-                    { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
-                  ],
-                },
-                {
-                  label: "Guided projects",
-                  collapsed: true,
-                  items: [
-                    { label: "All guided projects", link: "/build/examples" },
-                    { label: "Simulate an IoT sensor dataset", link: "/build/examples/simulate-iot-sensor-data" },
-                    { label: "Visualize financial tick data with Grafana", link: "/build/examples/analyze-financial-tick-data" },
-                    { label: "Analyze stock market data", link: "/build/examples/analyze-stock-market-data" },
-                    { label: "Ingest real-time financial data", link: "/build/examples/ingest-real-time-financial-data" },
-                    { label: "Visualize transport and geospatial data with Grafana", link: "/build/examples/analyze-transport-data" },
-                    { label: "Analyze NYC taxi data", link: "/build/examples/analyze-nyc-taxi-data" },
-                    { label: "Analyze Bitcoin blockchain", link: "/build/examples/analyze-blockchain" },
-                    { label: "Analyze energy consumption", link: "/build/examples/analyze-energy-consumption" },
-                    { label: "Analyze application events with UUIDv7", link: "/build/examples/analyze-events-with-uuidv7" },
-                  ],
-                },
+                { label: "Overview", link: "/build/how-to" },
+                { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
+                { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
+              ],
+            },
+            // --- Tutorials: combined tutorials, guided projects, and cookbook ---
+            {
+              label: "Tutorials",
+              collapsed: true,
+              items: [
+                { label: "Overview", link: "/build/examples" },
+                { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
+                { label: "Simulate an IoT sensor dataset", link: "/build/examples/simulate-iot-sensor-data" },
+                { label: "Ingest real-time financial data", link: "/build/examples/ingest-real-time-financial-data" },
+                { label: "Analyze application events with UUIDv7", link: "/build/examples/analyze-events-with-uuidv7" },
+                { label: "Build hybrid search with BM25 and vectors", link: "/build/examples/hybrid-search" },
+                { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
+                { label: "Analyze stock market data", link: "/build/examples/analyze-stock-market-data" },
+                { label: "Analyze NYC taxi data", link: "/build/examples/analyze-nyc-taxi-data" },
+                { label: "Analyze Bitcoin blockchain", link: "/build/examples/analyze-blockchain" },
+                { label: "Analyze energy consumption", link: "/build/examples/analyze-energy-consumption" },
+                { label: "Visualize financial tick data with Grafana", link: "/build/examples/analyze-financial-tick-data" },
+                { label: "Visualize transport and geospatial data with Grafana", link: "/build/examples/analyze-transport-data" },
                 { label: "Tiger Data cookbook", link: "/build/examples/cookbook" },
               ],
             },
@@ -837,7 +827,6 @@ export default defineConfig({
                     { label: "Overview", link: "/integrate/data-engineering-etl" },
                     { label: "Amazon SageMaker", link: "/integrate/data-engineering-etl/amazon-sagemaker" },
                     { label: "Apache Airflow", link: "/integrate/data-engineering-etl/apache-airflow" },
-                    { label: "Apache Kafka", link: "/integrate/data-engineering-etl/apache-kafka" },
                     { label: "AWS Lambda", link: "/integrate/data-engineering-etl/aws-lambda" },
                     { label: "Debezium", link: "/integrate/data-engineering-etl/debezium" },
                     { label: "Decodable", link: "/integrate/data-engineering-etl/decodable" },
@@ -849,12 +838,13 @@ export default defineConfig({
                   collapsed: true,
                   items: [
                     { label: "Overview", link: "/integrate/data-ingestion-streaming" },
+                    { label: "Apache Kafka", link: "/integrate/data-ingestion-streaming/apache-kafka" },
                     { label: "EMQX", link: "/integrate/data-ingestion-streaming/emqx" },
                     { label: "Fivetran", link: "/integrate/data-ingestion-streaming/fivetran" },
                     { label: "HighByte", link: "/integrate/data-ingestion-streaming/highbyte" },
-                    { label: "Kepware KEPServerEX", link: "/integrate/data-ingestion-streaming/kepware-kepserverex" },
                     { label: "HiveMQ", link: "/integrate/data-ingestion-streaming/hivemq" },
                     { label: "Ignition", link: "/integrate/data-ingestion-streaming/ignition" },
+                    { label: "Kepware KEPServerEX", link: "/integrate/data-ingestion-streaming/kepware-kepserverex" },
                     { label: "Litmus Edge", link: "/integrate/data-ingestion-streaming/litmus-edge" },
                     { label: "Node-RED", link: "/integrate/data-ingestion-streaming/node-red" },
                   ],
@@ -2007,6 +1997,9 @@ export default defineConfig({
             "/reference/tiger-cloud-rest": "/reference/tiger-cloud-rest-local-preview",
           }
         : {}),
+      "/integrate/data-engineering-etl/apache-kafka": "/integrate/data-ingestion-streaming/apache-kafka",
+      "/tutorials": "/build/examples",
+      "/quickstarts": "/build/how-to",
       "/api": "/reference/tiger-cloud-rest",
       "/api/api-reference": "/reference/tiger-cloud-rest",
       "/build/data-management/query-data/skipscan": "/build/performance-optimization/skipscan",
@@ -2036,7 +2029,7 @@ export default defineConfig({
       "/deploy/self-hosted/install-and-update/install-self-hosted":
         "/get-started/choose-your-path/install-timescaledb",
       // Content moved from Learn → Build (same pages; old URLs redirect)
-      "/learn/examples": "/build/examples",
+      "/learn/examples": "/build",
       "/learn/examples/simulate-iot-sensor-data": "/build/examples/simulate-iot-sensor-data",
       "/learn/examples/analyze-financial-tick-data": "/build/examples/analyze-financial-tick-data",
       "/learn/examples/ingest-real-time-financial-data": "/build/examples/ingest-real-time-financial-data",
@@ -2046,7 +2039,7 @@ export default defineConfig({
       "/learn/examples/aggregate-organizational-data-with-ai": "/build/examples/aggregate-organizational-data-with-ai",
       "/learn/examples/cookbook": "/build/examples/cookbook",
       "/learn/examples/create-services-with-terraform": "/build/examples/create-services-with-terraform",
-      "/learn/examples/00-template-tutorial-render": "/build/examples/",
+      "/learn/examples/00-template-tutorial-render": "/build",
       "/learn/examples/aggregate-organizational-data-with-ai-2": "/build/examples/aggregate-organizational-data-with-ai",
       "/learn/production-patterns": "/build/",
       "/build/production-patterns": "/build/",
