@@ -1,0 +1,444 @@
+---
+title: Query TigerLake S3 Tables with AWS Glue and Athena
+description: "Expose Iceberg tables written by TigerLake to the AWS Glue Data Catalog and query them with Amazon Athena, with no ETL or data duplication."
+products: [cloud]
+integrationCategory: connectors
+integrationPlatforms: [aws]
+integrationCardTitle: AWS Glue and Athena
+integrationCardLogo: "aws.png"
+integrationCardLogoDark: "aws-dark.png"
+integrationIndustry: [financial services, retail, healthcare]
+keywords: [amazon athena, aws glue, apache iceberg, s3 tables, lake formation, data catalog, lake query]
+sidebar:
+  label: Query with AWS Glue and Athena
+tableOfContents:
+  minHeadingLevel: 2
+  maxHeadingLevel: 2
+---
+
+import * as C from "@constants";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+After {C.LAKE_LONG} syncs your {C.SERVICE_LONG} data to Iceberg tables in Amazon S3 Tables, this guide shows you how to make those tables discoverable through the AWS Glue Data Catalog and query them with Amazon Athena.
+
+This integration does not change the {C.LAKE_SHORT}'s write path and does not use the {C.LAKE_SHORT} generic REST catalog configuration. The {C.LAKE_SHORT} continues to write directly to the Amazon S3 Tables Iceberg REST endpoint using AWS SigV4. AWS Glue federation makes those existing S3 Tables resources discoverable to Athena.
+
+AWS documents each service separately. This guide provides the {C.LAKE_SHORT}-specific resource mapping and the minimum sequence needed to expose a namespace and tables created by the {C.LAKE_SHORT} through the federated catalog.
+
+AWS documentation:
+
+- [Integrating Amazon S3 Tables with AWS analytics services](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-integrating-aws.html)
+- [Enabling S3 Tables integration with the Data Catalog](https://docs.aws.amazon.com/glue/latest/dg/enable-s3-tables-catalog-integration.html)
+- [Querying S3 Tables with Athena](https://docs.aws.amazon.com/athena/latest/ug/gdc-register-s3-table-bucket-cat.html)
+
+## Responsibilities
+
+The S3 table bucket owner performs the steps in this guide in the AWS account and Region that contain the table bucket. Enabling Glue federation is an account-and-Region-level operation, not an {C.LAKE_SHORT} operation.
+
+The setup involves two separate AWS principals:
+
+1. The Glue federation access role reads the S3 table bucket. It needs S3 Tables read permissions.
+2. The user or role submitting Athena queries needs Athena API access, access to the Athena results location, `lakeformation:GetDataAccess`, and Lake Formation grants on the catalog resources.
+
+Do not assume that granting permissions to one principal grants them to the other.
+
+<Prerequisites context="integration">
+
+- [{C.LAKE_LONG}](/integrate/connectors/destination/tigerlake) set up and active in your {C.SERVICE_LONG}, writing to an AWS S3 Tables destination.
+- AWS CLI v2 authenticated to the table bucket's AWS account.
+- Permission to inspect the S3 table bucket and Glue Data Catalog.
+- A Lake Formation data lake administrator for granting query access.
+- A regular S3 bucket for Athena query results, unless the Athena workgroup is configured to use Athena-managed results.
+
+</Prerequisites>
+
+Set reusable values:
+
+```bash
+export AWS_REGION='<region>'
+export AWS_ACCOUNT_ID='<account-id>'
+export TABLE_BUCKET='<table-bucket-name>'
+export TABLE_BUCKET_ARN="arn:aws:s3tables:${AWS_REGION}:${AWS_ACCOUNT_ID}:bucket/${TABLE_BUCKET}"
+export GLUE_CATALOG="s3tablescatalog/${TABLE_BUCKET}"
+export GLUE_CATALOG_ID="${AWS_ACCOUNT_ID}:${GLUE_CATALOG}"
+export TIGERLAKE_NAMESPACE='timescaledb'
+```
+
+<NumberedList>
+  <NumberedItem title={`Verify that the ${C.LAKE_SHORT} created the S3 Tables resources`}>
+
+    List namespaces:
+
+    ```bash
+    aws s3tables list-namespaces \
+      --region "$AWS_REGION" \
+      --table-bucket-arn "$TABLE_BUCKET_ARN"
+    ```
+
+    The {C.LAKE_SHORT} normally creates the `timescaledb` namespace. List its tables:
+
+    ```bash
+    aws s3tables list-tables \
+      --region "$AWS_REGION" \
+      --table-bucket-arn "$TABLE_BUCKET_ARN" \
+      --namespace "$TIGERLAKE_NAMESPACE"
+    ```
+
+    Do not continue until the expected tables created by the {C.LAKE_SHORT} appear here. Glue and Athena cannot expose a table that the {C.LAKE_SHORT} has not yet created.
+
+  </NumberedItem>
+  <NumberedItem title="Enable or verify Glue federation">
+
+    S3 Tables integration creates a parent Glue catalog named `s3tablescatalog`. Each S3 table bucket in the account and Region is automatically mounted as a child catalog.
+
+    Check whether the parent catalog already exists:
+
+    ```bash
+    aws glue get-catalog \
+      --region "$AWS_REGION" \
+      --catalog-id s3tablescatalog
+    ```
+
+    If it exists, do not create another catalog. Verify the child catalog:
+
+    ```bash
+    aws glue get-catalog \
+      --region "$AWS_REGION" \
+      --catalog-id "$GLUE_CATALOG_ID"
+    ```
+
+    If `s3tablescatalog` does not exist, enable integration from the Amazon S3 console under `Table buckets`, or create it with the AWS CLI. The principal performing this operation needs at least `glue:CreateCatalog` and `glue:PassConnection`.
+
+    Create `catalog.json`, replacing the placeholders:
+
+    ```json
+    {
+      "Name": "s3tablescatalog",
+      "CatalogInput": {
+        "Description": "Federated catalog for Amazon S3 Tables",
+        "FederatedCatalog": {
+          "Identifier": "arn:aws:s3tables:<region>:<account-id>:bucket/*",
+          "ConnectionName": "aws:s3tables"
+        },
+        "CreateDatabaseDefaultPermissions": [],
+        "CreateTableDefaultPermissions": [],
+        "AllowFullTableExternalDataAccess": "True"
+      }
+    }
+    ```
+
+    Then create the catalog once:
+
+    ```bash
+    aws glue create-catalog \
+      --region "$AWS_REGION" \
+      --cli-input-json file://catalog.json
+    ```
+
+    Empty default permissions are intentional in a least-privilege configuration; query access is granted explicitly through Lake Formation later in this guide.
+
+  </NumberedItem>
+  <NumberedItem title="Grant the Glue federation role access to S3 Tables">
+
+    Calling `glue get-catalog` on the child catalog causes Glue to access the federated S3 Tables source. If it fails with an error such as:
+
+    ```text
+    not authorized to perform: s3tables:GetTableBucket
+    ```
+
+    add an identity-based policy like the following to the role named in the error:
+
+    ```json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "ReadTigerLakeS3Tables",
+          "Effect": "Allow",
+          "Action": [
+            "s3tables:GetTableBucket",
+            "s3tables:GetNamespace",
+            "s3tables:ListNamespaces",
+            "s3tables:GetTable",
+            "s3tables:ListTables",
+            "s3tables:GetTableMetadataLocation",
+            "s3tables:GetTableData"
+          ],
+          "Resource": [
+            "arn:aws:s3tables:<region>:<account-id>:bucket/<table-bucket>",
+            "arn:aws:s3tables:<region>:<account-id>:bucket/<table-bucket>/table/*"
+          ]
+        }
+      ]
+    }
+    ```
+
+    Manage this policy through the system that owns the role, such as CloudFormation or Terraform, rather than creating unmanaged configuration drift.
+
+    Verify that Glue can see the namespace and tables:
+
+    ```bash
+    aws glue get-database \
+      --region "$AWS_REGION" \
+      --catalog-id "$GLUE_CATALOG_ID" \
+      --name "$TIGERLAKE_NAMESPACE"
+
+    aws glue get-tables \
+      --region "$AWS_REGION" \
+      --catalog-id "$GLUE_CATALOG_ID" \
+      --database-name "$TIGERLAKE_NAMESPACE" \
+      --query 'TableList[].Name'
+    ```
+
+    Glue federation is live metadata federation; no Glue crawler is required.
+
+  </NumberedItem>
+  <NumberedItem title="Prepare the Athena query principal">
+
+    Choose the IAM role that will run Athena queries and a regular S3 bucket that will hold query results:
+
+    ```bash
+    export ATHENA_ROLE_NAME='<athena-query-role>'
+    export ATHENA_WORKGROUP='primary'
+    export ATHENA_RESULTS_BUCKET='<athena-results-bucket>'
+    ```
+
+    Create `athena-query-policy.json`, replacing the placeholders with the same Region, account, workgroup, and results bucket used above:
+
+    ```json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "RunAthenaQueries",
+          "Effect": "Allow",
+          "Action": [
+            "athena:GetWorkGroup",
+            "athena:StartQueryExecution",
+            "athena:GetQueryExecution",
+            "athena:GetQueryResults",
+            "athena:StopQueryExecution"
+          ],
+          "Resource": "arn:aws:athena:<region>:<account-id>:workgroup/<workgroup>"
+        },
+        {
+          "Sid": "GetLakeFormationDataAccess",
+          "Effect": "Allow",
+          "Action": "lakeformation:GetDataAccess",
+          "Resource": "*"
+        },
+        {
+          "Sid": "ListAthenaResultsBucket",
+          "Effect": "Allow",
+          "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
+          "Resource": "arn:aws:s3:::<athena-results-bucket>"
+        },
+        {
+          "Sid": "ReadWriteAthenaResults",
+          "Effect": "Allow",
+          "Action": ["s3:GetObject", "s3:PutObject"],
+          "Resource": "arn:aws:s3:::<athena-results-bucket>/*"
+        }
+      ]
+    }
+    ```
+
+    Attach it to an IAM role:
+
+    ```bash
+    aws iam put-role-policy \
+      --role-name "$ATHENA_ROLE_NAME" \
+      --policy-name TigerLakeAthenaQueryAccess \
+      --policy-document file://athena-query-policy.json
+    ```
+
+    The caller must have permission to update that role. If the query principal is managed by IAM Identity Center, add the JSON policy to its permission set and provision the permission set to the AWS account. Do not modify the generated `AWSReservedSSO_*` role directly.
+
+    ### Athena query results
+
+    Athena SQL must have a result location. Configure one on the workgroup, enable Athena-managed results, or provide a regular S3 location with each query. A customer-managed results bucket uses the S3 permissions included in `athena-query-policy.json`. Use an encrypted results bucket with an expiration lifecycle rule. Do not use the S3 table bucket as the Athena results location.
+
+  </NumberedItem>
+  <NumberedItem title="Grant Lake Formation access">
+
+    Resolve the IAM role ARN used by the Athena caller. For an IAM Identity Center permission set, it commonly resembles:
+
+    ```text
+    arn:aws:iam::<account-id>:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_<permission-set>_<suffix>
+    ```
+
+    Set it explicitly:
+
+    ```bash
+    export ATHENA_PRINCIPAL_ARN='<query-user-or-role-arn>'
+    ```
+
+    Grant visibility on the {C.LAKE_SHORT} namespace:
+
+    ```bash
+    aws lakeformation grant-permissions \
+      --region "$AWS_REGION" \
+      --principal DataLakePrincipalIdentifier="$ATHENA_PRINCIPAL_ARN" \
+      --resource \
+        "{\"Database\":{\"CatalogId\":\"${GLUE_CATALOG_ID}\",\"Name\":\"${TIGERLAKE_NAMESPACE}\"}}" \
+      --permissions DESCRIBE
+    ```
+
+    Grant read-only access to every current and future table in that namespace:
+
+    ```bash
+    aws lakeformation grant-permissions \
+      --region "$AWS_REGION" \
+      --principal DataLakePrincipalIdentifier="$ATHENA_PRINCIPAL_ARN" \
+      --resource \
+        "{\"Table\":{\"CatalogId\":\"${GLUE_CATALOG_ID}\",\"DatabaseName\":\"${TIGERLAKE_NAMESPACE}\",\"TableWildcard\":{}}}" \
+      --permissions SELECT DESCRIBE
+    ```
+
+    For stricter isolation, replace `TableWildcard` with a named table resource and grant each table separately.
+
+    Verify a table grant:
+
+    ```bash
+    aws lakeformation list-permissions \
+      --region "$AWS_REGION" \
+      --principal DataLakePrincipalIdentifier="$ATHENA_PRINCIPAL_ARN" \
+      --resource \
+        "{\"Table\":{\"CatalogId\":\"${GLUE_CATALOG_ID}\",\"DatabaseName\":\"${TIGERLAKE_NAMESPACE}\",\"Name\":\"<table-name>\"}}"
+    ```
+
+    The result should include `DESCRIBE` on the table and `SELECT` on its columns.
+
+  </NumberedItem>
+  <NumberedItem title="Query with the Athena console">
+
+    Open Athena in the same Region as the S3 table bucket and choose:
+
+    ```text
+    Data source: AwsDataCatalog
+    Catalog: s3tablescatalog/<table-bucket>
+    Database: timescaledb
+    ```
+
+    Run:
+
+    ```sql
+    SHOW TABLES;
+    ```
+
+    Then query a table created by the {C.LAKE_SHORT}:
+
+    ```sql
+    SELECT *
+    FROM <table-name>
+    LIMIT 10;
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Query from the CLI">
+
+    Set the remaining values:
+
+    ```bash
+    export ATHENA_WORKGROUP='primary'
+    export ATHENA_RESULTS="s3://${ATHENA_RESULTS_BUCKET}/tigerlake/"
+    export TIGERLAKE_TABLE='<table-name>'
+    ```
+
+    Submit a count query:
+
+    ```bash
+    QUERY_ID=$(
+      aws athena start-query-execution \
+        --region "$AWS_REGION" \
+        --work-group "$ATHENA_WORKGROUP" \
+        --query-execution-context \
+          "{\"Catalog\":\"${GLUE_CATALOG}\",\"Database\":\"${TIGERLAKE_NAMESPACE}\"}" \
+        --result-configuration "OutputLocation=${ATHENA_RESULTS}" \
+        --query-string "SELECT count(*) AS row_count FROM ${TIGERLAKE_TABLE}" \
+        --query 'QueryExecutionId' \
+        --output text
+    )
+
+    echo "Query ID: $QUERY_ID"
+    ```
+
+    Check the query without using `exit`, which would close an interactive shell:
+
+    ```bash
+    aws athena get-query-execution \
+      --region "$AWS_REGION" \
+      --query-execution-id "$QUERY_ID" \
+      --query 'QueryExecution.Status' \
+      --output json
+    ```
+
+    When its state is `SUCCEEDED`, print tab-separated results directly to the terminal:
+
+    ```bash
+    aws athena get-query-results \
+      --region "$AWS_REGION" \
+      --query-execution-id "$QUERY_ID" \
+      --query 'ResultSet.Rows[*].Data[*].VarCharValue' \
+      --output text
+    ```
+
+    A failed query cannot be resumed after permissions are fixed. Submit a new query to obtain a new query execution ID.
+
+  </NumberedItem>
+</NumberedList>
+
+## Validate ongoing replication
+
+Run a count query, insert additional rows into the source TimescaleDB table, wait for the {C.LAKE_SHORT} to commit a new Iceberg snapshot, and run the count query again. An increased count confirms the complete path:
+
+```text
+TimescaleDB -> Iceberg connector -> S3 Tables -> Glue -> Lake Formation -> Athena
+```
+
+Athena reads the current Iceberg snapshot; Glue does not copy the table data.
+
+## Troubleshooting
+
+### `s3tables:GetTableBucket` is denied
+
+The Glue federation role lacks access to the table bucket. Add the S3 Tables read policy from step 3 to the role named in the error.
+
+### `athena:StartQueryExecution` or `athena:GetWorkGroup` is denied
+
+The query caller lacks Athena API access. Grant access to the selected workgroup. Verify the active CLI identity with:
+
+```bash
+aws sts get-caller-identity
+aws configure list
+```
+
+### `Principal does not have any privilege on specified resource`
+
+This is a Lake Formation authorization failure. Confirm all three items:
+
+- The query principal has IAM permission for `lakeformation:GetDataAccess`.
+- It has `DESCRIBE` on the {C.LAKE_SHORT} database.
+- It has `SELECT` and `DESCRIBE` on the queried table.
+
+### The Athena query has no output location
+
+Configure a result location on the Athena workgroup or pass `--result-configuration OutputLocation=s3://...` when starting the query.
+
+### Glue or Athena does not show a table that exists in S3 Tables
+
+AWS analytics integration requires lowercase table and column names. Quoted PostgreSQL identifiers containing uppercase characters can produce tables that S3 Tables accepts but Glue/Athena cannot expose. Test with lowercase identifiers and review the source table schema.
+
+### A permission change did not repair an existing query
+
+Athena query executions are immutable. Submit a new query after changing IAM or Lake Formation permissions.
+
+## Production recommendations
+
+- Use a read-only IAM role or IAM Identity Center permission set for Athena consumers.
+- Grant `SELECT` and `DESCRIBE`; avoid Athena write or DDL permissions on tables managed by the {C.LAKE_SHORT}.
+- Use a dedicated Athena workgroup with an enforced, encrypted result location, scan limits, CloudWatch metrics, and cost allocation tags.
+- Apply an expiration lifecycle policy to customer-managed Athena result files.
+- Manage IAM and Lake Formation grants through infrastructure as code.
+- Scope S3 Tables permissions to the customer's table bucket and tables.

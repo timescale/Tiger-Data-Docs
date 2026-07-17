@@ -862,11 +862,12 @@ export default defineConfig({
                           collapsed: true,
                           items: [
                             {
-                              label: "Overview and setup",
+                              label: "Set up Iceberg connector",
                               link: "/integrate/connectors/destination/tigerlake",
                               attrs: { "data-no-flatten": "true" },
                             },
                             { label: "Query from Snowflake", link: "/integrate/connectors/destination/snowflake" },
+                            { label: "Query with AWS Glue and Athena", link: "/integrate/connectors/destination/athena" },
                           ],
                         },
                       ],
