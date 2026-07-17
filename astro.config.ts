@@ -357,8 +357,8 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Compare Tiger Data products", link: "/get-started/feature-comparison" },
-                { label: "Why Tiger Cloud", link: "/get-started/cloud-exclusive-features" },
-                { label: "Why TimescaleDB Enterprise", link: "/learn/enterprise/enterprise-exclusive-features" },
+                { label: "Key differentiators of Tiger Cloud", link: "/get-started/cloud-exclusive-features" },
+                { label: "Key differentiators of TimescaleDB Enterprise", link: "/get-started/enterprise-exclusive-features" },
                 { label: "Compare TimescaleDB editions", link: "/get-started/choose-your-path/timescaledb-editions" },
                 { label: "Supported platforms", link: "/get-started/choose-your-path/supported-platforms" },
               ],
@@ -430,7 +430,7 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Meet TimescaleDB Enterprise", link: "/learn/enterprise" },
-                { label: "What it adds", link: "/learn/enterprise/enterprise-exclusive-features" },
+                { label: "Key differentiators", link: "/learn/enterprise/enterprise-exclusive-features" },
                 { label: "About high availability", link: "/learn/enterprise/high-availability" },
                 { label: "Hybrid architectures with Cloud Sync", link: "/learn/enterprise/hybrid-architectures" },
               ],
@@ -440,7 +440,7 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Meet Tiger Cloud", link: "/learn/tiger-cloud" },
-                { label: "What it adds", link: "/learn/tiger-cloud/cloud-exclusive-features" },
+                { label: "Key differentiators", link: "/learn/tiger-cloud/cloud-exclusive-features" },
                 { label: "Supported regions", link: "/learn/tiger-cloud/regions" },
                 { label: "Tiger Cloud essentials", link: "/learn/tiger-cloud/tiger-cloud-essentials" },
               ],
@@ -1236,26 +1236,13 @@ export default defineConfig({
                 { label: "Overview", link: "/deploy/enterprise" },
                 { label: "Use the admin console", link: "/deploy/enterprise/admin-console-guide" },
                 { label: "Manage your cluster", link: "/deploy/enterprise/cluster-management" },
-                {
-                  label: "Backup and restore",
-                  collapsed: true,
-                  items: [
-                    { label: "Back up your cluster", link: "/deploy/enterprise/backup-and-restore" },
-                    { label: "Restore to a point in time", link: "/deploy/enterprise/backup-and-restore/pitr-recovery" },
-                  ],
-                },
+                { label: "Back up and restore your cluster", link: "/deploy/enterprise/backup-and-restore" },
                 { label: "Monitor your cluster", link: "/deploy/enterprise/monitoring" },
                 { label: "Upgrade TimescaleDB and PostgreSQL", link: "/deploy/enterprise/upgrades" },
                 { label: "Configure high availability", link: "/deploy/enterprise/high-availability" },
                 { label: "Configure Cloud Sync", link: "/deploy/enterprise/cloud-sync" },
-                {
-                  label: "Support and troubleshooting",
-                  collapsed: true,
-                  items: [
-                    { label: "Generate a support bundle", link: "/deploy/enterprise/support" },
-                    { label: "Troubleshooting", link: "/deploy/enterprise/support/troubleshooting" },
-                  ],
-                },
+                { label: "Generate a support bundle", link: "/deploy/enterprise/support" },
+                { label: "Troubleshooting", link: "/deploy/enterprise/support/troubleshooting" },
               ],
             },
             {
