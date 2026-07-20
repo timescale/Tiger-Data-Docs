@@ -362,7 +362,7 @@ export default defineConfig({
               ],
             },
             {
-              label: "Tiger Cloud Console",
+              label: "Tiger Console",
               collapsed: true,
               items: [
                 { label: "5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
