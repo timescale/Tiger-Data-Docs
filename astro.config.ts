@@ -425,6 +425,13 @@ export default defineConfig({
               ],
             },
             {
+              label: "Tiger CLI and MCP",
+              collapsed: true,
+              items: [
+                { label: "Tiger CLI and Tiger MCP", link: "/learn/tiger-cli-mcp" },
+              ],
+            },
+            {
               label: "Capabilities and comparison",
               collapsed: true,
               items: [
