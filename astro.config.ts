@@ -360,7 +360,6 @@ export default defineConfig({
                 { label: "Key differentiators of Tiger Cloud", link: "/get-started/cloud-exclusive-features" },
                 { label: "Key differentiators of TimescaleDB Enterprise", link: "/get-started/enterprise-exclusive-features" },
                 { label: "Compare TimescaleDB editions", link: "/get-started/choose-your-path/timescaledb-editions" },
-                { label: "Supported platforms", link: "/get-started/choose-your-path/supported-platforms" },
               ],
             },
             {
@@ -369,6 +368,7 @@ export default defineConfig({
               items: [
                 { label: "5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
                 { label: "Create a Tiger Cloud service", link: "/get-started/quickstart/create-service" },
+                { label: "Supported regions", link: "/get-started/supported-regions" },
               ],
             },
             {
@@ -387,6 +387,7 @@ export default defineConfig({
                 { label: "10-minute quickstart", link: "/get-started/quickstart/timescaledb-quickstart" },
                 { label: "Install self-hosted TimescaleDB", link: "/get-started/choose-your-path/install-timescaledb" },
                 { label: "Connect your app", link: "/get-started/quickstart/connect-your-app" },
+                { label: "Supported platforms", link: "/get-started/timescaledb-supported-platforms" },
               ],
             },
             {
@@ -441,8 +442,14 @@ export default defineConfig({
               items: [
                 { label: "Meet Tiger Cloud", link: "/learn/tiger-cloud" },
                 { label: "Key differentiators", link: "/learn/tiger-cloud/cloud-exclusive-features" },
-                { label: "Supported regions", link: "/learn/tiger-cloud/regions" },
                 { label: "Tiger Cloud essentials", link: "/learn/tiger-cloud/tiger-cloud-essentials" },
+              ],
+            },
+            {
+              label: "Tiger CLI and MCP",
+              collapsed: true,
+              items: [
+                { label: "Tiger CLI and Tiger MCP", link: "/learn/tiger-cli-mcp" },
               ],
             },
             {
@@ -883,11 +890,12 @@ export default defineConfig({
                           collapsed: true,
                           items: [
                             {
-                              label: "Overview and setup",
+                              label: "Set up Iceberg connector",
                               link: "/integrate/connectors/destination/tigerlake",
                               attrs: { "data-no-flatten": "true" },
                             },
                             { label: "Query from Snowflake", link: "/integrate/connectors/destination/snowflake" },
+                            { label: "Query with AWS Glue and Athena", link: "/integrate/connectors/destination/athena" },
                           ],
                         },
                       ],
@@ -2018,7 +2026,9 @@ export default defineConfig({
       "/integrate/code/start-coding-with-tigerdata": "/integrate/code/connect-your-app",
       "/get-started/create-mst-service": "/deploy/mst/create-mst-service",
       "/get-started/install-timescaledb": "/get-started/choose-your-path/install-timescaledb",
-      "/get-started/supported-platforms": "/get-started/choose-your-path/supported-platforms",
+      "/get-started/supported-platforms": "/get-started/timescaledb-supported-platforms",
+      "/get-started/choose-your-path/supported-platforms": "/get-started/timescaledb-supported-platforms",
+      "/learn/tiger-cloud/regions": "/get-started/supported-regions",
       "/get-started/timescaledb-editions": "/get-started/choose-your-path/timescaledb-editions",
       "/get-started/cli-rest-api": "/get-started/quickstart/tiger-cli",
       "/get-started/tools/cli-rest-api": "/get-started/quickstart/tiger-cli",
