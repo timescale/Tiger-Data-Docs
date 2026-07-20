@@ -381,16 +381,6 @@ export default defineConfig({
               ],
             },
             {
-              label: "Self-hosted TimescaleDB",
-              collapsed: true,
-              items: [
-                { label: "10-minute quickstart", link: "/get-started/quickstart/timescaledb-quickstart" },
-                { label: "Install self-hosted TimescaleDB", link: "/get-started/choose-your-path/install-timescaledb" },
-                { label: "Connect your app", link: "/get-started/quickstart/connect-your-app" },
-                { label: "Supported platforms", link: "/get-started/timescaledb-supported-platforms" },
-              ],
-            },
-            {
               label: "TimescaleDB Enterprise",
               collapsed: true,
               items: [
@@ -398,6 +388,16 @@ export default defineConfig({
                 { label: "Register infrastructure hosts", link: "/get-started/enterprise/register-hosts" },
                 { label: "Deploy your first cluster", link: "/get-started/enterprise/deploy-cluster" },
                 { label: "System requirements", link: "/get-started/enterprise/requirements" },
+              ],
+            },
+            {
+              label: "Self-hosted TimescaleDB",
+              collapsed: true,
+              items: [
+                { label: "10-minute quickstart", link: "/get-started/quickstart/timescaledb-quickstart" },
+                { label: "Install self-hosted TimescaleDB", link: "/get-started/choose-your-path/install-timescaledb" },
+                { label: "Connect your app", link: "/get-started/quickstart/connect-your-app" },
+                { label: "Supported platforms", link: "/get-started/timescaledb-supported-platforms" },
               ],
             },
             {
@@ -427,16 +427,6 @@ export default defineConfig({
               ],
             },
             {
-              label: "TimescaleDB Enterprise",
-              collapsed: true,
-              items: [
-                { label: "Meet TimescaleDB Enterprise", link: "/learn/enterprise" },
-                { label: "Key differentiators", link: "/learn/enterprise/enterprise-exclusive-features" },
-                { label: "About high availability", link: "/learn/enterprise/high-availability" },
-                { label: "Hybrid architectures with Cloud Sync", link: "/learn/enterprise/hybrid-architectures" },
-              ],
-            },
-            {
               label: "Tiger Cloud",
               collapsed: true,
               items: [
@@ -450,6 +440,16 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Tiger CLI and Tiger MCP", link: "/learn/tiger-cli-mcp" },
+              ],
+            },
+            {
+              label: "TimescaleDB Enterprise",
+              collapsed: true,
+              items: [
+                { label: "Meet TimescaleDB Enterprise", link: "/learn/enterprise" },
+                { label: "Key differentiators", link: "/learn/enterprise/enterprise-exclusive-features" },
+                { label: "About high availability", link: "/learn/enterprise/high-availability" },
+                { label: "Hybrid architectures with Cloud Sync", link: "/learn/enterprise/hybrid-architectures" },
               ],
             },
             {
@@ -1165,6 +1165,22 @@ export default defineConfig({
               ],
             },
             {
+              label: "TimescaleDB Enterprise",
+              collapsed: true,
+              items: [
+                { label: "Overview", link: "/deploy/enterprise" },
+                { label: "Use the admin console", link: "/deploy/enterprise/admin-console-guide" },
+                { label: "Manage your cluster", link: "/deploy/enterprise/cluster-management" },
+                { label: "Back up and restore your cluster", link: "/deploy/enterprise/backup-and-restore" },
+                { label: "Monitor your cluster", link: "/deploy/enterprise/monitoring" },
+                { label: "Upgrade TimescaleDB and PostgreSQL", link: "/deploy/enterprise/upgrades" },
+                { label: "Configure high availability", link: "/deploy/enterprise/high-availability" },
+                { label: "Configure Cloud Sync", link: "/deploy/enterprise/cloud-sync" },
+                { label: "Generate a support bundle", link: "/deploy/enterprise/support" },
+                { label: "Troubleshooting", link: "/deploy/enterprise/support/troubleshooting" },
+              ],
+            },
+            {
               label: "Self-hosted TimescaleDB",
               collapsed: true,
               items: [
@@ -1235,22 +1251,6 @@ export default defineConfig({
                 },
                 { label: "Uninstall self-hosted TimescaleDB", link: "/deploy/self-hosted/uninstall" },
                 { label: "Troubleshooting", link: "/deploy/self-hosted/troubleshooting" },
-              ],
-            },
-            {
-              label: "TimescaleDB Enterprise",
-              collapsed: true,
-              items: [
-                { label: "Overview", link: "/deploy/enterprise" },
-                { label: "Use the admin console", link: "/deploy/enterprise/admin-console-guide" },
-                { label: "Manage your cluster", link: "/deploy/enterprise/cluster-management" },
-                { label: "Back up and restore your cluster", link: "/deploy/enterprise/backup-and-restore" },
-                { label: "Monitor your cluster", link: "/deploy/enterprise/monitoring" },
-                { label: "Upgrade TimescaleDB and PostgreSQL", link: "/deploy/enterprise/upgrades" },
-                { label: "Configure high availability", link: "/deploy/enterprise/high-availability" },
-                { label: "Configure Cloud Sync", link: "/deploy/enterprise/cloud-sync" },
-                { label: "Generate a support bundle", link: "/deploy/enterprise/support" },
-                { label: "Troubleshooting", link: "/deploy/enterprise/support/troubleshooting" },
               ],
             },
             {
