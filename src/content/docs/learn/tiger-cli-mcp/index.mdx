@@ -1,0 +1,69 @@
+---
+title: Tiger CLI and Tiger MCP
+description: Understand Tiger CLI and Tiger MCP, how they compare to the REST API, and where each fits in your workflow
+products: [cloud]
+keywords: [Tiger CLI, Tiger MCP, AI agent, REST API]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+
+{C.CLI_LONG} and {C.MCP_LONG} let you manage {C.CLOUD_LONG} without opening {C.CONSOLE}. You work from your terminal, from a script, or from an AI coding tool such as Claude Code, Cursor, or Codex. Both connect to the same platform and share one login, so anything you can do from the command line, an agent can do too.
+
+To install them and create your first {C.SERVICE_SHORT}, see [Get started with {C.CLI_LONG}](/get-started/quickstart/tiger-cli) and [Integrate {C.CLOUD_LONG} with your AI agent](/get-started/quickstart/mcp-cli).
+
+## What each tool is
+
+The three build on each other, from the raw API up to natural language:
+
+- **{C.REST_LONG}**: the HTTP API for {C.CLOUD_LONG} and the base layer the other tools build on. It's the complete surface, so call it directly when you build your own integration or need access from your application's language. See the [{C.REST_LONG} reference](/reference/tiger-cloud-rest).
+- **{C.CLI_LONG}**: a command-line interface that wraps a subset of {C.REST_LONG}. A single binary manages your {C.SERVICE_SHORT}s, replicas, {C.VPC}s, and related infrastructure, and connects you to your databases to run SQL. Every command is explicit and repeatable, which suits scripting, CI/CD, and daily operations.
+- **{C.MCP_LONG}**: a Model Context Protocol server that ships inside the {C.CLI_LONG} binary. It gives an AI agent typed tools to manage {C.SERVICE_SHORT}s and run SQL, a set of skills for {C.PG} and {C.TIMESCALE_DB} work such as schema design and {C.HYPERTABLE} setup, and search across {C.COMPANY} documentation. An agent can use it both to act on your database and to advise you about it in plain language.
+
+<Callout variant="note" title="One install">
+{C.MCP_LONG} ships inside {C.CLI_LONG}, so installing `tiger` gives you both the command line and the MCP server. They share the same login and the same permissions.
+</Callout>
+
+## When to use which
+
+| You want to... | Use |
+| --- | --- |
+| Automate or repeat operations in scripts or CI/CD | {C.CLI_LONG} |
+| Work in natural language, or get design and optimization help | {C.MCP_LONG} |
+| Build a custom integration in your own language | {C.REST_LONG} |
+
+### How {C.CLI_LONG} and {C.MCP_LONG} work together
+
+The two tools share a login and overlap on most operations, but each does something the other can't.
+
+{C.MCP_LONG} can reason about your database. Through its skills and documentation search, an agent designs schemas, finds {C.HYPERTABLE} candidates, plans migrations, and recommends improvements in plain language. {C.CLI_LONG} has no command for any of that.
+
+{C.CLI_LONG} gives you precise, repeatable execution: interactive database sessions, connection strings, and commands you can commit to a script or pipeline. An agent working through {C.MCP_SHORT} is non-deterministic, so it suits exploration and design more than automation.
+
+Many workflows use both. An agent explores your data and proposes a change through {C.MCP_SHORT}, then you apply and verify it with {C.CLI_SHORT}.
+
+## Where they fit in your workflow
+
+Between them, {C.CLI_LONG} and {C.MCP_LONG} cover the whole lifecycle of working with {C.CLOUD_LONG}. Most operations work from either tool. Setup runs through {C.CLI_LONG}, and design and review belong to {C.MCP_LONG}.
+
+- Set up: install and authenticate {C.CLI_LONG}, then connect your agent. {C.MCP_LONG} runs once {C.CLI_LONG} is in place.
+- Build: create {C.SERVICE_SHORT}s and run the SQL to add {C.HYPERTABLE}s, {C.CAGG}s, {C.JOB}s, and policies from either tool, or ask {C.MCP_LONG} to design them for you.
+- Validate: fork a {C.SERVICE_SHORT} to test a change safely from either tool, or ask {C.MCP_LONG} to review a schema against best practices.
+- Operate: run queries, rotate credentials, resize, and check the state of a {C.SERVICE_SHORT} from either tool.
+- Debug: pull logs and run diagnostic queries from either tool.
+
+## Work safely with AI agents
+
+Because {C.MCP_LONG} lets an agent act on your database, decide up front what it may do. Read-only mode is the main control: it blocks the agent's write access, not your own.
+
+- Turn on read-only mode so an agent can query and explore but cannot write data, change schemas, or alter infrastructure. See [Restrict {C.MCP_LONG} to read-only](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only).
+- Point an agent at a fork or a {C.READ_REPLICA} for exploratory work, so production is never in the path.
+- Ask for a single computed answer rather than a raw export, so the database does the work and less data leaves it.
+
+## Next steps
+
+- [Get started with {C.CLI_LONG}](/get-started/quickstart/tiger-cli): Install the CLI, authenticate, and create your first {C.SERVICE_SHORT} from the terminal.
+- [Integrate {C.CLOUD_LONG} with your AI agent](/get-started/quickstart/mcp-cli): Set up {C.MCP_LONG} and connect it to Claude Code, Cursor, or another client.
+- [Get started with the REST API](/get-started/quickstart/rest-api): Manage the same resources over HTTP for custom integrations.
+- [{C.CLI_LONG} reference](/reference/tiger-cloud/tiger-cli) and [{C.MCP_LONG} reference](/reference/tiger-cloud/tiger-mcp): Every command, tool, flag, and parameter.
+- [File an issue in the {C.CLI_LONG} repo](https://github.com/timescale/tiger-cli/issues/new): Report bugs or request features to help shape the open-source {C.CLI_LONG} and {C.MCP_LONG}.
