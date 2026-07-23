@@ -187,12 +187,14 @@ House prose style follows the Google developer documentation style guide, enforc
 
 `vercel.json`'s `redirects` array is the platform/edge redirect layer, applied by Vercel **before** the app reaches Astro. In production the site is served under `/docs`, so keys **include the `/docs` prefix**. Each entry sets `permanent` (`true` = 308, `false` = 307), and keys can use params (`:slug`, `:path*`). `vercel.json` also owns trailing-slash normalization (`trailingSlash: false`), the `rewrites` that serve `index.md` to AI and markdown clients, and cache `headers`.
 
-The array is ordered in two contiguous blocks (JSON has no comments, so the boundary is a blank line — see the array around the `/docs/use-timescale/latest/integrations/apache-kafka` entry):
+The array is ordered in two contiguous blocks (JSON has no comments, so the boundary is a blank line):
 
-1. **Legacy `docs.timescale.com` URLs** (`/docs/use-timescale/latest/...`, `/docs/api/latest/...`, `/docs/tutorials/latest/...`, and so on) — preserved from the old site.
+1. **Legacy `docs.timescale.com`/`docs.tigerdata.com` URLs** (`/docs/use-timescale/latest/...`, `/docs/api/latest/...`, `/docs/tutorials/latest/...`, and so on) — preserved from the old site.
 2. **Internal page-move redirects** — pages renamed or reorganized within this repo (for example content shuffled between `learn/` and `build/`).
 
-When you move or rename a page, add its redirect to block 2, keeping alphabetical order by `source` within the block for scannability.
+A source belongs in block 1 if it contains a `/latest` segment, or if its first path segment isn't one of this site's current top-level sections (`build`, `deploy`, `get-started`, `integrate`, `learn`, `migrate`, `reference`); otherwise it's block 2. When you move or rename a page, add its redirect to the matching block, keeping alphabetical order by `source` within the block for scannability.
+
+**Exception: `:slug`/`:path*` wildcard rules must sort after every more-specific sibling, not alphabetically.** Vercel matches array entries in order and stops at the first match, so a wildcard placed before its own exceptions silently swallows them (`:` sorts before letters, so a naive alphabetical sort gets this wrong — this broke `/mst/latest/installation-mst`, `/self-hosted/latest/install/installation-kubernetes`, and `/self-hosted/latest/distributed-hypertables/query` in review on 2026-07-23; caught by testing every redirect against a preview deploy, not by inspection). When adding or re-sorting entries near a wildcard, group that wildcard's whole family together with the wildcard last, and verify precedence against a real deploy afterward.
 
 **Do not use `astro.config.ts`'s `redirects` key for anything production-facing.** It looks like the natural place for an internal-move redirect, but it doesn't work: the `@stainless-api/docs` integration unconditionally disables Astro's static redirect-page output during `astro build` (see the comment above `redirects:` in `astro.config.ts` for the full mechanism). Every entry that ever lived there was a silent no-op in production — confirmed 2026-07-23 when `/learn/tiger-cloud/regions` 404'd despite having a defined redirect. That key now exists only for the `DOCS_LOCAL_WITHOUT_STAINLESS` local-dev shim, which only needs to work in `pnpm dev`.
 
