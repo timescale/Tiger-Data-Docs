@@ -183,12 +183,18 @@ House prose style follows the Google developer documentation style guide, enforc
 
 ## Redirects
 
-Redirects live in two places, and which one to edit depends on where the old URL comes from:
+**All production redirects live in `vercel.json`.** Add every new redirect there, regardless of whether it's an internal page move or a legacy external URL.
 
-- **`astro.config.ts`** (`redirects: withBase({ ... })`) is the in-app redirect map, applied by Astro at build time. Use it when you **move or rename a page within this repo** (for example, content shuffled between `learn/` and `build/`). Keys are site-relative with **no `/docs` prefix and no trailing slash** (for example `"/api": "/reference/tiger-cloud-rest"`); the `withBase()` helper prepends the deploy base path to destinations because Astro doesn't do it automatically. Don't define both trailing-slash and non-trailing-slash variants of a key, as that hard-errors the build.
-- **`vercel.json`** (`redirects` array) is the platform/edge redirect layer, applied by Vercel **before** the app reaches Astro. In production the site is served under `/docs`, so these keys **include the `/docs` prefix**. Use it for **legacy external URLs** from the old `docs.timescale.com` site (`/docs/use-timescale/latest/...`, `/docs/api/latest/...`, `/docs/tutorials/latest/...`), the root `/` to `/docs`, and anything that must redirect off-site. Each entry sets `permanent` (`true` = 308, `false` = 307), and keys can use params (`:slug`, `:path*`). `vercel.json` also owns trailing-slash normalization (`trailingSlash: false`), the `rewrites` that serve `index.md` to AI and markdown clients, and cache `headers`.
+`vercel.json`'s `redirects` array is the platform/edge redirect layer, applied by Vercel **before** the app reaches Astro. In production the site is served under `/docs`, so keys **include the `/docs` prefix**. Each entry sets `permanent` (`true` = 308, `false` = 307), and keys can use params (`:slug`, `:path*`). `vercel.json` also owns trailing-slash normalization (`trailingSlash: false`), the `rewrites` that serve `index.md` to AI and markdown clients, and cache `headers`.
 
-Rule of thumb: an internal page move is an Astro redirect; preserving an old published `/docs/...` URL is a Vercel redirect.
+The array is ordered in two contiguous blocks (JSON has no comments, so the boundary is a blank line — see the array around the `/docs/use-timescale/latest/integrations/apache-kafka` entry):
+
+1. **Legacy `docs.timescale.com` URLs** (`/docs/use-timescale/latest/...`, `/docs/api/latest/...`, `/docs/tutorials/latest/...`, and so on) — preserved from the old site.
+2. **Internal page-move redirects** — pages renamed or reorganized within this repo (for example content shuffled between `learn/` and `build/`).
+
+When you move or rename a page, add its redirect to block 2, keeping alphabetical order by `source` within the block for scannability.
+
+**Do not use `astro.config.ts`'s `redirects` key for anything production-facing.** It looks like the natural place for an internal-move redirect, but it doesn't work: the `@stainless-api/docs` integration unconditionally disables Astro's static redirect-page output during `astro build` (see the comment above `redirects:` in `astro.config.ts` for the full mechanism). Every entry that ever lived there was a silent no-op in production — confirmed 2026-07-23 when `/learn/tiger-cloud/regions` 404'd despite having a defined redirect. That key now exists only for the `DOCS_LOCAL_WITHOUT_STAINLESS` local-dev shim, which only needs to work in `pnpm dev`.
 
 ## Hosting, search, and cache
 
