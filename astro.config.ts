@@ -751,15 +751,8 @@ export default defineConfig({
                     { label: "Troubleshooting", link: "/migrate/livesync-replication-troubleshooting" },
                   ],
                 },
-                {
-                  label: "Live migration (deprecated)",
-                  collapsed: true,
-                  items: [
-                    { label: "Live migration (deprecated)", link: "/migrate/live-migration" },
-                    { label: "FAQ and troubleshooting", link: "/migrate/troubleshooting" },
-                  ],
-                },
                 { label: "Migrate with downtime", link: "/migrate/migrate-with-downtime" },
+                { label: "FAQ and troubleshooting", link: "/migrate/troubleshooting" },
                 {
                   label: "Dual-write and backfill",
                   collapsed: true,
