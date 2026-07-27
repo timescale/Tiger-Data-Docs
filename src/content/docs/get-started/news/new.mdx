@@ -137,7 +137,7 @@ TimescaleDB 2.28.2 is the first release of the 2.28 line on Tiger Cloud, and it 
 
 Continuous aggregates now support in-place schema evolution, direct statistics maintenance, and incremental manual refresh, so you can build and maintain materialized data with the same familiar SQL you already use for ordinary tables.
 
-- **`ALTER MATERIALIZED VIEW ... ADD COLUMN`:** Continuous aggregates now support adding new aggregate columns in place, when the new column is a `GENERATED ALWAYS AS (<aggregate>) STORED` expression. Previously, evolving a CAgg's schema meant creating a versioned copy, waiting for it to materialize, and switching application reads over. Now the column is added directly — new refreshes populate it going forward, and you backfill historical rows.
+- **`ALTER MATERIALIZED VIEW ... ADD COLUMN`:** Add new aggregate columns directly to an existing continuous aggregate, in place, when the new column is a `GENERATED ALWAYS AS (<aggregate>) STORED` expression. New refreshes populate the column going forward, and you can backfill historical rows at your own pace.
 
     ```sql
     ALTER MATERIALIZED VIEW conditions_summary_hourly
@@ -145,7 +145,7 @@ Continuous aggregates now support in-place schema evolution, direct statistics m
       GENERATED ALWAYS AS (max(temperature)) STORED;
     ```
 
-- **`ANALYZE` and `VACUUM` work directly on continuous aggregates:** Both maintenance commands are now transparently redirected to the underlying materialization hypertable and all associated chunks, including columnstore chunks, so you no longer invoke them on internal table names.
+- **`ANALYZE` and `VACUUM` work directly on continuous aggregates:** Run either maintenance command against a continuous aggregate by its own name, just like any other table, and TimescaleDB transparently applies it to the underlying materialization hypertable and all associated chunks, including columnstore chunks.
 - **Incremental manual refresh:** `refresh_continuous_aggregate()` now supports batched, incremental refresh through a new JSONB options argument, bringing manual refresh in line with policy-driven refresh and reducing memory pressure and lock duration on large refreshes.
 
     ```sql
@@ -171,13 +171,13 @@ GROUP BY device_id;
 
 **Broader vectorized execution**
 
-- **Vectorized `CASE` in the columnar executor:** `CASE ... WHEN ... THEN ... ELSE ... END` expressions inside vectorized aggregation over compressed hypertables no longer force a row-by-row fallback — a meaningful speedup for conditional aggregation.
-- **Higher parallelism for `SELECT` on compressed hypertables:** Parallelism is now sized more closely to the uncompressed data size, speeding up large analytical scans that were previously under-parallelized.
+- **Vectorized `CASE` in the columnar executor:** `CASE ... WHEN ... THEN ... ELSE ... END` expressions inside vectorized aggregation over compressed hypertables now run natively on the vectorized path, a meaningful speedup for conditional aggregation.
+- **Higher parallelism for `SELECT` on compressed hypertables:** Parallelism is now sized to the uncompressed data size, so large analytical scans over compressed hypertables get proportionally more workers and finish faster.
 
 **Sparse-index maintenance**
 
 - **Retrofit sparse indexes on existing chunks:** A new internal utility `_timescaledb_functions.rebuild_sparse_index()` updates sparse-index metadata on already-compressed chunks without a full decompress and recompress cycle. It diffs current metadata against the active compression settings and applies only what changed — useful after changing `segmentby`, `orderby`, or index settings on a hypertable that already has compressed data.
-- **Automatic cleanup when dropping columns:** When a column is dropped from a hypertable on the columnstore, TimescaleDB now removes all associated sparse-index metadata columns from compressed chunks. Previously those columns were left behind.
+- **Automatic cleanup when dropping columns:** When a column is dropped from a hypertable on the columnstore, TimescaleDB now automatically removes all associated sparse-index metadata columns (minmax and bloom) from compressed chunks, keeping compressed storage clean.
 
 **In-memory observability for compressed chunks**
 
@@ -191,7 +191,7 @@ FROM timescaledb_information.stat_chunk_activity;
 **Gap-fill planning improvements**
 
 - **Better row-count estimates for `time_bucket_gapfill()`:** The planner now accounts for rows synthesized by gap-filling rather than relying solely on the subplan's row count. When `start`, `finish`, and `period` are known at plan time, estimates are materially closer to actual emitted rows, leading to better join and aggregation plans downstream.
-- **Subquery execution-parameter arguments to `time_bucket_gapfill()`:** Gap-fill arguments can now resolve from subquery execution parameters, removing a previous limitation for some dynamic-argument query shapes.
+- **Subquery execution-parameter arguments to `time_bucket_gapfill()`:** Gap-fill arguments can now resolve from subquery execution parameters, expanding support to more dynamic-argument query shapes.
 
 ### Correctness and upgrade hardening
 
