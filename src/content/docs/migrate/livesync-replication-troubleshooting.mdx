@@ -22,6 +22,25 @@ docker logs -f livesync
 
 Add indexes on `UPDATE`/`DELETE` `WHERE`-clause columns on the target. Ensure `REPLICA IDENTITY` includes the partition column on {C.HYPERTABLE}s.
 
+## Tables missing a replica identity
+
+For `UPDATE` and `DELETE` statements to replicate, the source tables must have either a `PRIMARY KEY` or a `REPLICA IDENTITY` set. Without one, logical replication cannot locate the rows to change, and you see errors such as:
+
+```
+ERROR: cannot update table "..." because it does not have a replica identity and publishes updates
+ERROR: cannot delete from table "..." because it does not have a replica identity and publishes deletes
+```
+
+Set a replica identity on tables that receive updates or deletes:
+
+```sql
+ALTER TABLE <schema>.<table> REPLICA IDENTITY DEFAULT;            -- uses the primary key
+ALTER TABLE <schema>.<table> REPLICA IDENTITY USING INDEX <name>;  -- a unique, NOT NULL index
+ALTER TABLE <schema>.<table> REPLICA IDENTITY FULL;              -- all columns (slower, last resort)
+```
+
+If your {C.PG} tables use native partitioning, setting `REPLICA IDENTITY` on the root (parent) table does not automatically apply it to the partitioned child tables. Set `REPLICA IDENTITY` on each partitioned child table individually.
+
 ## Lag growing
 
 Scale up the target. Check for long-running transactions on the source that hold `xmin` and prevent WAL cleanup:
