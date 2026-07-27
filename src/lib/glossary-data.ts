@@ -128,7 +128,7 @@ export const glossaryTerms: GlossaryTerm[] = [
   { term: "JWT (JSON Web Token)", definition: "a compact, URL-safe means of representing claims to be transferred between two parties.", category: "Security" },
   { term: "Latency", definition: "the time delay between a request being made and the response being received.", category: "Observability" },
   { term: "Lifecycle policy", definition: "a set of rules that automatically manage data throughout its lifecycle, including retention and deletion.", category: "Operations" },
-  { term: "Live migration", definition: "a data migration technique that moves data with minimal or zero downtime.", category: "Data & migration" },
+  { term: "Livesync replication", definition: "a data migration technique that continuously replicates data from a source database to a target with minimal or zero downtime.", category: "Data & migration" },
   { term: "Load balancer", definition: "a service distributing traffic across servers or database nodes to optimize resource use and avoid single points of failure.", category: "Operations" },
   { term: "Log-Structured Merge (LSM) Tree", definition: "a data structure optimized for write-heavy workloads, though TimescaleDB primarily uses B-tree indexes for balanced read/write performance.", category: "PostgreSQL" },
   { term: "LlamaIndex", definition: "a framework for building applications with large language models, providing tools for data ingestion and querying.", category: "AI & vectors" },
