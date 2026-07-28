@@ -208,6 +208,7 @@ export default defineConfig({
         alias: [
           { find: "@components", replacement: new URL("./src/components", import.meta.url).pathname },
           { find: "@constants", replacement: new URL("./src/constants.ts", import.meta.url).pathname },
+          { find: "@lib", replacement: new URL("./src/lib", import.meta.url).pathname },
           // Resolve scripts subpath to the package so ThemeSelect.astro / SDKSelect.astro keep working.
           {
             find: "@stainless-api/docs/components/scripts",

@@ -141,19 +141,14 @@ const noindexSchema = z.object({
 });
 
 /**
- * Sitewide banner using Starlight's built-in banner field with a default value.
- * Banner is dismissible and persisted via localStorage automatically.
+ * Sitewide banner field (optional, controlled by src/lib/banner-config.ts)
  */
 const bannerSchema = z.object({
   banner: z
     .object({
       content: z.string(),
     })
-    .optional()
-    .default({
-      content:
-        'Join us at <strong><a href="https://www.tigerdata.com/events/aggregate-2026">Tiger Data Aggregate 2026</a></strong> for workshops, talks, and networking.',
-    }),
+    .optional(),
 });
 
 export const collections = {
