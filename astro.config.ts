@@ -536,6 +536,16 @@ export default defineConfig({
           link: "/build",
           sidebar: [
             { label: "Overview", link: "/build" },
+            // --- Tiger CLI and MCP: manage Tiger Cloud and drive the DB with agents ---
+            {
+              label: "Build with Tiger CLI and MCP",
+              collapsed: true,
+              items: [
+                { label: "Common tasks", link: "/build/tiger-cli-mcp/common-tasks" },
+                { label: "Best practices for AI agents", link: "/build/tiger-cli-mcp/agent-best-practices" },
+                { label: "Cookbook", link: "/build/tiger-cli-mcp/cookbook" },
+              ],
+            },
             // --- Quickstarts ---
             {
               label: "Quickstarts",

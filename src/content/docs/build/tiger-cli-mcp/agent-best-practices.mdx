@@ -1,0 +1,49 @@
+---
+title: Best practices for AI agents
+description: Use Tiger MCP and Tiger CLI safely with AI agents, including read-only mode, forks and read replicas, and effective prompting
+products: [cloud]
+keywords: [Tiger MCP, read-only, agents, Claude Code, safety]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+
+{C.MCP_LONG} lets an AI agent act on your {C.CLOUD_LONG} {C.SERVICE_SHORT}s: create and fork {C.SERVICE_SHORT}s, run queries, and change data. This page covers how to keep that safe and get better results. New to these tools? See [{C.CLI_LONG} and {C.MCP_LONG}](/learn/tiger-cli-mcp).
+
+## Restrict agents to read-only
+
+When you want an agent to explore and query without making any changes, turn on read-only mode. See [Restrict {C.MCP_LONG} to read-only](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only) for the commands: it blocks mutating {C.CLI_SHORT} commands and {C.MCP_SHORT} tools, and puts database sessions into {C.CLOUD_LONG}'s immutable read-only mode so writes and schema changes are rejected by the server.
+
+This also protects your bill: creating, forking, and resizing {C.SERVICE_SHORT}s all provision or change billable resources, and read-only mode disables the {C.MCP_SHORT} tools for all three.
+
+<Callout variant="tip" title="Default production to read-only">
+Keep production {C.SERVICE_SHORT}s in read-only mode and only escalate to write access deliberately, for the specific change you intend to make.
+</Callout>
+
+For an additional layer of security, create a dedicated read-only database role, save its password with `tiger db save-password <service-id> --role <role> --password=<password>`, then connect the agent as that role (`tiger db connect <service-id> --role <role>`, or the `role` parameter on {C.MCP_SHORT}'s database tools). Because the restriction is enforced by the database itself, it applies no matter how the agent connects. See [Manage data security in your {C.SERVICE_LONG}](/deploy/tiger-cloud/tiger-cloud-aws/security/read-only-role#create-a-read-only-user) to create the role.
+
+## Test against a fork or a read replica
+
+For exploratory or agent-driven work, point the agent at a copy of your data instead of production:
+
+- **Fork** a {C.SERVICE_SHORT} to get an isolated, writable copy you can experiment on and then discard. See [Manage your services](/build/tiger-cli-mcp/common-tasks#manage-your-services).
+- **{C.READ_REPLICA_CAP}**: connect the agent to a {C.READ_REPLICA} so exploration never touches the primary or its write performance. Add a {C.READ_REPLICA} [in {C.CONSOLE}](/deploy/tiger-cloud/tiger-cloud-aws/high-availability/read-scaling#create-a-read-replica-set), then point the agent at that set's own connection details.
+
+## Have the database do the work
+
+Agents sometimes pull large result sets to the client and process them locally, which is slow and can expose more data than needed. Get better results by:
+
+- Asking for a single computed answer (an aggregate, a ratio, a yes/no) rather than raw rows.
+- Setting explicit limits in your prompt, for example "return at most 50 rows."
+- Asking the agent to show the SQL it will run so you can verify it before it executes.
+
+## Guardrails for coding agents
+
+When you use an agent like Claude Code against your database, add project instructions (for example, in `CLAUDE.md`) that state which {C.SERVICE_SHORT}s are production, that production is read-only, and which {C.PROJECT_SHORT} to use. This reduces mistakes when an agent switches context.
+
+## Next steps
+
+- [Common tasks with {C.CLI_LONG} and {C.MCP_LONG}](/build/tiger-cli-mcp/common-tasks): Manage services and work with your data from the {C.CLI_SHORT} or your agent.
+- [Cookbook](/build/tiger-cli-mcp/cookbook): Longer, multi-step prompts for schema design, data analysis, and performance tuning.
+- [Integrate Tiger Cloud with your AI agent](/get-started/quickstart/mcp-cli): Set up {C.MCP_LONG} and connect it to your AI agent.
+- [File an issue in the {C.CLI_LONG} repo](https://github.com/timescale/tiger-cli): Report bugs or request features to help shape the open-source {C.CLI_LONG} and {C.MCP_LONG}.
