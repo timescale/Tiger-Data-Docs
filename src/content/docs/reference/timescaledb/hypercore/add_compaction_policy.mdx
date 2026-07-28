@@ -1,0 +1,84 @@
+---
+title: add_compaction_policy()
+description: Set a policy to automatically compact unordered chunks in the columnstore
+products: [cloud, self_hosted]
+keywords: [columnstore, hypercore, policies, compaction, direct compress]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<SinceRelease version="2.29.0" product="tsdb" />
+
+Create a [job](/reference/timescaledb/jobs-automation/add_job) that automatically compacts unordered {C.CHUNK}s in the
+{C.COLUMNSTORE}. Compaction combines overlapping batches within a {C.CHUNK} so queries no longer need an extra sort step
+to restore order.
+
+<Callout variant="note">
+
+You usually don't need to add this policy yourself. [Direct compress](/build/data-management/write-data/insert#improve-performance-with-direct-compress)
+creates it for you, and it is the main reason {C.CHUNK}s end up unordered. Use `add_compaction_policy` when you want to
+tune the schedule or bound how much work each run does. Direct compress is a tech preview, so this policy is too.
+
+</Callout>
+
+The policy only processes {C.CHUNK}s that are fully in the {C.COLUMNSTORE} and marked as unordered. It skips partial
+{C.CHUNK}s, which the [{C.COLUMNSTORE} policy](/reference/timescaledb/hypercore/add_columnstore_policy) handles, and frozen {C.CHUNK}s. If your {C.HYPERTABLE}
+doesn't use direct compress, it is unlikely to have unordered {C.CHUNK}s and this policy has nothing to do.
+
+To view the policies that you set or the policies that already exist, see [informational views](/reference/timescaledb/informational-views/jobs).
+
+## Samples
+
+- **Add a compaction policy with the default 5 minute schedule**:
+
+  ```sql
+  SELECT add_compaction_policy('metrics');
+  ```
+
+- **Run less often, bound the work per run, and skip {C.CHUNK}s still being written to**:
+
+  ```sql
+  SELECT add_compaction_policy('metrics',
+     schedule_interval => INTERVAL '15 minutes',
+     max_chunks => 10,
+     max_batches => 500,
+     inactive_for => INTERVAL '30 minutes');
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT add_compaction_policy(
+    hypertable = '<hypertable_name>',
+    if_not_exists = true | false,
+    schedule_interval = <interval>,
+    initial_start = <timestamptz>,
+    timezone = '<timezone>',
+    max_chunks = <integer>,
+    max_batches = <integer>,
+    inactive_for = <interval>
+);
+```
+
+| Name                | Type        | Default      | Required | Description                                                                                                                                                                                     |
+|---------------------|-------------|--------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `hypertable`        | REGCLASS    | -            | ✔        | Name of the {C.HYPERTABLE} to run this [job](/reference/timescaledb/jobs-automation/add_job) on.                                                                                                                                   |
+| `if_not_exists`     | BOOLEAN     | `false`      | ✖        | Set to `true` so this job fails with a warning rather than an error if a compaction policy already exists on `hypertable`.                                                                       |
+| `schedule_interval` | INTERVAL    | `5 minutes`  | ✖        | Set the interval between the finish time of the last execution of this policy and the next start. When direct compress creates this policy, it uses `1 minute` instead.                          |
+| `initial_start`     | TIMESTAMPTZ | `NULL`       | ✖        | Set the time this job is first run.                                                                                                                                                             |
+| `timezone`          | TEXT        | `NULL`       | ✖        | Set to a valid time zone to mitigate DST shifting. If `initial_start` is set, subsequent executions of this policy are aligned on `initial_start`.                                               |
+| `max_chunks`        | INTEGER     | `NULL`       | ✖        | Set the maximum number of {C.CHUNK}s to process in a single run, including {C.CHUNK}s that fail. Leave unset to process every eligible {C.CHUNK}.                                                            |
+| `max_batches`       | INTEGER     | `NULL`       | ✖        | Set the maximum number of batches to combine in each {C.CHUNK}. Leave unset for no limit.                                                                                                             |
+| `inactive_for`      | INTERVAL    | `NULL`       | ✖        | Only compact {C.CHUNK}s that have not been written to for this interval. Leave unset to compact every eligible {C.CHUNK} regardless of when it was last written to.                                        |
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+|`job_id`|INTEGER|{C.TIMESCALE_DB} background job ID created to implement this policy|

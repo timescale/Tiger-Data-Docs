@@ -1375,6 +1375,8 @@ export default defineConfig({
                       items: [
                         { label: "add_columnstore_policy()", link: "/reference/timescaledb/hypercore/add_columnstore_policy" },
                         { label: "remove_columnstore_policy()", link: "/reference/timescaledb/hypercore/remove_columnstore_policy" },
+                        { label: "add_compaction_policy()", link: "/reference/timescaledb/hypercore/add_compaction_policy" },
+                        { label: "remove_compaction_policy()", link: "/reference/timescaledb/hypercore/remove_compaction_policy" },
                       ],
                     },
                     {
