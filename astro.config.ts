@@ -197,6 +197,12 @@ export default defineConfig({
   site: 'https://www.tigerdata.com',
   base: BASE,
   trailingSlash: "never",
+  security: {
+    checkOrigin: true,
+  },
+  experimental: {
+    csp: "auto",
+  },
   markdown: {
     gfm: true,
     remarkPlugins: [remarkResolveConstantsInHeadings],
