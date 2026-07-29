@@ -1,12 +1,9 @@
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
-import UsageBasedStorage from "./_usage-based-storage-intro.mdx";
 
 import { Image } from "astro:assets";
 import imgTigerConsoleUpdateCpuManually from "../assets/images/deploy/tiger-cloud/tiger-console-update-cpu-manually.png";
-
-<UsageBasedStorage />
 
 You use [{C.CONSOLE_LONG}](https://console.cloud.tigerdata.com/) to resize the compute (CPU/RAM) resources available to your
 {C.SERVICE_LONG}s at any time, with a short downtime.
@@ -71,38 +68,3 @@ Your {C.SERVICE_SHORT} goes down briefly while the changes are applied.
 </NumberedItem>
 
 </NumberedList>
-
-## Out of memory errors
-
-If you run intensive queries on your standard {C.SERVICE_SHORT}s, you might
-encounter out of memory (OOM) errors. This occurs if your query consumes more
-memory than is available.
-
-When this happens, an `OOM killer` process shuts down {C.PG} processes using
-`SIGKILL` commands until the memory usage falls below the upper limit. Because
-this kills the entire server process, it usually requires a restart.
-
-To prevent {C.SERVICE_SHORT} disruption caused by OOM errors, {C.CLOUD_LONG} attempts to
-shut down only the query that caused the problem. This means that the
-problematic query does not run, but that your {C.SERVICE_SHORT} continues to
-operate normally.
-
-* If the normal OOM killer is triggered, the error log looks like this:
-
-   ```yml
-   2021-09-09 18:15:08 UTC [560567]:TimescaleDB: LOG: server process (PID 2351983) was terminated by signal 9: Killed
-   ```
-
-  Wait for the {C.SERVICE_SHORT} to come back online before reconnecting.
-
-* {C.CLOUD_LONG} shuts the client connection only
-
-  If {C.CLOUD_LONG} successfully guards the {C.SERVICE_SHORT} against the OOM killer, it shuts
-  down only the client connection that was using too much memory. This prevents
-  the entire {C.SERVICE_SHORT} from shutting down, so you can reconnect immediately. The error log looks like this:
-
-   ```yml
-   2022-02-03 17:12:04 UTC [2253150]:TimescaleDB: tsdbadmin@tsdb,app=psql [53200] ERROR: out of memory
-   ```
-
-If you encounter OOM errors on a free {C.SERVICE_SHORT}, [convert it to a standard {C.SERVICE_SHORT}](../service-management/service-management#convert-a-free-service-to-a-standard-one), then increase its CPU and memory allocation as needed to resolve the memory pressure.
