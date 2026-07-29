@@ -170,5 +170,6 @@ See [docs link](https://...) for details.
 ## Tips
 
 - **Keep titles consistent:** use the same string for the `##` heading, the `title` prop, and the H2 in the heading slot so the TOC and card stay in sync.
+- **No constants:** write product names as literal strings (`Tiger Cloud`, `PostgreSQL`, `TimescaleDB`, and so on), not `{C.X}` constants. Entries are a permanent historical record, so they must not shift when a constant's value changes. This is the one content file exempt from the constants convention.
 - **One or more tags:** use the tags that best describe the entry; multiple tags (for example, `["new-feature", "improvement"]`) are fine.
 - **Body structure:** starting with a `###` and using more `###` for sub-topics keeps the changelog scannable and the layout consistent across entries.

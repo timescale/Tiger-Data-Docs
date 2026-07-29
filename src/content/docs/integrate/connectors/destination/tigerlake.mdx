@@ -1,6 +1,7 @@
 ---
 title: "Integrate data lakes with Tiger Cloud"
 description: "Unify the Tiger Cloud operational architecture with data lake architectures"
+products: [cloud]
 integrationCategory: "connectors"
 integrationPlatforms: ["aws"]
 integrationIndustry: ["energy", "manufacturing", "healthcare"]
@@ -9,12 +10,13 @@ integrationCardTitle: "Apache Iceberg destination connector"
 integrationCardLogo: "tigerlake-destination.png"
 integrationCardLogoDark: "tigerlake-destination-dark.png"
 sidebar:
-  label: "Tiger Lake"
+  label: "TigerLake"
 ---
 
 import * as C from "@constants";
 
 import { Tabs, Tab } from '@stainless-api/docs/stainless-docs/mintlify-compat';
+import { Callout } from "@stainless-api/docs/components";
 
 import IntegrationPrereqsCloud from '@partials/_prereqs-cloud-no-connection.mdx';
 import NotSupportedAzure from '@partials/_not-supported-for-azure.mdx';
@@ -28,10 +30,14 @@ import imgIcebergConnectorTigerCloudDark from "../../../../../assets/images/inte
 {C.LAKE_LONG} enables you to build real-time applications alongside efficient data pipeline management within a single
 system.
 
-<ThemeImage light={imgIcebergConnectorTigerCloudLight} dark={imgIcebergConnectorTigerCloudDark} alt="Tiger Lake architecture: Iceberg connector in Tiger Cloud" />
+<ThemeImage light={imgIcebergConnectorTigerCloudLight} dark={imgIcebergConnectorTigerCloudDark} alt="TigerLake architecture: Iceberg connector in Tiger Cloud" />
 
 {C.LAKE_LONG} is a native integration enabling synchronization between {C.HYPERTABLE}s and relational tables
 running in {C.SERVICE_LONG}s to Iceberg tables running in [Amazon S3 Tables](https://aws.amazon.com/s3/features/tables/) in your AWS account.
+
+Once set up, you can query that data directly, without ETL or data duplication. For example, see
+[Query TigerLake S3 Tables with AWS Glue and Athena](/integrate/connectors/destination/athena) or
+[Query TigerLake S3 Tables from Snowflake](/integrate/connectors/destination/snowflake).
 
 <Prerequisites context="integration">
 <IntegrationPrereqsCloud />
@@ -195,6 +201,22 @@ To connect a {C.SERVICE_LONG} to your data lake:
     </NumberedList>
   </Tab>
 </Tabs>
+
+<Callout variant="important">
+If your table bucket is encrypted with a customer managed AWS KMS key ([SSE-KMS](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-kms-encryption.html)) instead of the default AWS managed encryption, the role you supply to {C.LAKE_LONG} also needs `kms:GenerateDataKey` and `kms:Decrypt` permissions on that key. Without them, {C.LAKE_SHORT} cannot write to the bucket and syncs fail with a `not authorized to perform: kms:GenerateDataKey` error. Add the following statement to the role's inline policy, replacing `<KMS_KEY_ARN>` with the ARN of your KMS key:
+
+```json
+{
+  "Sid": "KMSAccess",
+  "Effect": "Allow",
+  "Action": [
+    "kms:GenerateDataKey",
+    "kms:Decrypt"
+  ],
+  "Resource": "<KMS_KEY_ARN>"
+}
+```
+</Callout>
 
 ## Stream data from your service to your data lake
 

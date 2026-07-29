@@ -1,0 +1,131 @@
+---
+title: Livesync replication troubleshooting
+description: Troubleshoot Livesync replication when migrating to Tiger Cloud
+products: [cloud]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+Common issues you may hit while running a [Livesync replication](/migrate/livesync-replication) migration to {C.CLOUD_LONG}, and how to resolve them.
+
+## `_ts_live_sync.subscription_rel` empty
+
+It may take up to 30 minutes for large publications before `_ts_live_sync.subscription_rel` is populated. Check Docker logs:
+
+```bash
+docker logs -f livesync
+```
+
+## Replay not keeping up
+
+Add indexes on `UPDATE`/`DELETE` `WHERE`-clause columns on the target. Ensure `REPLICA IDENTITY` includes the partition column on {C.HYPERTABLE}s.
+
+## Tables missing a replica identity
+
+For `UPDATE` and `DELETE` statements to replicate, the source tables must have either a `PRIMARY KEY` or a `REPLICA IDENTITY` set. Without one, logical replication cannot locate the rows to change, and you see errors such as:
+
+```
+ERROR: cannot update table "..." because it does not have a replica identity and publishes updates
+ERROR: cannot delete from table "..." because it does not have a replica identity and publishes deletes
+```
+
+Set a replica identity on tables that receive updates or deletes:
+
+```sql
+ALTER TABLE <schema>.<table> REPLICA IDENTITY DEFAULT;            -- uses the primary key
+ALTER TABLE <schema>.<table> REPLICA IDENTITY USING INDEX <name>;  -- a unique, NOT NULL index
+ALTER TABLE <schema>.<table> REPLICA IDENTITY FULL;              -- all columns (slower, last resort)
+```
+
+If your {C.PG} tables use native partitioning, setting `REPLICA IDENTITY` on the root (parent) table does not automatically apply it to the partitioned child tables. Set `REPLICA IDENTITY` on each partitioned child table individually.
+
+## Lag growing
+
+Scale up the target. Check for long-running transactions on the source that hold `xmin` and prevent WAL cleanup:
+
+```sql
+SELECT pid, age(backend_xmin) AS xmin_age, query
+FROM pg_stat_activity
+WHERE backend_xmin IS NOT NULL
+ORDER BY xmin_age DESC;
+```
+
+## Initial data copy is slow or target IOPS saturated
+
+If the target's IOPS or disk throughput is pinned during the initial data copy, the most common cause is index maintenance on the destination tables. Each non-PK index has to be updated for every `COPY`'d row, which multiplies the I/O cost.
+
+Drop the non-PK indexes on the target before the copy and recreate them after all tables reach state `r` or `s`. Primary-key and unique-constraint indexes must stay; Livesync uses them for `INSERT ... ON CONFLICT` deduplication.
+
+```sql
+-- On the TARGET, before initial copy:
+DROP INDEX IF EXISTS <schema>.<index_1>;
+DROP INDEX IF EXISTS <schema>.<index_2>;
+-- ... repeat for each non-PK index
+```
+
+After the initial copy completes, recreate the indexes (preferably in parallel sessions for large tables):
+
+```sql
+SET maintenance_work_mem = '2GB';
+SET max_parallel_maintenance_workers = 4;
+
+CREATE INDEX <index_1> ON <schema>.<table> (...);
+-- ... etc.
+```
+
+Other knobs to consider: lower `--table-sync-workers`, scale up target IOPS or CPU, or stagger heavy tables.
+
+## Restart a single table
+
+<NumberedList>
+<NumberedItem title="Remove the table from the publication on the source">
+
+```sql
+ALTER PUBLICATION <publication_name> DROP TABLE <schema>.<table>;
+```
+
+</NumberedItem>
+
+<NumberedItem title="Stop and restart Livesync to remove catalog objects for the dropped table">
+</NumberedItem>
+
+<NumberedItem title="Confirm removal (this should return empty)">
+
+```sql
+psql "$TARGET" -c "
+  SELECT * FROM _ts_live_sync.subscription_rel
+  WHERE tablename = '<table>';
+"
+```
+
+</NumberedItem>
+
+<NumberedItem title="Truncate the table on the target">
+
+```sql
+TRUNCATE <schema>.<table>;
+```
+
+</NumberedItem>
+
+<NumberedItem title="Add the table back to the publication">
+
+```sql
+ALTER PUBLICATION <publication_name> ADD TABLE <schema>.<table>;
+```
+
+</NumberedItem>
+
+<NumberedItem title="Stop and restart Livesync to begin syncing the re-added table">
+</NumberedItem>
+</NumberedList>
+
+## Restart everything
+
+Stop Livesync, drop the subscription, truncate all target tables, then restart the container.
+
+<Callout variant="important">
+Failing to truncate target tables leads to duplicate-key violation errors or duplicate records on the target.
+</Callout>

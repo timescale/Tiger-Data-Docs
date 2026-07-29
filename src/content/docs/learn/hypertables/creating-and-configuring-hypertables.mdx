@@ -1,15 +1,77 @@
 ---
 title: Create and configure a hypertable
 description: Create a hypertable, set chunk intervals, control default indexes, and migrate existing data
+products: [cloud, self_hosted]
 ---
 
 import * as C from "@constants";
+import { Image } from "astro:assets";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+import imgCreateName from "../../../../assets/images/learn/hypertables/create-hypertable-name.png";
+import imgCreateCreate from "../../../../assets/images/learn/hypertables/create-hypertable-create.png";
+import imgConvertStart from "../../../../assets/images/learn/hypertables/convert-hypertable-start.png";
+import imgConvertComplete from "../../../../assets/images/learn/hypertables/convert-hypertable-complete.png";
 
 {C.HYPERTABLE_CAP}s turn ordinary {C.PG} tables into time-partitioned tables made of
 **{C.CHUNK}s**, so you can scale to very large datasets. Add
 `WITH (timescaledb.hypertable)` to a standard `CREATE TABLE` statement to create one.
 
 ## Create a {C.HYPERTABLE}
+
+Create a {C.HYPERTABLE} from scratch in {C.CONSOLE_LONG} or with SQL.
+
+<Tabs>
+
+<TabItem label={C.CONSOLE}>
+
+To create a {C.HYPERTABLE} in {C.CONSOLE_LONG}:
+
+<NumberedList>
+
+  <NumberedItem title={`Select your ${C.SERVICE_SHORT}, then click \`Actions\``}>
+  </NumberedItem>
+
+  <NumberedItem title={`Under \`Goals\`, find \`Create a hypertable\` and click \`Get started\``}>
+
+    In the wizard, select the `Create new table` tab.
+
+    <Image src={imgCreateName} alt="Create a hypertable wizard in Tiger Console" />
+
+  </NumberedItem>
+
+  <NumberedItem title="Name the table">
+
+    Under `Name table`, enter a name, then click `Continue`. The name must start with a
+    letter or an underscore, and can contain only letters, numbers, and underscores.
+
+  </NumberedItem>
+
+  <NumberedItem title="Configure the partition column">
+
+    Under `Configure`, set the `Name` and `Type` of the column used to partition data into
+    {C.CHUNK}s, for example `created_at` with type `TIMESTAMP WITH TIME ZONE`. Optionally,
+    select an `Additional dimension` to partition on a
+    [secondary column](/learn/hypertables/partitioning-hypertables#space-partitioning-hash-dimension).
+    Click `Continue`.
+
+  </NumberedItem>
+
+  <NumberedItem title="Create the hypertable">
+
+    Under `Create hypertable`, review the generated SQL, then click `Run and proceed`. Your
+    new table is created as a {C.HYPERTABLE}.
+
+    <Image src={imgCreateCreate} alt="Generated SQL in the Create a hypertable wizard" />
+
+  </NumberedItem>
+
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="SQL">
 
 The simplest form auto-detects the partition column from the first `timestamptz` column
 and adds `NOT NULL` automatically if needed:
@@ -35,6 +97,10 @@ CREATE TABLE order_events (
   timescaledb.partition_column = 'created_at'
 );
 ```
+
+</TabItem>
+
+</Tabs>
 
 ## Configuration options
 
@@ -86,6 +152,56 @@ CREATE INDEX ON bulk_load_target (device_id, time DESC);
 
 ## Convert an existing table
 
+Convert an existing {C.PG} table that already has data to a {C.HYPERTABLE} in
+{C.CONSOLE_LONG} or with SQL.
+
+<Tabs>
+
+<TabItem label={C.CONSOLE}>
+
+To convert an existing table in {C.CONSOLE_LONG}:
+
+<NumberedList>
+
+  <NumberedItem title={`Select your ${C.SERVICE_SHORT}, then click \`Actions\``}>
+  </NumberedItem>
+
+  <NumberedItem title={`Under \`Goals\`, find \`Create a hypertable\` and click \`Get started\``}>
+
+    In the wizard, select the `Convert existing table` tab.
+
+    <Image src={imgConvertStart} alt="Create a hypertable wizard in Tiger Console" />
+
+  </NumberedItem>
+
+  <NumberedItem title="Choose the table to convert">
+
+    Under `Choose a table`, select the {C.PG} table you want to convert.
+
+  </NumberedItem>
+
+  <NumberedItem title="Configure the partition column">
+
+    Under `Configure`, select the column used to partition data into {C.CHUNK}s, for
+    example `time`. If the wizard reports `Primary key change required`, click `Run` to
+    update the primary key, then continue.
+
+  </NumberedItem>
+
+  <NumberedItem title="Transform the table into a hypertable">
+
+    Your table is converted to a {C.HYPERTABLE}.
+
+    <Image src={imgConvertComplete} alt="A table converted to a hypertable in Tiger Console" />
+
+  </NumberedItem>
+
+</NumberedList>
+
+</TabItem>
+
+<TabItem label="SQL">
+
 To convert a {C.PG} table that already has data, use the `create_hypertable()` function
 with `migrate_data`:
 
@@ -102,6 +218,10 @@ CREATE TABLE new_table (LIKE existing_table INCLUDING ALL)
 
 INSERT INTO new_table SELECT * FROM existing_table;
 ```
+
+</TabItem>
+
+</Tabs>
 
 ## Learn more
 

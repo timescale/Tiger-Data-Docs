@@ -1,4 +1,5 @@
 import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 
@@ -21,7 +22,7 @@ import { Prerequisites } from "@components/Prerequisites";
 
   For a better experience, use a 4 CPU/16GB EC2 instance or greater to run the {C.PG_CONNECTOR}.
 
-- The [{C.PG} client tools](/integrate/query-administration/psql/) installed on your sync machine.
+- The [{C.PG} client tools](/integrate/query-administration/psql) installed on your sync machine.
 
   This includes `psql`, `pg_dump`, `pg_dumpall`, and `vacuumdb` commands.
 </Prerequisites>
@@ -165,11 +166,19 @@ ALTER PUBLICATION <publication_name> ADD TABLE <table_name>;
 
 <NumberedItem title={`Publish the ${C.PG} declarative partitioned table`}>
 
+Leave `publish_via_partition_root` at its default (`false`). Since live-sync v0.23.0, this copies the partitioned table's leaf partitions in parallel and makes the initial copy resumable, instead of streaming the whole table through a single connection:
+
+```sql
+ALTER PUBLICATION <publication_name> SET(publish_via_partition_root=false);
+```
+
+Only set it to `true` if you need the older serial, whole-table copy:
+
 ```sql
 ALTER PUBLICATION <publication_name> SET(publish_via_partition_root=true);
 ```
 
-To convert a partitioned table to a hypertable, follow [Convert partitions and tables with time-series data into hypertables](/migrate/livesync-for-postgresql/).
+To convert a partitioned table to a hypertable, follow [Convert partitions and tables with time-series data into hypertables](#convert-partitions-and-tables-with-time-series-data-into-hypertables).
 
 </NumberedItem>
 
@@ -196,7 +205,7 @@ instance to a {C.SERVICE_LONG}:
 As you run the {C.PG_CONNECTOR} continuously, best practice is to run it as a Docker daemon.
 
 ```shell
-docker run -d --rm --name livesync timescale/live-sync:<version-tag> run \
+docker run -d --rm --name livesync timescale/live-sync:latest run \
    --publication <publication_name> --subscription <subscription_name> \
    --source $SOURCE --target $TARGET --table-map <table_map_as_json>
 ```
@@ -366,12 +375,21 @@ EOF
 
 <NumberedItem title="Clean up">
 
-Use the `drop` sub-command to remove the replication slots created by the {C.PG_CONNECTOR} on the source database.
+When you are permanently done syncing (for example, you have fully cut over to {C.CLOUD_LONG}, or you want to restart the sync from scratch), use the `drop` sub-command to remove the replication slot from the source and all subscription state from the target:
 
 ```shell
-docker run -it --rm --name livesync timescale/live-sync:<version-tag> drop \
+docker run -it --rm --name livesync timescale/live-sync:latest drop \
    --subscription <subscription_name> --source $SOURCE --target $TARGET
 ```
+
+`drop` removes:
+
+- The replication slot (`live_sync_<subscription_name>`) on the **source** database.
+- The subscription and internal tracking tables (`_ts_live_sync.*`) on the **target** {C.SERVICE_LONG}.
+
+<Callout variant="warning">
+Run `drop` only when you intend to permanently stop or fully restart the sync. Dropping the replication slot while the source is still active causes WAL to be retained until the slot is recreated, which can grow disk usage on the source.
+</Callout>
 
 </NumberedItem>
 

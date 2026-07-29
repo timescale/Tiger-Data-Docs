@@ -64,8 +64,21 @@ interface SidebarEntryLike {
  */
 const SECTION_DROPDOWN_HREF: Record<string, string> = {
   "Get hands on": "/build/how-to/your-first-hypertable",
+  "Migrate to Tiger Cloud": "/migrate/livesync-replication",
   "Tiger Cloud on AWS": "/deploy/tiger-cloud/tiger-cloud-aws/configuration/about-configuration",
   "Tiger Cloud on Azure": "/deploy/tiger-cloud/tiger-cloud-azure/configuration/about-configuration",
+  "Tiger Cloud REST API": "/reference/tiger-cloud-rest",
+};
+
+/**
+ * Dropdown-only: sidebar sections whose children are promoted to individual
+ * dropdown entries instead of a single section link. Used for the Reference
+ * "Tiger Cloud" group so the dropdown lists Tiger CLI, Tiger MCP, and the REST API
+ * as separate entries (not one "Tiger Cloud" overview link), without changing the
+ * left sidebar. The "Overview" and "Data tiering" children are dropped.
+ */
+const SECTION_DROPDOWN_EXPAND: Record<string, Set<string>> = {
+  Reference: new Set<string>(["Tiger Cloud"]),
 };
 
 const BASE_PREFIX = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -173,7 +186,7 @@ function sectionIndexHref(e: SidebarEntryLike): string | undefined {
  * Only the tab sidebar’s **root** entries appear in the dropdown (same as top-level sidebar groups).
  * Nested pages are omitted; use the section heading link (sectionIndexHref) or the left sidebar for drill-down.
  */
-function buildNavTree(entries: unknown[] | undefined): NavTreeNode[] {
+function buildNavTree(entries: unknown[] | undefined, tabLabel: string): NavTreeNode[] {
   const out: NavTreeNode[] = [];
   if (!Array.isArray(entries)) return out;
 
@@ -184,6 +197,14 @@ function buildNavTree(entries: unknown[] | undefined): NavTreeNode[] {
 
     const items = Array.isArray(e.items) ? e.items : [];
     const hasItems = items.length > 0;
+
+    if (hasItems && SECTION_DROPDOWN_EXPAND[tabLabel]?.has(e.label.trim())) {
+      const childNodes = buildNavTree(items, tabLabel).filter(
+        (n) => !/^(overview|data tiering)$/i.test(n.label.trim())
+      );
+      out.push(...childNodes);
+      continue;
+    }
 
     if (hasItems) {
       const href = sectionIndexHref(e);
@@ -250,8 +271,8 @@ function prefixNavTreeHrefs(nodes: NavTreeNode[]): void {
   }
 }
 
-function getNavTreeForSidebar(sidebar: unknown, tabLink: string): NavTreeNode[] {
-  const tree = buildNavTree(sidebar as unknown[]);
+function getNavTreeForSidebar(sidebar: unknown, tabLink: string, tabLabel: string): NavTreeNode[] {
+  const tree = buildNavTree(sidebar as unknown[], tabLabel);
   const filtered = filterOverviewDuplicate(tree, tabLink);
   clearTreeDescriptions(filtered);
   prefixNavTreeHrefs(filtered);
@@ -262,7 +283,7 @@ const dropdownTreeByTab = new Map<string, NavTreeNode[]>();
 for (const item of navItems) {
   const sidebar = item.sidebar;
   if (Array.isArray(sidebar) && sidebar.length > 0) {
-    dropdownTreeByTab.set(item.label, getNavTreeForSidebar(sidebar, item.link));
+    dropdownTreeByTab.set(item.label, getNavTreeForSidebar(sidebar, item.link, item.label));
   }
 }
 ---

@@ -1,79 +1,381 @@
 import * as C from "@constants";
-
 import GLOBALFLAGS from "./_devops-cli-global-flags.mdx";
 import CONFIGOPTIONS from "./_devops-cli-config-options.mdx";
 
-## Commands
+Use the following commands to manage {C.CLOUD_LONG} from the terminal. Every command supports `-h` for inline help, for example `tiger service create -h`.
 
-You can use the following commands with {C.CLI_LONG}. For more information on each command, use the `-h` flag. For example:
-`tiger auth login -h`
+## Authentication
 
-| Command | Subcommand                                          | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-|---------|-----------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| auth    |                                                     | Manage authentication and credentials for your {C.ACCOUNT_LONG}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-|         | login                                               | Create an authenticated connection to your {C.ACCOUNT_LONG}. For non-interactive login, use flags: <ul><li>`--public-key`: public key for authentication</li><li>`--secret-key`: secret key for authentication</li></ul> You can also use environment variables `TIGER_PUBLIC_KEY`, `TIGER_SECRET_KEY`, and `TIGER_PROJECT_ID`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-|         | logout                                              | Remove the credentials used to create authenticated connections to {C.CLOUD_LONG}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-|         | status                                              | Show your current authentication status and project ID. Possible flags are: <ul><li>`--output, -o`: set output format to `json`, `yaml`, or `table`</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| version |                                                     | Show information about the currently installed version of {C.CLI_LONG}. Possible flags are: <ul><li>`--check`: force check for updates (regardless of last check time)</li><li>`--output, -o`: set output format to `table`, `json`, `yaml`, or `bare`</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| config  |                                                     | Manage your {C.CLI_LONG} configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-|         | show                                                | Show the current configuration. Possible flags are: <ul><li>`--output, -o`: set output format to `json`, `yaml`, or `table`</li><li>`--no-defaults`: do not show default values for unset fields</li><li>`--with-env`: apply environment variable overrides</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-|         | set `<key>` `<value>`                               | Set a specific value in your configuration. For example, `tiger config set debug true`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-|         | unset `<key>`                                       | Clear the value of a configuration parameter. For example, `tiger config unset debug`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-|         | reset                                               | Reset the configuration to the defaults. This also logs you out from the current {C.PROJECT_LONG}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| service |                                                     | Manage the {C.SERVICE_LONG}s in this {C.PROJECT_SHORT}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-|         | create                                              | Create a new {C.SERVICE_SHORT} in this {C.PROJECT_SHORT}. Possible flags are: <ul><li>`--name`: service name (auto-generated if not provided)</li><li>`--addons`: addons to enable. Possible values are `time-series`, `ai`. Set to `none` for vanilla {C.PG}</li><li>`--region`: region code where the service will be deployed. Free services (shared CPU/memory) must use `us-east-1`</li><li>`--cpu`: CPU allocation in millicores. Set to `shared` to create a free service. See the allowed CPU/memory configurations below. </li><li>`--memory`: memory allocation in gigabytes. Set to `shared` to create a free service. See the allowed CPU/memory configurations below.</li><li>`--replicas`: number of high-availability replicas</li><li>`--environment`: environment tag. Possible values: `DEV`, `PROD` (default: `DEV`)</li><li>`--no-wait`: don't wait for the operation to complete</li><li>`--wait-timeout`: wait timeout duration (for example, 30m, 1h30m, 90s)</li><li>`--no-set-default`: don't set this service as the default service</li><li>`--with-password`: include password in output</li><li>`--output, -o`: set the output format to `json`, `yaml`, `env`, or `table`</li></ul> <br/> Allowed CPU/memory configurations are: <ul><li>shared / shared (only available in `us-east-1`)</li><li>0.5 CPU (500m) / 2GB</li><li>1 CPU (1000m) / 4GB</li><li>2 CPU (2000m) / 8GB</li><li>4 CPU (4000m) / 16GB</li><li>8 CPU (8000m) / 32GB</li><li>16 CPU (16000m) / 64GB</li><li>32 CPU (32000m) / 128GB</li></ul>Note: You can specify both CPU and memory together, or specify only one (the other will be automatically configured). |
-|         | delete `<service-id>`                               | Delete a {C.SERVICE_SHORT} from this {C.PROJECT_SHORT}. This operation is irreversible and requires confirmation by typing the service ID                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-|         | fork `<service-id>`                                 | Fork an existing service to create a new independent copy. Key features are: <ul><li><strong>Timing options</strong> (exactly one required): <ul><li>`--now`: fork at current database state</li><li>`--last-snapshot`: fork at last existing snapshot (faster)</li><li>`--to-timestamp`: fork at specific point in time (RFC3339 format)</li></ul></li><li><strong>Resource configuration</strong>: <ul><li>`--cpu`: CPU allocation in millicores. Set to `shared` to create a free service. If not specified, inherits from source service. See the allowed CPU/memory configurations in the `create` subcommand</li><li>`--memory`: memory allocation in gigabytes. Set to `shared` to create a free service. If not specified, inherits from source service. See the allowed CPU/memory configurations in the `create` subcommand</li></ul> </li><li><strong>Naming and environment</strong>: <ul><li> `--name <name>`: defaults to `{source-service-name}-fork`</li><li>`--environment`: environment tag. Possible values: `DEV`, `PROD` (default: `DEV`)</li></ul></li><li><strong>Wait behavior</strong>: <ul><li>`--no-wait`: don't wait for operation to complete</li><li>`--wait-timeout`: wait timeout duration (default: 30m)</li></ul></li><li><strong>Default service and output</strong>: <ul><li>`--no-set-default`: don't set forked service as default</li><li>`--with-password`: include password in output</li><li>`--output, -o`: set output format to `json`, `yaml`, `env`, or `table`</li></ul></li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-|         | get `<service-id>` <br/>aliases: `describe`, `show` | Show detailed information about a specific {C.SERVICE_SHORT} in this {C.PROJECT_SHORT}. Possible flags are: <ul><li>`--with-password`: include password in output</li><li>`--output, -o`: set output format to `json`, `yaml`, `env`, or `table`</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-|         | list                                                | List all the {C.SERVICE_SHORT}s in this {C.PROJECT_SHORT}. Possible flags are: <ul><li>`--output, -o`: set output format to `json`, `yaml`, or `table`</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-|         | update-password `<service-id>`                      | Update the master password for a {C.SERVICE_SHORT}. Possible flags are: <ul><li>`--new-password`: new password for the tsdbadmin user</li><li>`--auto-generate`: auto-generate a secure password (mutually exclusive with `--new-password`)</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-|         | start `<service-id>`                                | Start a {C.SERVICE_SHORT} that is currently inactive. Possible flags are: <ul><li>`--no-wait`: don't wait for the operation to complete</li><li>`--wait-timeout`: set the maximum wait time for this operation to complete. For example, `10m` (default), `30m`, `1h30m`, `90s`</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-|         | stop `<service-id>`                                 | Stop a {C.SERVICE_SHORT} that is currently active. After you run this command  `<service-id>` no longer accepts connections. Possible flags are: <ul><li>`--no-wait`: don't wait for the operation to complete</li><li>`--wait-timeout`: set the maximum wait time for this operation to complete. For example, `10m` (default), `30m`, `1h30m`, `90s`</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-|         | resize `<service-id>`                               | Resize a {C.SERVICE_SHORT} by changing CPU and memory allocation. The service may be temporarily unavailable during the resize operation. Possible flags are: <ul><li>`--cpu`: CPU allocation in millicores. See the allowed CPU/memory configurations in the `create` subcommand</li><li>`--memory`: memory allocation in gigabytes. See the allowed CPU/memory configurations in the `create` subcommand</li><li>`--no-wait`: don't wait for the operation to complete</li><li>`--wait-timeout`: set the maximum wait time for this operation to complete. For example, `10m` (default), `30m`, `1h30m`, `90s`</li></ul> Note: You can specify both `--cpu` and `--memory` together, or specify only one (the other will be automatically configured).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-|         | logs `<service-id>` <br/>alias: `log`               | View logs for a {C.SERVICE_SHORT}. Log lines are colorized by severity when the global `--color` flag is enabled (default). Possible flags are: <ul><li>`--tail`: number of log lines to show (default: `100`)</li><li>`--since`: fetch logs after this timestamp (RFC3339 format, for example `2024-01-15T09:00:00Z`)</li><li>`--until`: fetch logs before this timestamp (RFC3339 format, for example `2024-01-15T10:00:00Z`)</li><li>`--node`: fetch logs from a specific service node by ordinal. Omit this flag to fetch logs from the current primary</li><li>`--output, -o`: set output format to `text`, `json`, or `yaml` (default: `text`)</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| db      |                                                     | Database operations and management                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-|         | connect `<service-id>`                              | Connect to a {C.SERVICE_SHORT} using psql. Possible flags are: <ul><li>`--pooled`: use connection pooling (default: `false`)</li><li>`--role`: database role/username (default: `tsdbadmin`)</li><li>`--read-only`: open the session in {C.CLOUD_LONG}'s immutable read-only mode, so writes and DDL are rejected by the server. The global [`read_only` config option](#configuration-parameters), or `TIGER_READ_ONLY=true`, also forces this behavior</li></ul> You can also pass additional flags to psql after `--`. For example: `tiger db connect -- --single-transaction --quiet`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-|         | connection-string `<service-id>`                    | Retrieve the connection string for a {C.SERVICE_SHORT}. Possible flags are: <ul><li>`--pooled`: use connection pooling (default: `false`)</li><li>`--role`: database role/username (default: `tsdbadmin`)</li><li>`--with-password`: include password in connection string (default: `false`, less secure)</li><li>`--read-only`: emit a connection string that opens the session in {C.CLOUD_LONG}'s immutable read-only mode, so writes and DDL are rejected by the server. The global [`read_only` config option](#configuration-parameters), or `TIGER_READ_ONLY=true`, also forces this behavior</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-|         | create role `<service-id>`                          | Create a new database role. Possible flags are: <ul><li>`--name` (required): the name for the role you are creating</li><li>`--read-only`: enable permanent read-only enforcement for `--name` using `tsdb_admin.read_only_role`</li><li>`--from`: inherit grants from one or more roles. For example, `--from app_role`, `--from readonly_role`, `--from app_role,readonly_role`</li><li>`--statement-timeout`: set the statement timeout for `--name`. For example, `30s`, `5m`</li><li>`--password`: set the password for `--name`. If not provided, the CLI checks the `TIGER_NEW_PASSWORD` environment variable. If you have not defined `TIGER_NEW_PASSWORD` the CLI auto-generates a secure random password.</li><li>`-o, --output`: set the output format to `json`, `yaml`, or `table`</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-|         | save-password  `<service-id>`                       | Save the password for a service. Possible flags are: <ul><li>`--role`: database role/username (default: `tsdbadmin`)</li><li>`--password`: password value (you can also use the `TIGER_NEW_PASSWORD` environment variable)</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-|         | test-connection `<service-id>`                      | Test the connectivity to a {C.SERVICE_SHORT}. Possible flags are: <ul><li>`--timeout, -t`: connection timeout (default: `3s`, use `0` for no timeout)</li><li>`--pooled`: use connection pooling (default: `false`)</li><li>`--role`: database role/username (default: `tsdbadmin`)</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| mcp     |                                                     | Manage {C.MCP_LONG} for AI Assistant integration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-|         | install `[client]`                                  | Install and configure {C.MCP_LONG} for a specific client. Supported clients: `claude-code`, `codex`, `cursor`, `gemini`, `vscode`, `windsurf`. If no client is specified, you'll be prompted to select one interactively                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-|         | list                                                | List all available {C.MCP_SHORT} tools, prompts, and resources. Possible flags are: <ul><li>`--output, -o`: set output format to `json`, `yaml`, or `table`</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-|         | get `<name>` <br/>aliases: `describe`, `show`       | Get detailed information about a specific {C.MCP_SHORT} capability (tool, prompt, or resource). Possible flags are: <ul><li>`--output, -o`: set output format to `json`, `yaml`, or `table`</li></ul>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-|         | start                                               | Start {C.MCP_LONG}. This is the same as `tiger mcp start stdio`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-|         | start stdio                                         | Start {C.MCP_LONG} with stdio transport (default)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-|         | start http                                          | Start {C.MCP_LONG} with HTTP transport. Includes flags: `--port` (default: `8080`), `--host` (default: `localhost`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+### `tiger auth login`
 
+Create an authenticated connection to your {C.ACCOUNT_LONG}. This opens a browser to authorize. For non-interactive login, pass credentials as flags.
 
+```bash
+tiger auth login
+```
+
+- `--public-key`: public key for non-interactive login.
+- `--secret-key`: secret key for non-interactive login.
+
+You can also set the `TIGER_PUBLIC_KEY` and `TIGER_SECRET_KEY` environment variables; the {C.PROJECT_SHORT} is auto-detected from your credentials. See [Authentication parameters](#authentication-parameters).
+
+### `tiger auth logout`
+
+Remove the credentials used to connect to {C.CLOUD_LONG}.
+
+```bash
+tiger auth logout
+```
+
+### `tiger auth status`
+
+Show your current authentication status and {C.PROJECT_SHORT} ID.
+
+```bash
+tiger auth status
+```
+
+- `--output, -o`: output format: `json`, `yaml`, or `table`.
+
+## Version
+
+### `tiger version`
+
+Show the installed {C.CLI_LONG} version.
+
+```bash
+tiger version
+```
+
+- `--check`: force a check for updates, regardless of the last check time.
+- `--output, -o`: output format: `table`, `json`, `yaml`, or `bare`.
+
+## Configuration
+
+### `tiger config show`
+
+Show the current configuration.
+
+```bash
+tiger config show
+```
+
+- `--output, -o`: output format: `json`, `yaml`, or `table`.
+- `--no-defaults`: do not show default values for unset fields.
+- `--with-env`: apply environment variable overrides.
+
+### `tiger config set`
+
+Set a configuration value. See [Configuration parameters](#configuration-parameters) for the available keys.
+
+```bash
+tiger config set <key> <value>
+# for example
+tiger config set read_only true
+```
+
+### `tiger config unset`
+
+Clear a configuration value.
+
+```bash
+tiger config unset <key>
+```
+
+### `tiger config reset`
+
+Reset the configuration to defaults. This also logs you out of the current {C.PROJECT_LONG}.
+
+```bash
+tiger config reset
+```
+
+## Services
+
+### `tiger service create`
+
+Create a new {C.SERVICE_SHORT} in the current {C.PROJECT_SHORT}.
+
+```bash
+tiger service create --name analytics --region us-east-1
+```
+
+- `--name`: service name (auto-generated if omitted).
+- `--addons`: addons to enable: `time-series`, `ai`. Set to `none` for vanilla {C.PG}.
+- `--region`: region code. [Free services](/get-started/quickstart/create-service#what-is-a-tiger-cloud-service) (shared CPU/memory) must use `us-east-1`.
+- `--cpu`: CPU allocation in millicores. Set to `shared` for a free service.
+- `--memory`: memory allocation in gigabytes. Set to `shared` for a free service.
+- `--replicas`: number of high-availability replicas.
+- `--environment`: environment tag: `DEV` or `PROD` (default: `DEV`).
+- `--no-wait`: return without waiting for the operation to complete.
+- `--wait-timeout`: wait timeout (for example, `30m`, `1h30m`, `90s`).
+- `--no-set-default`: do not set this service as the default.
+- `--with-password`: include the password in the output.
+- `--output, -o`: output format: `json`, `yaml`, `env`, or `table`.
+
+Allowed compute configurations: `shared`/`shared` (only in `us-east-1`), 0.5&nbsp;CPU/2&nbsp;GB, 1/4, 2/8, 4/16, 8/32, 16/64, 32/128. Specify `--cpu` and `--memory` together, or set one and the other is configured automatically.
+
+### `tiger service list`
+
+List the {C.SERVICE_SHORT}s in the current {C.PROJECT_SHORT}.
+
+```bash
+tiger service list
+```
+
+- `--output, -o`: output format: `json`, `yaml`, or `table`.
+
+### `tiger service get`
+
+Show detailed information about a {C.SERVICE_SHORT}. Aliases: `describe`, `show`.
+
+```bash
+tiger service get <service-id>
+```
+
+- `--with-password`: include the password in the output.
+- `--output, -o`: output format: `json`, `yaml`, `env`, or `table`.
+
+### `tiger service fork`
+
+Fork an existing {C.SERVICE_SHORT} into a new, independent copy. Choose exactly one timing option.
+
+```bash
+tiger service fork <service-id> --now
+```
+
+- `--now`: fork at the current database state.
+- `--last-snapshot`: fork at the last snapshot (faster).
+- `--to-timestamp`: fork at a point in time (RFC3339).
+- `--cpu`, `--memory`: compute for the fork (inherits from the source if omitted). See [`service create`](#tiger-service-create) for allowed configurations.
+- `--name`: fork name (default: `{source-service-name}-fork`).
+- `--environment`: environment tag: `DEV` or `PROD` (default: `DEV`).
+- `--no-wait`, `--wait-timeout`: wait behavior (default timeout: `30m`).
+- `--no-set-default`, `--with-password`, `--output, -o`: default-service and output options.
+
+### `tiger service resize`
+
+Change a {C.SERVICE_SHORT}'s CPU and memory. The service may be briefly unavailable during the resize.
+
+```bash
+tiger service resize <service-id> --cpu 4 --memory 16
+```
+
+- `--cpu`, `--memory`: new allocation. See [`service create`](#tiger-service-create) for allowed configurations.
+- `--no-wait`, `--wait-timeout`: wait behavior (default timeout: `10m`).
+
+### `tiger service start`
+
+Start an inactive {C.SERVICE_SHORT}.
+
+```bash
+tiger service start <service-id>
+```
+
+- `--no-wait`, `--wait-timeout`: wait behavior (default timeout: `10m`).
+
+### `tiger service stop`
+
+Stop an active {C.SERVICE_SHORT}. After stopping, the service no longer accepts connections.
+
+```bash
+tiger service stop <service-id>
+```
+
+- `--no-wait`, `--wait-timeout`: wait behavior (default timeout: `10m`).
+
+### `tiger service update-password`
+
+Update the master password for a {C.SERVICE_SHORT}.
+
+```bash
+tiger service update-password <service-id>
+```
+
+- `--new-password`: new password for the `tsdbadmin` user.
+- `--auto-generate`: auto-generate a secure password (mutually exclusive with `--new-password`).
+
+### `tiger service delete`
+
+Delete a {C.SERVICE_SHORT}. This is irreversible and prompts for confirmation before proceeding.
+
+```bash
+tiger service delete <service-id>
+```
+
+- `--confirm`: skip the confirmation prompt. AI agents must confirm with the user first.
+- `--no-wait`, `--wait-timeout`: wait behavior (default timeout: `30m`).
+
+### `tiger service logs`
+
+View the logs for a {C.SERVICE_SHORT}. Alias: `log`.
+
+```bash
+tiger service logs <service-id>
+```
+
+- `--tail`: number of log lines to show (default: `100`).
+- `--since`, `--until`: fetch logs within a time range (RFC3339, for example `2024-01-15T09:00:00Z`).
+- `--node`: specific node to fetch logs from (for services with HA replicas; `0` is valid).
+- `--output, -o`: output format: `text`, `json`, or `yaml`.
+
+## Database
+
+### `tiger db connect`
+
+Connect to a {C.SERVICE_SHORT} with `psql`. Pass extra `psql` flags after `--`, for example `tiger db connect <service-id> -- --single-transaction`. Alias: `psql`.
+
+```bash
+tiger db connect <service-id>
+```
+
+- `--pooled`: use connection pooling (default: `false`).
+- `--role`: database role (default: `tsdbadmin`).
+- `--read-only`: open the session in {C.CLOUD_LONG}'s immutable read-only mode, so writes and DDL are rejected by the server. The [`read_only` config option](#configuration-parameters) or `TIGER_READ_ONLY=true` forces the same behavior.
+- `--no-replica-prompt`: do not prompt to connect to a read replica.
+
+### `tiger db connection-string`
+
+Print the connection string for a {C.SERVICE_SHORT}.
+
+```bash
+tiger db connection-string <service-id>
+```
+
+- `--pooled`: use connection pooling (default: `false`).
+- `--role`: database role (default: `tsdbadmin`).
+- `--with-password`: include the password (default: `false`, less secure).
+- `--read-only`: emit a read-only connection string.
+
+### `tiger db create role`
+
+Create a database role.
+
+```bash
+tiger db create role <service-id> --name app_role
+```
+
+- `--name` (required): the role to create.
+- `--read-only`: enforce permanent read-only for the role using `tsdb_admin.read_only_role`.
+- `--from`: inherit grants from one or more roles, for example `--from app_role,readonly_role`.
+- `--statement-timeout`: statement timeout for the role, for example `30s`, `5m`.
+- `--password`: role password (falls back to `TIGER_NEW_PASSWORD`, otherwise auto-generated).
+- `--output, -o`: output format: `json`, `yaml`, or `table`.
+
+### `tiger db schema`
+
+Display the schema of a {C.SERVICE_SHORT} database as readable text.
+
+```bash
+tiger db schema <service-id>
+```
+
+- `--schema`: restrict output to a single schema.
+- `--definitions`: include full object definitions (view `SELECT`s, function and procedure bodies).
+- `--comments`: include object comments (`COMMENT ON` text).
+- `--internal`: include system schemas (`pg_*`, `information_schema`, {C.TIMESCALE_DB} internals) and extension-owned objects.
+- `--pooled`: use connection pooling (default: `false`).
+- `--role`: database role (default: `tsdbadmin`).
+
+### `tiger db save-password`
+
+Save the password for a {C.SERVICE_SHORT} to the keychain.
+
+```bash
+tiger db save-password <service-id>
+```
+
+- `--role`: database role (default: `tsdbadmin`).
+- `--password`: password value (or use `TIGER_NEW_PASSWORD`).
+
+### `tiger db test-connection`
+
+Test connectivity to a {C.SERVICE_SHORT}.
+
+```bash
+tiger db test-connection <service-id>
+```
+
+- `--timeout, -t`: connection timeout (default: `3s`, `0` for none).
+- `--pooled`: use connection pooling (default: `false`).
+- `--role`: database role (default: `tsdbadmin`).
+
+## MCP
+
+### `tiger mcp install`
+
+Install and configure {C.MCP_LONG} for an AI agent. Supported clients: `claude-code`, `codex`, `cursor`, `gemini`, `vscode`, `windsurf`, `antigravity`, `kiro-cli`. If no client is given, you are prompted to choose.
+
+```bash
+tiger mcp install claude-code
+```
+
+- `--no-backup`: do not back up the client's existing config before writing.
+- `--config-path`: path to the client config file to update.
+
+### `tiger mcp list`
+
+List the available {C.MCP_SHORT} tools, prompts, and resources.
+
+```bash
+tiger mcp list
+```
+
+- `--output, -o`: output format: `json`, `yaml`, or `table`.
+
+### `tiger mcp get`
+
+Show detailed information about a {C.MCP_SHORT} tool, prompt, or resource, including skills. Aliases: `describe`, `show`.
+
+```bash
+tiger mcp get service_create
+tiger mcp get setup-timescaledb-hypertables
+```
+
+- `--output, -o`: output format: `json`, `yaml`, or `table`.
+
+### `tiger mcp start`
+
+Start {C.MCP_LONG}. `tiger mcp start` is the same as `tiger mcp start stdio`.
+
+```bash
+tiger mcp start
+```
+
+- `stdio`: stdio transport (default).
+- `http`: HTTP transport, with `--port` (default: `8080`) and `--host` (default: `localhost`).
 
 ## Configuration parameters
 
-By default, {C.CLI_LONG} stores your configuration in `~/.config/tiger/config.yaml`. The location of the config
-directory can be adjusted via the `--config-dir` flag or the `TIGER_CONFIG_DIR` environment variable.
+By default, {C.CLI_LONG} stores your configuration in `~/.config/tiger/config.yaml`. Change the config directory with the `--config-dir` flag or the `TIGER_CONFIG_DIR` environment variable.
 
-- **Configuration options**
+### Configuration options
 
-    You set the following configuration options using `tiger config set <key> <value>`:
+Set these with `tiger config set <key> <value>`:
 
-    <CONFIGOPTIONS />
+<CONFIGOPTIONS />
 
-- **Global Flags**
+### Global flags
 
-    These flags are available on all commands and take precedence over both environment variables and configuration file values:
+These flags are available on all commands and take precedence over both environment variables and configuration file values:
 
-    <GLOBALFLAGS />
+<GLOBALFLAGS />
 
-- **Authentication parameters**
+### Authentication parameters
 
-  To authenticate without using the interactive login, either:
-  - Set the following parameters with your [client credentials](https://console.cloud.tigerdata.com/dashboard/settings), then `login`:
-    ```shell
-    TIGER_PUBLIC_KEY=<public_key> TIGER_SECRET_KEY=<secret_key> TIGER_PROJECT_ID=<project_id>\
-    tiger auth login
-    ```
-  - Add your [client credentials](https://console.cloud.tigerdata.com/dashboard/settings) to the `login` command:
-    ```shell
-    tiger auth login --public-key=<public_key> --secret-key=<secret-key> --project-id=<project_id>
-    ```
+You can authenticate using client credentials instead of interactive browser login. Client credentials are a public key and secret key pair that you create in the {C.CLOUD_LONG} Console. [Learn how to create client credentials](/integrate/find-connection-details#create-client-credentials).
 
+Once you have your credentials, either set them as environment variables, then log in:
+
+```shell
+TIGER_PUBLIC_KEY=<public_key> TIGER_SECRET_KEY=<secret_key> \
+tiger auth login
+```
+
+Or pass them to the `login` command:
+
+```shell
+tiger auth login --public-key=<public_key> --secret-key=<secret_key>
+```
+
+The {C.PROJECT_SHORT} is auto-detected from your credentials.

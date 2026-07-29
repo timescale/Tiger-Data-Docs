@@ -1,0 +1,57 @@
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Tabs, Tab } from '@stainless-api/docs/stainless-docs/mintlify-compat';
+
+import LivesyncConsole from "./_livesync-console.mdx";
+import LivesyncTerminal from "./_livesync-terminal.mdx";
+
+import { Image } from "astro:assets";
+import imgTigerConsoleConnectorOverview from "../assets/images/integrate/connectors/tiger-console-connector-overview.png";
+
+<Callout variant="tip">
+**{C.PG_CONNECTOR_CAP} vs. Livesync replication:** The {C.PG_CONNECTOR} provides **continuous ongoing replication** where {C.PG} stays the primary and {C.CLOUD_LONG} acts as a logical replica. For a **one-time migration** to {C.CLOUD_LONG} with a cutover at the end, see [Livesync replication](/migrate/livesync-replication) instead. Both features share the same underlying technology, but the workflows and end states differ.
+</Callout>
+
+You use the {C.PG_CONNECTOR} in {C.CLOUD_LONG} to synchronize all data or specific tables from a {C.PG} database instance to your {C.SERVICE_SHORT}, in real time. You run the connector continuously, turning {C.PG} into a primary database with your {C.SERVICE_SHORT} as a logical replica. This enables you to leverage {C.CLOUD_LONG}'s real-time analytics capabilities on your replica data.
+
+<Image src={imgTigerConsoleConnectorOverview} alt="Connectors overview in Tiger Console" />
+
+The {C.PG_CONNECTOR} in {C.CLOUD_LONG} leverages the well-established {C.PG} logical replication protocol. By relying on this protocol, {C.CLOUD_LONG} ensures compatibility, familiarity, and a broader knowledge base, making it easier for you to adopt the connector and integrate your data.
+
+You use the {C.PG_CONNECTOR} for data synchronization, rather than migration. This includes:
+
+- Copy existing data from a {C.PG} instance to a {C.SERVICE_LONG}:
+  - Copy data at up to 150 GB/hr.
+
+    You need at least a 4 CPU/16 GB source database, and a 4 CPU/16 GB target {C.SERVICE_SHORT}.
+  - Copy the publication tables in parallel.
+
+    Large individual tables still use a single connection, except {C.PG} declarative partitioned tables published with `publish_via_partition_root = false` (the {C.PG} default), which are copied leaf partition by leaf partition in parallel since v0.23.0.
+  - Forget foreign key relationships.
+
+    The connector disables foreign key validation during the sync. For example, if a `metrics` table refers to the `id` column on the `tags` table, you can still sync only the `metrics` table without worrying about their foreign key relationships.
+  - Track progress.
+
+    {C.PG} exposes `COPY` progress under `pg_stat_progress_copy`.
+
+- Synchronize real-time changes from a {C.PG} instance to a {C.SERVICE_LONG}.
+
+- Add and remove tables on demand using the [{C.PG} PUBLICATION interface](https://www.postgresql.org/docs/current/sql-createpublication.html).
+
+- Enable features such as [{C.HYPERTABLE}s](/learn/hypertables/understand-hypertables), [{C.COLUMNSTORE}](/learn/columnar-storage/understand-hypercore), and [{C.CAGG}s](/learn/continuous-aggregates) on your logical replica.
+
+- Indexes, primary key, unique constraints, and sequences are **not** migrated. Create needed indexes on the target for your queries.
+- {C.TIMESCALE_DB} as source has limited support (for example, no continuous aggregates).
+- Schema changes must be coordinated: apply compatible changes on the target first, then on the source.
+- WAL volume on the source increases during large table copy.
+- **Continuous aggregates:** The connector uses `session_replication_role=replica` during copy, so triggers (including continuous aggregate invalidation) do not run. Data synced during initial load below a continuous aggregate's materialization watermark may not appear in the aggregate until you manually refresh. If the aggregate exists on the source, include it in the connector's publication; if only on the target, use the `force` option of [refresh_continuous_aggregate](/reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate) to refresh affected ranges.
+
+<Tabs>
+  <Tab title={C.CONSOLE}>
+    <LivesyncConsole />
+  </Tab>
+
+  <Tab title={`Self-hosted ${C.PG} connector`}>
+    <LivesyncTerminal />
+  </Tab>
+</Tabs>

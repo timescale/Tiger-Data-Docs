@@ -40,7 +40,9 @@ All product/brand names are centralized in `src/constants.ts`. Import as:
 import * as C from "@constants";
 ```
 
-Then use `{C.CLOUD_LONG}`, `{C.PG}`, `{C.TIMESCALE_DB}`, and so on in MDX content. The `TigerData.ProductConstants` Vale rule nudges literals toward their constant. Exceptions: inside backticks, URLs, frontmatter, and image alts. Treat `src/constants.ts` as the source of truth for available constants.
+Then use `{C.CLOUD_LONG}`, `{C.PG}`, `{C.TIMESCALE_DB}`, and so on in MDX content. The `TigerData.ProductConstants` Vale rule nudges literals toward their constant. Exceptions: inside backticks, URLs, frontmatter, image alts, and the changelog (see below). Treat `src/constants.ts` as the source of truth for available constants.
+
+**Do not use constants in the changelog.** `src/content/docs/get-started/news/new.mdx` uses literal product names (`Tiger Cloud`, `PostgreSQL`, `TimescaleDB`, and so on), not `{C.X}` constants. Changelog entries are a permanent historical record, so they must not shift when a constant's value changes; write the product names out as they were at the time of the entry.
 
 ### TypeScript path aliases
 
@@ -99,7 +101,7 @@ keywords: [topic, technology]    # optional, improves search
 ```
 
 - `title` is required. `description` is strongly recommended.
-- `products` accepts `cloud`, `mst`, and `self_hosted`. It weights Pagefind search (cloud-only pages rank higher); it does not hide or gate page content.
+- `products` is required on every content page. Use `cloud` and/or `self_hosted`; use `mst` only on pages under `deploy/mst`.
 - Frontmatter is plain YAML, so it can't use `{C.X}` constants. Write product names out here (for example `PostgreSQL`, not `{C.PG}`).
 - Other optional fields (`seoDescription`, `pageLabels`, `learnMore`, integration metadata) are defined in `src/content.config.ts`.
 
@@ -181,12 +183,20 @@ House prose style follows the Google developer documentation style guide, enforc
 
 ## Redirects
 
-Redirects live in two places, and which one to edit depends on where the old URL comes from:
+**All production redirects live in `vercel.json`.** Add every new redirect there, regardless of whether it's an internal page move or a legacy external URL.
 
-- **`astro.config.ts`** (`redirects: withBase({ ... })`) is the in-app redirect map, applied by Astro at build time. Use it when you **move or rename a page within this repo** (for example, content shuffled between `learn/` and `build/`). Keys are site-relative with **no `/docs` prefix and no trailing slash** (for example `"/api": "/reference/tiger-cloud-rest"`); the `withBase()` helper prepends the deploy base path to destinations because Astro doesn't do it automatically. Don't define both trailing-slash and non-trailing-slash variants of a key, as that hard-errors the build.
-- **`vercel.json`** (`redirects` array) is the platform/edge redirect layer, applied by Vercel **before** the app reaches Astro. In production the site is served under `/docs`, so these keys **include the `/docs` prefix**. Use it for **legacy external URLs** from the old `docs.timescale.com` site (`/docs/use-timescale/latest/...`, `/docs/api/latest/...`, `/docs/tutorials/latest/...`), the root `/` to `/docs`, and anything that must redirect off-site. Each entry sets `permanent` (`true` = 308, `false` = 307), and keys can use params (`:slug`, `:path*`). `vercel.json` also owns trailing-slash normalization (`trailingSlash: false`), the `rewrites` that serve `index.md` to AI and markdown clients, and cache `headers`.
+`vercel.json`'s `redirects` array is the platform/edge redirect layer, applied by Vercel **before** the app reaches Astro. In production the site is served under `/docs`, so keys **include the `/docs` prefix**. Each entry sets `permanent` (`true` = 308, `false` = 307), and keys can use params (`:slug`, `:path*`). `vercel.json` also owns trailing-slash normalization (`trailingSlash: false`), the `rewrites` that serve `index.md` to AI and markdown clients, and cache `headers`.
 
-Rule of thumb: an internal page move is an Astro redirect; preserving an old published `/docs/...` URL is a Vercel redirect.
+The array is ordered in two contiguous blocks (JSON has no comments, so the boundary is a blank line):
+
+1. **Legacy `docs.timescale.com`/`docs.tigerdata.com` URLs** (`/docs/use-timescale/latest/...`, `/docs/api/latest/...`, `/docs/tutorials/latest/...`, and so on) — preserved from the old site.
+2. **Internal page-move redirects** — pages renamed or reorganized within this repo (for example content shuffled between `learn/` and `build/`).
+
+A source belongs in block 1 if it contains a `/latest` segment, or if its first path segment isn't one of this site's current top-level sections (`build`, `deploy`, `get-started`, `integrate`, `learn`, `migrate`, `reference`); otherwise it's block 2. When you move or rename a page, add its redirect to the matching block, keeping alphabetical order by `source` within the block for scannability.
+
+**Exception: `:slug`/`:path*` wildcard rules must sort after every more-specific sibling, not alphabetically.** Vercel matches array entries in order and stops at the first match, so a wildcard placed before its own exceptions silently swallows them (`:` sorts before letters, so a naive alphabetical sort gets this wrong — this broke `/mst/latest/installation-mst`, `/self-hosted/latest/install/installation-kubernetes`, and `/self-hosted/latest/distributed-hypertables/query` in review on 2026-07-23; caught by testing every redirect against a preview deploy, not by inspection). When adding or re-sorting entries near a wildcard, group that wildcard's whole family together with the wildcard last, and verify precedence against a real deploy afterward.
+
+**Do not use `astro.config.ts`'s `redirects` key for anything production-facing.** It looks like the natural place for an internal-move redirect, but it doesn't work: the `@stainless-api/docs` integration unconditionally disables Astro's static redirect-page output during `astro build` (see the comment above `redirects:` in `astro.config.ts` for the full mechanism). Every entry that ever lived there was a silent no-op in production — confirmed 2026-07-23 when `/learn/tiger-cloud/regions` 404'd despite having a defined redirect. That key now exists only for the `DOCS_LOCAL_WITHOUT_STAINLESS` local-dev shim, which only needs to work in `pnpm dev`.
 
 ## Hosting, search, and cache
 
@@ -210,4 +220,4 @@ Deeper, authoritative guides in the repo. Prefer these over re-deriving conventi
 - `src/content/docs/get-started/contributing.mdx`: the human-facing contributor and writing-style guide.
 - [`.github/templates/template-tutorial.mdx`](./.github/templates/template-tutorial.mdx): starting-point MDX for a new tutorial (copy into a content directory). The `write-docs-tutorial` skill builds on it.
 - [`README-statsig.md`](./README-statsig.md): the Statsig analytics integration (inline script in `astro.config.ts` between the `BEGIN STATSIG`/`END STATSIG` markers, `PUBLIC_STATSIG_CLIENT_KEY` env var), and the checklist to remove it. Read this before touching the `head[]` block or analytics env vars.
-- **Changelog**: add an entry by editing `src/content/docs/get-started/news/new.mdx`, following the structure in [`README-changelog.md`](./README-changelog.md).
+- **Changelog**: add an entry by editing `src/content/docs/get-started/news/new.mdx`, following the structure in [`README-changelog.md`](./README-changelog.md). Write product names as literal strings, not `{C.X}` constants (see [Constants system](#constants-system-critical)).

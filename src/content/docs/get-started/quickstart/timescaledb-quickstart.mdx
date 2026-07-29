@@ -1,0 +1,227 @@
+---
+title: 10-minute quickstart
+description: Get started with self-hosted TimescaleDB in about 10 minutes
+products: [self_hosted]
+keywords: [TimescaleDB, quickstart, self-hosted, Docker, hypertable, columnstore, time-series]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Prerequisites } from "@components/Prerequisites";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+This guide helps you run {C.TIMESCALE_DB} locally, create your first {C.HYPERTABLE} with the {C.COLUMNSTORE} enabled, write data to the {C.COLUMNSTORE}, and see instant analytical query performance.
+
+<Prerequisites context="procedure">
+
+- Docker installed on your machine
+- 8GB RAM recommended
+- The `psql` client (included with {C.PG}) or any {C.PG} client like [pgAdmin](https://www.pgadmin.org/download/)
+
+</Prerequisites>
+
+## Step 1: Start {C.TIMESCALE_DB}
+
+Start {C.TIMESCALE_DB} using one of these options.
+
+<Tabs>
+<TabItem label="One-line install (recommended)">
+
+The easiest way to get started:
+
+<Callout variant="important">
+This script is intended for local development and testing only. Do not use it for production deployments. For production-ready installation options, see the [{C.TIMESCALE_DB} installation guide](/get-started/choose-your-path/install-timescaledb).
+</Callout>
+
+On Linux or Mac:
+
+```sh
+curl -sL https://tsdb.co/start-local | sh
+```
+
+This command:
+
+- Downloads and starts {C.TIMESCALE_DB}, if not already downloaded.
+- Exposes {C.PG} on port `6543`, a non-standard port that avoids conflicts with other {C.PG} instances on port 5432.
+- Automatically tunes settings for your environment using timescaledb-tune.
+- Sets up a persistent data volume.
+
+</TabItem>
+<TabItem label="Manual Docker command">
+
+Run {C.TIMESCALE_DB} directly with Docker. This option also works on Windows:
+
+```bash
+docker run -d --name timescaledb \
+    -p 6543:5432 \
+    -e POSTGRES_PASSWORD=password \
+    timescale/timescaledb-ha:pg18
+```
+
+This example uses port `6543`, mapped to container port 5432, to avoid conflicts if you have other {C.PG} instances running on the standard port 5432.
+
+</TabItem>
+</Tabs>
+
+Wait about 1 to 2 minutes for {C.TIMESCALE_DB} to download and initialize.
+
+## Step 2: Connect to {C.TIMESCALE_DB}
+
+Connect using `psql`:
+
+```bash
+psql -h localhost -p 6543 -U postgres
+# When prompted, enter password: password
+```
+
+You should see the {C.PG} prompt. Verify {C.TIMESCALE_DB} is installed:
+
+```sql
+SELECT extname, extversion FROM pg_extension WHERE extname = 'timescaledb';
+```
+
+Expected output:
+
+```
+   extname   | extversion
+-------------+------------
+ timescaledb | 2.x.x
+```
+
+<Callout variant="tip">
+Prefer a GUI? If you would rather use a graphical tool instead of the command line, you can download [pgAdmin](https://www.pgadmin.org/download/) and connect to {C.TIMESCALE_DB} using the same connection details (host: `localhost`, port: `6543`, user: `postgres`, password: `password`).
+</Callout>
+
+## Step 3: Create your first {C.HYPERTABLE}
+
+Create a {C.HYPERTABLE} for IoT sensor data with the {C.COLUMNSTORE} enabled:
+
+```sql
+-- Create a hypertable with automatic columnstore
+CREATE TABLE sensor_data (
+    time TIMESTAMPTZ NOT NULL,
+    sensor_id TEXT NOT NULL,
+    temperature DOUBLE PRECISION,
+    humidity DOUBLE PRECISION,
+    pressure DOUBLE PRECISION
+) WITH (
+    tsdb.hypertable
+);
+```
+
+`tsdb.hypertable` converts this into a {C.TIMESCALE_DB} {C.HYPERTABLE}.
+
+See more:
+
+- [Create a hypertable](/learn/hypertables/creating-and-configuring-hypertables)
+- [Set up {C.HYPERCORE}](/build/columnar-storage/setup-hypercore)
+
+## Step 4: Insert sample data
+
+Add some sample sensor readings. {C.TIMESCALE_DB} supports writing directly to the {C.COLUMNSTORE}, so you don't need to decompress a {C.CHUNK} first for `INSERT`, `UPDATE`, `DELETE`, or `UPSERT`:
+
+```sql
+-- Enable timing to see time to execute queries
+\timing on
+
+-- Insert sample data for multiple sensors
+-- SET timescaledb.enable_direct_compress_insert = on to insert data directly to the columnstore (columnnar format for performance)
+SET timescaledb.enable_direct_compress_insert = on;
+INSERT INTO sensor_data (time, sensor_id, temperature, humidity, pressure)
+SELECT
+    time,
+    'sensor_' || ((random() * 9)::int + 1),
+    20 + (random() * 15),
+    40 + (random() * 30),
+    1000 + (random() * 50)
+FROM generate_series(
+    NOW() - INTERVAL '90 days',
+    NOW(),
+    INTERVAL '1 seconds'
+) AS time;
+
+-- Once data is inserted into the columnstore we optimize the order and structure 
+-- this compacts and orders the data in the chunks for optimal query performance and compression
+DO $$
+DECLARE ch TEXT;
+BEGIN
+    FOR ch IN SELECT show_chunks('sensor_data') LOOP
+        CALL convert_to_columnstore(ch, recompress := true);
+    END LOOP;
+END $$;
+```
+
+This generates ~7,776,001 readings across 10 sensors over the past 90 days.
+
+Verify the data was inserted:
+
+```sql
+SELECT COUNT(*) FROM sensor_data;
+```
+
+## Step 5: Run your first analytical queries
+
+Now run some analytical queries that showcase {C.TIMESCALE_DB}'s performance:
+
+```sql
+-- Enable query timing to see performance
+\timing on
+
+-- Query 1: Average readings per sensor over the last 7 days
+SELECT
+    sensor_id,
+    COUNT(*) as readings,
+    ROUND(AVG(temperature)::numeric, 2) as avg_temp,
+    ROUND(AVG(humidity)::numeric, 2) as avg_humidity,
+    ROUND(AVG(pressure)::numeric, 2) as avg_pressure
+FROM sensor_data
+WHERE time > NOW() - INTERVAL '7 days'
+GROUP BY sensor_id
+ORDER BY sensor_id;
+
+-- Query 2: Hourly averages using time_bucket 
+-- Time buckets enable you to aggregate data in hypertables by time interval and calculate summary values.
+SELECT
+    time_bucket('1 hour', time) AS hour,
+    sensor_id,
+    ROUND(AVG(temperature)::numeric, 2) as avg_temp,
+    ROUND(AVG(humidity)::numeric, 2) as avg_humidity
+FROM sensor_data
+WHERE time > NOW() - INTERVAL '24 hours'
+GROUP BY hour, sensor_id
+ORDER BY hour DESC, sensor_id
+LIMIT 20;
+
+-- Query 3: Daily statistics across all sensors
+SELECT
+    time_bucket('1 day', time) AS day,
+    COUNT(*) as total_readings,
+    ROUND(AVG(temperature)::numeric, 2) as avg_temp,
+    ROUND(MIN(temperature)::numeric, 2) as min_temp,
+    ROUND(MAX(temperature)::numeric, 2) as max_temp
+FROM sensor_data
+GROUP BY day
+ORDER BY day DESC
+LIMIT 10;
+
+-- Query 4: Latest reading for each sensor
+-- Highlights the value of Skipscan executing in under 100ms without skipscan it takes over 5sec
+SELECT DISTINCT ON (sensor_id)
+    sensor_id,
+    time,
+    ROUND(temperature::numeric, 2) as temperature,
+    ROUND(humidity::numeric, 2) as humidity,
+    ROUND(pressure::numeric, 2) as pressure
+FROM sensor_data
+ORDER BY sensor_id, time DESC;
+```
+
+Notice how fast these analytical queries run, even with aggregations across millions of rows. This is the power of {C.TIMESCALE_DB}'s {C.COLUMNSTORE}.
+
+## Next steps
+
+Now that you have {C.TIMESCALE_DB} running locally, explore more:
+
+- [Create continuous aggregates](/build/continuous-aggregates/create-a-continuous-aggregate) for faster real-time analytics.
+- [Connect your app](/get-started/quickstart/connect-your-app) to {C.TIMESCALE_DB}.
+- [Try a tutorial](/build/examples/simulate-iot-sensor-data) with a real-world dataset.
