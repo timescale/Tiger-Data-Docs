@@ -12,8 +12,13 @@ export const onRequest = defineRouteMiddleware(async (context, next) => {
 
   try {
     const route = context.locals.starlightRoute;
-    if (route?.sidebar?.length) {
-      route.sidebar = flattenSidebarSingleChildGroups(route.sidebar);
+    if (route) {
+      // Set logo link to main site instead of docs
+      route.siteTitleHref = 'https://www.tigerdata.com';
+      // Flatten single-child sidebar groups
+      if (route.sidebar?.length) {
+        route.sidebar = flattenSidebarSingleChildGroups(route.sidebar);
+      }
     }
   } catch {
     // starlightRoute may not be available during prerender of non-Starlight pages (e.g., 404)
