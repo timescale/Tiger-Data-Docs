@@ -309,8 +309,8 @@ export default defineConfig({
         layout: "stacked",
         links: [
           {
-            label: "Get started",
-            link: "/get-started",
+            label: "Start a free trial",
+            link: "https://console.cloud.tigerdata.com/signup",
           },
         ],
       },
