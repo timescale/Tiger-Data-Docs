@@ -39,6 +39,7 @@ export default function PasswordEncoder({
         placeholder={placeholder}
         autoComplete="off"
         spellCheck={false}
+        aria-describedby="password-encoder-hint"
         style={{
           padding: "0.5rem 0.75rem",
           borderRadius: "0.375rem",
@@ -49,6 +50,14 @@ export default function PasswordEncoder({
           fontFamily: "var(--sl-font-mono, monospace)",
         }}
       />
+      <p
+        id="password-encoder-hint"
+        style={{ margin: 0, fontSize: "0.8125rem", color: "var(--sl-color-text-soft, #666)" }}
+      >
+        Enter your password to get the URL-encoded version. Characters that are
+        safe in a URI (like <code>*</code>, <code>~</code>, <code>.</code>, <code>-</code>, <code>_</code>)
+        are left as-is.
+      </p>
       {result !== "" && (
         <div
           style={{
