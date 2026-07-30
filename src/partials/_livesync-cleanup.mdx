@@ -1,0 +1,21 @@
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+
+When you are permanently done syncing (for example, you have fully cut over to {C.CLOUD_LONG}, or you want to restart the sync from scratch), use the `drop` sub-command to remove the replication slot from the source and all subscription state from the target:
+
+```bash
+docker run -it --rm --name livesync-cleanup \
+  timescale/live-sync:latest drop \
+  --subscription <subscription_name> \
+  --source "$SOURCE" \
+  --target "$TARGET"
+```
+
+`drop` removes:
+
+- The replication slot (`live_sync_<subscription_name>`) on the **source** database.
+- The subscription and internal tracking tables (`_ts_live_sync.*`) on the **target** {C.SERVICE_LONG}.
+
+<Callout variant="warning">
+Run `drop` only when you intend to permanently stop or fully restart the sync. Dropping the replication slot while the source is still active causes WAL to be retained until the slot is recreated, which can grow disk usage on the source.
+</Callout>

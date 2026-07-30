@@ -1,0 +1,181 @@
+import * as C from "@constants";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+<NumberedList>
+<NumberedItem title="Database parameters">
+
+Livesync requires logical replication on the source. How you enable it depends on where your source database runs.
+
+<Tabs>
+<TabItem label="Self-hosted">
+
+Apply the parameters with `ALTER SYSTEM`. A restart is required afterwards.
+
+```bash
+psql "$SOURCE" <<'EOF'
+ALTER SYSTEM SET wal_level = 'logical';
+ALTER SYSTEM SET max_wal_senders = 30;
+ALTER SYSTEM SET max_replication_slots = 30;
+ALTER SYSTEM SET wal_sender_timeout = 0;
+ALTER SYSTEM SET max_locks_per_transaction = 1200;
+EOF
+```
+
+After restart, validate:
+
+```bash
+psql "$SOURCE" <<'EOF'
+SHOW wal_level;
+SHOW max_wal_senders;
+SHOW max_replication_slots;
+SHOW wal_sender_timeout;
+SHOW max_locks_per_transaction;
+EOF
+```
+
+</TabItem>
+<TabItem label="AWS RDS / Aurora">
+
+RDS and Aurora do not permit `ALTER SYSTEM`. Set the parameters in a custom parameter group:
+
+1. In the RDS console, create a parameter group for your {C.PG} major version, or edit the cluster parameter group for Aurora.
+2. Set:
+   - `rds.logical_replication = 1` (enables `wal_level=logical`)
+   - `max_wal_senders = 30`
+   - `max_replication_slots = 30`
+   - `wal_sender_timeout = 0`
+   - `max_locks_per_transaction = 1200`
+3. Attach the parameter group to your instance or cluster.
+4. Reboot the instance or cluster (for Aurora, reboot the writer) to apply.
+
+Validate:
+
+```bash
+psql "$SOURCE" -c "SHOW rds.logical_replication;"  -- expect: on
+psql "$SOURCE" -c "SHOW wal_level;"                -- expect: logical
+```
+
+</TabItem>
+<TabItem label="Neon">
+
+Neon manages logical replication settings through its console.
+
+1. Open the Neon Console, go to your project, then click `Settings` > `Logical Replication`.
+2. Click `Enable`.
+
+No restart or `ALTER SYSTEM` is required. Validate:
+
+```bash
+psql "$SOURCE" <<'EOF'
+SHOW wal_level;            -- expect: logical
+SHOW max_wal_senders;      -- expect: 10
+SHOW max_replication_slots;-- expect: 10
+EOF
+```
+
+Neon computes may auto-suspend on idle. For long initial copies, raise the auto-suspend timeout in `Settings` > `Compute`, or pick a plan that disables it.
+
+`wal_sender_timeout` can only be changed via a Neon support case. Ask support to disable it (set to `0`) or set it to a high value such as 12 hours to avoid timeouts during the initial copy of large tables.
+
+</TabItem>
+<TabItem label="Supabase">
+
+Supabase {C.PG} has logical replication enabled by default; no `ALTER SYSTEM` or reboot is required.
+
+Validate:
+
+```bash
+psql "$SOURCE" -c "SHOW wal_level;"  -- expect: logical
+```
+
+Recommended changes (apply via the [Supabase custom Postgres config](https://supabase.com/docs/guides/database/custom-postgres-config)):
+
+- `max_slot_wal_keep_size = 102400` (100 GB) prevents the replication slot from being dropped during long-running transactions.
+
+Use the **direct connection string**, not the connection pooler: pgBouncer doesn't support logical replication. In `Project Settings` > `Database` > `Connection parameters`, disable `Display connection pooler`.
+
+</TabItem>
+<TabItem label="Azure Flexible Server">
+
+Azure does not permit `ALTER SYSTEM`. Set the parameters via the `Server parameters` blade in the Azure portal, or with `az postgres flexible-server parameter set`:
+
+1. Set `wal_level = logical`.
+2. Set `max_wal_senders = 30`, `max_replication_slots = 30`, `wal_sender_timeout = 0`, `max_locks_per_transaction = 1200`.
+3. Save. Azure prompts to restart the server. Restart now.
+
+Validate:
+
+```bash
+psql "$SOURCE" -c "SHOW wal_level;"  -- expect: logical
+```
+
+</TabItem>
+</Tabs>
+
+</NumberedItem>
+
+<NumberedItem title="Migration user">
+
+Create a dedicated migration user on the source:
+
+```sql
+psql "$SOURCE" <<'EOF'
+CREATE USER livesync_migrate PASSWORD '<strong_password>';
+ALTER ROLE livesync_migrate WITH SUPERUSER REPLICATION;
+GRANT CREATE ON DATABASE <db_name> TO livesync_migrate;
+EOF
+```
+
+`SUPERUSER` is only needed on {C.SELF_LONG}. New {C.HYPERTABLE} chunks are created on the fly by the extension, and {C.PG} requires the role calling `ALTER PUBLICATION ... ADD TABLE` to either own the table or be a superuser. Without `SUPERUSER`, chunks created during the migration won't get added to the publication and their data is skipped. If you can't grant `SUPERUSER`, make `livesync_migrate` the owner of every {C.HYPERTABLE} in the publication instead.
+
+<Callout variant="note">
+**Azure Database for PostgreSQL:** managed Azure instances don't allow creating a new `SUPERUSER`. Skip the `CREATE USER` step and use the existing server administrator account instead, after granting it replication:
+
+```sql
+ALTER ROLE <admin_user> WITH REPLICATION;
+```
+
+Then set:
+
+```bash
+export SOURCE="postgres://<admin_user>:<password>@<host>:<port>/<db>"
+```
+
+If the admin lacks ownership of the application's hypertables, transfer ownership (or use `GRANT ... TO <admin_user> WITH ADMIN OPTION`) before creating the publication.
+</Callout>
+
+<Callout variant="note">
+**`pg_hba.conf`:** if the source {C.PG} instance restricts which users can connect via `pg_hba.conf`, add a `host` rule permitting the `livesync_migrate` user (or your chosen connector user) to connect from the migration/connector host. Managed providers (RDS/Aurora, Neon, Supabase, Azure) handle this through their own auth and network controls and do not use `pg_hba.conf`.
+</Callout>
+
+Grant the migration user access to all user schemas:
+
+```bash
+psql "$SOURCE" -t -A <<'EOF' | psql "$SOURCE"
+SELECT
+  'GRANT USAGE ON SCHEMA ' || quote_ident(nspname) || ' TO livesync_migrate;' || chr(10) ||
+  'GRANT SELECT ON ALL TABLES IN SCHEMA ' || quote_ident(nspname) || ' TO livesync_migrate;' || chr(10) ||
+  'ALTER DEFAULT PRIVILEGES IN SCHEMA ' || quote_ident(nspname) ||
+  ' GRANT SELECT ON TABLES TO livesync_migrate;'
+FROM pg_namespace
+WHERE nspname NOT IN ('information_schema')
+  AND nspname NOT LIKE '_timescale%'
+  AND nspname NOT LIKE 'pg\_%' ESCAPE '\'
+  AND nspname NOT LIKE 'pg_toast%'
+  AND nspname NOT LIKE 'pg_temp_%'
+  AND nspname NOT LIKE 'timescaledb%'
+  AND nspname NOT LIKE 'toolkit%'
+ORDER BY nspname;
+EOF
+```
+
+Switch to this user for all subsequent steps:
+
+```bash
+export SOURCE="postgres://livesync_migrate:<password>@<source_host>:<port>/<db_name>"
+```
+
+</NumberedItem>
+</NumberedList>

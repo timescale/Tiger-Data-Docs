@@ -1,0 +1,65 @@
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+
+Create a [{C.PG} `PUBLICATION`](https://www.postgresql.org/docs/current/sql-createpublication.html) on the source. This defines what Livesync syncs. You can create more than one publication (for example, to group tables by domain), but avoid creating one per table.
+
+<Callout variant="important">
+**Do not use `FOR ALL TABLES`.** It includes the `_timescaledb_catalog.*` tables, and replicating those onto the target corrupts the {C.TIMESCALE_DB} catalog there. Always list tables explicitly (`FOR TABLE ...`) or scope to user schemas (`FOR TABLES IN SCHEMA <user_schema>, ...`).
+</Callout>
+
+```sql
+psql "$SOURCE" <<'EOF'
+CREATE PUBLICATION <publication_name> FOR TABLE <table_name>, <table_name>;
+EOF
+```
+
+To sync every table across one or more user schemas ({C.PG} 15 or later only), list the schemas explicitly and exclude the {C.TIMESCALE_DB} ones:
+
+```sql
+psql "$SOURCE" <<'EOF'
+CREATE PUBLICATION <publication_name>
+  FOR TABLES IN SCHEMA <user_schema_1>, <user_schema_2>;
+EOF
+```
+
+To add or remove tables after creating the publication:
+
+```sql
+ALTER PUBLICATION <publication_name> ADD TABLE <table_name>;
+ALTER PUBLICATION <publication_name> DROP TABLE <table_name>;
+```
+
+Publication changes are picked up only after a Livesync stop/start, or by running the `refresh-publication` command:
+
+```bash
+docker run -it --rm --name livesync-refresh \
+  timescale/live-sync:latest refresh-publication \
+  --subscription <subscription_name> \
+  --source "$SOURCE" \
+  --target "$TARGET"
+```
+
+If you have {C.PG} declarative partitioned tables in the publication, leave `publish_via_partition_root` at its {C.PG} default of `false`. Since Livesync v0.23.0, this makes the initial copy of the partitioned table both parallel (each leaf partition is copied by its own worker, like hypertable chunks) and resumable (already-copied leaves aren't recopied if the sync is interrupted):
+
+```sql
+ALTER PUBLICATION <publication_name> SET (publish_via_partition_root = false);
+```
+
+Set `publish_via_partition_root = true` only if you need the older serial, whole-table copy, for example for compatibility with a Livesync version older than v0.23.0:
+
+```sql
+ALTER PUBLICATION <publication_name> SET (publish_via_partition_root = true);
+```
+
+To selectively replicate only specific DML events (by default all `INSERT`, `UPDATE`, `DELETE`, and `TRUNCATE` are replicated):
+
+```sql
+CREATE PUBLICATION <publication_name> FOR TABLE <table_name>
+  WITH (publish = 'insert, update');
+```
+
+Validate:
+
+```bash
+psql "$SOURCE" -c "SELECT * FROM pg_publication_tables WHERE pubname = '<publication_name>';"
+```

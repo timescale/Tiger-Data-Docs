@@ -1,0 +1,43 @@
+import * as C from "@constants";
+
+Skip this section for `INSERT`-only workloads.
+
+Tables without a primary key need an explicit replica identity for `UPDATE` and `DELETE` replication. The query below finds such tables and generates the appropriate `ALTER TABLE` statement, using a unique index if one exists, otherwise falling back to `REPLICA IDENTITY FULL`.
+
+```bash
+psql "$SOURCE" -t -A <<'EOF'
+SELECT
+  CASE
+    WHEN i.indexrelid IS NOT NULL THEN
+      format('ALTER TABLE %I.%I REPLICA IDENTITY USING INDEX %I;',
+        n.nspname, c.relname, ic.relname)
+    ELSE
+      format('ALTER TABLE %I.%I REPLICA IDENTITY FULL;',
+        n.nspname, c.relname)
+  END
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+LEFT JOIN pg_constraint pk ON pk.conrelid = c.oid AND pk.contype = 'p'
+LEFT JOIN LATERAL (
+  SELECT i.indrelid, i.indexrelid
+  FROM pg_index i
+  WHERE i.indrelid = c.oid
+    AND i.indisunique AND i.indisvalid AND i.indpred IS NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM unnest(i.indkey) k
+      JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k
+      WHERE NOT a.attnotnull
+    )
+  LIMIT 1
+) i ON true
+LEFT JOIN pg_class ic ON ic.oid = i.indexrelid
+WHERE c.relkind = 'r'
+  AND pk.oid IS NULL
+  AND n.nspname NOT IN ('information_schema')
+  AND n.nspname NOT LIKE '_timescale%'
+  AND n.nspname NOT LIKE 'pg\_%' ESCAPE '\'
+ORDER BY n.nspname, c.relname;
+EOF
+```
+
+Review the output, then pipe it to `psql "$SOURCE"` to apply.
