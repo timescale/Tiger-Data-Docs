@@ -1,5 +1,6 @@
 import { defineRouteMiddleware } from "@astrojs/starlight/route-data";
 import { flattenSidebarSingleChildGroups } from "./lib/flatten-sidebar-single-child-groups";
+import { WEBSITE_DOCS } from "./constants";
 
 /**
  * Starlight route middleware runs after `locals.starlightRoute` is set and can mutate it before
@@ -14,7 +15,7 @@ export const onRequest = defineRouteMiddleware(async (context, next) => {
     const route = context.locals.starlightRoute;
     if (route) {
       // Set logo link to main site instead of docs
-      route.siteTitleHref = 'https://www.tigerdata.com';
+      route.siteTitleHref = WEBSITE_DOCS;
       // Flatten single-child sidebar groups
       if (route.sidebar?.length) {
         route.sidebar = flattenSidebarSingleChildGroups(route.sidebar);
