@@ -62,6 +62,7 @@ You can drive Livesync replication from the {C.CONSOLE} UI or from a self-hosted
 
 ## Limitations
 
+- **Compressed {C.HYPERTABLE} chunks are copied uncompressed.** Livesync copies logical data by decompressing compressed chunks on the fly during the table copy. This removes the {C.TIMESCALE_DB} extension-version coupling between source and target, but the target starts with {C.COLUMNSTORE} data in row form. Copying compressed chunks as-is is on the roadmap but not yet available; re-enable columnstore on the target after the sync (see [Columnstore](/learn/columnar-storage/understand-hypercore) / [Post-sync](#post-sync)).
 - **{C.TIMESCALE_DB} source must be on 2.16.0 or newer** if any chunk is ever compressed or decompressed during the migration. Earlier versions don't emit the decompression-boundary markers that Livesync needs to deduplicate the WAL stream, so the target ends up with duplicate records. This affects all of:
   - `INSERT`s into a chunk that the compression policy later compresses.
   - Explicit `convert_to_columnstore()` or `convert_to_rowstore()` calls.
