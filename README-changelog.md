@@ -96,6 +96,8 @@ Example:
 
 **Format:**
 
+- **The first sentence must summarize every feature in the entry.**  
+  Whether the body opens with a paragraph or a `###` subsection, its first sentence needs to name all the features or changes the entry covers, not just the first one. Readers scanning the changelog should get the full picture from that one sentence alone.
 - **Usually start with a `###` subsection.**  
   Most entries open with a `###` heading, which keeps layout and spacing consistent. Examples: “Now available”, “What’s new”, “Release highlights”, or a short topic name. A short entry can open with a paragraph instead (several existing entries do).
 - Use normal Markdown/MDX: paragraphs, **bold**, lists, [links](url), `code`, and so on.
@@ -134,7 +136,7 @@ Here’s a complete new entry as it would appear at the top of the list in `new.
 
 ### What's new
 
-You can now do X in Tiger Cloud. This helps with Y and Z.
+You can now do X and Y in Tiger Cloud, plus we've improved Z.
 
 - First benefit.
 - Second benefit.
@@ -150,6 +152,7 @@ See [docs link](https://...) for details.
 - [ ] `date` is `YYYY-MM-DD`.
 - [ ] `tags` is an array of allowed tag keys.
 - [ ] Body opens with a `###` subsection (typical) or a short intro paragraph.
+- [ ] The body's first sentence summarizes every feature covered in the entry.
 - [ ] Entry is placed at the top (newest first).
 
 ---
@@ -164,6 +167,7 @@ See [docs link](https://...) for details.
 | Card title (visible H2) | `<h2 slot="heading" class="changelog-entry__title">Entry title</h2>` (first thing inside `<ChangelogEntry>`) |
 | Date & tags             | `date="YYYY-MM-DD"` and `tags={["tag1", "tag2"]}` on `<ChangelogEntry>` |
 | Body content            | After the H2; start with `### Subsection`, then paragraphs/lists/links |
+| First sentence          | Must summarize every feature or change covered in the entry |
 
 ---
 
@@ -173,3 +177,4 @@ See [docs link](https://...) for details.
 - **No constants:** write product names as literal strings (`Tiger Cloud`, `PostgreSQL`, `TimescaleDB`, and so on), not `{C.X}` constants. Entries are a permanent historical record, so they must not shift when a constant's value changes. This is the one content file exempt from the constants convention.
 - **One or more tags:** use the tags that best describe the entry; multiple tags (for example, `["new-feature", "improvement"]`) are fine.
 - **Body structure:** starting with a `###` and using more `###` for sub-topics keeps the changelog scannable and the layout consistent across entries.
+- **Lead with a full summary:** if an entry bundles multiple features or changes, the first sentence must name all of them, not just the first one. Details for each can follow in the rest of the body.
