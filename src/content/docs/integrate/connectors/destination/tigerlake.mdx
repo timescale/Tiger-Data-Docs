@@ -32,10 +32,15 @@ system.
 
 <ThemeImage light={imgIcebergConnectorTigerCloudLight} dark={imgIcebergConnectorTigerCloudDark} alt="TigerLake architecture: Iceberg connector in Tiger Cloud" />
 
-{C.LAKE_LONG} is a native integration enabling synchronization between {C.HYPERTABLE}s and relational tables
-running in {C.SERVICE_LONG}s to Iceberg tables running in [Amazon S3 Tables](https://aws.amazon.com/s3/features/tables/) in your AWS account.
+{C.LAKE_LONG} synchronizes {C.HYPERTABLE}s and relational tables running in {C.SERVICE_LONG}s to Apache Iceberg
+tables. You can write to [Amazon S3 Tables](https://aws.amazon.com/s3/features/tables/) in your AWS account, or
+connect to a compatible Iceberg REST catalog.
 
-Once set up, you can query that data directly, without ETL or data duplication. For example, see
+{C.LAKE_SHORT} takes an initial snapshot of the source table, then continuously applies inserts, updates, and
+deletes using {C.PG} logical replication. This makes operational data available in your data lake without building
+and operating a separate ETL pipeline.
+
+Once set up, you can query that data directly. For example, see
 [Query TigerLake S3 Tables with AWS Glue and Athena](/integrate/connectors/destination/athena) or
 [Query TigerLake S3 Tables from Snowflake](/integrate/connectors/destination/snowflake).
 
@@ -45,9 +50,22 @@ Once set up, you can query that data directly, without ETL or data duplication. 
 
 <NotSupportedAzure />
 
-## Integrate a data lake with your service
+## Choose an Iceberg catalog
 
-To connect a {C.SERVICE_LONG} to your data lake:
+{C.LAKE_LONG} supports the following catalog options:
+
+| Catalog | Use when |
+| --- | --- |
+| Amazon S3 Tables | You want an AWS-managed Iceberg catalog and storage service. {C.LAKE_SHORT} connects using an IAM role. |
+| Generic Iceberg REST catalog | You already use a compatible Iceberg REST catalog, such as Snowflake Open Catalog, Apache Polaris, or Snowflake Horizon Catalog. {C.LAKE_SHORT} connects using OAuth 2.0 client credentials or a personal access token. |
+
+Amazon S3 Tables is configured separately because it uses AWS IAM and SigV4 authentication. Generic REST catalogs
+use the Iceberg REST Catalog API, and can provide access to the underlying object storage through vended
+credentials.
+
+## Connect using Amazon S3 Tables
+
+To connect a {C.SERVICE_LONG} to Amazon S3 Tables:
 
 <Tabs>
   <Tab title="AWS Management Console">
@@ -218,6 +236,64 @@ If your table bucket is encrypted with a customer managed AWS KMS key ([SSE-KMS]
 ```
 </Callout>
 
+## Connect using an Iceberg REST catalog
+
+Before creating the connector, configure a catalog principal with permission to:
+
+- Access the target warehouse.
+- List and create namespaces.
+- Create and update Iceberg tables.
+- Commit Iceberg table metadata.
+- Access the underlying object storage, if the catalog vends storage credentials.
+
+To connect your {C.SERVICE_LONG} to a generic Iceberg REST catalog:
+
+<NumberedList>
+  <NumberedItem title="Select the catalog type">
+    1. In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select the {C.SERVICE_SHORT} you want to integrate with your Iceberg catalog, then click `Connectors`.
+    1. Select the Apache Iceberg destination connector, then select `Generic REST catalog`.
+    1. Choose a preset for your catalog provider, or select `Generic REST` to configure the connection manually.
+  </NumberedItem>
+  <NumberedItem title="Configure the catalog connection">
+    Enter the catalog connection and authentication settings:
+
+    | Setting | Required | Description |
+    | --- | --- | --- |
+    | `Catalog URI` | Yes | HTTPS base URL of the Iceberg REST catalog. Don't include a namespace or table path. |
+    | `Warehouse` | Yes | Warehouse, catalog, or external volume identifier expected by the catalog. The exact value depends on the catalog provider. |
+    | `Client ID` | No | OAuth 2.0 client identifier. Leave empty when authenticating with a personal access token instead. |
+    | `Client secret` | Yes | OAuth 2.0 client secret, or personal access token. {C.CLOUD_LONG} stores this value securely. |
+    | `Scope` | No | OAuth 2.0 scope required by the catalog. |
+    | `Vended credentials` | No | Requests temporary object storage credentials from the catalog. Turn this on if your catalog supports it. |
+    | `Additional headers` | No | Catalog-specific HTTP headers to include with REST requests. |
+  </NumberedItem>
+  <NumberedItem title="Create the connector">
+    Click `Set up connector`. {C.CLOUD_LONG} validates the catalog connection, credentials, and warehouse access
+    before creating the connector.
+  </NumberedItem>
+</NumberedList>
+
+<Callout variant="important">
+The catalog URI must use HTTPS. The catalog principal must have permission to access the configured warehouse, and
+to create or update its Iceberg namespaces and tables.
+</Callout>
+
+### Storage access for REST catalogs
+
+A REST catalog manages Iceberg metadata; the underlying table data is still stored in object storage. When you turn
+on `Vended credentials`, {C.LAKE_SHORT} requests temporary storage credentials from the catalog and uses them to
+write Iceberg data files. Otherwise, configure your catalog's own access controls to grant {C.LAKE_SHORT} the
+storage access it needs directly.
+
+### Catalog-specific setup
+
+The endpoint, warehouse identifier, OAuth 2.0 scope, and access-control model differ between catalog providers. Create
+the required catalog principal and warehouse permissions in your catalog provider's own console before configuring
+the connector in {C.CONSOLE}.
+
+Selecting a preset in {C.CONSOLE} fills in known defaults for that provider. It doesn't create the warehouse,
+catalog principal, or permissions on your behalf.
+
 ## Stream data from your service to your data lake
 
 Records are imported in time order, from oldest to newest.
@@ -360,7 +436,10 @@ ALTER TABLE Mixed_CASE_TableNAME SET (
 ## Limitations
 
 - Service requires {C.PG} 17.6 and above is supported.
-- [Amazon S3 Tables Iceberg REST](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-integrating-open-source.html) catalog only is supported.
+- [Amazon S3 Tables](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-integrating-open-source.html) and compatible generic Iceberg REST catalogs are supported. Catalog behavior, authentication requirements, and support for vended credentials vary by provider. Amazon S3 Tables is the most thoroughly tested catalog: confirm the support status of a specific REST catalog before using it for a production workload.
+- Generic REST catalogs support OAuth 2.0 client-credentials and personal-access-token authentication. Direct configuration of credentials for the underlying object storage is not available; use catalog-vended credentials instead.
+- Connecting to a REST catalog provides catalog-managed Iceberg tables. It does not provide native ingestion features specific to that catalog's platform (for example, Snowflake Snowpipe or Streams).
+- Throughput figures in [Stream data from your service to your data lake](#stream-data-from-your-service-to-your-data-lake) were measured using Amazon S3 Tables. Generic REST catalog throughput can differ, depending on the catalog's own API latency and table-commit performance.
 - In order to collect deletes made to data in the columstore, certain columnstore optimizations are disabled for {C.HYPERTABLE}s, this includes [Direct Compress](/learn/hypertables/optimize-data-in-hypertables#speed-up-data-ingestion).
 - The `TRUNCATE` statement is not supported, and does not truncate data in the corresponding Iceberg table.
 - Data in a {C.HYPERTABLE} that has been moved to the [low-cost object storage tier](/learn/data-lifecycle/storage/about-storage-tiers) is not synced.
