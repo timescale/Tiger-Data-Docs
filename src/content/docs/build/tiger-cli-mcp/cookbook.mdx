@@ -34,6 +34,8 @@ The agent designs the `CREATE TABLE ... WITH (tsdb.hypertable, ...)` statement, 
 
 ## Analyze your data
 
+**Setup**: assumes the `sensor_data` {C.HYPERTABLE} from [Design a schema and load your data](#design-a-schema-and-load-your-data). Substitute your own table if you're starting from an existing service.
+
 **Safety**: read-only.
 
 ```text
@@ -63,6 +65,8 @@ For more patterns like this, see [Query data](/build/data-management/query-data/
 
 ## Compare performance with and without a continuous aggregate
 
+**Setup**: assumes the `sensor_data` {C.HYPERTABLE} and `sensor_data_hourly` {C.CAGG} from [Design a schema and load your data](#design-a-schema-and-load-your-data).
+
 **Safety**: read-only.
 
 ```text
@@ -89,6 +93,8 @@ GROUP BY bucket, sensor_id;
 
 ## Test a change safely on a fork
 
+**Setup**: assumes the `analytics-poc` {C.SERVICE_SHORT} from [Design a schema and load your data](#design-a-schema-and-load-your-data). Substitute your own {C.SERVICE_SHORT} name if you're starting from an existing one.
+
 **Safety**: destructive steps run only on an isolated fork; the source {C.SERVICE_SHORT} is never modified.
 
 ```text
@@ -96,7 +102,7 @@ GROUP BY bucket, sensor_id;
 2. On the fork only, add a retention policy that drops data older than 30 days, and wait for the job to run.
 3. Compare row counts on the fork before and after.
 4. Confirm the original service's row count is unchanged.
-5. Delete the fork when I'm done.
+5. When I'm done, remind me to delete the fork.
 ```
 
 A fork is an independent, writable copy of a {C.SERVICE_SHORT}. Nothing you do on it reaches the source. See [Manage your services](/build/tiger-cli-mcp/common-tasks#manage-your-services) for the fork command and its strategies (`--now`, `--last-snapshot`, `--to-timestamp`). This same fork-first pattern applies to any risky change: schema migrations, configuration tuning, or bulk deletes.
@@ -104,6 +110,8 @@ A fork is an independent, writable copy of a {C.SERVICE_SHORT}. Nothing you do o
 **Full recipe on GitHub**: see [Safe Experimentation with Forks](https://github.com/timescale/pg-ai-cookbook/blob/main/recipes/04-safe-experimentation-with-forks.md).
 
 ## Optimize a hypertable's configuration
+
+**Setup**: assumes the `sensor_data` {C.HYPERTABLE} from [Design a schema and load your data](#design-a-schema-and-load-your-data).
 
 **Safety**: two-step. Step 1 only analyzes and writes a file; nothing changes until you review it and run step 2.
 

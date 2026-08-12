@@ -42,6 +42,29 @@ The two tools share a login and overlap on most operations, but each does someth
 
 Many workflows use both. An agent explores your data and proposes a change through {C.MCP_SHORT}, then you apply and verify it with {C.CLI_SHORT}.
 
+| Task | {C.CLI_SHORT} command | {C.MCP_SHORT} tool |
+| --- | --- | --- |
+| Create a {C.SERVICE_SHORT} | `tiger service create` | `service_create` |
+| List {C.SERVICE_SHORT}s | `tiger service list` | `service_list` |
+| Get {C.SERVICE_SHORT} details | `tiger service get` | `service_get` |
+| Fork a {C.SERVICE_SHORT} | `tiger service fork` | `service_fork` |
+| Resize a {C.SERVICE_SHORT} | `tiger service resize` | `service_resize` |
+| Start a {C.SERVICE_SHORT} | `tiger service start` | `service_start` |
+| Stop a {C.SERVICE_SHORT} | `tiger service stop` | `service_stop` |
+| Rotate the master password | `tiger service update-password` | `service_update_password` |
+| View logs | `tiger service logs` | `service_logs` |
+| Delete a {C.SERVICE_SHORT} | `tiger service delete` | None — {C.CLI_SHORT} only |
+| Run SQL | `tiger db connect` | `db_execute_query` |
+| View schema | `tiger db schema` | `db_schema` |
+| Print a connection string | `tiger db connection-string` | None — {C.CLI_SHORT} only |
+| Create a database role | `tiger db create role` | None — {C.CLI_SHORT} only |
+| Save a password locally | `tiger db save-password` | None — {C.CLI_SHORT} only |
+| Test connectivity | `tiger db test-connection` | None — {C.CLI_SHORT} only |
+| Search documentation | None — {C.MCP_SHORT} only | `search_docs` |
+| View a best-practice skill | None — {C.MCP_SHORT} only | `view_skill` |
+
+`tiger auth`, `tiger version`, `tiger config`, and `tiger mcp` manage the tool itself, not {C.CLOUD_LONG}, so they have no {C.MCP_SHORT} equivalent. See the [{C.MCP_LONG} reference](/reference/tiger-cloud/tiger-mcp) for each tool's parameters and return value, and [common tasks](/build/tiger-cli-mcp/common-tasks#manage-your-services) for the command-line details.
+
 ## Where they fit in your workflow
 
 Between them, {C.CLI_LONG} and {C.MCP_LONG} cover the whole lifecycle of working with {C.CLOUD_LONG}. Most operations work from either tool. Setup runs through {C.CLI_LONG}, and design and review belong to {C.MCP_LONG}.
@@ -59,6 +82,38 @@ Because {C.MCP_LONG} lets an agent act on your database, decide up front what it
 - Turn on read-only mode so an agent can query and explore but cannot write data, change schemas, or alter infrastructure. See [Restrict {C.MCP_LONG} to read-only](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only) and [best practices for AI agents](/build/tiger-cli-mcp/agent-best-practices).
 - Point an agent at a fork or a {C.READ_REPLICA} for exploratory work, so production is never in the path.
 - Ask for a single computed answer rather than a raw export, so the database does the work and less data leaves it.
+
+## FAQ
+
+**What is {C.CLI_LONG}?** {C.CLI_LONG} is a command-line tool for managing {C.CLOUD_LONG}. From a terminal you can create, fork, resize, start, stop, and inspect {C.SERVICE_SHORT}s, and connect to your databases, the same actions available in {C.CONSOLE}, but scriptable and automatable.
+
+**What is {C.MCP_LONG}?** {C.MCP_LONG} lets an AI coding agent (such as Cursor, Claude Code, or VS Code) manage {C.CLOUD_LONG} and query your data using natural language. It uses the Model Context Protocol, ships inside {C.CLI_LONG}, and gives the agent tools for {C.SERVICE_SHORT} management and running SQL, plus built-in best-practice guidance (schema design, {C.HYPERTABLE} setup, migration planning) and documentation search.
+
+**Do I need both {C.CLI_LONG} and {C.MCP_LONG}?** No, choose based on who's driving. Use {C.CLI_LONG} when you or a script run commands directly in a terminal. Use {C.MCP_LONG} when you want an AI agent to do the work for you. Because {C.MCP_LONG} is built into the CLI, installing {C.CLI_LONG} gives you both.
+
+**How is {C.MCP_LONG} different from a generic {C.PG} MCP server?** A generic {C.PG} MCP server usually does one thing: run SQL against a database connection. {C.MCP_LONG} also manages the {C.CLOUD_LONG} {C.SERVICE_SHORT} itself (create, fork, resize, view logs), includes built-in safety controls such as read-only mode and per-role access limits, and adds {C.COMPANY}-specific knowledge like documentation search and guidance for features such as {C.HYPERTABLE}s and {C.CAGG}s.
+
+**When should I use {C.CLI_LONG}, {C.MCP_LONG}, or {C.REST_LONG}?** Use {C.REST_LONG} to build {C.CLOUD_LONG} management into your own application. Use {C.CLI_LONG} for direct, scriptable control from a terminal or CI. Use {C.MCP_LONG} to let an AI agent manage {C.SERVICE_SHORT}s and query data for you. {C.REST_LONG} is the complete surface; {C.CLI_LONG} wraps a subset of it for scripting and CI; {C.MCP_LONG} adds skills and documentation search on top for agent-driven work.
+
+**Which AI tools does {C.MCP_LONG} work with?** {C.MCP_LONG} auto-configures for `claude-code`, `cursor`, `windsurf`, `codex`, `gemini`, `vscode`, `antigravity`, and `kiro-cli` (see the [full list](/get-started/quickstart/mcp-cli#install-and-configure-tiger-mcp)), and works with any client that supports the Model Context Protocol through a standard configuration entry.
+
+**Is it safe to let an AI agent access my database through {C.MCP_LONG}?** Yes, when you use the built-in controls. Run {C.MCP_LONG} in [read-only mode](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only) so an agent can read but not modify data, and scope its access to a specific database role to limit what it can reach. For production, start read-only and grant additional access deliberately. See [best practices for AI agents](/build/tiger-cli-mcp/agent-best-practices).
+
+<script type="application/ld+json">
+{`{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type": "Question", "name": "What is Tiger CLI?", "acceptedAnswer": {"@type": "Answer", "text": "Tiger CLI is a command-line tool for managing Tiger Cloud. From a terminal you can create, fork, resize, start, stop, and inspect services, and connect to your databases, the same actions available in Tiger Console, but scriptable and automatable."}},
+    {"@type": "Question", "name": "What is Tiger MCP?", "acceptedAnswer": {"@type": "Answer", "text": "Tiger MCP lets an AI coding agent (such as Cursor, Claude Code, or VS Code) manage Tiger Cloud and query your data using natural language. It uses the Model Context Protocol, ships inside Tiger CLI, and gives the agent tools for service management and running SQL, plus built-in best-practice guidance (schema design, hypertable setup, migration planning) and documentation search."}},
+    {"@type": "Question", "name": "Do I need both Tiger CLI and Tiger MCP?", "acceptedAnswer": {"@type": "Answer", "text": "No, choose based on who's driving. Use Tiger CLI when you or a script run commands directly in a terminal. Use Tiger MCP when you want an AI agent to do the work for you. Because Tiger MCP is built into the CLI, installing Tiger CLI gives you both."}},
+    {"@type": "Question", "name": "How is Tiger MCP different from a generic Postgres MCP server?", "acceptedAnswer": {"@type": "Answer", "text": "A generic Postgres MCP server usually does one thing: run SQL against a database connection. Tiger MCP also manages the Tiger Cloud service itself (create, fork, resize, view logs), includes built-in safety controls such as read-only mode and per-role access limits, and adds Tiger Data-specific knowledge like documentation search and guidance for features such as hypertables and continuous aggregates."}},
+    {"@type": "Question", "name": "When should I use Tiger CLI, Tiger MCP, or the REST API?", "acceptedAnswer": {"@type": "Answer", "text": "Use the REST API to build Tiger Cloud management into your own application. Use Tiger CLI for direct, scriptable control from a terminal or CI. Use Tiger MCP to let an AI agent manage services and query data for you. The REST API is the complete surface; Tiger CLI wraps a subset of it for scripting and CI; Tiger MCP adds skills and documentation search on top for agent-driven work."}},
+    {"@type": "Question", "name": "Which AI tools does Tiger MCP work with?", "acceptedAnswer": {"@type": "Answer", "text": "Tiger MCP auto-configures for the major AI coding tools, including Cursor, Claude Code, and VS Code, and works with any client that supports the Model Context Protocol through a standard configuration entry."}},
+    {"@type": "Question", "name": "Is it safe to let an AI agent access my database through Tiger MCP?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, when you use the built-in controls. Run Tiger MCP in read-only mode so an agent can read but not modify data, and scope its access to a specific database role to limit what it can reach. For production, start read-only and grant additional access deliberately."}}
+  ]
+}`}
+</script>
 
 ## Next steps
 

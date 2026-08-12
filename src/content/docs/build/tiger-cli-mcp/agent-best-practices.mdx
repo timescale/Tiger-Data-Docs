@@ -26,8 +26,8 @@ For an additional layer of security, create a dedicated read-only database role,
 
 For exploratory or agent-driven work, point the agent at a copy of your data instead of production:
 
-- **Fork** a {C.SERVICE_SHORT} to get an isolated, writable copy you can experiment on and then discard. See [Manage your services](/build/tiger-cli-mcp/common-tasks#manage-your-services).
-- **{C.READ_REPLICA_CAP}**: connect the agent to a {C.READ_REPLICA} so exploration never touches the primary or its write performance. Add a {C.READ_REPLICA} [in {C.CONSOLE}](/deploy/tiger-cloud/tiger-cloud-aws/high-availability/read-scaling#create-a-read-replica-set), then point the agent at that set's own connection details.
+- **Fork** a {C.SERVICE_SHORT} to get an isolated, writable copy you can experiment on and then discard: `tiger service fork <service-id> --now`, or ask your agent (`service_fork`). See [Manage your services](/build/tiger-cli-mcp/common-tasks#manage-your-services).
+- **{C.READ_REPLICA_CAP}**: connect the agent to a {C.READ_REPLICA} so exploration never touches the primary or its write performance. There is no {C.CLI_SHORT} or {C.MCP_SHORT} tool for creating a {C.READ_REPLICA} set; add one [in {C.CONSOLE}](/deploy/tiger-cloud/tiger-cloud-aws/high-availability/read-scaling#create-a-read-replica-set) (an agent should ask you to do this step, not attempt a command for it), then point the agent at that set's own connection details.
 
 ## Have the database do the work
 
@@ -39,7 +39,28 @@ Agents sometimes pull large result sets to the client and process them locally, 
 
 ## Guardrails for coding agents
 
-When you use an agent like Claude Code against your database, add project instructions (for example, in `CLAUDE.md`) that state which {C.SERVICE_SHORT}s are production, that production is read-only, and which {C.PROJECT_SHORT} to use. This reduces mistakes when an agent switches context.
+When you use an agent like Claude Code against your database, add project instructions (for example, in `CLAUDE.md`) that state which {C.SERVICE_SHORT}s are production, that production is read-only, and which {C.PROJECT_SHORT} to use. This reduces mistakes when an agent switches context. For example:
+
+```markdown
+## Database access via Tiger MCP
+
+- Production service ID: `<service-id>` — treat as READ-ONLY. Never call `service_resize`,
+  `service_update_password`, or run write/DDL SQL against it without explicit approval.
+- For schema changes or risky queries, fork production first (`service_fork`) and test
+  on the fork.
+- Development service ID: `<service-id>` — safe to modify freely.
+- Show the SQL you're about to run before calling `db_execute_query` with anything other
+  than a `SELECT`.
+```
+
+### Guardrails checklist
+
+- Keep production {C.SERVICE_SHORT}s in [read-only mode](#restrict-agents-to-read-only) by default.
+- Connect the agent as a dedicated read-only database role, not `tsdbadmin`.
+- Point exploratory or agent-driven work at a fork or {C.READ_REPLICA}, never production directly.
+- Ask for a single computed answer instead of raw rows, and set an explicit row limit.
+- Ask the agent to show the SQL it will run before it executes anything that writes.
+- State which {C.SERVICE_SHORT}s are production in your project instructions (for example, `CLAUDE.md`).
 
 ## Next steps
 
