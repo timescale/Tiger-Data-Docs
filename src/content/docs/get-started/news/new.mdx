@@ -12,12 +12,14 @@ import ChangelogEntry from "@components/ChangelogEntry.astro";
 import ChangelogFilter from "@components/ChangelogFilter.astro";
 
 import { Image } from "astro:assets";
+import ThemeImage from "@components/ThemeImage.astro";
 import imgServiceCreationFlowTigerCloud from "../../../../assets/images/get-started/news/service-creation-flow-tiger-cloud.png";
 import imgChunkTimelineTigerCloud from "../../../../assets/images/get-started/news/chunk-timeline-tiger-cloud.png";
 import imgQueriesPerSecondTigerCloud from "../../../../assets/images/get-started/news/queries-per-second-tiger-cloud.png";
 import imgResourceConsumptionMetricsTigerCloud from "../../../../assets/images/get-started/news/resource-consumption-metrics-tiger-cloud.png";
 import imgTigerCloudManageSupport from "../../../../assets/images/deploy/tiger-cloud/tiger-cloud-manage-support.png";
-import imgAutomatedChunkTuning from "../../../../assets/images/learn/performance-optimization/automated-chunk-tuning.png";
+import imgAutomatedChunkTuningLight from "../../../../assets/images/learn/performance-optimization/automated-chunk-tuning.png";
+import imgAutomatedChunkTuningDark from "../../../../assets/images/learn/performance-optimization/automated-chunk-tuning-dark.png";
 import imgCliMcpWalkthroughTigerConsole from "../../../../assets/images/get-started/news/cli-mcp-walkthrough-tiger-console.png";
 import imgTigerConsoleJobsTimelineView from "../../../../assets/images/get-started/news/tiger-console-jobs-timeline-view.png";
 import imgAzureMarketplaceAutomation1 from "../../../../assets/images/get-started/news/azure-marketplace-automation-1.png";
@@ -118,6 +120,7 @@ import imgCreateCrossRegionBackupInTigerConsole from "../../../../assets/images/
 import imgCreateCrossRegionBackupInTigerConsoleAzure from "../../../../assets/images/deploy/tiger-cloud/create-cross-region-backup-in-tiger-console-azure.png";
 import imgHighPerformanceStorageTigerConsole from "../../../../assets/images/build/data-management/high-performance-storage-tiger-console.png";
 import imgCmdKCommandPaletteTigerConsole from "../../../../assets/images/get-started/news/cmd-k-command-palette-tiger-console.png";
+import imgTigerlakeGenericRestCatalogSetup from "../../../../assets/images/get-started/news/tigerlake-generic-rest-catalog-setup.png";
 
 <ChangelogFilter />
 
@@ -184,6 +187,48 @@ Continuous aggregates gain incremental and concurrent refresh, lowering the cost
 2.29.1 addresses stability issues; adds missing permission checks for internal chunk functions; and adds an ordered-scan path for hypertable max-time lookups. It also addresses security vulnerabilities (advisory; PRs #10360, #10379, #10386); upgrade at your next opportunity.
 
 For complete details, refer to the [TimescaleDB 2.29.0 release notes](https://github.com/timescale/timescaledb/releases/tag/2.29.0) and [2.29.1 release notes](https://github.com/timescale/timescaledb/releases/tag/2.29.1).
+
+## Generic Iceberg REST catalog support in TigerLake
+
+<ChangelogEntry
+  title="Generic Iceberg REST catalog support in TigerLake"
+  date="2026-08-05"
+  tags={["new-feature", "integration"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Generic Iceberg REST catalog support in TigerLake</h2>
+
+TigerLake can now write to any Iceberg REST-compatible catalog, including Snowflake Open Catalog, Apache Polaris, and Snowflake Horizon Catalog. This is for customers who already run an external Iceberg catalog and want TigerLake to write into it directly, rather than migrating to a new destination.
+
+Amazon S3 Tables remains the recommended managed Iceberg destination and includes automatic compaction and table maintenance.
+
+<Image src={imgTigerlakeGenericRestCatalogSetup} alt="Connector setup in Tiger Console showing the Iceberg REST catalog configuration form with catalog URI, warehouse, client ID and secret, scope, and vended credentials fields" />
+
+- OAuth 2.0 client-credentials authentication
+- Configurable catalog URI, warehouse, and scope
+- Vended storage credential requests
+- Custom catalog headers
+- Secure client-secret handling
+- Catalog connectivity and permission validation before you sync
+
+REST catalogs use the same TigerLake snapshot and continuous CDC pipeline as S3 Tables. See the [TigerLake destination connector documentation](/integrate/connectors/destination/tigerlake) for setup details.
+
+</ChangelogEntry>
+
+## More reliable TigerLake replication slots with the Slot Keep Controller
+
+<ChangelogEntry
+  title="More reliable TigerLake replication slots with the Slot Keep Controller"
+  date="2026-08-05"
+  tags={["improvement"]}
+>
+<h2 slot="heading" class="changelog-entry__title">More reliable TigerLake replication slots with the Slot Keep Controller</h2>
+
+All TigerLake-enabled services now run with the Slot Keep Controller (SKC), which manages replication-slot retention automatically. New TigerLake connectors are enrolled at creation, so no setup is required.
+
+Previously, a fixed, instance-wide WAL retention limit could invalidate a replication slot without warning once WAL lag grew too large, forcing TigerLake's CDC pipeline to fully re-bootstrap. SKC replaces that fixed limit with retention that scales with each service's available disk space, and prioritizes dropping TigerData-owned slots (which recreate automatically) over customer slots if a service ever comes under disk pressure.
+
+Every SKC action is recorded in an audit log, so any slot change can be traced after the fact.
+
 </ChangelogEntry>
 
 ## Cmd+K command palette in Tiger Console
@@ -409,7 +454,7 @@ Automated chunk tuning is now GA for all services. Enable the feature for each h
 
 When enabled, Tiger Cloud continuously evaluates your hypertable and adjusts the interval on your behalf when it detects it is no longer optimal. Note that updated chunk intervals apply to new chunks only.
 
-<Image src={imgAutomatedChunkTuning} alt="Chunk auto-tuning in Tiger Console" />
+<ThemeImage light={imgAutomatedChunkTuningLight} dark={imgAutomatedChunkTuningDark} alt="Chunk auto-tuning in Tiger Console" />
 
 See the [docs](/build/performance-optimization/improve-hypertable-performance#automated-tuning) for details.
 
@@ -958,7 +1003,7 @@ Tiger Cloud now offers automated chunk tuning in beta, taking the guesswork out 
 - **Activity log integration:** chunk interval changes are recorded in the Activity log for a full audit trail.
 - **No instance overhead:** all calculations run outside your service via Schemata.
 
-<Image src={imgAutomatedChunkTuning} alt="Chunk auto-tuning in Tiger Cloud" />
+<ThemeImage light={imgAutomatedChunkTuningLight} dark={imgAutomatedChunkTuningDark} alt="Chunk auto-tuning in Tiger Cloud" />
 
 If you experience any negative impact, you can opt out at any time and manually reset the interval via the UI or SQL. [Learn more](/build/performance-optimization/improve-hypertable-performance#optimize-hypertable-chunk-intervals) about automated chunk tuning.
 </ChangelogEntry>

@@ -58,7 +58,7 @@ The component takes **props** and **two slots** (heading + body).
 | `tags` | Yes      | Array of tag keys | One or more of the allowed tags (see below). Used for filtering and the pill labels on the card. |
 
 **Allowed `tags` values:**  
-`new-feature` | `improvement` | `performance` | `security` | `integration` | `region` | `deprecation` | `bug-fix` | `breaking-change` | `beta` | `ga`
+`new-feature` | `improvement` | `performance` | `security` | `integration` | `region` | `deprecation` | `bug-fix` | `breaking-change` | `beta` | `ga` | `cli-mcp`
 
 Example:
 
@@ -96,24 +96,33 @@ Example:
 
 **Format:**
 
-- **Usually start with a `###` subsection.**  
-  Most entries open with a `###` heading, which keeps layout and spacing consistent. Examples: “Now available”, “What’s new”, “Release highlights”, or a short topic name. A short entry can open with a paragraph instead (several existing entries do).
+- **Open with a summary sentence, not a heading.**  
+  The first thing in the body must be a sentence (plain paragraph) that summarizes every feature or change the entry covers, not just the first one. Readers scanning the changelog should get the full picture from that one sentence alone. Don't put a `###` heading before it.
+- **Add `###` subsections after the intro sentence, only if the entry needs them.**  
+  If the entry covers more than one distinct topic, group the details under `###` headings (for example, “Highlighted features”, “What this means for you”, or a topic name). A single-topic entry usually doesn't need any `###` at all: the intro sentence plus a bullet list or short paragraph is enough.
 - Use normal Markdown/MDX: paragraphs, **bold**, lists, [links](url), `code`, and so on.
-- You can add more `###` subsections to group content (for example, “Feature A”, “Feature B”).
 
-Example:
+Example (single topic, no subsection needed):
 
 ```mdx
-### Now available
+You can now do X in Tiger Cloud. This helps with Y and Z.
 
-Short intro sentence or paragraph.
+- First benefit.
+- Second benefit.
+```
 
-- Bullet one.
-- Bullet two.
+Example (multiple topics, grouped under subsections):
 
-### Another topic
+```mdx
+This release adds X, improves Y, and deprecates Z.
 
-More content...
+### X
+
+Details about X...
+
+### Y
+
+Details about Y...
 ```
 
 ---
@@ -132,9 +141,7 @@ Here’s a complete new entry as it would appear at the top of the list in `new.
 >
 <h2 slot="heading" class="changelog-entry__title">My new feature</h2>
 
-### What's new
-
-You can now do X in Tiger Cloud. This helps with Y and Z.
+You can now do X and Y in Tiger Cloud, plus we've improved Z.
 
 - First benefit.
 - Second benefit.
@@ -149,7 +156,8 @@ See [docs link](https://...) for details.
 - [ ] `title` prop matches the `##` and the H2 text.
 - [ ] `date` is `YYYY-MM-DD`.
 - [ ] `tags` is an array of allowed tag keys.
-- [ ] Body opens with a `###` subsection (typical) or a short intro paragraph.
+- [ ] Body opens with a sentence that summarizes every feature covered in the entry.
+- [ ] `###` subsections, if any, come after the intro sentence and only group multi-topic entries.
 - [ ] Entry is placed at the top (newest first).
 
 ---
@@ -163,7 +171,8 @@ See [docs link](https://...) for details.
 | TOC heading             | `## Entry title` (above the card) |
 | Card title (visible H2) | `<h2 slot="heading" class="changelog-entry__title">Entry title</h2>` (first thing inside `<ChangelogEntry>`) |
 | Date & tags             | `date="YYYY-MM-DD"` and `tags={["tag1", "tag2"]}` on `<ChangelogEntry>` |
-| Body content            | After the H2; start with `### Subsection`, then paragraphs/lists/links |
+| Body content            | After the H2; open with the summary sentence, then optional `### Subsection`s, paragraphs/lists/links |
+| First sentence          | Must summarize every feature or change covered in the entry (a plain sentence, not a heading) |
 
 ---
 
@@ -172,4 +181,4 @@ See [docs link](https://...) for details.
 - **Keep titles consistent:** use the same string for the `##` heading, the `title` prop, and the H2 in the heading slot so the TOC and card stay in sync.
 - **No constants:** write product names as literal strings (`Tiger Cloud`, `PostgreSQL`, `TimescaleDB`, and so on), not `{C.X}` constants. Entries are a permanent historical record, so they must not shift when a constant's value changes. This is the one content file exempt from the constants convention.
 - **One or more tags:** use the tags that best describe the entry; multiple tags (for example, `["new-feature", "improvement"]`) are fine.
-- **Body structure:** starting with a `###` and using more `###` for sub-topics keeps the changelog scannable and the layout consistent across entries.
+- **Lead with a full summary:** open the body with a sentence that names every feature or change in the entry, not just the first one. Only add `###` subsections after that sentence, and only when the entry covers more than one distinct topic; single-topic entries usually don't need any.
