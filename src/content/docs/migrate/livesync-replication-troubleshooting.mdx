@@ -22,6 +22,16 @@ docker logs -f livesync
 
 Add indexes on `UPDATE`/`DELETE` `WHERE`-clause columns on the target. Ensure `REPLICA IDENTITY` includes the partition column on {C.HYPERTABLE}s.
 
+## IP allow-listing for the source database
+
+If your source database accepts connections only from allow-listed IPs, route the [{C.PG_CONNECTOR}](/integrate/connectors/source/sync-from-postgres) connection through a bastion host over an SSH tunnel, and allow-list the bastion host's IP address on the source.
+
+1. Create a bastion host that can reach the source database, for example an EC2 instance with an Elastic IP.
+2. Allow-list the Elastic IP on the source firewall or security group.
+3. In the [connector wizard](/integrate/connectors/source/sync-from-postgres), toggle `Enable SSH tunneling` and enter the bastion host details.
+
+The connector manages the SSH tunnel for you. Keep the connection string pointed at the source database.
+
 ## Tables missing a replica identity
 
 For `UPDATE` and `DELETE` statements to replicate, the source tables must have either a `PRIMARY KEY` or a `REPLICA IDENTITY` set. Without one, logical replication cannot locate the rows to change, and you see errors such as:
