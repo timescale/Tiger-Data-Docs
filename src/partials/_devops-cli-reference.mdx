@@ -67,7 +67,7 @@ Successfully logged out and removed stored credentials
 
 ### `tiger auth status`
 
-Show your current authentication status and {C.PROJECT_SHORT} ID.
+Show your current authentication status. What it lists depends on how you logged in: an OAuth login shows the authentication method and the user, and a client-credentials login shows the credential name, public key, {C.PROJECT_SHORT}, and plan type.
 
 **Usage**: `tiger auth status [flags]`
 
@@ -383,7 +383,7 @@ Change a {C.SERVICE_SHORT}'s CPU and memory. The service may be briefly unavaila
 **Usage**: `tiger service resize <service-id> [flags]`
 
 ```bash
-tiger service resize <service-id> --cpu 4 --memory 16
+tiger service resize <service-id> --cpu 4000 --memory 16
 ```
 
 You see something like:
@@ -397,7 +397,7 @@ You see something like:
 
 | Flag | Description |
 | --- | --- |
-| `--cpu`, `--memory` | New allocation. See [`service create`](#tiger-service-create) for allowed configurations. |
+| `--cpu`, `--memory` | New allocation. CPU is in millicores, memory in gigabytes, so 4 CPU / 16 GB is `--cpu 4000 --memory 16`. See [`service create`](#tiger-service-create) for allowed configurations. |
 | `--no-wait`, `--wait-timeout` | Wait behavior (default timeout: `10m`). |
 
 ### `tiger service start`
@@ -509,16 +509,18 @@ tiger service logs <service-id> --tail 5
 You see something like:
 
 ```txt
-2026-08-12 16:28:42 UTC [222641]: LOG:  SSL error: unexpected eof while reading
-2026-08-12 16:28:42 UTC [222641]: LOG:  could not receive data from client: Connection reset by peer
-2026-08-12 16:30:26 UTC [158]: LOG:  checkpoint starting: time
-2026-08-12 16:30:26 UTC [158]: LOG:  checkpoint complete: wrote 0 buffers (0.0%), wrote 0 SLRU buffers
-2026-08-12 13:30:27 - wal_archive_command_pgbackrest - archiving pg_wal/00000001000000000000009C
+2026-08-13 07:07:50 UTC [158]: [6a79e2e5.9e-301] 0 @,app= [00000] LOG:  checkpoint starting: time
+2026-08-13 07:07:50 UTC [158]: [6a79e2e5.9e-302] 0 @,app= [00000] LOG:  checkpoint complete: wrote 4 buffers (0.0%), wrote 0 SLRU buffers; 0 WAL file(s) added, 0 removed, 1 recycled; write=0.403 s, sync=0.003 s, total=0.412 s; sync files=3, longest=0.003 s, average=0.001 s; distance=16390 kB, estimate=29655 kB; lsn=0/CE001A80, redo lsn=0/CE001A28
+2026-08-13 07:07:51 - wal_archive_command_pgbackrest - archiving pg_wal/0000000100000000000000CE
+2026-08-13 07:29:22 UTC [307395]: [6a7d7252.4b0c3-1] 0 [unknown]@[unknown],app=[unknown] [08P01] LOG:  SSL error: unexpected eof while reading
+2026-08-13 07:29:22 UTC [307395]: [6a7d7252.4b0c3-2] 0 [unknown]@[unknown],app=[unknown] [08006] LOG:  could not receive data from client: Connection reset by peer
 ```
+
+{C.CLI_LONG} converts {C.PG} log timestamps to your machine's time zone, so set `TZ` if you want a specific one (for example, `TZ=UTC tiger service logs <service-id>`). The `wal_archive_command_pgbackrest` lines come from the backup agent rather than {C.PG}, and are always in UTC.
 
 | Flag | Description |
 | --- | --- |
-| `--tail` | Number of log lines to show (default: `100`). |
+| `--tail` | Number of log entries to show (default: `100`). One entry can span several lines, for example a `FATAL` followed by its `DETAIL`, so the output can be longer than the number you ask for. |
 | `--since`, `--until` | Fetch logs within a time range (RFC3339, for example `2024-01-15T09:00:00Z`). |
 | `--node` | Specific node to fetch logs from (for services with HA replicas; `0` is valid). |
 | `--output, -o` | Output format: `text`, `json`, or `yaml`. |
@@ -526,6 +528,8 @@ You see something like:
 ## Database
 
 Connect to a {C.SERVICE_SHORT}'s database and manage roles from the terminal. See [Work with your data](/build/tiger-cli-mcp/common-tasks#work-with-your-data) for how these commands compare to asking {C.MCP_LONG}, and [best practices](/build/tiger-cli-mcp/agent-best-practices#restrict-agents-to-read-only) for connecting an agent as a read-only role.
+
+The `--pooled` flag on these commands, and the `pooled` parameter on {C.MCP_SHORT}'s database tools, need a connection pooler on the {C.SERVICE_SHORT}. Without one, the command fails with `connection pooler not available for this service`.
 
 ### `tiger db connect`
 
@@ -605,7 +609,7 @@ You see:
 | Flag | Description |
 | --- | --- |
 | `--name` (required) | The role to create. |
-| `--read-only` | Enforce permanent read-only for the role using `tsdb_admin.read_only_role`. |
+| `--read-only` | Enforce permanent read-only for the role using `tsdb_admin.read_only_role`. This enforces read-only, it doesn't grant read access: the new role can log in and has `USAGE` on `public`, but no table privileges, so `SELECT` fails until you [grant it](/deploy/tiger-cloud/tiger-cloud-aws/security/read-only-role#create-a-read-only-user). |
 | `--from` | Inherit grants from one or more roles, for example `--from app_role,readonly_role`. |
 | `--statement-timeout` | Statement timeout for the role, for example `30s`, `5m`. |
 | `--password` | Role password (falls back to `TIGER_NEW_PASSWORD`, otherwise auto-generated). |
@@ -683,14 +687,21 @@ You see:
 Connection successful
 ```
 
-Exit codes follow `pg_isready` conventions:
+If the connection fails, the reason is printed twice, once as a message and once as an error:
+
+```txt
+Connection failed: failed to connect to `user=tsdbadmin database=tsdb`: <host>:<port>: failed SASL auth: FATAL: password authentication failed for user "tsdbadmin" (SQLSTATE 28P01)
+Error: failed to connect to `user=tsdbadmin database=tsdb`: <host>:<port>: failed SASL auth: FATAL: password authentication failed for user "tsdbadmin" (SQLSTATE 28P01)
+```
+
+Use the exit code in scripts:
 
 | Exit code | Meaning |
 | --- | --- |
-| `0` | Server is accepting connections normally. |
-| `1` | Server is rejecting connections (for example, during startup). |
-| `2` | No response to the connection attempt (server unreachable). |
-| `3` | No attempt made (for example, invalid parameters). |
+| `0` | The connection succeeded. |
+| `1` | {C.CLI_LONG} didn't run the check, because a flag or argument was invalid. |
+| `2` | The connection was attempted and failed: the server was unreachable, the attempt timed out, or the credentials were rejected. |
+| `3` | No attempt was made, because no {C.SERVICE_SHORT} with that ID exists or no ID was given. |
 
 | Flag | Description |
 | --- | --- |

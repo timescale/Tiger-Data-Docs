@@ -22,6 +22,8 @@ Keep production {C.SERVICE_SHORT}s in read-only mode and only escalate to write 
 
 For an additional layer of security, create a dedicated read-only database role, save its password with `tiger db save-password <service-id> --role <role> --password=<password>`, then connect the agent as that role (`tiger db connect <service-id> --role <role>`, or the `role` parameter on {C.MCP_SHORT}'s database tools). Because the restriction is enforced by the database itself, it applies no matter how the agent connects. See [Manage data security in your {C.SERVICE_LONG}](/deploy/tiger-cloud/tiger-cloud-aws/security/read-only-role#create-a-read-only-user) to create the role.
 
+Grant the role `SELECT` on the tables the agent needs. A role created with `tiger db create role --read-only` can log in but holds no table privileges, so an agent connecting as it gets `permission denied` on every query until you grant access.
+
 ## Test against a fork or a read replica
 
 For exploratory or agent-driven work, point the agent at a copy of your data instead of production:
@@ -39,16 +41,18 @@ Agents sometimes pull large result sets to the client and process them locally, 
 
 ## Guardrails for coding agents
 
-When you use an agent like Claude Code against your database, add project instructions (for example, in `CLAUDE.md`) that state which {C.SERVICE_SHORT}s are production, that production is read-only, and which {C.PROJECT_SHORT} to use. This reduces mistakes when an agent switches context. For example:
+When you use an agent like Claude Code against your database, add project instructions (for example, in `CLAUDE.md`) that state which {C.SERVICE_SHORT}s are production and that production is read-only. This reduces mistakes when an agent switches context. For example:
 
 ```markdown
 ## Database access via Tiger MCP
 
-- Production service ID: `<service-id>` — treat as READ-ONLY. Never call `service_resize`,
-  `service_update_password`, or run write/DDL SQL against it without explicit approval.
+- Production service ID: `<prod-service-id>`. Treat as READ-ONLY: never call a mutating
+  service tool against it (for example `service_resize`, `service_stop`,
+  `service_update_password`), and never run write or DDL SQL against it, without
+  explicit approval.
 - For schema changes or risky queries, fork production first (`service_fork`) and test
   on the fork.
-- Development service ID: `<service-id>` — safe to modify freely.
+- Development service ID: `<dev-service-id>`. Safe to modify freely.
 - Show the SQL you're about to run before calling `db_execute_query` with anything other
   than a `SELECT`.
 ```
