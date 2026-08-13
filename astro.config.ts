@@ -366,6 +366,7 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
+                { label: "Create a Tiger Cloud account", link: "/get-started/quickstart/create-account" },
                 { label: "Create a Tiger Cloud service", link: "/get-started/quickstart/create-service" },
                 { label: "Supported regions", link: "/get-started/supported-regions" },
               ],
