@@ -1,8 +1,9 @@
 import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
 import GLOBALFLAGS from "./_devops-cli-global-flags.mdx";
 import CONFIGOPTIONS from "./_devops-cli-config-options.mdx";
 
-Use the following commands to manage {C.CLOUD_LONG} from the terminal. Every command supports `-h` for inline help, for example `tiger service create -h`.
+Use the following commands to manage {C.CLOUD_LONG} from the terminal. Every command supports `-h` for inline help, for example `tiger service create -h`. For the single-command version of common operations, see [common tasks](/build/tiger-cli-mcp/common-tasks); for longer, multi-step workflows, see the [cookbook](/build/tiger-cli-mcp/cookbook).
 
 ## Authentication
 
@@ -10,32 +11,85 @@ Use the following commands to manage {C.CLOUD_LONG} from the terminal. Every com
 
 Create an authenticated connection to your {C.ACCOUNT_LONG}. This opens a browser to authorize. For non-interactive login, pass credentials as flags.
 
+**Usage**: `tiger auth login [flags]`
+
 ```bash
 tiger auth login
 ```
 
-- `--public-key`: public key for non-interactive login.
-- `--secret-key`: secret key for non-interactive login.
+You see something like:
 
-You can also set the `TIGER_PUBLIC_KEY` and `TIGER_SECRET_KEY` environment variables; the {C.PROJECT_SHORT} is auto-detected from your credentials. See [Authentication parameters](#authentication-parameters).
+```txt
+Auth URL is: https://console.cloud.tigerdata.com/oauth/authorize?...
+Opening browser for authentication...
+Select a project:
+
+> 1. <project-name> (<project-id>)
+  2. <project-name> (<project-id>)
+
+Use ↑/↓ arrows or number keys to navigate, enter to select, q to quit
+```
+
+The project picker only appears if you have multiple {C.PROJECT_SHORT}s. After you select one (or automatically, if you have only one):
+
+```txt
+Successfully logged in (project: <project-id>)
+
+🎉 Next steps:
+• Install MCP server for your favorite AI coding tool: tiger mcp install
+• List existing services: tiger service list
+• Create a new service: tiger service create
+• Enable read-only mode: tiger config set read_only true
+```
+
+| Flag | Description |
+| --- | --- |
+| `--public-key` | Public key for non-interactive login. |
+| `--secret-key` | Secret key for non-interactive login. |
+
+You can also set the `TIGER_PUBLIC_KEY` and `TIGER_SECRET_KEY` environment variables; the {C.PROJECT_SHORT} is auto-detected from your credentials. See [Authentication parameters](#authentication-parameters) and [Client credentials](/integrate/find-connection-details#create-client-credentials) for how to create a public/secret key pair.
 
 ### `tiger auth logout`
 
 Remove the credentials used to connect to {C.CLOUD_LONG}.
 
+**Usage**: `tiger auth logout`
+
 ```bash
 tiger auth logout
 ```
 
+You see:
+
+```txt
+Successfully logged out and removed stored credentials
+```
+
 ### `tiger auth status`
 
-Show your current authentication status and {C.PROJECT_SHORT} ID.
+Show your current authentication status. What it lists depends on how you logged in: an OAuth login shows the authentication method and the user, and a client-credentials login shows the credential name, public key, {C.PROJECT_SHORT}, and plan type.
+
+**Usage**: `tiger auth status [flags]`
 
 ```bash
 tiger auth status
 ```
 
-- `--output, -o`: output format: `json`, `yaml`, or `table`.
+You see something like:
+
+```txt
+┌─────────────┬───────────────────────┐
+│  PROPERTY   │         VALUE         │
+├─────────────┼───────────────────────┤
+│ Status      │ Logged in             │
+│ Auth Method │ OAuth                 │
+│ User        │ <name> (<email>)      │
+└─────────────┴───────────────────────┘
+```
+
+| Flag | Description |
+| --- | --- |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
 ## Version
 
@@ -43,19 +97,47 @@ tiger auth status
 
 Show the installed {C.CLI_LONG} version.
 
+**Usage**: `tiger version [flags]`
+
 ```bash
 tiger version
 ```
 
-- `--check`: force a check for updates, regardless of the last check time.
-- `--output, -o`: output format: `table`, `json`, `yaml`, or `bare`.
+You see something like:
+
+```txt
+┌───────────────────┬──────────────────────────────────────────┐
+│ Tiger CLI Version │ 0.21.2                                   │
+│ Build Time        │ 2026-07-16T16:23:17Z                     │
+│ Git Commit        │ 377b0e6bbc1e605d55efef9c874f5b7d64ea62ba │
+│ Go Version        │ go1.25.5                                 │
+│ Platform          │ darwin/arm64                             │
+└───────────────────┴──────────────────────────────────────────┘
+```
+
+| Flag | Description |
+| --- | --- |
+| `--check` | Force a check for updates, regardless of the last check time. |
+| `--output, -o` | Output format: `table`, `json`, `yaml`, or `bare`. |
 
 ### `tiger upgrade`
 
 Download the latest published version of {C.CLI_LONG} and replace the running binary in place. The archive for your platform is verified against its SHA-256 checksum before it is installed. Alias: `update`.
 
+**Usage**: `tiger upgrade`
+
 ```bash
 tiger upgrade
+```
+
+If you installed {C.CLI_LONG} with the direct install script and a newer version is available, you see:
+
+```txt
+Upgrading tiger 0.21.1 → v0.21.2
+Downloading https://cli.tigerdata.com/releases/v0.21.2/tiger-cli_Darwin_arm64.tar.gz
+Verifying checksum
+Installing new binary to <install-path>/tiger
+tiger upgraded successfully to v0.21.2
 ```
 
 If you installed {C.CLI_LONG} with a package manager such as Homebrew, `apt`, or `yum`/`dnf`, this command refuses to run and points you to that package manager instead.
@@ -66,17 +148,47 @@ If you installed {C.CLI_LONG} with a package manager such as Homebrew, `apt`, or
 
 Show the current configuration.
 
+**Usage**: `tiger config show [flags]`
+
 ```bash
 tiger config show
 ```
 
-- `--output, -o`: output format: `json`, `yaml`, or `table`.
-- `--no-defaults`: do not show default values for unset fields.
-- `--with-env`: apply environment variable overrides.
+You see something like:
+
+```txt
+┌──────────────────┬───────────────────────────────────────────────────────────────┐
+│     PROPERTY     │                             VALUE                             │
+├──────────────────┼───────────────────────────────────────────────────────────────┤
+│ api_url          │ https://console.cloud.tigerdata.com/public/api/v1             │
+│ analytics        │ true                                                          │
+│ console_url      │ https://console.cloud.tigerdata.com                           │
+│ debug            │ false                                                         │
+│ docs_mcp         │ true                                                          │
+│ docs_mcp_url     │ https://mcp.tigerdata.com/docs                               │
+│ gateway_url      │ https://console.cloud.tigerdata.com/api                       │
+│ mcp_max_rows     │ 100                                                           │
+│ color            │ true                                                          │
+│ output           │ table                                                         │
+│ password_storage │ keyring                                                       │
+│ read_only        │ false                                                         │
+│ releases_url     │ https://cli.tigerdata.com                                     │
+│ service_id       │                                                               │
+│ version_check    │ true                                                          │
+└──────────────────┴───────────────────────────────────────────────────────────────┘
+```
+
+| Flag | Description |
+| --- | --- |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
+| `--no-defaults` | Do not show default values for unset fields. |
+| `--with-env` | Apply environment variable overrides. |
 
 ### `tiger config set`
 
 Set a configuration value. See [Configuration parameters](#configuration-parameters) for the available keys.
+
+**Usage**: `tiger config set <key> <value>`
 
 ```bash
 tiger config set <key> <value>
@@ -84,44 +196,87 @@ tiger config set <key> <value>
 tiger config set read_only true
 ```
 
+You see:
+
+```txt
+Set read_only = true
+```
+
 ### `tiger config unset`
 
 Clear a configuration value.
+
+**Usage**: `tiger config unset <key>`
 
 ```bash
 tiger config unset <key>
 ```
 
+You see:
+
+```txt
+Unset read_only
+```
+
 ### `tiger config reset`
 
-Reset the configuration to defaults. This also logs you out of the current {C.PROJECT_LONG}.
+Reset the configuration to defaults, including your default {C.SERVICE_SHORT} and output preferences. This does not log you out; your authentication credentials are unaffected.
+
+**Usage**: `tiger config reset`
 
 ```bash
 tiger config reset
 ```
 
+You see:
+
+```txt
+Configuration reset to defaults
+```
+
 ## Services
+
+Manage {C.SERVICE_SHORT}s from the terminal. For the {C.MCP_SHORT}-tool equivalent of each command, see the [{C.MCP_LONG} reference](/reference/tiger-cloud/tiger-mcp); for a task-by-task comparison, see [common tasks](/build/tiger-cli-mcp/common-tasks#manage-your-services).
 
 ### `tiger service create`
 
 Create a new {C.SERVICE_SHORT} in the current {C.PROJECT_SHORT}.
 
+**Usage**: `tiger service create [flags]`
+
 ```bash
 tiger service create --name analytics --region us-east-1
 ```
 
-- `--name`: service name (auto-generated if omitted).
-- `--addons`: addons to enable: `time-series`, `ai`. Set to `none` for vanilla {C.PG}.
-- `--region`: region code. [Free services](/get-started/quickstart/create-service#what-is-a-tiger-cloud-service) (shared CPU/memory) must use `us-east-1`.
-- `--cpu`: CPU allocation in millicores. Set to `shared` for a free service.
-- `--memory`: memory allocation in gigabytes. Set to `shared` for a free service.
-- `--replicas`: number of high-availability replicas.
-- `--environment`: environment tag: `DEV` or `PROD` (default: `DEV`).
-- `--no-wait`: return without waiting for the operation to complete.
-- `--wait-timeout`: wait timeout (for example, `30m`, `1h30m`, `90s`).
-- `--no-set-default`: do not set this service as the default.
-- `--with-password`: include the password in the output.
-- `--output, -o`: output format: `json`, `yaml`, `env`, or `table`.
+You see something like:
+
+```txt
+🚀 Creating service 'analytics'...
+✅ Service creation request accepted!
+📋 Service ID: <service-id>
+🔐 Password saved to system keyring for automatic authentication
+🎯 Set service '<service-id>' as default service.
+⏳ Waiting for service to be ready (wait timeout: 30m0s)...
+🎉 Service is ready and running!
+🔌 Run 'tiger db connect' to connect to your new service
+```
+
+Then the {C.SERVICE_SHORT}'s details, in the same format as [`service get`](#tiger-service-get).
+
+| Flag | Description |
+| --- | --- |
+| `--name` | Service name (auto-generated if omitted). |
+| `--addons` | Addons to enable: `time-series`, `ai`. Set to `none` for vanilla {C.PG}. |
+| `--region` | Region code. [Free services](/get-started/quickstart/create-service#what-is-a-tiger-cloud-service) (shared CPU/memory) must use `us-east-1`. |
+| `--cpu` | CPU allocation in millicores. Set to `shared` for a free service. |
+| `--memory` | Memory allocation in gigabytes. Set to `shared` for a free service. |
+| `--replicas` | Number of high-availability replicas. |
+| `--environment` | Environment tag: `DEV` or `PROD` (default: `DEV`). |
+| `--no-wait` | Return without waiting for the operation to complete. |
+| `--wait-timeout` | Wait timeout (for example, `30m`, `1h30m`, `90s`). |
+| `--no-set-default` | Do not set this service as the default. |
+| `--with-password` | Include the password in the output. |
+| `--output, -o` | Output format: `json`, `yaml`, `env`, or `table`. |
 
 Allowed compute configurations: `shared`/`shared` (only in `us-east-1`), 0.5&nbsp;CPU/2&nbsp;GB, 1/4, 2/8, 4/16, 8/32, 16/64, 32/128. Specify `--cpu` and `--memory` together, or set one and the other is configured automatically.
 
@@ -129,231 +284,554 @@ Allowed compute configurations: `shared`/`shared` (only in `us-east-1`), 0.5&nbs
 
 List the {C.SERVICE_SHORT}s in the current {C.PROJECT_SHORT}.
 
+**Usage**: `tiger service list [flags]`
+
 ```bash
 tiger service list
 ```
 
-- `--output, -o`: output format: `json`, `yaml`, or `table`.
+You see something like:
+
+```txt
+┌──────────────┬───────────┬────────┬─────────────┬───────────┬──────────────────┐
+│  SERVICE ID  │    NAME   │ STATUS │     TYPE    │   REGION  │     CREATED      │
+├──────────────┼───────────┼────────┼─────────────┼───────────┼──────────────────┤
+│ <service-id> │ analytics │ READY  │ TIMESCALEDB │ us-east-1 │ 2026-08-11 09:00 │
+└──────────────┴───────────┴────────┴─────────────┴───────────┴──────────────────┘
+```
+
+| Flag | Description |
+| --- | --- |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
 ### `tiger service get`
 
 Show detailed information about a {C.SERVICE_SHORT}. Aliases: `describe`, `show`.
 
+**Usage**: `tiger service get <service-id> [flags]`
+
 ```bash
 tiger service get <service-id>
 ```
 
-- `--with-password`: include the password in the output.
-- `--output, -o`: output format: `json`, `yaml`, `env`, or `table`.
+You see something like:
+
+```txt
+┌───────────────────┬─────────────────────────────────────────────────────────────────────┐
+│      PROPERTY     │                                VALUE                                │
+├───────────────────┼─────────────────────────────────────────────────────────────────────┤
+│ Service ID        │ <service-id>                                                        │
+│ Name              │ analytics                                                           │
+│ Status            │ READY                                                               │
+│ Type              │ TIMESCALEDB                                                         │
+│ Region            │ us-east-1                                                           │
+│ Environment       │ DEV                                                                 │
+│ CPU               │ 0.5 cores (500m)                                                    │
+│ Memory            │ 2 GB                                                                │
+│ Direct Endpoint   │ <service-id>.<project-id>.tsdb.cloud.timescale.com:<port>           │
+│ Created           │ 2026-08-11 09:00:00 UTC                                             │
+│ Connection String │ postgresql://tsdbadmin@<direct-endpoint>/tsdb?sslmode=require       │
+│ Console URL       │ https://console.cloud.tigerdata.com/dashboard/services/<service-id> │
+└───────────────────┴─────────────────────────────────────────────────────────────────────┘
+```
+
+| Flag | Description |
+| --- | --- |
+| `--with-password` | Include the password in the output. Only returns a value if the password was captured at creation or saved since with [`db save-password`](#tiger-db-save-password); {C.CLI_LONG} can't retrieve a forgotten password from the server. |
+| `--output, -o` | Output format: `json`, `yaml`, `env`, or `table`. |
 
 ### `tiger service fork`
 
-Fork an existing {C.SERVICE_SHORT} into a new, independent copy. Choose exactly one timing option.
+Fork an existing {C.SERVICE_SHORT} into a new, independent copy. Choose exactly one timing option. See [Test a change safely on a fork](/build/tiger-cli-mcp/cookbook#test-a-change-safely-on-a-fork) for a worked example.
+
+**Usage**: `tiger service fork <service-id> [flags]`
 
 ```bash
 tiger service fork <service-id> --now
 ```
 
-- `--now`: fork at the current database state.
-- `--last-snapshot`: fork at the last snapshot (faster).
-- `--to-timestamp`: fork at a point in time (RFC3339).
-- `--cpu`, `--memory`: compute for the fork (inherits from the source if omitted). See [`service create`](#tiger-service-create) for allowed configurations.
-- `--name`: fork name (default: `{source-service-name}-fork`).
-- `--environment`: environment tag: `DEV` or `PROD` (default: `DEV`).
-- `--no-wait`, `--wait-timeout`: wait behavior (default timeout: `30m`).
-- `--no-set-default`, `--with-password`, `--output, -o`: default-service and output options.
+You see something like:
+
+```txt
+🍴 Forking service '<service-id>' to create '(auto-generated)' at current state...
+✅ Fork request accepted!
+📋 New Service ID: <new-service-id>
+🔐 Password saved to system keyring for automatic authentication
+🎯 Set service '<new-service-id>' as default service.
+⏳ Waiting for fork to complete (timeout: 30m0s)...
+🎉 Service fork completed successfully!
+🔌 Run 'tiger db connect' to connect to your new service
+```
+
+Then the fork's details, in the same format as [`service get`](#tiger-service-get).
+
+| Flag | Description |
+| --- | --- |
+| `--now` | Fork at the current database state. |
+| `--last-snapshot` | Fork at the last snapshot (faster). |
+| `--to-timestamp` | Fork at a point in time (RFC3339). |
+| `--cpu`, `--memory` | Compute for the fork (inherits from the source if omitted). See [`service create`](#tiger-service-create) for allowed configurations. |
+| `--name` | Fork name (default: `{source-service-name}-fork`). |
+| `--environment` | Environment tag: `DEV` or `PROD` (default: `DEV`). |
+| `--no-wait`, `--wait-timeout` | Wait behavior (default timeout: `30m`). |
+| `--no-set-default`, `--with-password`, `--output, -o` | Default-service and output options. |
 
 ### `tiger service resize`
 
 Change a {C.SERVICE_SHORT}'s CPU and memory. The service may be briefly unavailable during the resize.
 
+**Usage**: `tiger service resize <service-id> [flags]`
+
 ```bash
-tiger service resize <service-id> --cpu 4 --memory 16
+tiger service resize <service-id> --cpu 4000 --memory 16
 ```
 
-- `--cpu`, `--memory`: new allocation. See [`service create`](#tiger-service-create) for allowed configurations.
-- `--no-wait`, `--wait-timeout`: wait behavior (default timeout: `10m`).
+You see something like:
+
+```txt
+📐 Resizing service '<service-id>' to 4 CPU/16 GB...
+✅ Resize request accepted for service '<service-id>'!
+⏳ Waiting for resize to complete (timeout: 10m0s)...
+🎉 Service '<service-id>' has been successfully resized to 4 CPU/16 GB!
+```
+
+| Flag | Description |
+| --- | --- |
+| `--cpu`, `--memory` | New allocation. CPU is in millicores, memory in gigabytes, so 4 CPU / 16 GB is `--cpu 4000 --memory 16`. See [`service create`](#tiger-service-create) for allowed configurations. |
+| `--no-wait`, `--wait-timeout` | Wait behavior (default timeout: `10m`). |
 
 ### `tiger service start`
 
 Start an inactive {C.SERVICE_SHORT}.
 
+**Usage**: `tiger service start <service-id> [flags]`
+
 ```bash
 tiger service start <service-id>
 ```
 
-- `--no-wait`, `--wait-timeout`: wait behavior (default timeout: `10m`).
+You see something like:
+
+```txt
+▶️ Start request accepted for service '<service-id>'.
+⏳ Waiting for service to start (wait timeout: 10m0s)...
+✅ Service has been successfully started!
+```
+
+| Flag | Description |
+| --- | --- |
+| `--no-wait`, `--wait-timeout` | Wait behavior (default timeout: `10m`). |
 
 ### `tiger service stop`
 
 Stop an active {C.SERVICE_SHORT}. After stopping, the service no longer accepts connections.
 
+**Usage**: `tiger service stop <service-id> [flags]`
+
 ```bash
 tiger service stop <service-id>
 ```
 
-- `--no-wait`, `--wait-timeout`: wait behavior (default timeout: `10m`).
+You see something like:
+
+```txt
+⏹️ Stop request accepted for service '<service-id>'.
+⏳ Waiting for service to stop (timeout: 10m0s)...
+✅ Service has been successfully stopped!
+```
+
+| Flag | Description |
+| --- | --- |
+| `--no-wait`, `--wait-timeout` | Wait behavior (default timeout: `10m`). |
 
 ### `tiger service update-password`
 
 Update the master password for a {C.SERVICE_SHORT}.
 
+**Usage**: `tiger service update-password <service-id> [flags]`
+
 ```bash
-tiger service update-password <service-id>
+tiger service update-password <service-id> --auto-generate
 ```
 
-- `--new-password`: new password for the `tsdbadmin` user.
-- `--auto-generate`: auto-generate a secure password (mutually exclusive with `--new-password`).
+You see something like:
+
+```txt
+Successfully generated a new password.
+Password saved to system keyring for automatic authentication
+To view your new password, run:
+	 tiger service get <service-id> --with-password
+✅ Master password for 'tsdbadmin' user updated successfully
+```
+
+| Flag | Description |
+| --- | --- |
+| `--new-password` | New password for the `tsdbadmin` user. |
+| `--auto-generate` | Auto-generate a secure password (mutually exclusive with `--new-password`). |
 
 ### `tiger service delete`
 
 Delete a {C.SERVICE_SHORT}. This is irreversible and prompts for confirmation before proceeding.
 
+**Usage**: `tiger service delete <service-id> [flags]`
+
 ```bash
-tiger service delete <service-id>
+tiger service delete <service-id> --confirm
 ```
 
-- `--confirm`: skip the confirmation prompt. AI agents must confirm with the user first.
-- `--no-wait`, `--wait-timeout`: wait behavior (default timeout: `30m`).
+You see something like:
+
+```txt
+🗑️ Delete request accepted for service '<service-id>'.
+⏳ Waiting for service '<service-id>' to be deleted
+✅ Service '<service-id>' has been successfully deleted.
+```
+
+| Flag | Description |
+| --- | --- |
+| `--confirm` | Skip the confirmation prompt. AI agents must confirm with the user first. |
+| `--no-wait`, `--wait-timeout` | Wait behavior (default timeout: `30m`). |
+
+<Callout variant="note" title="No MCP tool for delete">
+There is no {C.MCP_SHORT} tool for `service delete`; use this {C.CLI_SHORT} command instead.
+</Callout>
 
 ### `tiger service logs`
 
 View the logs for a {C.SERVICE_SHORT}. Alias: `log`.
 
+**Usage**: `tiger service logs <service-id> [flags]`
+
 ```bash
-tiger service logs <service-id>
+tiger service logs <service-id> --tail 5
 ```
 
-- `--tail`: number of log lines to show (default: `100`).
-- `--since`, `--until`: fetch logs within a time range (RFC3339, for example `2024-01-15T09:00:00Z`).
-- `--node`: specific node to fetch logs from (for services with HA replicas; `0` is valid).
-- `--output, -o`: output format: `text`, `json`, or `yaml`.
+You see something like:
+
+```txt
+2026-08-13 07:07:50 UTC [158]: [6a79e2e5.9e-301] 0 @,app= [00000] LOG:  checkpoint starting: time
+2026-08-13 07:07:50 UTC [158]: [6a79e2e5.9e-302] 0 @,app= [00000] LOG:  checkpoint complete: wrote 4 buffers (0.0%), wrote 0 SLRU buffers; 0 WAL file(s) added, 0 removed, 1 recycled; write=0.403 s, sync=0.003 s, total=0.412 s; sync files=3, longest=0.003 s, average=0.001 s; distance=16390 kB, estimate=29655 kB; lsn=0/CE001A80, redo lsn=0/CE001A28
+2026-08-13 07:07:51 - wal_archive_command_pgbackrest - archiving pg_wal/0000000100000000000000CE
+2026-08-13 07:29:22 UTC [307395]: [6a7d7252.4b0c3-1] 0 [unknown]@[unknown],app=[unknown] [08P01] LOG:  SSL error: unexpected eof while reading
+2026-08-13 07:29:22 UTC [307395]: [6a7d7252.4b0c3-2] 0 [unknown]@[unknown],app=[unknown] [08006] LOG:  could not receive data from client: Connection reset by peer
+```
+
+{C.CLI_LONG} converts {C.PG} log timestamps to your machine's time zone, so set `TZ` if you want a specific one (for example, `TZ=UTC tiger service logs <service-id>`). The `wal_archive_command_pgbackrest` lines come from the backup agent rather than {C.PG}, and are always in UTC.
+
+| Flag | Description |
+| --- | --- |
+| `--tail` | Number of log entries to show (default: `100`). One entry can span several lines, for example a `FATAL` followed by its `DETAIL`, so the output can be longer than the number you ask for. |
+| `--since`, `--until` | Fetch logs within a time range (RFC3339, for example `2024-01-15T09:00:00Z`). |
+| `--node` | Specific node to fetch logs from (for services with HA replicas; `0` is valid). |
+| `--output, -o` | Output format: `text`, `json`, or `yaml`. |
 
 ## Database
+
+Connect to a {C.SERVICE_SHORT}'s database and manage roles from the terminal. See [Work with your data](/build/tiger-cli-mcp/common-tasks#work-with-your-data) for how these commands compare to asking {C.MCP_LONG}, and [best practices](/build/tiger-cli-mcp/agent-best-practices#restrict-agents-to-read-only) for connecting an agent as a read-only role.
+
+The `--pooled` flag on these commands, and the `pooled` parameter on {C.MCP_SHORT}'s database tools, need a connection pooler on the {C.SERVICE_SHORT}. Without one, the command fails with `connection pooler not available for this service`.
 
 ### `tiger db connect`
 
 Connect to a {C.SERVICE_SHORT} with `psql`. Pass extra `psql` flags after `--`, for example `tiger db connect <service-id> -- --single-transaction`. Alias: `psql`.
 
+**Usage**: `tiger db connect <service-id> [flags]`
+
 ```bash
 tiger db connect <service-id>
 ```
 
-- `--pooled`: use connection pooling (default: `false`).
-- `--role`: database role (default: `tsdbadmin`).
-- `--read-only`: open the session in {C.CLOUD_LONG}'s immutable read-only mode, so writes and DDL are rejected by the server. The [`read_only` config option](#configuration-parameters) or `TIGER_READ_ONLY=true` forces the same behavior.
-- `--no-replica-prompt`: do not prompt to connect to a read replica.
+You see something like:
+
+```txt
+psql (17.7 (Homebrew), server 18.4 (Ubuntu 18.4-1.pgdg22.04+1))
+WARNING: psql major version 17, server major version 18.
+         Some psql features might not work.
+SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, compression: off, ALPN: postgresql)
+Type "help" for help.
+
+tsdb=>
+```
+
+| Flag | Description |
+| --- | --- |
+| `--pooled` | Use connection pooling (default: `false`). |
+| `--role` | Database role (default: `tsdbadmin`). |
+| `--read-only` | Open the session in {C.CLOUD_LONG}'s immutable read-only mode, so writes and DDL are rejected by the server. The [`read_only` config option](#configuration-parameters) or `TIGER_READ_ONLY=true` forces the same behavior. |
+| `--no-replica-prompt` | Do not prompt to connect to a read replica. |
 
 ### `tiger db connection-string`
 
 Print the connection string for a {C.SERVICE_SHORT}.
 
+**Usage**: `tiger db connection-string <service-id> [flags]`
+
 ```bash
 tiger db connection-string <service-id>
 ```
 
-- `--pooled`: use connection pooling (default: `false`).
-- `--role`: database role (default: `tsdbadmin`).
-- `--with-password`: include the password (default: `false`, less secure).
-- `--read-only`: emit a read-only connection string.
+You see something like:
+
+```txt
+postgresql://tsdbadmin@<direct-endpoint>/tsdb?sslmode=require
+```
+
+With `--read-only`, the connection string sets a session option that forces {C.CLOUD_LONG}'s immutable read-only mode:
+
+```txt
+postgresql://tsdbadmin@<direct-endpoint>/tsdb?sslmode=require&options=-c%20tsdb_admin.read_only_connection%3Dtrue
+```
+
+| Flag | Description |
+| --- | --- |
+| `--pooled` | Use connection pooling (default: `false`). |
+| `--role` | Database role (default: `tsdbadmin`). |
+| `--with-password` | Include the password (default: `false`, less secure). |
+| `--read-only` | Emit a read-only connection string. |
 
 ### `tiger db create role`
 
 Create a database role.
 
+**Usage**: `tiger db create role <service-id> [flags]`
+
 ```bash
-tiger db create role <service-id> --name app_role
+tiger db create role <service-id> --name app_role --read-only
 ```
 
-- `--name` (required): the role to create.
-- `--read-only`: enforce permanent read-only for the role using `tsdb_admin.read_only_role`.
-- `--from`: inherit grants from one or more roles, for example `--from app_role,readonly_role`.
-- `--statement-timeout`: statement timeout for the role, for example `30s`, `5m`.
-- `--password`: role password (falls back to `TIGER_NEW_PASSWORD`, otherwise auto-generated).
-- `--output, -o`: output format: `json`, `yaml`, or `table`.
+You see:
+
+```txt
+✓ Role 'app_role' created successfully
+  Read-only enforcement: enabled (permanent, role-based)
+```
+
+| Flag | Description |
+| --- | --- |
+| `--name` (required) | The role to create. |
+| `--read-only` | Enforce permanent read-only for the role using `tsdb_admin.read_only_role`. This enforces read-only, it doesn't grant read access: the new role can log in and has `USAGE` on `public`, but no table privileges, so `SELECT` fails until you [grant it](/deploy/tiger-cloud/tiger-cloud-aws/security/read-only-role#create-a-read-only-user). |
+| `--from` | Inherit grants from one or more roles, for example `--from app_role,readonly_role`. |
+| `--statement-timeout` | Statement timeout for the role, for example `30s`, `5m`. |
+| `--password` | Role password (falls back to `TIGER_NEW_PASSWORD`, otherwise auto-generated). |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
 ### `tiger db schema`
 
 Display the schema of a {C.SERVICE_SHORT} database as readable text.
 
+**Usage**: `tiger db schema <service-id> [flags]`
+
 ```bash
 tiger db schema <service-id>
 ```
 
-- `--schema`: restrict output to a single schema.
-- `--definitions`: include full object definitions (view `SELECT`s, function and procedure bodies).
-- `--comments`: include object comments (`COMMENT ON` text).
-- `--internal`: include system schemas (`pg_*`, `information_schema`, {C.TIMESCALE_DB} internals) and extension-owned objects.
-- `--pooled`: use connection pooling (default: `false`).
-- `--role`: database role (default: `tsdbadmin`).
+You see something like:
+
+```txt
+DATABASE: <name> (<service-id>)
+
+SCHEMA: public
+
+TABLE: sensor_data
+  -- HYPERTABLE (chunks=0, compression=enabled)
+  time       TIMESTAMP WITH TIME ZONE NOT NULL
+  sensor_id  TEXT
+  value      DOUBLE PRECISION
+
+  INDEX sensor_data_time_idx ("time" DESC)
+```
+
+| Flag | Description |
+| --- | --- |
+| `--schema` | Restrict output to a single schema. |
+| `--definitions` | Include full object definitions (view `SELECT`s, function and procedure bodies). |
+| `--comments` | Include object comments (`COMMENT ON` text). |
+| `--internal` | Include system schemas (`pg_*`, `information_schema`, {C.TIMESCALE_DB} internals) and extension-owned objects. |
+| `--pooled` | Use connection pooling (default: `false`). |
+| `--role` | Database role (default: `tsdbadmin`). |
 
 ### `tiger db save-password`
 
 Save the password for a {C.SERVICE_SHORT} to the keychain.
 
+**Usage**: `tiger db save-password <service-id> [flags]`
+
 ```bash
-tiger db save-password <service-id>
+tiger db save-password <service-id> --password=<password>
 ```
 
-- `--role`: database role (default: `tsdbadmin`).
-- `--password`: password value (or use `TIGER_NEW_PASSWORD`).
+You see:
+
+```txt
+Password saved successfully for service <service-id> (role: tsdbadmin)
+```
+
+| Flag | Description |
+| --- | --- |
+| `--role` | Database role (default: `tsdbadmin`). |
+| `--password` | Password value (or use `TIGER_NEW_PASSWORD`). |
 
 ### `tiger db test-connection`
 
 Test connectivity to a {C.SERVICE_SHORT}.
 
+**Usage**: `tiger db test-connection <service-id> [flags]`
+
 ```bash
 tiger db test-connection <service-id>
 ```
 
-- `--timeout, -t`: connection timeout (default: `3s`, `0` for none).
-- `--pooled`: use connection pooling (default: `false`).
-- `--role`: database role (default: `tsdbadmin`).
+You see:
+
+```txt
+Connection successful
+```
+
+If the connection fails, the reason is printed twice, once as a message and once as an error:
+
+```txt
+Connection failed: failed to connect to `user=tsdbadmin database=tsdb`: <host>:<port>: failed SASL auth: FATAL: password authentication failed for user "tsdbadmin" (SQLSTATE 28P01)
+Error: failed to connect to `user=tsdbadmin database=tsdb`: <host>:<port>: failed SASL auth: FATAL: password authentication failed for user "tsdbadmin" (SQLSTATE 28P01)
+```
+
+Use the exit code in scripts:
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | The connection succeeded. |
+| `1` | {C.CLI_LONG} didn't run the check, because a flag or argument was invalid. |
+| `2` | The connection was attempted and failed: the server was unreachable, the attempt timed out, or the credentials were rejected. |
+| `3` | No attempt was made, because no {C.SERVICE_SHORT} with that ID exists or no ID was given. |
+
+| Flag | Description |
+| --- | --- |
+| `--timeout, -t` | Connection timeout (default: `3s`, `0` for none). |
+| `--pooled` | Use connection pooling (default: `false`). |
+| `--role` | Database role (default: `tsdbadmin`). |
 
 ## MCP
+
+Install and manage {C.MCP_LONG}, the tool your AI agent uses to work with {C.CLOUD_LONG}. See [Integrate Tiger Cloud with your AI agent](/get-started/quickstart/mcp-cli) to set it up, and the [{C.MCP_LONG} reference](/reference/tiger-cloud/tiger-mcp) for every tool it exposes.
 
 ### `tiger mcp install`
 
 Install and configure {C.MCP_LONG} for an AI agent. Supported clients: `claude-code`, `codex`, `cursor`, `gemini`, `vscode`, `windsurf`, `antigravity`, `kiro-cli`. If no client is given, you are prompted to choose.
 
+**Usage**: `tiger mcp install [client] [flags]`
+
 ```bash
 tiger mcp install claude-code
 ```
 
-- `--no-backup`: do not back up the client's existing config before writing.
-- `--config-path`: path to the client config file to update.
+For sample output, see [Install and configure Tiger MCP](/get-started/quickstart/mcp-cli#install-and-configure-tiger-mcp).
+
+| Flag | Description |
+| --- | --- |
+| `--no-backup` | Do not back up the client's existing config before writing. |
+| `--config-path` | Path to the client config file to update. |
 
 ### `tiger mcp list`
 
 List the available {C.MCP_SHORT} tools, prompts, and resources.
 
+**Usage**: `tiger mcp list [flags]`
+
 ```bash
 tiger mcp list
 ```
 
-- `--output, -o`: output format: `json`, `yaml`, or `table`.
+You see something like:
+
+```txt
+┌────────┬────────────────────────────────────────┐
+│  TYPE  │                  NAME                  │
+├────────┼────────────────────────────────────────┤
+│ prompt │ design-postgis-tables                  │
+│ prompt │ design-postgres-tables                 │
+│ prompt │ find-hypertable-candidates             │
+│ prompt │ ghost-database                         │
+│ prompt │ migrate-postgres-tables-to-hypertables │
+│ prompt │ pgvector-semantic-search               │
+│ prompt │ postgres                               │
+│ prompt │ postgres-database-migration            │
+│ prompt │ postgres-hybrid-text-search            │
+│ prompt │ setup-timescaledb-hypertables          │
+│ tool   │ db_execute_query                       │
+│ tool   │ db_schema                              │
+│ tool   │ search_docs                            │
+│ tool   │ service_create                         │
+│ tool   │ service_fork                           │
+│ tool   │ service_get                            │
+│ tool   │ service_list                           │
+│ tool   │ service_logs                           │
+│ tool   │ service_resize                         │
+│ tool   │ service_start                          │
+│ tool   │ service_stop                           │
+│ tool   │ service_update_password                │
+│ tool   │ view_skill                             │
+└────────┴────────────────────────────────────────┘
+```
+
+| Flag | Description |
+| --- | --- |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
 ### `tiger mcp get`
 
 Show detailed information about a {C.MCP_SHORT} tool, prompt, or resource, including skills. Aliases: `describe`, `show`.
+
+**Usage**: `tiger mcp get <name> [flags]`
 
 ```bash
 tiger mcp get service_create
 tiger mcp get setup-timescaledb-hypertables
 ```
 
-- `--output, -o`: output format: `json`, `yaml`, or `table`.
+For `service_create`, you see something like:
+
+```txt
+Create Database Service [open-world]
+
+Tool name: service_create
+
+Description:
+Create a new database service in Tiger Cloud with specified type, compute resources, region, and HA options.
+
+The default type of service created depends on the user's plan:
+- Free plan: Creates a service with shared CPU/memory and the 'time-series' and 'ai' add-ons
+- Paid plans: Creates a service with 0.5 CPU / 2 GB memory and the 'time-series' add-on
+
+WARNING: Creates billable resources.
+
+Parameters:
+  ...
+
+Output:
+  ...
+```
+
+Full parameter and output details follow, matching the [{C.MCP_LONG} reference](/reference/tiger-cloud/tiger-mcp).
+
+| Flag | Description |
+| --- | --- |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
 ### `tiger mcp start`
 
 Start {C.MCP_LONG}. `tiger mcp start` is the same as `tiger mcp start stdio`.
 
+**Usage**: `tiger mcp start [transport] [flags]`
+
 ```bash
 tiger mcp start
 ```
 
-- `stdio`: stdio transport (default).
-- `http`: HTTP transport, with `--port` (default: `8080`) and `--host` (default: `localhost`).
+Produces no console output; it starts listening for JSON-RPC requests on stdio (or HTTP, with the `http` transport).
+
+| Transport | Description |
+| --- | --- |
+| `stdio` | stdio transport (default). |
+| `http` | HTTP transport, with `--port` (default: `8080`) and `--host` (default: `localhost`). |
 
 ## Configuration parameters
 
