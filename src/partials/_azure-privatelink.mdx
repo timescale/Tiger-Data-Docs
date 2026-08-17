@@ -5,9 +5,6 @@ import PrereqsCloud from "./_prereqs-cloud-no-connection.mdx";
 import { Prerequisites } from "@components/Prerequisites";
 
 import { Image } from "astro:assets";
-import ThemeImage from "@components/ThemeImage.astro";
-import imgConfigurePrivateLinkAuthorizationLight from "../assets/images/deploy/tiger-cloud/configure-private-link-authorization.png";
-import imgConfigurePrivateLinkAuthorizationDark from "../assets/images/deploy/tiger-cloud/configure-private-link-authorization-dark.png";
 import imgCreatePrivateEndpointAzure from "../assets/images/deploy/tiger-cloud/create-private-endpoint-azure.png";
 
 <Prerequisites context="procedure">
@@ -24,24 +21,16 @@ Take the following steps to connect your {C.SERVICE_LONG} to a Private Link endp
 
 <NumberedList>
 
-<NumberedItem title="Create an Azure subscription authorization">
+<NumberedItem title="Copy the alias for your region">
 
-1. In [{C.CONSOLE_LONG}](https://console.cloud.tigerdata.com/dashboard/azure-privatelink), select `Security` > `Private Endpoints` > `Configure Private Endpoint Connection`.
-
-   <ThemeImage light={imgConfigurePrivateLinkAuthorizationLight} dark={imgConfigurePrivateLinkAuthorizationDark} alt="Azure Private Link authorization" />
-
-1. In `Cloud provider`, select `Azure`.
-
-1. In `Principal ID`, enter your [Azure subscription ID](https://learn.microsoft.com/en-us/azure/azure-portal/get-subscription-tenant-id#find-your-azure-subscription). Give your authorization a name, for convenience.
+1. In [{C.CONSOLE_LONG}](https://console.cloud.tigerdata.com/dashboard/azure-privatelink), select `Security` > `Private Endpoints` > `Manage endpoints`.
+1. Under `Create the endpoint`, copy the `Alias` for the region in which you need to create the connection. Choose the region closest to your Azure resources for optimal performance.
 
    <Callout variant="warning">
 
-   Click the checkmark next to `Connection name` to save your authorization. Otherwise, your input is discarded.
+   Screenshot pending: the `Manage endpoints` panel.
 
    </Callout>
-
-1. Under `Alias`, copy the alias for the region in which you need to create the connection. Choose the region closest to your Azure resources for optimal performance.
-1. Click `Done`. {C.CLOUD_LONG} confirms your authorization. Once it is confirmed, you can connect multiple endpoints from the same authorized subscription.
 
 </NumberedItem>
 
@@ -51,23 +40,45 @@ Take the following steps to connect your {C.SERVICE_LONG} to a Private Link endp
 
    <Image src={imgCreatePrivateEndpointAzure} alt="Create Azure Private Endpoint" />
 
-1. In `Subscription`, select the subscription you have previously authorized in {C.CLOUD_LONG}.
+1. In `Subscription`, select the subscription that contains the resources you want to connect to {C.CLOUD_LONG}.
 1. In `Resource group`, select an existing resource group or create a new one for your private endpoint.
 1. Provide a name for your endpoint.
 1. Select the region where your Virtual Network is deployed, then click `Next: Resource`.
 1. In `Connection method`, select `Connect to an Azure resource by resource ID or alias`.
 1. In `Resource ID or alias`, paste the alias you have copied from {C.CONSOLE_LONG}.
-1. In `Request message`, enter your [{C.PROJECT_LONG} ID](/integrate/find-connection-details), then click `Next: Virtual Network`.
+1. Optionally, in `Request message`, enter your [{C.PROJECT_LONG} ID](/integrate/find-connection-details). This can let {C.CLOUD_LONG} claim the connection for that project automatically. You claim the connection explicitly in a later step either way. Click `Next: Virtual Network`.
 1. Select the Virtual Network that contains the resources you want to connect to {C.CLOUD_LONG}, then choose the subnet where the endpoint's private IP will be created. Optionally select an application security group, then click `Next: DNS`.
 1. Optionally configure private DNS integration and tags for your endpoint, then click `Next: Review + create`.
 1. Review your config and click `Create`. Azure creates your private endpoint. Wait for the deployment to succeed.
+1. Go to your private endpoint's `Overview` and click `JSON View`. Under `properties`, copy the value of `resourceGuid`, in the form `f91412e6-92f8-40f0-b849-abe6ed04f61b`. You claim the connection with this value.
+
 1. Go to `Private endpoints` and copy the private endpoint IP from the `Private IP` column.
 
 </NumberedItem>
 
-<NumberedItem title="Sync the connection">
+<NumberedItem title="Claim the connection">
 
-1. In [{C.CONSOLE_LONG}](https://console.cloud.tigerdata.com/dashboard/azure-privatelink) > `Security` > `Private Endpoints`, click `Refresh`. {C.CLOUD_LONG} automatically approves connections from authorized subscriptions. Your connection appears in the list.
+1. In [{C.CONSOLE_LONG}](https://console.cloud.tigerdata.com/dashboard/azure-privatelink) > `Security` > `Private Endpoints`, click `Manage endpoints`.
+1. Under `Claim it`, paste your `resourceGuid` into `Endpoint identifier`, then click `Claim connection`. {C.CLOUD_LONG} links the connection to the project you are working in, and it appears in the list.
+
+   <Callout variant="warning">
+
+   Screenshot pending: the `Claim it` section of the `Manage endpoints` panel.
+
+   </Callout>
+
+   <Callout variant="note">
+
+   You can claim a private endpoint against one project only.
+
+   Your `resourceGuid` can also take a minute to become claimable after you create the endpoint in Azure.
+
+   </Callout>
+
+</NumberedItem>
+
+<NumberedItem title="Configure and attach">
+
 1. Under `IP Address` click `Add IP` and paste the private endpoint IP address you have copied from Azure Portal.
 1. Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the dropdown and click `Attach`. You can attach a {C.SERVICE_SHORT} to one private endpoint.
 1. From a VM inside your Azure VNet, connect to your {C.SERVICE_SHORT} using a connection string with your [connection details](/integrate/find-connection-details). You should be able to connect successfully.
@@ -80,4 +91,3 @@ Take the following steps to connect your {C.SERVICE_LONG} to a Private Link endp
 
 - To detach a {C.SERVICE_SHORT} from a private endpoint connection, go to `Security` > `Private Endpoints`, expand the arrow in the `Services` column, and click the trash icon next to the {C.SERVICE_SHORT} connection string.
 - To edit or remove an endpoint connection, go to `Security` > `Private Endpoints` and click the three dots next to the connection in the list. Select `Edit` or `Disconnect`, respectively. You need to detach all {C.SERVICE_SHORT}s from a private endpoint connection before deleting it.
-- To remove an authorization, click `Manage Authorizations` > trash bin icon. You need to disconnect all relevant endpoint connections before removing an authorization.
