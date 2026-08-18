@@ -20,17 +20,66 @@ Commands and tools can change between releases, so run `tiger --help` for the cu
 
 ## Manage your services
 
-Every service task is a `tiger service` command in the {C.CLI_SHORT}, and the {C.MCP_SHORT} has a matching tool, so you can instead just describe what you want:
+Every service task is a `tiger service` command in the {C.CLI_SHORT}, and the {C.MCP_SHORT} has a matching tool, so you can instead just describe what you want. See the [{C.CLI_LONG} reference](/reference/tiger-cloud/tiger-cli#services) for each command's full flags and sample output, the [{C.MCP_LONG} reference](/reference/tiger-cloud/tiger-mcp) for each tool's parameters and return value, and the [{C.CLI_LONG} and {C.MCP_LONG}](/learn/tiger-cli-mcp#how-tiger-cli-and-tiger-mcp-work-together) overview for the full command-to-tool mapping.
 
-| Task | {C.CLI_SHORT} command | Ask your agent |
-| --- | --- | --- |
-| Create a service | `tiger service create --name analytics --region us-east-1` | _"Create a time-series service called analytics in us-east-1."_ |
-| Fork a service to test a change safely | `tiger service fork <id> --now` | _"Fork service abc123 so I can test a schema change."_ |
-| Resize a service | `tiger service resize <id> --cpu 4 --memory 16` | _"Resize service abc123 to 4 CPU and 16 GB."_ |
-| Start or stop a service | `tiger service start <id>`, `tiger service stop <id>` | _"Stop service abc123."_ |
-| Rotate the database password | `tiger service update-password <id>` | _"Reset the password on service abc123."_ |
-| List, inspect, and check logs | `tiger service list`, `tiger service get <id>`, `tiger service logs <id> --tail 100` | _"List my services and show recent logs for abc123."_ |
-| Delete a service | `tiger service delete <id>` | Not available. There is no {C.MCP_SHORT} tool for delete; use the {C.CLI_SHORT} command. |
+### How do I create a service?
+
+```bash
+tiger service create --name analytics --region us-east-1
+```
+
+Or ask your agent: _"Create a time-series service called analytics in us-east-1."_ (calls [`service_create`](/reference/tiger-cloud/tiger-mcp#service_create)).
+
+### How do I test a change without risking production data?
+
+```bash
+tiger service fork <service-id> --now
+```
+
+Or ask your agent: _"Fork service abc123 so I can test a schema change."_ (calls [`service_fork`](/reference/tiger-cloud/tiger-mcp#service_fork)). See [Test a change safely on a fork](/build/tiger-cli-mcp/cookbook#test-a-change-safely-on-a-fork) for a full workflow.
+
+### How do I resize a service?
+
+```bash
+tiger service resize <service-id> --cpu 4000 --memory 16
+```
+
+Or ask your agent: _"Resize service abc123 to 4 CPU and 16 GB."_ (calls [`service_resize`](/reference/tiger-cloud/tiger-mcp#service_resize)).
+
+### How do I start or stop a service?
+
+```bash
+tiger service start <service-id>
+tiger service stop <service-id>
+```
+
+Or ask your agent: _"Stop service abc123."_ (calls [`service_start`](/reference/tiger-cloud/tiger-mcp#service_start) or [`service_stop`](/reference/tiger-cloud/tiger-mcp#service_stop)).
+
+### How do I rotate the database password?
+
+```bash
+tiger service update-password <service-id> --auto-generate
+```
+
+Or ask your agent: _"Reset the password on service abc123."_ (calls [`service_update_password`](/reference/tiger-cloud/tiger-mcp#service_update_password)).
+
+### How do I list, inspect, and check logs for a service?
+
+```bash
+tiger service list
+tiger service get <service-id>
+tiger service logs <service-id> --tail 100
+```
+
+Or ask your agent: _"List my services and show recent logs for abc123."_ (calls [`service_list`](/reference/tiger-cloud/tiger-mcp#service_list), [`service_get`](/reference/tiger-cloud/tiger-mcp#service_get), [`service_logs`](/reference/tiger-cloud/tiger-mcp#service_logs)).
+
+### How do I delete a service?
+
+```bash
+tiger service delete <service-id> --confirm
+```
+
+There is no {C.MCP_SHORT} tool for delete; run this {C.CLI_SHORT} command yourself.
 
 ## Work with your data
 
@@ -69,7 +118,7 @@ Some data work goes beyond running SQL. Using its built-in skills, {C.MCP_LONG} 
 - Find hypertable candidates: _"Analyze my database and tell me which tables should be hypertables."_
 - Review and optimize: _"Review my schema and indexes against best practices and suggest improvements."_
 
-Planning a change is also read-only, but testing it needs write access: forking a {C.SERVICE_SHORT} (`service_fork`) is itself one of the tools read-only mode disables.
+Planning a change is also read-only, but testing it needs write access: forking a {C.SERVICE_SHORT} ([`service_fork`](/reference/tiger-cloud/tiger-mcp#service_fork)) is itself one of the tools read-only mode disables.
 
 - Plan a schema change: _"Plan a zero-downtime migration to add a status column to metrics, and test it on a fork first."_
 

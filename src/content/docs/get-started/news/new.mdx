@@ -12,12 +12,14 @@ import ChangelogEntry from "@components/ChangelogEntry.astro";
 import ChangelogFilter from "@components/ChangelogFilter.astro";
 
 import { Image } from "astro:assets";
+import ThemeImage from "@components/ThemeImage.astro";
 import imgServiceCreationFlowTigerCloud from "../../../../assets/images/get-started/news/service-creation-flow-tiger-cloud.png";
 import imgChunkTimelineTigerCloud from "../../../../assets/images/get-started/news/chunk-timeline-tiger-cloud.png";
 import imgQueriesPerSecondTigerCloud from "../../../../assets/images/get-started/news/queries-per-second-tiger-cloud.png";
 import imgResourceConsumptionMetricsTigerCloud from "../../../../assets/images/get-started/news/resource-consumption-metrics-tiger-cloud.png";
 import imgTigerCloudManageSupport from "../../../../assets/images/deploy/tiger-cloud/tiger-cloud-manage-support.png";
-import imgAutomatedChunkTuning from "../../../../assets/images/learn/performance-optimization/automated-chunk-tuning.png";
+import imgAutomatedChunkTuningLight from "../../../../assets/images/learn/performance-optimization/automated-chunk-tuning.png";
+import imgAutomatedChunkTuningDark from "../../../../assets/images/learn/performance-optimization/automated-chunk-tuning-dark.png";
 import imgCliMcpWalkthroughTigerConsole from "../../../../assets/images/get-started/news/cli-mcp-walkthrough-tiger-console.png";
 import imgTigerConsoleJobsTimelineView from "../../../../assets/images/get-started/news/tiger-console-jobs-timeline-view.png";
 import imgAzureMarketplaceAutomation1 from "../../../../assets/images/get-started/news/azure-marketplace-automation-1.png";
@@ -123,6 +125,87 @@ import imgTigerlakeGenericRestCatalogSetup from "../../../../assets/images/get-s
 <ChangelogFilter />
 
 <div class="changelog-page-toc">
+
+
+## Billing page now segments costs by service and adds a timeline view
+
+<ChangelogEntry
+  title="Billing page now segments costs by service and adds a timeline view"
+  date="2026-08-12"
+  tags={["improvement"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Billing page now segments costs by service and adds a timeline view</h2>
+
+The billing page in Tiger Console now gives you clearer visibility into what drives your costs.
+
+- **Cost segmentation by service:** Usage and charges are broken down per service, so you can see exactly which services contribute to your bill.
+- **Timeline view:** A new timeline shows how your usage and costs trend over the last 7 days, making it easier to spot changes and plan ahead.
+
+</ChangelogEntry>
+  
+## TimescaleDB v2.29 now on Tiger Cloud
+
+<ChangelogEntry
+  title="TimescaleDB v2.29 now on Tiger Cloud"
+  date="2026-08-10"
+  tags={["new-feature", "performance"]}
+>
+<h2 slot="heading" class="changelog-entry__title">TimescaleDB v2.29 now on Tiger Cloud</h2>
+
+TimescaleDB 2.29 focuses on the columnstore: faster analytical and last-point queries, and cheaper continuous aggregate refresh through incremental and concurrent execution. TimescaleDB 2.29.0 was released on GitHub on July 28, 2026, and is delivered to Tiger Cloud, along with the 2.29.1 stability and security patch, starting August 10, 2026. This release also removes support for PostgreSQL 15.
+
+### Highlighted features in TimescaleDB v2.29
+
+**Faster analytical queries on the columnstore**
+
+This release keeps more query patterns on the vectorized columnar execution engine and adds faster paths for point and last-value lookups.
+
+- **Common subexpression elimination in columnar aggregation:** When several aggregates reference the same expression — for example `SUM(price * quantity)` and `AVG(price * quantity)` — the executor now computes it once and reuses the result across aggregates.
+- **`first`/`last` in `ColumnarIndexScan`:** `first(value, time)` and `last(value, time)` can now read from sparse `min`/`max` metadata in the `ColumnarIndexScan` path, so common earliest/latest-value queries skip decompressing full batches.
+- **Faster last-point and point queries:** The planner can now choose a row-by-row decompression path for startup-cost-sensitive queries such as `ORDER BY time DESC LIMIT 1` and selective point lookups, making last-point queries several times faster.
+- **`MIN`/`MAX` correctness:** Corrects a case where `MIN` and `MAX` in the columnar aggregation pipeline could disagree with plain PostgreSQL results.
+
+**More flexible continuous aggregate refresh**
+
+Continuous aggregates gain incremental and concurrent refresh, lowering the cost and lock footprint of keeping aggregates current.
+
+- **Forced refreshes are now incremental by default:** Building on the batched manual refresh introduced in 2.28, forced runs of `refresh_continuous_aggregate()` now execute incrementally by default, and you gain finer control over batch size, per-execution limits, and iteration order through the JSONB options argument.
+
+    ```sql
+    CALL refresh_continuous_aggregate(
+      'my_cagg', '2023-01-01', '2024-01-01',
+      options => '{"buckets_per_batch": 20, "max_batches_per_execution": 5, "refresh_newest_first": true}'::jsonb
+    );
+    ```
+
+- **Concurrent refresh policies on hierarchical continuous aggregates:** You can now attach more than one refresh policy to a hierarchical continuous aggregate at a time, enabling tiered refresh strategies built from multiple non-overlapping policies.
+- **Hierarchical continuous aggregate fixes:** For a continuous aggregate built on top of another continuous aggregate, the planner now correctly prunes the real-time branch (the live overlay that unions not-yet-materialized recent data onto the stored results) at any level of nesting, so queries that don't need it avoid the extra scan. A separate fix keeps incremental refresh from leaving the final time bucket un-refreshed.
+
+**Smarter query planning**
+
+- **Self-join elimination for hypertables:** Useless-join removal and self-join elimination now work correctly on hypertables, removing redundant scans.
+- **Lower planning overhead on compressed data:** The planner skips classifying compressed relations and caches sort pathkeys per hypertable, reducing planning time on hypertables with many compressed chunks.
+
+**Quality of life and operability**
+
+- **`VACUUM` propagation:** Running `VACUUM` on a chunk now also propagates to its compressed relation.
+- **Merge job configuration:** `alter_job()` adds a `config_merge` parameter that merges JSONB into an existing job configuration instead of replacing it — for example, `SELECT alter_job(42, config_merge => '{"max_retries":3}'::jsonb)`.
+- **In-place sparse index maintenance:** `_timescaledb_functions.rebuild_sparse_index()` rebuilds sparse-index metadata on an already-compressed chunk, with a fix for stale entries left after a rebuild.
+- **New maintenance helpers:** Adds `decompress_batch()` and a `samplerate` argument on `estimate_uncompressed_size()`.
+- **Transactional extension update:** `ALTER EXTENSION timescaledb UPDATE` can now run inside a transaction.
+
+### Backward-incompatible changes
+
+- **PostgreSQL 15 support removed:** TimescaleDB 2.29 drops support for PostgreSQL 15, completing the previously announced EOL. Move to PostgreSQL 16 or 17 before upgrading.
+- **`job_errors` view removed:** Removed as part of the `bgw_job_stat_history` migration. Query `bgw_job_stat_history` for job error history instead.
+
+### Stability and security patch (2.29.1)
+
+2.29.1 addresses stability issues; adds missing permission checks for internal chunk functions; and adds an ordered-scan path for hypertable max-time lookups. It also addresses security vulnerabilities (advisory; PRs #10360, #10379, #10386); upgrade at your next opportunity.
+
+For complete details, refer to the [TimescaleDB 2.29.0 release notes](https://github.com/timescale/timescaledb/releases/tag/2.29.0) and [2.29.1 release notes](https://github.com/timescale/timescaledb/releases/tag/2.29.1).
+
+</ChangelogEntry>
 
 ## Generic Iceberg REST catalog support in TigerLake
 
@@ -390,7 +473,7 @@ Automated chunk tuning is now GA for all services. Enable the feature for each h
 
 When enabled, Tiger Cloud continuously evaluates your hypertable and adjusts the interval on your behalf when it detects it is no longer optimal. Note that updated chunk intervals apply to new chunks only.
 
-<Image src={imgAutomatedChunkTuning} alt="Chunk auto-tuning in Tiger Console" />
+<ThemeImage light={imgAutomatedChunkTuningLight} dark={imgAutomatedChunkTuningDark} alt="Chunk auto-tuning in Tiger Console" />
 
 See the [docs](/build/performance-optimization/improve-hypertable-performance#automated-tuning) for details.
 
@@ -939,7 +1022,7 @@ Tiger Cloud now offers automated chunk tuning in beta, taking the guesswork out 
 - **Activity log integration:** chunk interval changes are recorded in the Activity log for a full audit trail.
 - **No instance overhead:** all calculations run outside your service via Schemata.
 
-<Image src={imgAutomatedChunkTuning} alt="Chunk auto-tuning in Tiger Cloud" />
+<ThemeImage light={imgAutomatedChunkTuningLight} dark={imgAutomatedChunkTuningDark} alt="Chunk auto-tuning in Tiger Cloud" />
 
 If you experience any negative impact, you can opt out at any time and manually reset the interval via the UI or SQL. [Learn more](/build/performance-optimization/improve-hypertable-performance#optimize-hypertable-chunk-intervals) about automated chunk tuning.
 </ChangelogEntry>

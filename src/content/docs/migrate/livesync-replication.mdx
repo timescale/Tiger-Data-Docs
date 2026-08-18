@@ -1,6 +1,6 @@
 ---
 title: Livesync replication
-description: Migrate your entire PostgreSQL or TimescaleDB database to Tiger Cloud with near-zero downtime using Livesync
+description: Migrate your entire PostgreSQL or TimescaleDB database to Tiger Cloud or MST with near-zero downtime using Livesync
 products: [cloud]
 pageLabels: [Early access]
 ---
@@ -29,7 +29,7 @@ import LivesyncConsoleWizard from "../../../partials/_livesync-console-wizard.md
 The Livesync replication workflow is in **early access** and is not yet supported for production use. For questions or feedback, visit [#livesync in the {C.CLOUD_LONG} Community](https://app.slack.com/client/T4GT3N2JK/C086NU9EZ88).
 </Callout>
 
-Livesync replication uses the {C.PG} logical replication protocol to synchronize data from a source database to a {C.SERVICE_LONG}, then cut over once the target is caught up. Because it relies on the standard {C.PG} protocol, you get compatibility, familiarity, and a broad knowledge base.
+Livesync replication uses the {C.PG} logical replication protocol to synchronize data from a source database to a {C.SERVICE_LONG} or an {C.MST_SERVICE_SHORT}, then cut over once the target is caught up. Because it relies on the standard {C.PG} protocol, you get compatibility, familiarity, and a broad knowledge base.
 
 The same technology powers two distribution channels: the **self-hosted Docker image** (`timescale/live-sync`) is commonly referred to as **Livesync**, and the **managed {C.CONSOLE} integration** is referred to as the **{C.PG_CONNECTOR_CAP}**. Both produce the same migration result; this page covers both.
 
@@ -47,7 +47,7 @@ You can drive Livesync replication from the {C.CONSOLE} UI or from a self-hosted
 <Prerequisites context="procedure">
 
 - **Source:** {C.PG} 13 or later with `wal_level = logical`. The source must be a primary, not a read replica or standby.
-- **Target:** A {C.SERVICE_LONG}. Target spec should be close to the source spec for a full migration. Minimum 4 CPU / 16 GB RAM on both source and target for roughly 300 GB/hr to 2.2 TB/hr transfer. `tsdbadmin` credentials.
+- **Target:** A {C.SERVICE_LONG} or an {C.MST_SERVICE_SHORT}. An {C.MST_SERVICE_SHORT} target is supported only with the self-hosted Docker image, not the {C.CONSOLE} wizard. Target spec should be close to the source spec for a full migration. Minimum 4 CPU / 16 GB RAM on both source and target for roughly 300 GB/hr to 2.2 TB/hr transfer. `tsdbadmin` credentials.
 - **Migration host:** A separate machine to run the migration commands, with Docker, `psql`, `pg_dump`, and `vacuumdb` installed and network access to both source and target databases.
 - An [adjusted maintenance window](/deploy/tiger-cloud/tiger-cloud-aws/upgrades#define-your-maintenance-window) to prevent maintenance from running during migration.
 - Environment variables for the source and target connections:
@@ -639,14 +639,14 @@ docker stop livesync
 
 <NumberedItem title="Connect application">
 
-Update connection strings to point to {C.CLOUD_LONG}.
+Update connection strings to point to the target database.
 
 </NumberedItem>
 </NumberedList>
 
 ## Cleanup
 
-After the application is fully running on {C.CLOUD_LONG}:
+After the application is fully running on the target:
 
 <LivesyncCleanup />
 
