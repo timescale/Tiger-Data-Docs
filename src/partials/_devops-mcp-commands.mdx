@@ -4,7 +4,7 @@ import { Callout } from "@stainless-api/docs/components";
 {C.MCP_LONG} exposes the following tools to your AI agent. You do not call these directly; you describe what you want and the agent selects the tool.
 
 <Callout variant="note" title="Definitions can change">
-Parameter names and required or optional fields can change with new {C.MCP_SHORT} versions. Run `tiger mcp get <tool_name>` for the current definition of any tool.
+Parameter names, types, and required or optional fields can change with new {C.MCP_SHORT} versions. Run `tiger mcp get <tool_name>` for the current definition of any tool.
 </Callout>
 
 ## Service tools
@@ -17,18 +17,35 @@ The following tools are disabled when using read-only mode: `service_create`, `s
 
 List the {C.SERVICE_SHORT}s in the current {C.PROJECT_SHORT}. No parameters.
 
+**Returns**: an array of {C.SERVICE_SHORT}s, each with its status, type, region, and resource allocation.
+
 ### `service_get`
 
 Show detailed information about one {C.SERVICE_SHORT}.
 
-- `service_id` (required): the target {C.SERVICE_SHORT}.
-- `with_password`: include the password. Only set this if you explicitly ask for the password.
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The target {C.SERVICE_SHORT}. |
+| `with_password` | boolean | No | Include the password. Only set this if you explicitly ask for the password. Default: `false`. |
+
+**Returns**: connection endpoints, replica configuration, resource allocation, creation time, and status.
 
 ### `service_create`
 
 Create a new {C.SERVICE_SHORT}. Addons: `time-series` ({C.TIMESCALE_DB}) and `ai` (AI/vector).
 
-- `name`, `addons`, `region`, `cpu_memory`, `replicas`, `wait`, `set_default`, `with_password`.
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | No | Service name (auto-generated if omitted). |
+| `addons` | array of strings (`time-series`, `ai`) | No | Addons to enable. Omit or use an empty array for {C.PG}-only. |
+| `region` | string | No | Cloud region, for example `us-east-1`. |
+| `cpu_memory` | string (enum) | No | CPU/memory allocation, for example `"4 CPU/16 GB"`. See [allowed configurations](/reference/tiger-cloud/tiger-cli#tiger-service-create). |
+| `replicas` | integer (0-5) | No | Number of high-availability replicas. Default: `0`. |
+| `wait` | boolean | No | Wait for the {C.SERVICE_SHORT} to be ready before returning. Default: `false`. |
+| `set_default` | boolean | No | Set the new {C.SERVICE_SHORT} as the default. Default: `true`. |
+| `with_password` | boolean | No | Include the password in the response. Default: `false`. |
+
+**Returns**: the new {C.SERVICE_SHORT}'s details, including its ID, connection endpoint, and status.
 
 <Callout variant="warning" title="Creates billable resources">
 `service_create` provisions billable infrastructure.
@@ -38,10 +55,18 @@ Create a new {C.SERVICE_SHORT}. Addons: `time-series` ({C.TIMESCALE_DB}) and `ai
 
 Fork a {C.SERVICE_SHORT} into an independent copy.
 
-- `service_id` (required): the source {C.SERVICE_SHORT}.
-- `fork_strategy` (required): `NOW`, `LAST_SNAPSHOT`, or `PITR`.
-- `target_time`: point in time, for `PITR`.
-- `name`, `cpu_memory`, `wait`, `set_default`, `with_password`.
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The source {C.SERVICE_SHORT}. |
+| `fork_strategy` | string (enum: `NOW`, `LAST_SNAPSHOT`, `PITR`) | Yes | When to fork from. |
+| `target_time` | string (RFC3339) | Only with `PITR` | Point in time to fork from. |
+| `name` | string | No | Fork name (auto-generated if omitted). |
+| `cpu_memory` | string (enum) | No | CPU/memory allocation for the fork. Inherits from the source if omitted. |
+| `wait` | boolean | No | Wait for the fork to be ready before returning. Default: `false`. |
+| `set_default` | boolean | No | Set the fork as the default {C.SERVICE_SHORT}. Default: `true`. |
+| `with_password` | boolean | No | Include the password in the response. Default: `false`. |
+
+**Returns**: the new fork's details, including its ID, connection endpoint, and status.
 
 <Callout variant="warning" title="Creates billable resources">
 `service_fork` provisions billable infrastructure.
@@ -51,7 +76,13 @@ Fork a {C.SERVICE_SHORT} into an independent copy.
 
 Change a {C.SERVICE_SHORT}'s CPU and memory.
 
-- `service_id` (required), `cpu_memory` (required), `wait`.
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The {C.SERVICE_SHORT} to resize. |
+| `cpu_memory` | string (enum) | Yes | New CPU/memory allocation, for example `"4 CPU/16 GB"`. |
+| `wait` | boolean | No | Wait for the resize to finish before returning. Default: `false`. |
+
+**Returns**: the {C.SERVICE_SHORT}'s updated resource allocation and status.
 
 <Callout variant="warning" title="Affects billing">
 `service_resize` affects billing, and the {C.SERVICE_SHORT} may be briefly unavailable.
@@ -61,25 +92,47 @@ Change a {C.SERVICE_SHORT}'s CPU and memory.
 
 Start a stopped {C.SERVICE_SHORT}.
 
-- `service_id` (required), `wait`.
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The {C.SERVICE_SHORT} to start. |
+| `wait` | boolean | No | Wait for the {C.SERVICE_SHORT} to be fully started before returning. Default: `false`. |
+
+**Returns**: the {C.SERVICE_SHORT}'s updated status.
 
 ### `service_stop`
 
 Stop a running {C.SERVICE_SHORT}.
 
-- `service_id` (required), `wait`.
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The {C.SERVICE_SHORT} to stop. |
+| `wait` | boolean | No | Wait for the {C.SERVICE_SHORT} to be fully stopped before returning. Default: `false`. |
+
+**Returns**: the {C.SERVICE_SHORT}'s updated status.
 
 ### `service_update_password`
 
 Update the `tsdbadmin` password. May disconnect existing sessions.
 
-- `service_id` (required), `password` (required).
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The {C.SERVICE_SHORT} to update. |
+| `password` | string | Yes | The new password for the `tsdbadmin` user. |
+
+**Returns**: confirmation that the password was updated.
 
 ### `service_logs`
 
 Fetch {C.SERVICE_SHORT} logs.
 
-- `service_id` (required), `tail`, `since`, `until`, `node`.
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The {C.SERVICE_SHORT} to fetch logs for. |
+| `tail` | integer | No | Number of log lines to return. Default: `100`. |
+| `since`, `until` | string (RFC3339) | No | Restrict logs to a time range. |
+| `node` | integer | No | Specific node to fetch logs from (for {C.SERVICE_SHORT}s with HA replicas; `0` is valid). Defaults to the primary node. |
+
+**Returns**: the matching log lines.
 
 ## Database tools
 
@@ -87,7 +140,16 @@ Fetch {C.SERVICE_SHORT} logs.
 
 Run a single SQL statement against a {C.SERVICE_SHORT}.
 
-- `service_id` (required), `query` (required), `parameters`, `timeout_seconds`, `role`, `pooled`.
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The target {C.SERVICE_SHORT} (or a read replica set ID, to query the replica instead of the primary). |
+| `query` | string | Yes | The SQL statement to run. |
+| `parameters` | array of strings | No | Values substituted for `$1`, `$2`, and so on. Not supported with multi-statement queries. |
+| `timeout_seconds` | integer | No | Query timeout. Default: `30`. |
+| `role` | string | No | Database role to connect as. Default: `tsdbadmin`. |
+| `pooled` | boolean | No | Use connection pooling. Default: `false`. |
+
+**Returns**: column information, row data, and execution metadata for each statement.
 
 <Callout variant="warning" title="Can run destructive SQL">
 `db_execute_query` can run `INSERT`, `UPDATE`, `DELETE`, and DDL. Multi-statement queries (semicolon-separated) are supported when no `parameters` are provided. In read-only mode, writes and DDL are rejected by the server.
@@ -97,7 +159,17 @@ Run a single SQL statement against a {C.SERVICE_SHORT}.
 
 Return the schema of a {C.SERVICE_SHORT} database as readable text (tables, views, materialized views, and more).
 
-- `service_id` (required), `schema`, `definitions`, `comments`, `internal`, `role`, `pooled`.
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The target {C.SERVICE_SHORT} (or a read replica set ID). |
+| `schema` | string | No | Restrict output to a single schema. |
+| `definitions` | boolean | No | Include full object definitions. Default: `false`. |
+| `comments` | boolean | No | Include object comments (`COMMENT ON` text). Default: `false`. |
+| `internal` | boolean | No | Include system schemas and extension-owned objects. Default: `false`. |
+| `role` | string | No | Database role to connect as. Default: `tsdbadmin`. |
+| `pooled` | boolean | No | Use connection pooling. Default: `false`. |
+
+**Returns**: readable text describing tables, views, materialized views, enum types, functions, procedures, indexes, triggers, and {C.TIMESCALE_DB} {C.HYPERTABLE} and {C.CAGG} metadata. The connection is opened in immutable read-only mode, so this tool never writes.
 
 ## Documentation and skills tools
 
@@ -105,10 +177,22 @@ Return the schema of a {C.SERVICE_SHORT} database as readable text (tables, view
 
 Search {C.COMPANY} documentation with hybrid semantic (vector) and keyword search.
 
-- `source` (required), `query` (required), `limit` (required), `semanticWeight` (required): `0` for keyword-only, `1` for semantic-only, or a value in between to blend the two.
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `source` | string (enum) | Yes | The documentation source, for example `tiger`, `postgres_17`, or `postgis_3.5`. |
+| `query` | string | Yes | The search query. |
+| `limit` | integer | Yes | Maximum matches to return. Default: `20`. |
+| `semanticWeight` | number (0-1) | Yes | `0` for keyword-only, `1` for semantic-only, or a value in between to blend the two. Default: `0.7`. |
+
+**Returns**: ranked matches from the requested documentation source.
 
 ### `view_skill`
 
 Retrieve a built-in skill for {C.TIMESCALE_DB} operations and best practices (for example, schema design, {C.HYPERTABLE} setup, and migration planning).
 
-- `skill_name` (required), `path` (required).
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `skill_name` | string | Yes | The skill to retrieve, or `.` to list all available skills. |
+| `path` | string | Yes | A relative path to a file or directory within the skill. Use `.` to list the skill's root directory, or leave empty for the skill's `SKILL.md`. |
+
+**Returns**: the requested skill content, or a directory listing.
