@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { execSync } from "node:child_process";
 import { defineConfig } from "astro/config";
 import type { AstroIntegration } from "astro";
 import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
@@ -10,6 +11,7 @@ import rehypePagefindWeight from "./src/plugins/rehype-pagefind-weight";
 import remarkResolveConstantsInHeadings from "./src/plugins/remark-resolve-constants-in-headings";
 
 import sentry from "@sentry/astro";
+import sitemap from "@astrojs/sitemap";
 
 const require = createRequire(import.meta.url);
 
@@ -186,6 +188,74 @@ function withBase(redirects: Record<string, string>): Record<string, string> {
   );
 }
 
+// ── Sitemap: per-page lastmod / priority ─────────────────────────────────────
+// @astrojs/sitemap can't read a page's source (Astro Integration API limitation),
+// so a top-level `lastmod` would stamp the same build-day date on every URL. To
+// emit an accurate per-page `lastmod` (the one field Google actually uses) we
+// precompute each doc's real last-commit date from git and match it by URL path
+// in the sitemap `serialize()` hook below.
+
+/** Map a content file path to its site URL path, mirroring Astro/Starlight routing. */
+function contentFileToUrlPath(file: string): string {
+  let rel = file
+    .replace(/^src\/content\/docs\//, "")
+    .replace(/\.mdx?$/, "")
+    .replace(/(^|\/)index$/, "") // index.mdx -> its directory
+    .replace(/\/$/, "");
+  const base = BASE === "/" ? "" : BASE; // e.g. "/docs"
+  // Astro lowercases slugs, so on-disk casing (e.g. tiger-cloud-AWS) becomes
+  // tiger-cloud-aws in the URL. Lowercase here so keys match the emitted locs.
+  return (rel ? `${base}/${rel}` : base || "/").toLowerCase();
+}
+
+/**
+ * Build { urlPath -> ISO last-commit date } from a single `git log` walk over the
+ * docs content. Walking newest-first, the first date seen for a file is its last
+ * modification. Returns an empty map on any git failure (e.g. shallow clone), in
+ * which case pages simply get no `lastmod` rather than a wrong one.
+ */
+function buildGitLastmodMap(): Map<string, string> {
+  const map = new Map<string, string>();
+  let log: string;
+  try {
+    log = execSync("git log --pretty=format:%cI --name-only -- src/content/docs", {
+      encoding: "utf8",
+      maxBuffer: 128 * 1024 * 1024,
+    });
+  } catch {
+    return map;
+  }
+  let currentDate = "";
+  for (const line of log.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
+      currentDate = trimmed; // %cI date line
+      continue;
+    }
+    if (!trimmed.startsWith("src/content/docs/") || !/\.mdx?$/.test(trimmed)) continue;
+    const urlPath = contentFileToUrlPath(trimmed);
+    if (!map.has(urlPath)) map.set(urlPath, currentDate); // newest commit wins
+  }
+  return map;
+}
+
+// Lazily built so `pnpm dev` (which never generates a sitemap) never shells out to git.
+let _gitLastmod: Map<string, string> | null = null;
+function gitLastmodFor(pathname: string): string | undefined {
+  if (!_gitLastmod) _gitLastmod = buildGitLastmodMap();
+  return _gitLastmod.get(pathname);
+}
+
+/** Relative section priority. Google ignores this, but Bing and others may use it. */
+function sitemapPriorityFor(pathname: string): number {
+  const base = BASE === "/" ? "" : BASE;
+  const p = base && pathname.startsWith(base) ? pathname.slice(base.length) : pathname;
+  if (p === "" || p === "/") return 1.0; // docs home
+  if (p.startsWith("/get-started")) return 0.9; // onboarding funnel
+  return 0.7;
+}
+
 // ESM dynamic import: starlight-links-validator ships TypeScript; `require()` fails on Node 22+
 // ("Stripping types is currently unsupported for files under node_modules").
 const starlightLinksValidator = process.env.CHECK_LINKS
@@ -221,7 +291,22 @@ export default defineConfig({
         ],
       },
     },
-    integrations: [basePathPostProcessor(BASE), stainlessDocs({
+    integrations: [basePathPostProcessor(BASE), sitemap({
+      // Drop the local-preview REST placeholder (only built with
+      // DOCS_LOCAL_WITHOUT_STAINLESS) so it never appears as a canonical URL.
+      filter: (page) => !page.includes("/reference/tiger-cloud-rest-local-preview"),
+      // Per-page metadata. `lastmod` comes from each page's real git history (see
+      // gitLastmodFor); pages with no source file (e.g. the generated REST reference)
+      // simply get no lastmod. `changefreq`/`priority` are hints only (Google ignores them).
+      serialize(item) {
+        const pathname = new URL(item.url).pathname.replace(/\/$/, "") || "/";
+        const lastmod = gitLastmodFor(pathname);
+        if (lastmod) item.lastmod = lastmod;
+        item.changefreq = "weekly";
+        item.priority = sitemapPriorityFor(pathname);
+        return item;
+      },
+    }), stainlessDocs({
       apiReference: DOCS_LOCAL_WITHOUT_STAINLESS
         ? null
         : {
