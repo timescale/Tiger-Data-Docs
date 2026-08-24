@@ -9,25 +9,26 @@ import * as C from "@constants";
 import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
 
 {C.TIMESCALE_DB} Enterprise is a commercially licensed distribution of {C.TIMESCALE_DB} that
-comes with a console for provisioning and running it. You install the console on a machine
-you own, enroll your Linux servers with it, and it builds and operates database clusters on
-them. The database is the same {C.TIMESCALE_DB} you would install yourself, with the same
-{C.HYPERTABLE}s, {C.COLUMNSTORE}, {C.CAGG}s, and {C.PG} compatibility. What comes with it is
-the operational layer: cluster provisioning, automatic failover, monitoring, and backup and
-recovery. Running the database on your own hardware does not have to mean operating it by hand.
+arrives with its operational layer already built. Automatic failover, backups, point-in-time
+recovery, and monitoring are driven from a console you run yourself, and the database
+underneath is the same {C.TIMESCALE_DB} you would install by hand.
 
-Everything runs inside your own perimeter. There is no hosted control plane in the path, so a
-running cluster never waits on {C.COMPANY} to serve queries, fail over, or take a backup, and
-air-gapped installs are supported using license files rather than online activation.
+It exists for the places a managed database cannot go. At the edge, on a factory floor or a
+remote site in energy or manufacturing, a cluster has to keep working when the network does
+not. In regulated and air-gapped data centers the requirement is stricter still, because the
+database can never reach outward at all. And for teams who could build high availability and
+recovery themselves but would rather not, the console is the shorter path.
 
-## How it is put together
+Nothing about a running cluster depends on {C.COMPANY}. There is no hosted control plane in the
+path, so queries, failover, and backups never wait on anything outside your own network, and an
+air-gapped install uses license files rather than online activation.
 
-An installation has two parts.
+## Architecture
 
-The **console** is a Docker container, and the only piece you deploy centrally. It serves the
-browser interface and the API, runs the automation that configures your servers, collects and
-stores metrics, and coordinates the private network the installation runs over. Access is by
-token or through your own identity provider over OIDC.
+An installation has two tiers. The **console** is a Docker container, and the only piece you
+deploy centrally. It serves the browser interface and the API, runs the automation that
+configures your servers, collects and stores metrics, and coordinates the private network the
+installation runs over. Access is by token or through your own identity provider over OIDC.
 
 The **data plane** is your own Linux servers, whether those are bare metal, virtual machines
 under VMware or KVM, or instances in your own cloud account. You enroll them with the console,
@@ -111,34 +112,11 @@ to sit on the same network.
 The console is never in the data path. Your application connects to the database servers
 directly, and a cluster keeps serving queries and failing over even while the console is down.
 
-## What running it looks like
-
-You enroll a server by running one command on it, create a service from the console, and
-connect your application to the connection string it gives you. From there the console is
-where you set backup schedules and retention, restore to a point in time, fork a service from
-its backups, watch per-node metrics, and read component logs. Failover you do not drive at
-all: if the primary fails, a replica is promoted and the pooled endpoint re-routes on its own.
-
-See the [{C.TIMESCALE_DB} Enterprise documentation](https://tsdbe-docs.vercel.app/) for setup,
+Day to day, the console is where you set backup schedules and retention, restore to a point in
+time, fork a service from its backups, and read per-node metrics and component logs. Failover is
+the exception: you do not drive it at all. See the
+[{C.TIMESCALE_DB} Enterprise documentation](https://tsdbe-docs.vercel.app/) for setup,
 configuration, and step-by-step guides to each of these tasks.
-
-## Where it fits
-
-The primary audience is teams running databases at the edge and close to the equipment that
-produces the data: factory floors, substations, wells, water utilities, and remote sites in
-oil and gas, manufacturing, energy, and healthcare. Those environments need local autonomy and
-tolerate unreliable connectivity, and a database that stops when the link drops is not usable.
-Clusters run locally and keep running regardless of what the network is doing.
-
-The second case is the data center that cannot hand its data to someone else. Air-gapped
-networks, data sovereignty mandates, and regulated environments are the common reasons teams
-end up here, and they are the reasons the whole installation is designed to work with no
-outbound dependency at runtime. That covers developers and site reliability engineers who
-would happily use a managed database but cannot, for compliance, sovereignty, or cost reasons.
-
-The third case is simply not wanting to build the operational layer. High availability,
-point-in-time recovery, and monitoring are all solvable with open source tooling, and many
-teams solve them well. If yours would rather not, that work is what the console does.
 
 <RelatedContentCards>
   <RelatedContentCard
