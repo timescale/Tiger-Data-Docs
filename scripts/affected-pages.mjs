@@ -65,8 +65,10 @@ function kitchenSinkLine() {
 function fileToUrl(file) {
   const m = file.match(/^src\/content\/docs\/(.+)\.mdx$/);
   if (!m) return null;
-  let urlPath = m[1].toLowerCase().replace(/\/index$/, "");
-  return "/" + urlPath;
+  // Prepend the slash before stripping "index", so the site root
+  // (src/content/docs/index.mdx) collapses to "/" rather than "/index".
+  const urlPath = ("/" + m[1].toLowerCase()).replace(/\/index$/, "");
+  return urlPath || "/";
 }
 
 function findConsumers(partialPath, visited = new Set()) {
@@ -132,7 +134,9 @@ if (sorted.length === 0) {
 
 function buildLine(urlPath) {
   const link = withPreview(urlPath);
-  return link ? `- [${urlPath}](${link})` : `- ${urlPath}`;
+  // A bare "/" is easy to skim past, so name the site root explicitly.
+  const label = urlPath === "/" ? "/ (homepage)" : urlPath;
+  return link ? `- [${label}](${link})` : `- ${label}`;
 }
 
 const lines = sorted.map(buildLine);
