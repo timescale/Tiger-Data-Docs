@@ -320,6 +320,7 @@ ALTER TABLE <table_name> SET (
   tigerlake.iceberg_partitionby = '<partition_specification>',
   tigerlake.iceberg_namespace = '<namespace>',
   tigerlake.iceberg_table = '<table>',
+  tigerlake.iceberg_spec_version = 2 | 3,
   tigerlake.enable_tiered_reads = true | false
 )
 ```
@@ -331,6 +332,10 @@ ALTER TABLE <table_name> SET (
   to {C.HYPERTABLE}s. For more information, see [partitioning](/integrate/connectors/destination/tigerlake#partitioning-intervals).
 - `tigerlake.iceberg_namespace`: optional property to set a namespace, the default is `timescaledb`.
 - `tigerlake.iceberg_table`: optional property to specify a different table name. If no name is specified the {C.PG} table name is used.
+- `tigerlake.iceberg_spec_version`: optional `integer`, either `2` or `3`. The default for new syncs is `3`. Set it
+  to `2` if the query engine or catalog you read the table with does not support format version 3. You can only set
+  this property when you start the sync. For more information, see
+  [Iceberg format version](/integrate/connectors/destination/tigerlake#iceberg-format-version).
 - `tigerlake.enable_tiered_reads`: optional `boolean`, the default is `false`. Set to `true` to include data that has
   been moved to the [low-cost object storage tier](/learn/data-lifecycle/storage/about-storage-tiers) in the sync.
   You can only set this property when you start the sync. For more information, see
@@ -376,6 +381,25 @@ Note the following:
   `timescaledb.enable_tiered_reads` is enabled for the database or the session.
 - Tiered data can be much larger than the data in local storage. Including it increases both the duration of the
   initial snapshot and the volume of data written to Iceberg.
+
+### Iceberg format version
+
+New syncs create the Iceberg table using [format version](https://iceberg.apache.org/spec/#format-versioning) 3.
+To use format version 2 instead, set `tigerlake.iceberg_spec_version` in the statement that starts the sync:
+
+```sql
+ALTER TABLE my_hypertable SET (
+  tigerlake.iceberg_sync = true,
+  tigerlake.iceberg_spec_version = 2
+);
+```
+
+Note the following:
+
+- The only accepted values are `2` and `3`. Any other value returns an error.
+- You can only set `tigerlake.iceberg_spec_version` when you start the sync. To change the format version of a table
+  that is already syncing, stop the sync and start a new one.
+- Tables that started syncing before this property was available remain on format version 2.
 
 ### Sample code
 
