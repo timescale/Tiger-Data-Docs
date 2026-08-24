@@ -1,13 +1,14 @@
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import PITRForks from "./_pitr-forks.mdx";
 
 import { Image } from "astro:assets";
 import ThemeImage from "@components/ThemeImage.astro";
 import imgDatabaseBackupRecovery from "../assets/images/deploy/tiger-cloud/database-backup-recovery.png";
 
 {C.CLOUD_LONG} provides comprehensive backup and recovery solutions to protect your data, including automatic daily backups,
-cross-region protection, and point-in-time recovery.
+configurable retention, cross-region protection, and point-in-time recovery.
 
 ## Automatic backups
 
@@ -20,10 +21,48 @@ This means that you always have a full backup available for the current and prev
 
 <Image src={imgDatabaseBackupRecovery} alt="Database backup and recovery architecture in Tiger Cloud" />
 
-On [{C.SCALE} and {C.ENTERPRISE}](../pricing-and-account-management) {C.PRICING_PLAN}s, you can check the list of backups for the previous 14 days in {C.CONSOLE_LONG}. To do so, select your {C.SERVICE_SHORT}, then click `Operations` > `Backup and restore` > `Backup history`.
+On [{C.SCALE} and {C.ENTERPRISE}](../pricing-and-account-management) {C.PRICING_PLAN}s, you can check the list of backups for your retention period in {C.CONSOLE_LONG}. To do so, select your {C.SERVICE_SHORT}, then click `Operations` > `Backup and restore` > `Backup history`. On {C.ENTERPRISE}, you can [extend backup retention](#extend-backup-retention) up to 180 days.
 
 In the event of a storage failure, a {C.SERVICE_SHORT} automatically recovers from a backup
-to the point of failure. If the whole availability zone goes down, your {C.SERVICE_LONG}s are recovered in a different zone. In the event of a user error, you can [create a point-in-time recovery fork](../service-management/fork-services).
+to the point of failure. If the whole availability zone goes down, your {C.SERVICE_LONG}s are recovered in a different zone. In the event of a user error, you can [create a point-in-time recovery fork](#recover-to-a-point-in-time).
+
+## Extend backup retention
+
+<Callout variant="note">
+Extended backup retention is available on the [{C.ENTERPRISE}](../pricing-and-account-management) {C.PRICING_PLAN}.
+</Callout>
+
+{C.CLOUD_LONG} keeps full backups, incremental backups, and WAL files for the retention period included with your
+[{C.PRICING_PLAN}](../pricing-and-account-management#features-included-in-each-pricing-plan). This means that you can
+recover your data to any point in that period. To meet longer compliance or audit requirements, on {C.ENTERPRISE} you
+can set a retention period of up to 180 days for each {C.SERVICE_SHORT}.
+
+Extended retention covers backups and WAL files in the same way as the default retention period. The recovery window for
+[point-in-time recovery forks](#recover-to-a-point-in-time) matches your retention period: if you set retention
+to 90 days, you can fork your {C.SERVICE_SHORT} to any point in the previous 90 days. When you extend the retention
+period, backups accumulate until they cover it in full; when you shorten it, the backups outside the new period are
+deleted soon afterwards and are no longer available for recovery.
+
+To change the retention period:
+
+<NumberedList>
+
+<NumberedItem title={`Select your ${C.SERVICE_SHORT} and open backup settings`}>
+
+In [{C.CONSOLE_SHORT}](https://console.cloud.tigerdata.com/dashboard/services), select your {C.SERVICE_SHORT} and click `Operations` > `Backup and restore`.
+
+</NumberedItem>
+
+<NumberedItem title="Set the retention period">
+
+In `Backup retention`, select one of the preset periods, or click `Custom` and set a number of days between 14 and 180,
+then confirm your choice.
+
+<ThemeImage light={props.retentionScreenshotLight} dark={props.retentionScreenshotDark} alt="Setting the backup retention period in Tiger Console" />
+
+</NumberedItem>
+
+</NumberedList>
 
 ## Enable cross-region backup
 
@@ -32,6 +71,9 @@ Cross-region backup is available on [{C.ENTERPRISE}](../pricing-and-account-mana
 </Callout>
 
 For added reliability, you can enable cross-region backup. This protects your data when an entire region goes down. In this case, you have two identical backups of your {C.SERVICE_SHORT} at any time, but one of them is in a different region. Cross-region backups are updated daily and weekly in the same way as a regular backup. You can have one cross-region backup for a {C.SERVICE_SHORT}.
+
+Cross-region backups are always kept for 14 days. [Extended backup retention](#extend-backup-retention) applies only to
+the backups in the region your {C.SERVICE_SHORT} runs in.
 
 You enable cross-region backup when you create a {C.SERVICE_SHORT}, or configure it for an existing {C.SERVICE_SHORT} in {C.CONSOLE_LONG}:
 
@@ -45,7 +87,7 @@ In [{C.CONSOLE_SHORT}](https://console.cloud.tigerdata.com/dashboard/services), 
 
 <NumberedItem title="Enable cross-region backup">
 
-In `Cross-region backup`, select the region in the dropdown and click `Enable backup`.
+In `Backup regions`, select the region in the dropdown and click `Enable backup`.
 
 <ThemeImage light={props.createBackupScreenshotLight} dark={props.createBackupScreenshotDark} alt="Creating a cross-region backup in Tiger Console" />
 
@@ -75,6 +117,16 @@ Click the trash icon next to the existing backup to disable it.
 
 <NumberedItem title="Create a new backup in a different region">
 
+In `Backup regions`, select the new region in the dropdown and click `Enable backup`.
+
 </NumberedItem>
 
 </NumberedList>
+
+## Recover to a point in time
+
+When data is lost or damaged, by an accidental delete or a bad migration for example, you recover it with a
+point-in-time recovery (PITR) fork: a copy of your {C.SERVICE_SHORT} as it was at a moment before the problem started.
+You then point your app at the fork. The original {C.SERVICE_SHORT} stays untouched.
+
+<PITRForks recoveryForkScreenshotLight={props.recoveryForkScreenshotLight} recoveryForkScreenshotDark={props.recoveryForkScreenshotDark} />
