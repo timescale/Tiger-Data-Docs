@@ -1,10 +1,89 @@
 ---
 title: Key differentiators of TimescaleDB Enterprise
-description: What TimescaleDB Enterprise adds over self-hosted TimescaleDB Community Edition, and who it is for
-keywords: [timescaledb enterprise, high availability, backups, upgrades, monitoring, cloud sync]
+description: How TimescaleDB Enterprise compares to self-hosted TimescaleDB Community Edition, and when to choose each
+keywords: [timescaledb enterprise, high availability, backups, monitoring, on-premises, air-gap]
 # products: [enterprise] — add once the "enterprise" product tag is added to content.config.ts
 ---
 
-import EnterpriseExclusiveFeatureDetails from "@partials/_enterprise-exclusive-feature-details.mdx";
+import * as C from "@constants";
 
-<EnterpriseExclusiveFeatureDetails />
+{C.TDB_COMMUNITY} is free and open source, and gives you the complete database on whatever
+infrastructure you choose, with your own {C.PG} version, operating system, and tooling.
+Replication, backups, and upgrades are all yours to build and run.
+
+But if you need failover that happens without anyone being paged, backups on a schedule with a
+restore you can trust, and one place to operate every cluster you own, that is what
+{C.TIMESCALE_DB} Enterprise adds. It is a commercially licensed distribution of
+{C.TIMESCALE_DB} that ships with a browser-driven console for provisioning and operating
+clusters across your own Linux servers.
+
+## Guided cluster provisioning
+
+Bringing up a production cluster is a workflow in the console rather than a sequence of
+manual installs. You enroll your servers, choose between a single-node service and a highly
+available one, and the console deploys {C.PG} 17 with {C.TIMESCALE_DB}, PgBouncer for
+connection pooling, and monitoring across every node. A three-node highly available cluster
+takes roughly five to ten minutes. Before it starts, an advisory preflight can check each
+target server for CPU, memory, free disk, a supported operating system, and leftover {C.PG}
+data.
+
+## Automatic failover
+
+{C.PG} has no built-in automatic failover, so
+[self-hosting it](/deploy/self-hosted/replication-and-ha/about-ha) means wiring up Patroni
+yourself. In {C.TIMESCALE_DB} Enterprise, a highly available service runs three nodes with a
+colocated etcd consensus store, or two nodes against a dedicated consensus cluster, and
+promotes a replica on its own when the primary fails. HAProxy and PgBouncer keep client traffic
+on a pooled, load-balanced endpoint that follows the primary, and an optional virtual IP always
+reaches whichever node currently holds that role.
+Planned maintenance uses a switchover instead, which is a controlled promotion with minimal
+downtime. Replication is asynchronous, so a forced failover can lose recent transactions.
+
+## Backups and point-in-time recovery
+
+Backups run on pgBackRest, with the scheduling, retention, and restore workflows built around
+it. Each service keeps a local copy of its backups on its own node and can add a remote copy on
+a dedicated backup server, which is what lets it recover when a machine is lost. Full and
+differential backups run on schedules you set, with retention counted in days or in backups.
+Restores run from the console, either to the latest backup, to a specific backup, or to any
+validated moment inside the recovery window, and you can fork a new service from another
+service's backups without touching the original.
+
+Backup schedules are off by default, so configuring them is part of setting up a service you
+intend to rely on.
+
+## Networking without inbound ports
+
+The console reaches your servers over an encrypted WireGuard mesh that each server joins by
+running a single enrollment command. Connections are outbound only, so there are no inbound
+ports to open, and your servers do not need to sit on the same network. In an operational
+technology or plant network, where inbound access is not something you can negotiate, this is
+often the difference between a deployment that is possible and one that is not.
+
+## Built-in monitoring
+
+The console scrapes every database server and keeps 30 days of history, without you standing
+up a monitoring stack first. Each service charts CPU, memory, storage, transactions per
+second, disk IOPS and bandwidth, and connections, per node. You can also run ad-hoc PromQL
+against the metrics engine, or federate the whole set into a Prometheus you already run, and
+starter dashboards are available if you keep your own Grafana on top.
+
+## Licensing and support
+
+The console itself runs without a license. A license is what lets you create a database
+service and bring its servers up, and licenses are sized per server by CPU and memory. One
+license covers a single service across up to three servers, so a highly available primary and
+its replicas are covered together, and enrolled infrastructure such as backup servers and
+dedicated consensus clusters does not consume one. Read replicas are
+licensed separately. An expired license never interrupts a running service: it blocks new
+deployments until you renew. Air-gapped installs use license files rather than online
+activation. Support is a commercial arrangement with direct access to the engineering team,
+in place of the community support that {C.TDB_COMMUNITY} relies on.
+
+## Where to go next
+
+- To install the console and deploy your first cluster, see the
+  [{C.TIMESCALE_DB} Enterprise documentation](https://tsdbe-docs.vercel.app/).
+- To run {C.TDB_COMMUNITY} yourself, start with [{C.SELF_LONG_CAP}](/deploy/self-hosted).
+- If a fully managed database is also on the table, compare all the options in the
+  [feature comparison](/learn/capabilities-and-comparison/feature-comparison).

@@ -1,6 +1,159 @@
 ---
 title: Meet TimescaleDB Enterprise
-description: Learn about TimescaleDB Enterprise, a self-managed, commercially licensed TimescaleDB for on-premises and edge deployments
-keywords: [timescaledb enterprise, on-premises, self-managed, air-gap]
+description: Run production TimescaleDB clusters on your own Linux servers with high availability, backups, and monitoring built in
+keywords: [timescaledb enterprise, on-premises, self-managed, air-gap, edge]
 # products: [enterprise] — add once the "enterprise" product tag is added to content.config.ts
 ---
+
+import * as C from "@constants";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+
+{C.TIMESCALE_DB} Enterprise is a commercially licensed distribution of {C.TIMESCALE_DB} that
+comes with a console for provisioning and running it. You install the console on a machine
+you own, enroll your Linux servers with it, and it builds and operates database clusters on
+them. The database is the same {C.TIMESCALE_DB} you would install yourself, with the same
+{C.HYPERTABLE}s, {C.COLUMNSTORE}, {C.CAGG}s, and {C.PG} compatibility. What comes with it is
+the operational layer: cluster provisioning, automatic failover, monitoring, and backup and
+recovery. Running the database on your own hardware does not have to mean operating it by hand.
+
+Everything runs inside your own perimeter. There is no hosted control plane in the path, so a
+running cluster never waits on {C.COMPANY} to serve queries, fail over, or take a backup, and
+air-gapped installs are supported using license files rather than online activation.
+
+## How it is put together
+
+An installation has two parts.
+
+The **console** is a Docker container, and the only piece you deploy centrally. It serves the
+browser interface and the API, runs the automation that configures your servers, collects and
+stores metrics, and coordinates the private network the installation runs over. Access is by
+token or through your own identity provider over OIDC.
+
+The **data plane** is your own Linux servers, whether those are bare metal, virtual machines
+under VMware or KVM, or instances in your own cloud account. You enroll them with the console,
+and it installs and configures what runs on them: {C.PG} 17 with {C.TIMESCALE_DB}, Patroni and
+etcd for leader election and failover, HAProxy and PgBouncer for routing and pooled
+connections, and pgBackRest for backups. A service is either a single node or a highly
+available group of nodes, and it can use a separate enrolled machine as a dedicated backup
+server.
+
+<svg viewBox="0 0 920 400" role="img" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; margin: 1.5rem 0;">
+  <title>{C.TIMESCALE_DB} Enterprise architecture</title>
+  <desc>
+    The console host runs the control plane and reaches three database servers over an
+    outbound encrypted mesh. The application connects to the database service directly, not
+    through the console. The primary sends backups to a separate backup server.
+  </desc>
+  <defs>
+    <marker id="tse-arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--sl-color-gray-3, #71717a)" />
+    </marker>
+    <marker id="tse-arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--sl-color-text-accent, #0e7c5a)" />
+    </marker>
+  </defs>
+
+  <rect x="20" y="30" width="200" height="140" rx="8" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-5, #d4d4d8)" stroke-width="1.5" />
+  <text x="36" y="56" font-size="14" font-weight="600" fill="var(--sl-color-text, #18181b)">Console host</text>
+  <text x="36" y="82" font-size="11.5" fill="var(--sl-color-gray-3, #71717a)">Browser UI and API</text>
+  <text x="36" y="102" font-size="11.5" fill="var(--sl-color-gray-3, #71717a)">Automation</text>
+  <text x="36" y="122" font-size="11.5" fill="var(--sl-color-gray-3, #71717a)">Metrics engine</text>
+  <text x="36" y="142" font-size="11.5" fill="var(--sl-color-gray-3, #71717a)">Mesh coordinator</text>
+  <text x="20" y="192" font-size="11" fill="var(--sl-color-gray-3, #71717a)">Control plane only.</text>
+  <text x="20" y="208" font-size="11" fill="var(--sl-color-gray-3, #71717a)">Not in the data path.</text>
+
+  <line x1="220" y1="100" x2="352" y2="100" stroke="var(--sl-color-gray-3, #71717a)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#tse-arrow-muted)" />
+  <text x="228" y="88" font-size="10.5" fill="var(--sl-color-gray-3, #71717a)">operations + metrics</text>
+  <text x="228" y="118" font-size="10.5" fill="var(--sl-color-gray-3, #71717a)">outbound only</text>
+
+  <rect x="360" y="20" width="300" height="270" rx="10" fill="none" stroke="var(--sl-color-gray-5, #d4d4d8)" stroke-width="1.5" stroke-dasharray="6 5" />
+  <text x="376" y="44" font-size="12" font-weight="600" fill="var(--sl-color-gray-3, #71717a)">Database service, Standard HA</text>
+
+  <rect x="380" y="56" width="260" height="58" rx="6" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-text-accent, #0e7c5a)" stroke-width="1.5" />
+  <text x="396" y="80" font-size="13" font-weight="600" fill="var(--sl-color-text, #18181b)">Primary</text>
+  <text x="396" y="100" font-size="11" fill="var(--sl-color-gray-3, #71717a)">{C.PG} 17 and {C.TIMESCALE_DB}</text>
+
+  <rect x="380" y="130" width="260" height="58" rx="6" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-5, #d4d4d8)" stroke-width="1.5" />
+  <text x="396" y="154" font-size="13" font-weight="600" fill="var(--sl-color-text, #18181b)">Replica</text>
+  <text x="396" y="174" font-size="11" fill="var(--sl-color-gray-3, #71717a)">asynchronous replication</text>
+
+  <rect x="380" y="204" width="260" height="58" rx="6" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-5, #d4d4d8)" stroke-width="1.5" />
+  <text x="396" y="228" font-size="13" font-weight="600" fill="var(--sl-color-text, #18181b)">Replica</text>
+  <text x="396" y="248" font-size="11" fill="var(--sl-color-gray-3, #71717a)">asynchronous replication</text>
+
+  <text x="380" y="282" font-size="10.5" fill="var(--sl-color-gray-3, #71717a)">Each node also runs PgBouncer, HAProxy, and etcd.</text>
+
+  <polyline points="640,85 680,85 680,168 712,168" fill="none" stroke="var(--sl-color-gray-3, #71717a)" stroke-width="1.5" marker-end="url(#tse-arrow-muted)" />
+  <text x="648" y="76" font-size="10.5" fill="var(--sl-color-gray-3, #71717a)">backups</text>
+
+  <rect x="720" y="130" width="180" height="76" rx="8" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-5, #d4d4d8)" stroke-width="1.5" />
+  <text x="736" y="158" font-size="13" font-weight="600" fill="var(--sl-color-text, #18181b)">Backup server</text>
+  <text x="736" y="180" font-size="11" fill="var(--sl-color-gray-3, #71717a)">pgBackRest repository</text>
+  <text x="720" y="228" font-size="11" fill="var(--sl-color-gray-3, #71717a)">Separate failure domain.</text>
+
+  <rect x="20" y="300" width="200" height="64" rx="8" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-text-accent, #0e7c5a)" stroke-width="1.5" />
+  <text x="36" y="326" font-size="13" font-weight="600" fill="var(--sl-color-text, #18181b)">Your application</text>
+  <text x="36" y="346" font-size="11" fill="var(--sl-color-gray-3, #71717a)">connects directly</text>
+
+  <polyline points="220,332 500,332 500,296" fill="none" stroke="var(--sl-color-text-accent, #0e7c5a)" stroke-width="1.75" marker-end="url(#tse-arrow-accent)" />
+  <text x="232" y="384" font-size="11" fill="var(--sl-color-gray-3, #71717a)">Port 5000 through HAProxy, which follows the current primary.</text>
+</svg>
+
+Only two channels connect your servers to the console: one for operations, which installs,
+configures, and upgrades components, and one for scraping metrics. Nothing drives your
+database on a schedule from the server side. The console connects when it has work to do and
+disconnects afterwards, and the only permanent additions to a server are the mesh agent that
+keeps it on the private network and the exporters the metrics channel reads. Both channels
+travel over an encrypted WireGuard mesh that each server joins by running a single command,
+and both are outbound only, so there are no inbound ports to open and your servers do not need
+to sit on the same network.
+
+The console is never in the data path. Your application connects to the database servers
+directly, and a cluster keeps serving queries and failing over even while the console is down.
+
+## What running it looks like
+
+You enroll a server by running one command on it, create a service from the console, and
+connect your application to the connection string it gives you. From there the console is
+where you set backup schedules and retention, restore to a point in time, fork a service from
+its backups, watch per-node metrics, and read component logs. Failover you do not drive at
+all: if the primary fails, a replica is promoted and the pooled endpoint re-routes on its own.
+
+See the [{C.TIMESCALE_DB} Enterprise documentation](https://tsdbe-docs.vercel.app/) for setup,
+configuration, and step-by-step guides to each of these tasks.
+
+## Where it fits
+
+The primary audience is teams running databases at the edge and close to the equipment that
+produces the data: factory floors, substations, wells, water utilities, and remote sites in
+oil and gas, manufacturing, energy, and healthcare. Those environments need local autonomy and
+tolerate unreliable connectivity, and a database that stops when the link drops is not usable.
+Clusters run locally and keep running regardless of what the network is doing.
+
+The second case is the data center that cannot hand its data to someone else. Air-gapped
+networks, data sovereignty mandates, and regulated environments are the common reasons teams
+end up here, and they are the reasons the whole installation is designed to work with no
+outbound dependency at runtime. That covers developers and site reliability engineers who
+would happily use a managed database but cannot, for compliance, sovereignty, or cost reasons.
+
+The third case is simply not wanting to build the operational layer. High availability,
+point-in-time recovery, and monitoring are all solvable with open source tooling, and many
+teams solve them well. If yours would rather not, that work is what the console does.
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Key differentiators"
+    description="How TimescaleDB Enterprise compares to running TimescaleDB yourself, and when to choose each."
+    href="/learn/enterprise/enterprise-exclusive-features"
+  />
+  <RelatedContentCard
+    title="Feature comparison"
+    description="Compare TimescaleDB Enterprise, self-hosted, and fully managed options side by side."
+    href="/learn/capabilities-and-comparison/feature-comparison"
+  />
+  <RelatedContentCard
+    title="Install and deploy"
+    description="Set up the console, enroll servers, and create your first cluster."
+    href="https://tsdbe-docs.vercel.app/"
+  />
+</RelatedContentCards>
