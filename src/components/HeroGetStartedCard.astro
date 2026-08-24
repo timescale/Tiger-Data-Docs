@@ -11,8 +11,8 @@ import timescaledbBg from '../assets/images/hero-local/timescaledb-bg.png';
 import timescaledbBgDark from '../assets/images/hero-local/timescaledb-bg-dark.png';
 
 export interface Props {
-  /** "cloud" = lavender card (Get started with Cloud), "local" = cream card (Install locally). */
-  variant: "cloud" | "local";
+  /** "cloud" = lavender card, "local" = cream card, "enterprise" = tinted card (no illustration yet). */
+  variant: "cloud" | "local" | "enterprise";
   /** Card heading (e.g. "Get started with Cloud"). */
   title: string;
   /** Short description under the title. */
@@ -24,32 +24,46 @@ export interface Props {
 }
 
 const { variant, title, description, ctaText, href } = Astro.props;
-const variantClass = variant === "cloud" ? "splash-hero-card--cloud" : "splash-hero-card--local";
+const variantClass =
+  variant === "cloud"
+    ? "splash-hero-card--cloud"
+    : variant === "local"
+      ? "splash-hero-card--local"
+      : "splash-hero-card--enterprise";
+// The enterprise variant has no illustration artwork yet; it falls back to a solid tint + noise.
+const hasIllustration = variant === "cloud" || variant === "local";
 const bgImage = variant === "cloud" ? cloudBg : timescaledbBg;
 const bgImageDark = variant === "cloud" ? cloudBgDark : timescaledbBgDark;
+const isExternal = href.startsWith("http");
 ---
 
 <a
   class={`splash-hero-card ${variantClass}`}
   href={href}
+  target={isExternal ? "_blank" : undefined}
+  rel={isExternal ? "noopener noreferrer" : undefined}
 >
   <div class="splash-hero-card__bg" aria-hidden="true" />
-  <Image
-    class="splash-hero-card__bg-img splash-hero-card__bg-img--light"
-    src={bgImage}
-    alt=""
-    width={1932}
-    height={900}
-    aria-hidden="true"
-  />
-  <Image
-    class="splash-hero-card__bg-img splash-hero-card__bg-img--dark"
-    src={bgImageDark}
-    alt=""
-    width={1932}
-    height={900}
-    aria-hidden="true"
-  />
+  {hasIllustration && (
+    <Fragment>
+      <Image
+        class="splash-hero-card__bg-img splash-hero-card__bg-img--light"
+        src={bgImage}
+        alt=""
+        width={1932}
+        height={900}
+        aria-hidden="true"
+      />
+      <Image
+        class="splash-hero-card__bg-img splash-hero-card__bg-img--dark"
+        src={bgImageDark}
+        alt=""
+        width={1932}
+        height={900}
+        aria-hidden="true"
+      />
+    </Fragment>
+  )}
   <div class="splash-hero-card__inner">
     <div class="splash-hero-card__content">
       <h2 class="splash-hero-card__title">{title}</h2>

@@ -81,6 +81,41 @@ const SECTION_DROPDOWN_EXPAND: Record<string, Set<string>> = {
   Reference: new Set<string>(["Tiger Cloud"]),
 };
 
+/**
+ * Dropdown-only entries with no left-sidebar counterpart at all, keyed by tab label.
+ * TimescaleDB Enterprise docs live externally (not in this repo), so the header
+ * dropdown links straight out rather than pointing at a page here.
+ */
+const EXTRA_DROPDOWN_ENTRIES: Record<string, { label: string; href: string; beforeLabel: string }[]> = {
+  "Get started": [
+    { label: "TimescaleDB Enterprise", href: "https://tsdbe-docs.vercel.app/", beforeLabel: "Self-hosted TimescaleDB" },
+  ],
+  Deploy: [
+    { label: "TimescaleDB Enterprise", href: "https://tsdbe-docs.vercel.app/", beforeLabel: "Self-hosted TimescaleDB" },
+  ],
+  Reference: [
+    { label: "TimescaleDB Enterprise", href: "https://tsdbe-docs.vercel.app/api#description/introduction", beforeLabel: "Tiger CLI" },
+  ],
+};
+
+/** Splice `EXTRA_DROPDOWN_ENTRIES` for this tab into the tree, before their configured sibling (or at the end). */
+function injectExtraDropdownEntries(nodes: NavTreeNode[], tabLabel: string): NavTreeNode[] {
+  const extras = EXTRA_DROPDOWN_ENTRIES[tabLabel];
+  if (!extras) return nodes;
+
+  const out = [...nodes];
+  for (const extra of extras) {
+    const node: NavTreeNode = { kind: "link", label: extra.label, href: extra.href, description: "" };
+    const index = out.findIndex((n) => n.label.trim() === extra.beforeLabel);
+    if (index === -1) {
+      out.push(node);
+    } else {
+      out.splice(index, 0, node);
+    }
+  }
+  return out;
+}
+
 const BASE_PREFIX = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 /**
@@ -283,7 +318,8 @@ const dropdownTreeByTab = new Map<string, NavTreeNode[]>();
 for (const item of navItems) {
   const sidebar = item.sidebar;
   if (Array.isArray(sidebar) && sidebar.length > 0) {
-    dropdownTreeByTab.set(item.label, getNavTreeForSidebar(sidebar, item.link, item.label));
+    const tree = getNavTreeForSidebar(sidebar, item.link, item.label);
+    dropdownTreeByTab.set(item.label, injectExtraDropdownEntries(tree, item.label));
   }
 }
 ---
