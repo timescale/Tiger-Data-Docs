@@ -371,8 +371,6 @@ To set up data tiering:
 
      <ThemeImage light={imgEnableTieredStorageLight} dark={imgEnableTieredStorageDark} alt="Enable tiered storage" />
 
- 1. In the confirmation dialog, click `Let's go!`.
-
      When tiered storage is enabled, you see the amount of data in the tiered object storage.
 </NumberedItem>
 <NumberedItem title="Set the time interval when data is tiered">
@@ -434,27 +432,45 @@ high-availability configuration, all of which are service-level changes.
 
 **Steps**:
 1. select the service
-2. run the SQL from step 1
-3. run the SQL from step 2
-4. run the SQL from step 3
-5. run the SQL from step 7
-6. run the SQL from step 8
-7. run the SQL from step 9
-8. run the SQL from step 10
+2. run SQL:
+     CREATE TABLE crypto_ticks ("time" TIMESTAMPTZ, symbol TEXT, price DOUBLE PRECISION,
+     day_volume NUMERIC) WITH (tsdb.hypertable, tsdb.segmentby = 'symbol');
+3. run SQL:
+     CREATE TABLE crypto_assets (symbol TEXT NOT NULL, name TEXT NOT NULL);
+4. run SQL: SET timescaledb.enable_direct_compress_insert = on;
+5. run SQL: SELECT * FROM crypto_ticks ORDER BY time DESC LIMIT 10;
+6. run SQL:
+     CREATE MATERIALIZED VIEW assets_candlestick_daily WITH (timescaledb.continuous) AS
+     SELECT time_bucket('1 day', "time") AS day, symbol, max(price) AS high,
+     first(price, time) AS open, last(price, time) AS close, min(price) AS low
+     FROM crypto_ticks srt GROUP BY day, symbol;
+7. run SQL:
+     SELECT add_continuous_aggregate_policy('assets_candlestick_daily',
+     start_offset => INTERVAL '3 weeks', end_offset => INTERVAL '24 hours',
+     schedule_interval => INTERVAL '3 hours');
+8. run SQL: SELECT * FROM assets_candlestick_daily ORDER BY day DESC, symbol LIMIT 10;
 9. click `Explorer` > `Data Tiering`
 10. click `Enable tiered storage`
 11. click `Let's go!`
-12. run the SQL from step 12
-13. run the SQL from step 13
-14. run the SQL from step 14
-15. run the SQL from step 15
-16. click `Operations` > `High availability`
-17. click `Change configuration`
-18. click `Change config`
+12. run SQL: SELECT add_tiering_policy('assets_candlestick_daily', INTERVAL '3 weeks');
+13. run SQL: set timescaledb.enable_tiered_reads = true;
+14. run SQL: SELECT * FROM crypto_ticks srt LIMIT 10;
+15. run SQL: set timescaledb.enable_tiered_reads = false;
+16. click `SQL Editor`
+17. go to /overview
+18. click `Operations` > `High availability`
+19. expect url /operations
+20. choose an unselected option
+21. click `Change configuration`
+22. click `Change config`
 
 **Assert**: `crypto_ticks` is a hypertable, `assets_candlestick_daily` exists with a refresh policy
 and a tiering policy, tiered reads can be turned on and off, and the service reports the newly
 chosen high-availability configuration.
+
+Step 16 collapses the SQL Editor panel, which the {C.CONSOLE} keeps expanded across navigation once
+a step has used it. Left open it covers the lower half of the high-availability form, so the submit
+control cannot be reached. Nothing a reader needs to be told, and everything the walker does.
 
 Not scripted, and why:
 
