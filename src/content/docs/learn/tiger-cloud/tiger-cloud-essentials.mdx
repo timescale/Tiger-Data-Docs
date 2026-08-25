@@ -23,6 +23,7 @@ import HypercoreDirectCompress from "../../../../partials/_hypercore-direct-comp
 
 import CreateHypertablePolicyNote from "../../../../partials/_create-hypertable-columnstore-policy-note.mdx";
 import HASetup from "../../../../partials/_high-availability-setup.mdx";
+import TestPlan from "@components/TestPlan.astro";
 import SupportPlans from "../../../../partials/_support-plans.mdx";
 
 import ThemeImage from "@components/ThemeImage.astro";
@@ -422,3 +423,50 @@ For more information, see [{C.HA_REPLICA_CAP}](/deploy/tiger-cloud/tiger-cloud-a
 What next? See [Build](/build) for more advanced tutorials, interact with the data in your {C.SERVICE_LONG} using
 [your favorite programming language](/integrate/code/connect-your-app), integrate your {C.SERVICE_LONG} with a range of
 [third-party tools](/integrate), [build with {C.COMPANY} products](/build), or dive into [the API reference](/reference).
+
+
+<TestPlan>
+
+**Isolation**: fork. The run creates tables and a {C.CAGG}, turns on tiered storage, and changes the
+high-availability configuration, all of which are service-level changes.
+
+**Steps**:
+1. select the service
+2. run the SQL from step 1
+3. run the SQL from step 2
+4. run the SQL from step 3
+5. run the SQL from step 7
+6. run the SQL from step 8
+7. run the SQL from step 9
+8. run the SQL from step 10
+9. click `Explorer` > `Data Tiering`
+10. click `Enable tiered storage`
+11. run the SQL from step 12
+12. run the SQL from step 13
+13. run the SQL from step 14
+14. run the SQL from step 15
+15. click `Operations` > `High availability`
+16. click `Change configuration`
+17. click `Change config`
+
+**Assert**: `crypto_ticks` is a hypertable, `assets_candlestick_daily` exists with a refresh policy
+and a tiering policy, tiered reads can be turned on and off, and the service reports the newly
+chosen high-availability configuration.
+
+Not scripted, and why:
+
+- The `Tiger Console` route for uploading the CSVs. The upload target is a drag-and-drop zone with
+  no label, so it needs a `[resolve: dropzone]` handler that does not exist yet.
+- The two `\COPY` statements. They read CSV files the reader downloads and unzips locally; nothing
+  fetches them for the run, so the statements would fail on a missing file rather than on anything
+  the page got wrong.
+- `ALTER TABLE metrics SET (timescaledb.direct_compress)`. It comes from an explanatory partial
+  embedded in the ingestion step and names a table this page never creates, so running it proves
+  nothing. Worth fixing in the page rather than working around here.
+- The `{C.DATA_MODE}` route. It is PopSQL in a cross-origin iframe, which the walker cannot drive.
+  Its SQL is exercised through the steps above instead, so only the route goes untested.
+- The `{C.CAGG_CAP} wizard` route. The Console wizard was redesigned and the page still describes
+  the old one, so a script written now would encode instructions that are already wrong. It gets
+  steps once that section is rewritten.
+
+</TestPlan>
