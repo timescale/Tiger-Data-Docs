@@ -17,16 +17,16 @@ Most RAG (retrieval-augmented generation) stacks today are a collection of separ
 There's a better way. {C.PG} has everything you need for a production-grade RAG retrieval layer built in:
 
 - **BM25 full-text search** via `pg_textsearch`
-- **Vector similarity via HNSW** via `pgvector`
+- **Vector similarity via Hierarchical Navigable Small World (HNSW)** via `pgvector`
 - **Hierarchical paths** via `ltree`
 - **Geospatial indexes** via PostGIS
-- **JSONB metadata filters** with GIN indexes
+- **JSONB metadata filters** with Generalized Inverted Index (GIN) indexes
 - **A transactional job queue** for async embedding generation
 - **A real job queue** that survives crashes and rate limits
 
-In this tutorial, you'll design a single `documents` table that powers seven composable search modes, async embedding generation, and direct access from AI agents through MCP.
+In this tutorial, you'll design a single `documents` table that powers seven composable search modes, async embedding generation, and direct access from AI agents through the Model Context Protocol (MCP).
 
-**Why {C.CLOUD_LONG} for RAG?** {C.CLOUD_LONG} is the only managed {C.PG} provider that ships `pg_textsearch` (Tiger Data's BM25 extension) pre-installed. Other hosts rely on `tsvector`/`tsquery`, which works but delivers lower ranking quality. {C.CLOUD_LONG} also includes an MCP server purpose-built for AI agents, so your AI agent can provision services and inspect schemas without leaving the editor.
+**Why {C.CLOUD_LONG} for RAG?** {C.CLOUD_LONG} is the only managed {C.PG} provider that ships `pg_textsearch` ({C.COMPANY}'s BM25 extension) pre-installed. Other hosts rely on `tsvector`/`tsquery`, which works but delivers lower ranking quality. {C.CLOUD_LONG} also includes an MCP server purpose-built for AI agents, so your AI agent can provision services and inspect schemas without leaving the editor.
 
 **By the end of this tutorial, you'll be able to:**
 
@@ -36,13 +36,13 @@ In this tutorial, you'll design a single `documents` table that powers seven com
 - Compose search modes (BM25, semantic, hierarchical, geospatial, metadata, temporal) into ranked results
 - Expose search through an MCP server so AI agents can use it natively
 
-This tutorial is built using a [{C.CLOUD_LONG} service](/get-started/quickstart/create-service) running {C.PG} 18+ (all required extensions pre-installed, no setup needed), but you could alternatively use a self-hosted {C.TIMESCALE_DB} instance, or a self-hosted {C.PG} instance with the `vector`, `ltree`, `postgis`, and `pg_textsearch` extensions installed.
+This tutorial is built using a [{C.CLOUD_LONG} service](/get-started/quickstart/create-service) running {C.PG} 18+ (all required extensions pre-installed, no setup needed), but you could alternatively use a {C.SELF_SHORT} {C.TIMESCALE_DB} instance or a {C.SELF_SHORT} {C.PG} instance with the `vector`, `ltree`, `postgis`, and `pg_textsearch` extensions installed.
 
 <Prerequisites context="tutorial">
 
 **Database:**
 - [{C.CLOUD_LONG}](/get-started/quickstart/create-service) running {C.PG} 18+ (recommended), OR
-- Self-hosted {C.TIMESCALE_DB}/{C.PG} 16+ with extensions: `vector`, `ltree`, `postgis`, `pg_textsearch`
+- {C.SELF_SHORT_CAP} {C.TIMESCALE_DB}/{C.PG} 16+ with extensions: `vector`, `ltree`, `postgis`, `pg_textsearch`
 
 **Client tools:**
 - A SQL client: `psql`, pgAdmin, or the {C.CLOUD_LONG} Console SQL Editor
@@ -106,10 +106,10 @@ Make sure you're following good dev hygiene: ensure your `.env` file is listed i
 <NumberedItem title="Create a service">
 
 1. Log in or create an account at [https://console.cloud.tigerdata.com/login](https://console.cloud.tigerdata.com/login)
-2. Click **New Service**
+2. Click `New Service`
 3. Choose {C.PG} 18+ (or newer)
 4. Pick your region and scale (the free tier is sufficient for this tutorial)
-5. Click **Create**
+5. Click `Create`
 
 </NumberedItem>
 
@@ -187,7 +187,7 @@ A few design decisions worth understanding:
 
 - **`id` is `uuidv7`.** The first 48 bits encode a Unix millisecond timestamp, so lexicographic order is creation order. `order by id desc` gives newest-first *and* a deterministic tiebreak when BM25 scores tie (they tie constantly on structured data).
 - **`embedding` is `halfvec(1536)`.** 16-bit floats instead of 32-bit — half the storage, same recall for `text-embedding-3-small`. Always prefer it.
-- **`embedding` is nullable.** Writes don't block on calling OpenAI. The worker fills it in asynchronously (Step 3). This single decision is the difference between "my inserts take 5ms" and "my inserts take 500ms."
+- **`embedding` is nullable.** Writes don't block on calling OpenAI. The worker fills it in asynchronously (Step 3). This single decision is the difference between "my inserts take 5&nbsp;ms" and "my inserts take 500&nbsp;ms."
 - **`embedding_version` enforces correctness.** When content changes, this increments. The worker only writes back if the version still matches — otherwise it clobbers a fresh row with a stale vector. Race condition immunity in one column.
 - **`tree` (ltree) instead of `parent_id`.** Path queries (`work.projects.acme.notes <@ work.projects`) are O(log n) with GiST and don't need recursive CTEs.
 - **`temporal` (tstzrange) is optional.** Point-in-time events `[t,t]`, bounded ranges `[start,end)`, and open-ended still-active ranges `[start,'infinity')` live in the same column with the same operators.
@@ -262,7 +262,7 @@ create index embedding_queue_document_idx
   where outcome is null;
 ```
 
-The `vt` (visibility timestamp) is the key mechanism: rows are invisible to workers until `vt <= now()`. When a worker claims a batch, it pushes `vt` forward; if the worker crashes, the row becomes visible again. Multiple workers can pull from the same queue without conflicts or job loss — the same pattern AWS SQS uses.
+The `vt` (visibility timestamp) is the key mechanism: rows are invisible to workers until `vt <= now()`. When a worker claims a batch, it pushes `vt` forward; if the worker crashes, the row becomes visible again. Multiple workers can pull from the same queue without conflicts or job loss (the same pattern AWS Simple Queue Service (SQS) uses).
 
 
 ```sql
@@ -396,7 +396,7 @@ The `claim_embedding_batch` function is the core of the queue. The `FOR UPDATE S
 
 ## Step 3b: Load sample data
 
-Now that the schema, indexes, and embedding queue are in place, you can load sample data. The repository includes a pre-built loader that ingests NYC 311 Service Requests (1000 rows of structured complaint data with geographic and temporal metadata). This gives you realistic data to test all search modes without writing custom transformation logic.
+Now that the schema, indexes, and embedding queue are in place, you can load sample data. The repository includes a pre-built loader that ingests New York City (NYC) 311 Service Requests (1000 rows of structured complaint data with geographic and temporal metadata). This gives you realistic data to test all search modes without writing custom transformation logic.
 
 The loader demonstrates the core pattern you'll use for your own data: transform rows into column arrays, then use Postgres's `unnest(typed[]...)` to batch-insert in a single roundtrip.
 
@@ -454,9 +454,9 @@ After running `npm run load`, your documents are in the database but **not yet s
 1. `npm run load` → documents enter the database, jobs enqueued
 2. `npm run worker` (Step 4) → polls the queue, calls OpenAI, writes vectors back
 3. Once the worker finishes (all `outcome=completed`), semantic search is ready
-4. New documents automatically enqueue themselves via triggers—no setup needed
+4. New documents automatically enqueue themselves via triggers (no setup needed)
 
-**Checking progress:** If you search now, semantic search returns nothing—the embeddings aren't ready yet. Monitor with: `SELECT COUNT(*) FROM documents WHERE embedding IS NOT NULL;` and return when that count reaches 1000.
+**Checking progress:** If you search now, semantic search returns nothing (the embeddings aren't ready yet). Monitor with: `SELECT COUNT(*) FROM documents WHERE embedding IS NOT NULL;` and return when that count reaches 1000.
 
 </Callout>
 
@@ -954,7 +954,7 @@ Claude will call `documents_search` with the right parameters automatically, and
 
 #### Error: type "halfvec" does not exist or undefined operator
 
-**Cause:** `pgvector` extension not installed, or Postgres version < 16.
+**Cause:** `pgvector` extension not installed, or {C.PG} version < 16.
 
 **Solution:**
 - Verify the extension is installed: `SELECT * FROM pg_extension WHERE extname='vector';`
@@ -979,7 +979,7 @@ Claude will call `documents_search` with the right parameters automatically, and
 **Solution:**
 - Check queue status: `SELECT outcome, COUNT(*) FROM embedding_queue GROUP BY outcome;`
   - You should see some `completed`, some `null` (still processing)
-- Wait 5-10 minutes for the worker to churn through batches (OpenAI takes ~100ms per embedding)
+- Wait 5-10 minutes for the worker to churn through batches (OpenAI takes ~100&nbsp;ms per embedding)
 - Count finished embeddings: `SELECT COUNT(*) FROM documents WHERE embedding IS NOT NULL;`
   - This number should grow over time. If it doesn't change for 5 minutes, your worker might be crashed
 - Once you see `embedding IS NOT NULL` hitting 1000 rows, try semantic search again
@@ -1073,7 +1073,7 @@ You now have a production-ready RAG retrieval layer in a single {C.PG} table —
 
 ### Scaling beyond 1M documents
 
-For large datasets (>1B rows), consider:
+For large datasets (>1&nbsp;B rows), consider:
 
 - **Partitioning** by `tree` or by hash of `id` to keep index sizes manageable
 - **Sharding** across multiple {C.PG} instances with routing by document category
