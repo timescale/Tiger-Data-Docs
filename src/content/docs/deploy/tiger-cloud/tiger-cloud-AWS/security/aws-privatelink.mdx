@@ -19,14 +19,12 @@ import imgAwsPrivateEndpointServiceSettingsLight from "../../../../../../assets/
 import imgAwsPrivateEndpointServiceSettingsDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-service-settings-dark.png";
 import imgAwsPrivateEndpointVpceIdLight from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-vpce-id.png";
 import imgAwsPrivateEndpointVpceIdDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-vpce-id-dark.png";
-import imgAwsPrivateEndpointNetworkInterfaceLight from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-network-interface.png";
-import imgAwsPrivateEndpointNetworkInterfaceDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-network-interface-dark.png";
 import imgClaimPrivateEndpointLight from "../../../../../../assets/images/deploy/tiger-cloud/claim-private-endpoint-tiger-console.png";
 import imgClaimPrivateEndpointDark from "../../../../../../assets/images/deploy/tiger-cloud/claim-private-endpoint-tiger-console-dark.png";
-import imgPrivateEndpointAttachedLight from "../../../../../../assets/images/deploy/tiger-cloud/private-endpoint-attached-tiger-console.png";
-import imgPrivateEndpointAttachedDark from "../../../../../../assets/images/deploy/tiger-cloud/private-endpoint-attached-tiger-console-dark.png";
 
-With {C.CLOUD_LONG}, you can connect your {C.SERVICE_SHORT}s to AWS PrivateLink endpoints. A private endpoint in your {C.VPC} routes traffic to your {C.SERVICE_SHORT} over the AWS backbone, without crossing the public internet or requiring {C.VPC} peering. This page describes how to create a private endpoint on the AWS side, claim it in {C.CONSOLE_LONG}, and attach a {C.SERVICE_SHORT} to it.
+With {C.CLOUD_LONG}, you can connect your {C.SERVICE_SHORT}s to AWS PrivateLink endpoints. A private endpoint in your {C.VPC} routes traffic to your {C.SERVICE_SHORT} over the AWS backbone, without crossing the public internet or requiring {C.VPC} peering. This page describes how to create a private endpoint on the AWS side, claim it in {C.CONSOLE_LONG}, attach a {C.SERVICE_SHORT} to it, and publish the {C.SERVICE_SHORT} hostname in your own private DNS zone.
+
+You control DNS resolution for your {C.SERVICE_SHORT} over PrivateLink. In a private hosted zone attached to your {C.VPC}, you point the standard {C.SERVICE_SHORT} hostname at your VPC endpoint. Because you publish the same hostname that the public internet path uses, your connection strings, and the {C.SERVICE_SHORT} certificate, work unchanged.
 
 <Prerequisites context="procedure">
 <PrereqsCloud />
@@ -68,9 +66,13 @@ Take the following steps to connect your {C.SERVICE_LONG} to a PrivateLink endpo
 
    <ThemeImage light={imgAwsPrivateEndpointVpceIdLight} dark={imgAwsPrivateEndpointVpceIdDark} alt="The VPC endpoint ID of a new AWS endpoint" />
 
-1. Go to `EC2` > `Network interfaces` and copy the primary private IPv4 address of your endpoint:
+1. On your endpoint's detail page, copy the **regional** DNS name. It looks like `vpce-<id>-<hash>.vpce-svc-<id>.<region>.vpce.amazonaws.com`. You point your DNS records at this name.
 
-   <ThemeImage light={imgAwsPrivateEndpointNetworkInterfaceLight} dark={imgAwsPrivateEndpointNetworkInterfaceDark} alt="The primary private IPv4 address of an AWS network interface" />
+   <Callout variant="important">
+
+   Use the regional DNS name, not a zonal name and not an IP address. An interface VPC endpoint has one network interface per Availability Zone. The regional name resolves across all healthy interfaces, so traffic fails over if an Availability Zone becomes unavailable. A zonal name or a hardcoded IP pins your traffic to a single Availability Zone and fails with it.
+
+   </Callout>
 
 </NumberedItem>
 
@@ -91,14 +93,65 @@ Take the following steps to connect your {C.SERVICE_LONG} to a PrivateLink endpo
 
 </NumberedItem>
 
-<NumberedItem title="Configure and attach">
+<NumberedItem title="Attach a service">
 
-1. Under `IP Address` click `Add IP` and paste the private endpoint IP address you have copied from AWS.
-1. Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the dropdown and click `Attach`. You can attach a {C.SERVICE_SHORT} to one private endpoint.
+Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the dropdown and click `Attach`. You can attach a {C.SERVICE_SHORT} to one private endpoint.
 
-   <ThemeImage light={imgPrivateEndpointAttachedLight} dark={imgPrivateEndpointAttachedDark} alt="A private endpoint connection with an IP address and an attached service" />
+</NumberedItem>
 
-1. From an EC2 instance inside your VPC, connect to your {C.SERVICE_SHORT} using a connection string with your [connection details](/integrate/find-connection-details). You should be able to connect successfully.
+<NumberedItem title="Publish the service hostname in your private DNS">
+
+You resolve your {C.SERVICE_SHORT} hostname to your VPC endpoint in a private hosted zone that you control.
+
+1. In [Route 53](https://console.aws.amazon.com/route53/), create a [private hosted zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/hosted-zone-private-creating.html) for `<project-id>.tsdb.cloud.timescale.com`, and associate it with the {C.VPC} that contains your resources. If you already have a private hosted zone for this domain, use it.
+1. In that zone, create a record for your {C.SERVICE_SHORT} hostname, `<service-id>.<project-id>.tsdb.cloud.timescale.com`, that resolves to the regional DNS name of your VPC endpoint. Use either a `CNAME` record, or an `A` record with `Alias` enabled and your VPC endpoint as the target.
+1. If you use a read replica, add a second record for `<service-id>-repl.<project-id>.tsdb.cloud.timescale.com` pointing at the same regional DNS name. The connection pooler uses the same hostname as the primary, so it needs no extra record.
+
+   Find your {C.SERVICE_SHORT} ID and {C.PROJECT_SHORT} ID in your [connection details](/integrate/find-connection-details).
+
+<Callout variant="note">
+
+You publish the standard {C.SERVICE_SHORT} hostname, the same one used over the public internet. This means your existing connection strings work unchanged, and the {C.SERVICE_SHORT} certificate already covers the name, so `sslmode=verify-full` keeps working with no certificate changes. A `CNAME` or alias record is invisible to TLS, which is why Availability Zone failover and full certificate verification work together.
+
+</Callout>
+
+</NumberedItem>
+
+<NumberedItem title="Test the connection">
+
+From an EC2 instance inside your VPC, connect to your {C.SERVICE_SHORT} using a connection string with your [connection details](/integrate/find-connection-details). You should be able to connect successfully.
+
+<Callout variant="warning">
+
+Ports are specific to each endpoint, and are not `5432`. Your primary and your read replica listen on different ports. Always use the port shown for that endpoint in your [connection details](/integrate/find-connection-details).
+
+</Callout>
+
+</NumberedItem>
+
+</NumberedList>
+
+## Migrate from a configured IP address
+
+Previously, you configured a private endpoint by adding the endpoint IP address in {C.CONSOLE_LONG}, and {C.CLOUD_LONG} published the DNS records for you. That flow is retired. If your connection still has an IP address configured, move it to your own private DNS.
+
+<NumberedList>
+
+<NumberedItem title="Publish the hostname in your own zone">
+
+Create the records described in [Publish the service hostname in your private DNS](#set-up-a-private-endpoint-connection), then confirm from inside your {C.VPC} that your {C.SERVICE_SHORT} hostname resolves to your VPC endpoint and that you can connect.
+
+</NumberedItem>
+
+<NumberedItem title={`Remove the IP address in ${C.CONSOLE_LONG}`}>
+
+In `Security` > `Private Endpoints`, remove the IP address from your connection. This deletes the DNS records that {C.CLOUD_LONG} published and hands resolution to your zone.
+
+<Callout variant="warning">
+
+Removing the IP address is one way. Your own zone must already resolve the {C.SERVICE_SHORT} hostname before you remove it, otherwise connections fail until you finish setting up your DNS.
+
+</Callout>
 
 </NumberedItem>
 

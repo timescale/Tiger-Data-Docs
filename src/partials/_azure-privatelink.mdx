@@ -13,8 +13,6 @@ import imgManagePrivateEndpointsLight from "../assets/images/deploy/tiger-cloud/
 import imgManagePrivateEndpointsDark from "../assets/images/deploy/tiger-cloud/manage-private-endpoints-tiger-console-dark.png";
 import imgClaimPrivateEndpointLight from "../assets/images/deploy/tiger-cloud/claim-private-endpoint-tiger-console-azure.png";
 import imgClaimPrivateEndpointDark from "../assets/images/deploy/tiger-cloud/claim-private-endpoint-tiger-console-azure-dark.png";
-import imgPrivateEndpointAttachedLight from "../assets/images/deploy/tiger-cloud/private-endpoint-attached-tiger-console-azure.png";
-import imgPrivateEndpointAttachedDark from "../assets/images/deploy/tiger-cloud/private-endpoint-attached-tiger-console-azure-dark.png";
 
 <Prerequisites context="procedure">
 <PrereqsCloud />
@@ -84,14 +82,65 @@ Take the following steps to connect your {C.SERVICE_LONG} to a Private Link endp
 
 </NumberedItem>
 
-<NumberedItem title="Configure and attach">
+<NumberedItem title="Attach a service">
 
-1. Under `IP Address` click `Add IP` and paste the private endpoint IP address you have copied from Azure Portal.
-1. Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the dropdown and click `Attach`. You can attach a {C.SERVICE_SHORT} to one private endpoint.
+Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the dropdown and click `Attach`. You can attach a {C.SERVICE_SHORT} to one private endpoint.
 
-   <ThemeImage light={imgPrivateEndpointAttachedLight} dark={imgPrivateEndpointAttachedDark} alt="A private endpoint connection with an IP address and an attached service" />
+</NumberedItem>
 
-1. From a VM inside your Azure VNet, connect to your {C.SERVICE_SHORT} using a connection string with your [connection details](/integrate/find-connection-details). You should be able to connect successfully.
+<NumberedItem title="Publish the service hostname in your private DNS">
+
+You resolve your {C.SERVICE_SHORT} hostname to your private endpoint in a private DNS zone that you control.
+
+1. In [Azure Portal](https://azure.microsoft.com/en-us/get-started/azure-portal), create a [private DNS zone](https://learn.microsoft.com/en-us/azure/dns/private-dns-getstarted-portal) named `<project-id>.tsdb.cloud.timescale.com`, then add a [virtual network link](https://learn.microsoft.com/en-us/azure/dns/private-dns-virtual-network-links) to the Virtual Network that contains your resources. If you already have a private DNS zone for this domain, use it.
+1. In that zone, create an `A` record for your {C.SERVICE_SHORT} hostname, `<service-id>.<project-id>.tsdb.cloud.timescale.com`, that resolves to the private endpoint IP you copied from Azure Portal. An Azure private endpoint has a single IP address, so an `A` record is correct here.
+1. If you use a read replica, add a second `A` record for `<service-id>-repl.<project-id>.tsdb.cloud.timescale.com` pointing at the same IP. The connection pooler uses the same hostname as the primary, so it needs no extra record.
+
+   Find your {C.SERVICE_SHORT} ID and {C.PROJECT_SHORT} ID in your [connection details](/integrate/find-connection-details).
+
+<Callout variant="note">
+
+You publish the standard {C.SERVICE_SHORT} hostname, the same one used over the public internet. This means your existing connection strings work unchanged, and the {C.SERVICE_SHORT} certificate already covers the name, so `sslmode=verify-full` keeps working with no certificate changes.
+
+</Callout>
+
+</NumberedItem>
+
+<NumberedItem title="Test the connection">
+
+From a VM inside your Azure VNet, connect to your {C.SERVICE_SHORT} using a connection string with your [connection details](/integrate/find-connection-details). You should be able to connect successfully.
+
+<Callout variant="warning">
+
+Ports are specific to each endpoint, and are not `5432`. Your primary and your read replica listen on different ports. Always use the port shown for that endpoint in your [connection details](/integrate/find-connection-details).
+
+</Callout>
+
+</NumberedItem>
+
+</NumberedList>
+
+## Migrate from a configured IP address
+
+Previously, you configured a private endpoint by adding the endpoint IP address in {C.CONSOLE_LONG}, and {C.CLOUD_LONG} published the DNS records for you. That flow is retired. If your connection still has an IP address configured, move it to your own private DNS.
+
+<NumberedList>
+
+<NumberedItem title="Publish the hostname in your own zone">
+
+Create the records described in [Publish the service hostname in your private DNS](#set-up-a-private-endpoint-connection), then confirm from inside your Virtual Network that your {C.SERVICE_SHORT} hostname resolves to your private endpoint and that you can connect.
+
+</NumberedItem>
+
+<NumberedItem title={`Remove the IP address in ${C.CONSOLE_LONG}`}>
+
+In `Security` > `Private Endpoints`, remove the IP address from your connection. This deletes the DNS records that {C.CLOUD_LONG} published and hands resolution to your zone.
+
+<Callout variant="warning">
+
+Removing the IP address is one way. Your own zone must already resolve the {C.SERVICE_SHORT} hostname before you remove it, otherwise connections fail until you finish setting up your DNS.
+
+</Callout>
 
 </NumberedItem>
 
