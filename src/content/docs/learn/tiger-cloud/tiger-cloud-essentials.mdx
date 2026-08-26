@@ -512,13 +512,34 @@ dataset the page tells the reader to unzip. The files are removed when the run e
 47. choose an unselected option
 48. click `Change configuration`
 49. click `Change config`
+50. run SQL: DROP MATERIALIZED VIEW assets_candlestick_daily;
+51. expect no rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+52. click `Explorer` > `Continuous Aggregates`
+53. click `Hypertables`
+54. click `Create a Continuous Aggregate`
+55. type `assets_candlestick_daily` into `View name`
+56. click `Continue`
+57. click `1 day`
+58. click `Run and proceed`
+59. click `3 weeks`
+60. click `24 hours`
+61. click `3 hours`
+62. click `Continue`
+63. click `Run and proceed`
+64. click `Close`
+65. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
 
 **Notes**: both documented routes into the data are walked, on the real files and the real table
 names. Steps 2 to 14 take the `psql` route and then drop what it created: the two routes are
 alternatives that build the same tables, so the first has to be undone before the second can be
-tested as written. Steps 15 to 29 take the {C.CONSOLE} route, including the `Hypertable partition`
+tested as written. Steps 15 to 29 take the {C.CONSOLE} upload route, including the `Hypertable partition`
 toggle, which is the point of that route and only appears for a time column; the data it leaves
 behind is what the sections after it use.
+
+Steps 50 to 65 walk the {C.CAGG_CAP} wizard, which is scriptable now that the page describes the
+redesigned Console. It runs last and drops the {C.CAGG} the SQL route already created, because the
+two build the same object: step 51 proves it is gone before the wizard rebuilds it, and step 65 that
+the wizard did.
 
 Assertions are steps, not a separate section. `run SQL:` only fails when a statement errors, so a
 `SELECT` over an empty table passes — without steps 9 to 11 and 30 to 32 this plan could walk an
@@ -529,10 +550,6 @@ Deliberately unscripted:
 - `ALTER TABLE metrics SET (timescaledb.direct_compress)`. It comes from an explanatory partial
   embedded in the ingestion step and names a table this page never creates, so running it proves
   nothing. Worth fixing in the page rather than working around here.
-- The {C.DATA_MODE} route. It is PopSQL in a cross-origin iframe, which the walker cannot drive. Its
-  SQL is exercised through the steps above, so only the route goes untested.
-- The {C.CAGG_CAP} wizard route. The Console wizard was redesigned and the page still describes the
-  old one, so a script written now would encode instructions already known to be wrong. It gets steps
-  once that section is rewritten.
+- The {C.DATA_MODE} route's own steps. Its SQL is exercised above, so only the route goes untested.
 
 </TestPlan>
