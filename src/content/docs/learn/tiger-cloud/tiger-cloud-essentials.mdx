@@ -294,17 +294,32 @@ This section shows you how to run fast analytical queries using {C.TIME_BUCKET}s
 <TabItem label={`${C.CAGG_CAP} wizard`}>
 
 <NumberedList>
-  <NumberedItem title={`In ${C.CONSOLE}, select the ${C.SERVICE_SHORT} you uploaded data to`}></NumberedItem>
 
-<NumberedItem title="Click `Explorer` > `Continuous Aggregates` > `Create a Continuous Aggregate` next to the `crypto_ticks` hypertable"></NumberedItem>
+<NumberedItem title={`In ${C.CONSOLE}, select the ${C.SERVICE_SHORT} you uploaded data to`}></NumberedItem>
 
-  <NumberedItem title="Create a view called `assets_candlestick_daily` on the `time` column with an interval of `1 day`, then click `Next step`">
+<NumberedItem title="Click `Explorer` > `Continuous Aggregates`, open the `Hypertables` tab, then click `Create a Continuous Aggregate` next to `crypto_ticks`">
+
+The `Hypertables` tab lists every {C.HYPERTABLE} in the {C.SERVICE_SHORT} with the number of
+{C.CAGG}s on it. The control only appears once the {C.SERVICE_SHORT} has a {C.HYPERTABLE}.
+
+</NumberedItem>
+
+<NumberedItem title="In `Configure the aggregate`, type `assets_candlestick_daily` in `View name`, then click `Continue`">
 
 <ThemeImage light={imgCaggWizardLight} dark={imgCaggWizardDark} alt="Continuous aggregate wizard" />
 
-  </NumberedItem>
+`Hypertable` and `Time column` are already set to `crypto_ticks` and `time`.
 
-  <NumberedItem title="Update the view SQL with the following functions, then click `Run`">
+</NumberedItem>
+
+<NumberedItem title="In `Review the view`, select a `Bucket interval` of `1 day`">
+
+`Bucket interval` sets how wide each aggregation bucket is. The wizard writes the matching
+`CREATE MATERIALIZED VIEW` statement below it, which you can edit before running.
+
+</NumberedItem>
+
+<NumberedItem title="Replace the statement with the following, then click `Run and proceed`">
 
 ````sql
 CREATE MATERIALIZED VIEW assets_candlestick_daily
@@ -320,23 +335,27 @@ FROM "public"."crypto_ticks" srt
 GROUP BY bucket, symbol;
 ````
 
-  </NumberedItem>
-
-<NumberedItem title="When the view is created, click `Next step`"></NumberedItem>
-
-<NumberedItem title="Define a refresh policy with the following values:">
-
-- `How far back do you want to materialize?`: `3 weeks`
-- `What recent data to exclude?`: `24 hours`
-- `How often do you want the job to run?`: `3 hours`
+The view is created empty. The refresh policy you set up next is what populates it.
 
 </NumberedItem>
 
-<NumberedItem title="Click `Next step`, then click `Run`">
+<NumberedItem title="In `Configure the refresh policy`, set the following values, then click `Continue`">
 
-{C.CLOUD_LONG} creates the {C.CAGG} and displays the aggregate ID in {C.CONSOLE}. Click `DONE` to close the wizard.
+- `Start offset`: `3 weeks`, how far back to materialize
+- `End offset`: `24 hours`, how recent to exclude
+- `Schedule interval`: `3 hours`, how often the refresh job runs
 
 </NumberedItem>
+
+<NumberedItem title="In `Review the refresh policy`, click `Run and proceed`">
+
+The wizard shows the `add_continuous_aggregate_policy` call it is about to run. Creating the policy
+triggers the first refresh, back as far as the `Start offset`.
+
+</NumberedItem>
+
+<NumberedItem title="Click `Close`"></NumberedItem>
+
 </NumberedList>
 
 </TabItem>
