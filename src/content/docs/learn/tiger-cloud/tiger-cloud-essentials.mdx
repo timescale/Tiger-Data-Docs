@@ -445,69 +445,75 @@ dataset the page tells the reader to unzip. The files are removed when the run e
 6. run SQL: \COPY crypto_ticks from './tutorial_sample_tick.csv' DELIMITER ',' CSV HEADER;
 7. run SQL: \COPY crypto_assets from './tutorial_sample_assets.csv' DELIMITER ',' CSV HEADER;
 8. run SQL: SELECT * FROM crypto_ticks ORDER BY time DESC LIMIT 10;
-9. run SQL: DROP TABLE crypto_ticks;
-10. run SQL: DROP TABLE crypto_assets;
-11. exit psql
-12. click `Actions` > `Import data`
-13. click `Upload your files`, then click `CSV`
-14. upload tutorial_sample_tick.csv
-15. type `crypto_ticks` into `Table`
-16. toggle `Hypertable partition` on
-17. click `Continue`
-18. click `Actions` > `Import data`
-19. click `Upload your files`, then click `CSV`
-20. upload tutorial_sample_assets.csv
-21. type `crypto_assets` into `Table`
-22. click `Continue`
-23. run SQL: SELECT * FROM crypto_ticks ORDER BY time DESC LIMIT 10;
-24. run SQL:
+9. expect rows: SELECT 1 FROM crypto_ticks LIMIT 1
+10. expect rows: SELECT 1 FROM crypto_assets LIMIT 1
+11. expect rows: SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'crypto_ticks'
+12. run SQL: DROP TABLE crypto_ticks;
+13. run SQL: DROP TABLE crypto_assets;
+14. exit psql
+15. click `Actions` > `Import data`
+16. click `Upload your files`, then click `CSV`
+17. upload tutorial_sample_tick.csv
+18. type `crypto_ticks` into `Table`
+19. toggle `Hypertable partition` on
+20. click `Continue`
+21. click `Run`
+22. click `Close`
+23. click `Actions` > `Import data`
+24. click `Upload your files`, then click `CSV`
+25. upload tutorial_sample_assets.csv
+26. type `crypto_assets` into `Table`
+27. click `Continue`
+28. click `Run`
+29. click `Close`
+30. expect rows: SELECT 1 FROM crypto_ticks LIMIT 1
+31. expect rows: SELECT 1 FROM crypto_assets LIMIT 1
+32. expect rows: SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'crypto_ticks'
+33. run SQL:
      CREATE MATERIALIZED VIEW assets_candlestick_daily WITH (timescaledb.continuous) AS
      SELECT time_bucket('1 day', "time") AS day, symbol, max(price) AS high,
      first(price, time) AS open, last(price, time) AS close, min(price) AS low
      FROM crypto_ticks srt GROUP BY day, symbol;
-25. run SQL:
+34. run SQL:
      SELECT add_continuous_aggregate_policy('assets_candlestick_daily',
      start_offset => INTERVAL '3 weeks', end_offset => INTERVAL '24 hours',
      schedule_interval => INTERVAL '3 hours');
-26. run SQL: SELECT * FROM assets_candlestick_daily ORDER BY day DESC, symbol LIMIT 10;
-27. click `Explorer` > `Data Tiering`
-28. click `Enable tiered storage`
-29. click `Let's go!`
-30. run SQL: SELECT add_tiering_policy('assets_candlestick_daily', INTERVAL '3 weeks');
-31. run SQL: set timescaledb.enable_tiered_reads = true;
-32. run SQL: SELECT * FROM crypto_ticks srt LIMIT 10;
-33. run SQL: set timescaledb.enable_tiered_reads = false;
-34. go to /overview
-35. click `Operations` > `High availability`
-36. expect url /operations
-37. choose an unselected option
-38. click `Change configuration`
-39. click `Change config`
+35. run SQL: SELECT * FROM assets_candlestick_daily ORDER BY day DESC, symbol LIMIT 10;
+36. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+37. click `Explorer` > `Data Tiering`
+38. click `Enable tiered storage`
+39. click `Let's go!`
+40. run SQL: SELECT add_tiering_policy('assets_candlestick_daily', INTERVAL '3 weeks');
+41. run SQL: set timescaledb.enable_tiered_reads = true;
+42. run SQL: SELECT * FROM crypto_ticks srt LIMIT 10;
+43. run SQL: set timescaledb.enable_tiered_reads = false;
+44. go to /overview
+45. click `Operations` > `High availability`
+46. expect url /operations
+47. choose an unselected option
+48. click `Change configuration`
+49. click `Change config`
 
-**Assert**: `crypto_ticks` is a hypertable, `assets_candlestick_daily` exists with a refresh policy
-and a tiering policy, tiered reads can be turned on and off, and the service reports the newly
-chosen high-availability configuration.
+**Notes**: both documented routes into the data are walked, on the real files and the real table
+names. Steps 2 to 14 take the `psql` route and then drop what it created: the two routes are
+alternatives that build the same tables, so the first has to be undone before the second can be
+tested as written. Steps 15 to 29 take the {C.CONSOLE} route, including the `Hypertable partition`
+toggle, which is the point of that route and only appears for a time column; the data it leaves
+behind is what the sections after it use.
 
-Steps 2 to 7 take the page's own `psql` route: the connection string it prints is the one from the
-config file the reader downloads, so the section's real claim is that those credentials work.
-Running the same SQL in the {C.SQL_EDITOR} would only prove the SQL is valid. Step 7 hands the
-following sections back to the editor, since the page documents no `psql` route for them.
+Assertions are steps, not a separate section. `run SQL:` only fails when a statement errors, so a
+`SELECT` over an empty table passes — without steps 9 to 11 and 30 to 32 this plan could walk an
+entire ingest route, load nothing, and report a pass.
 
-Not scripted, and why:
+Deliberately unscripted:
 
-Both documented routes into the data are walked, on the real files and the real table names. Steps 2
-to 11 take the `psql` route, then drop what it created: the two routes are alternatives that build the
-same tables, so the first has to be undone before the second can be tested as written. Steps 12 to 22
-then take the `{C.CONSOLE}` route, and the data it leaves behind is what the sections after it use --
-including the `Hypertable partition` toggle, which is the point of that route and only appears for a
-time column.
 - `ALTER TABLE metrics SET (timescaledb.direct_compress)`. It comes from an explanatory partial
   embedded in the ingestion step and names a table this page never creates, so running it proves
   nothing. Worth fixing in the page rather than working around here.
-- The `{C.DATA_MODE}` route. It is PopSQL in a cross-origin iframe, which the walker cannot drive.
-  Its SQL is exercised through the steps above instead, so only the route goes untested.
-- The `{C.CAGG_CAP} wizard` route. The Console wizard was redesigned and the page still describes
-  the old one, so a script written now would encode instructions that are already wrong. It gets
-  steps once that section is rewritten.
+- The {C.DATA_MODE} route. It is PopSQL in a cross-origin iframe, which the walker cannot drive. Its
+  SQL is exercised through the steps above, so only the route goes untested.
+- The {C.CAGG_CAP} wizard route. The Console wizard was redesigned and the page still describes the
+  old one, so a script written now would encode instructions already known to be wrong. It gets steps
+  once that section is rewritten.
 
 </TestPlan>
