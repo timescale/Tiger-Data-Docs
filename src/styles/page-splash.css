@@ -27,7 +27,7 @@
 }
 
 :root[data-theme="dark"] .splash-hero-card--enterprise .splash-hero-card__bg {
-  background-color: #12261c;
+  background-color: #2d1d14;
 }
 
 :root[data-theme="dark"] .splash-hero-card--enterprise .splash-hero-card__bg::after {
@@ -342,21 +342,53 @@
   pointer-events: none;
 }
 
-/* Full-bleed tile artwork (lavender / cream tile with the illustration and
-   texture baked in). Sits above the solid bg/noise, below the content. */
+/* Illustration artwork: a single object on transparent ground, anchored to the
+   bottom-right corner. Sits above the solid bg/noise, below the content. The
+   card clips it, so no radius is needed here.
+
+   Per the design (Figma frame 2612334), the three illustrations are scaled to a
+   common height and run past the right and bottom edges so the card crops them;
+   their differing aspect ratios are what makes the wide cloud read larger than
+   the tall database. Height-driven, so width must stay uncapped for that to
+   hold. */
 .splash-hero-card__bg-img {
   position: absolute;
-  inset: 0;
+  right: 0;
+  bottom: 0;
   z-index: 0;
   /* Reset the inherited markdown image margin; otherwise the absolutely
-     positioned artwork is pushed down ~16px, exposing the tile bg at the top. */
+     positioned artwork is pushed down ~16px. */
   margin: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: auto;
+  --hero-art-height: 62%;
+  height: var(--hero-art-height);
+  /* Backstop only, so a very narrow card can't let the widest illustration run
+     the full width of the card. */
+  max-width: 85%;
+  /* The bleed that the card crops. Percentages on translate resolve against the
+     image's own size rather than the card's, so the crop stays proportional to
+     the illustration at every card width, including one-per-row. Per-card
+     overrides set these two properties rather than restating the transform. */
+  --hero-art-bleed-x: 18%;
+  --hero-art-bleed-y: 30%;
+  transform: translate(var(--hero-art-bleed-x), var(--hero-art-bleed-y));
+  object-fit: contain;
   object-position: bottom right;
-  border-radius: 16px;
   pointer-events: none;
+}
+
+/* The cloud is the widest of the three, so it needs to sit further off the right
+   edge to read like the other two. */
+.splash-hero-card--cloud .splash-hero-card__bg-img {
+  --hero-art-bleed-x: 25%;
+}
+
+/* The factory is the busiest of the three, so it runs smaller and with less
+   bleed to keep enough of the building readable. */
+.splash-hero-card--enterprise .splash-hero-card__bg-img {
+  --hero-art-height: 54%;
+  --hero-art-bleed-x: 16%;
+  --hero-art-bleed-y: 18%;
 }
 
 /* Light-tile artwork in light mode, dark-tile artwork in dark mode. */
@@ -406,9 +438,9 @@
   background-position: top left;
 }
 
-/* Enterprise card background (placeholder tint until illustration artwork exists) */
+/* Enterprise card background */
 .splash-hero-card--enterprise .splash-hero-card__bg {
-  background-color: #eafcf1;
+  background-color: #ffefea;
 }
 
 .splash-hero-card--enterprise .splash-hero-card__bg::after {

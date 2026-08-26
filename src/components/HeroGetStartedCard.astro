@@ -1,17 +1,24 @@
 ---
 /**
  * HeroGetStartedCard – Figma 3513:11069 (Cloud) and 3513:11798 (Install locally).
- * Two-column hero cards: border black, 16px radius, 50px padding, 4px 4px 0 black shadow.
- * Variant backgrounds: cloud #f2f0ff, local #feffef. CTA: black icon box + label, 16px SemiBold.
+ * Three-column hero cards: border black, 16px radius, 50px padding, 4px 4px 0 black shadow.
+ * Variant backgrounds: cloud #f2f0ff, enterprise #ffefea, local #feffef. CTA: black icon
+ * box + label, 16px SemiBold.
+ *
+ * Each variant pairs a light and a dark illustration. Both are rendered; page-splash.css
+ * shows one and hides the other based on the active theme. The illustration is a single
+ * object on transparent ground, anchored bottom right over the card's tint and noise.
  */
 import { Image } from 'astro:assets';
-import cloudBg from '../assets/images/hero-cloud/cloud-bg.png';
-import cloudBgDark from '../assets/images/hero-cloud/cloud-bg-dark.png';
-import timescaledbBg from '../assets/images/hero-local/timescaledb-bg.png';
-import timescaledbBgDark from '../assets/images/hero-local/timescaledb-bg-dark.png';
+import cloudLight from '../assets/images/hero-cloud/cloud.png';
+import cloudDark from '../assets/images/hero-cloud/cloud-dark.png';
+import enterpriseLight from '../assets/images/hero-enterprise/enterprise.png';
+import enterpriseDark from '../assets/images/hero-enterprise/enterprise-dark.png';
+import timescaledbLight from '../assets/images/hero-local/timescaledb.png';
+import timescaledbDark from '../assets/images/hero-local/timescaledb-dark.png';
 
 export interface Props {
-  /** "cloud" = lavender card, "local" = cream card, "enterprise" = tinted card (no illustration yet). */
+  /** "cloud" = lavender card, "enterprise" = peach card, "local" = cream card. */
   variant: "cloud" | "local" | "enterprise";
   /** Card heading (e.g. "Get started with Cloud"). */
   title: string;
@@ -24,16 +31,26 @@ export interface Props {
 }
 
 const { variant, title, description, ctaText, href } = Astro.props;
-const variantClass =
-  variant === "cloud"
-    ? "splash-hero-card--cloud"
-    : variant === "local"
-      ? "splash-hero-card--local"
-      : "splash-hero-card--enterprise";
-// The enterprise variant has no illustration artwork yet; it falls back to a solid tint + noise.
-const hasIllustration = variant === "cloud" || variant === "local";
-const bgImage = variant === "cloud" ? cloudBg : timescaledbBg;
-const bgImageDark = variant === "cloud" ? cloudBgDark : timescaledbBgDark;
+
+const variants = {
+  cloud: {
+    className: "splash-hero-card--cloud",
+    light: cloudLight,
+    dark: cloudDark,
+  },
+  enterprise: {
+    className: "splash-hero-card--enterprise",
+    light: enterpriseLight,
+    dark: enterpriseDark,
+  },
+  local: {
+    className: "splash-hero-card--local",
+    light: timescaledbLight,
+    dark: timescaledbDark,
+  },
+} as const;
+
+const { className: variantClass, light: bgImage, dark: bgImageDark } = variants[variant];
 const isExternal = href.startsWith("http");
 ---
 
@@ -44,26 +61,18 @@ const isExternal = href.startsWith("http");
   rel={isExternal ? "noopener noreferrer" : undefined}
 >
   <div class="splash-hero-card__bg" aria-hidden="true" />
-  {hasIllustration && (
-    <Fragment>
-      <Image
-        class="splash-hero-card__bg-img splash-hero-card__bg-img--light"
-        src={bgImage}
-        alt=""
-        width={1932}
-        height={900}
-        aria-hidden="true"
-      />
-      <Image
-        class="splash-hero-card__bg-img splash-hero-card__bg-img--dark"
-        src={bgImageDark}
-        alt=""
-        width={1932}
-        height={900}
-        aria-hidden="true"
-      />
-    </Fragment>
-  )}
+  <Image
+    class="splash-hero-card__bg-img splash-hero-card__bg-img--light"
+    src={bgImage}
+    alt=""
+    aria-hidden="true"
+  />
+  <Image
+    class="splash-hero-card__bg-img splash-hero-card__bg-img--dark"
+    src={bgImageDark}
+    alt=""
+    aria-hidden="true"
+  />
   <div class="splash-hero-card__inner">
     <div class="splash-hero-card__content">
       <h2 class="splash-hero-card__title">{title}</h2>
