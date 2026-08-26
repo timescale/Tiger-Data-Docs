@@ -462,27 +462,15 @@ After running `npm run load`, your documents are in the database but **not yet s
 
 ## Step 4: Build the embedding worker
 
-The worker claims batches, generates embeddings, and writes them back with version guards. Run one or many workers — they coordinate through `SKIP LOCKED`:
+The worker claims batches, generates embeddings, and writes them back with version guards. Run one or many workers (they coordinate through `SKIP LOCKED` — no explicit coordination needed).
+
+First, install the required packages:
 
 ```bash
 npm install ai @ai-sdk/openai postgres zod dotenv
 ```
 
-Create a `.env` file:
-
-```
-DATABASE_URL=postgresql://user:password@host:5432/dbname
-OPENAI_API_KEY=sk-...
-```
-
-The SDK reads `OPENAI_API_KEY` at module-eval time, so load `.env` before importing:
-
-```typescript
-import 'dotenv/config';
-```
-
-
-Save this code as `src/worker.ts`:
+Save this code as `src/worker.ts`. The SDK reads `OPENAI_API_KEY` at module-eval time, so `import 'dotenv/config'` at the top (as shown below) loads your `.env` file from Step 0:
 
 ```typescript
 // worker.ts
