@@ -36,7 +36,7 @@ In this tutorial, you'll design a single `documents` table that powers seven com
 - Compose search modes (BM25, semantic, hierarchical, geospatial, metadata, temporal) into ranked results
 - Expose search through an MCP server so AI agents can use it natively
 
-This tutorial is built using a [{C.CLOUD_LONG}](/get-started/quickstart/create-service) running {C.PG} 18+ (all required extensions pre-installed), but you could alternatively use a self-hosted {C.TIMESCALE_DB} or {C.PG} instance with `vector`, `ltree`, `postgis`, and `pg_textsearch` extensions. 
+This tutorial is built using the [Tiger Data Cloud service](/get-started/quickstart/create-service) running Postgres 18+ (all required extensions pre-installed, no setup needed), but you could alternatively use a self-hosted TimescaleDB instance, or self-hosted Postgres instance with `vector`, `ltree`, `postgis` and `pg_textsearch` extensions installed. 
 
 <Prerequisites context="tutorial">
 
@@ -88,7 +88,7 @@ EOF
 ```
 
 <Callout variant="warning">
-Don't commit this `.env` file to git — it contains secrets. Add it to `.gitignore` if you haven't already.
+Make sure you're following good dev hygiene — be sure your environment files are listed in your `.gitignore` files. 
 </Callout>
 
 </NumberedItem>
@@ -113,23 +113,16 @@ Don't commit this `.env` file to git — it contains secrets. Add it to `.gitign
 
 </NumberedItem>
 
-<NumberedItem title="Verify and install extensions">
+<NumberedItem title="Verify the extensions are installed">
 
-Once your service is running, note the connection string (looks like `postgresql://user:password@host:5432/tsdb`). Connect and verify which extensions are already installed:
+Once your service is running, note the connection string (looks like `postgresql://user:password@host:5432/tsdb`). Connect and verify:
 
 ```bash
 psql "postgresql://user:password@host:5432/tsdb"
 \dx
 ```
 
-{C.CLOUD_LONG} comes with most extensions pre-installed, but verify `vector`, `ltree`, `postgis`, and `pg_textsearch` are listed. If any are missing, install them:
-
-```sql
-create extension if not exists vector;
-create extension if not exists ltree;
-create extension if not exists postgis;
-create extension if not exists pg_textsearch;
-```
+You should see `vector`, `ltree`, `postgis`, and `pg_textsearch` listed. All extensions are pre-installed on {C.CLOUD_LONG}.
 
 </NumberedItem>
 
@@ -952,14 +945,14 @@ Claude will call `documents_search` with the right parameters automatically, and
 
 #### **"Error: permission denied for schema public"** or **"permission denied to create extension vector"**
 
-**Cause:** Extensions require superuser privileges, or your {C.CLOUD_LONG} user lacks the right role.
+**Cause:** Extensions require superuser privileges, or your Tiger Cloud user lacks the right role.
 
 **Solution:**
 - Verify you're connected as the database owner (the connection string user should be the owner, not a read-only role)
 - If using a secondary connection, ensure it has `SUPERUSER` or `CREATEEXT` privileges
 - Try: `ALTER USER your_user CREATEEXTENSION;` (if you have admin access)
 
-#### **"Error: type "halfvec" does not exist"** or **"undefined operator \<=> for halfvec"**
+#### **"Error: type "halfvec" does not exist"** or **"undefined operator <=> for halfvec"**
 
 **Cause:** `pgvector` extension not installed, or Postgres version < 16.
 
