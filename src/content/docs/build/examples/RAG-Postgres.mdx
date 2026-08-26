@@ -1,0 +1,1116 @@
+---
+title: "Build a production RAG system with Postgres"
+description: "Design a retrieval-augmented generation layer entirely in Postgres with vector search, BM25, and async embeddings"
+products: [cloud, self_hosted]
+keywords: [RAG, embeddings, semantic search, hybrid search, pgvector, BM25, MCP, AI agents]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { Prerequisites } from "@components/Prerequisites";
+
+> **Example code**: [github.com/timescale/rag-postgres-tutorial](https://github.com/timescale/rag-postgres-tutorial)
+
+Most RAG (retrieval-augmented generation) stacks today are a collection of separate systems: a SQL database for documents, a vector database for embeddings, a search engine for keyword queries, and a queue for backfilling. The result? Custom sync code, redundant infrastructure, and the inevitable moment when the vector store drifts out of sync with the source of truth.
+
+There's a better way. {C.PG} has everything you need for a production-grade RAG retrieval layer built in:
+
+- **BM25 full-text search** via `pg_textsearch`
+- **Vector similarity via HNSW** via `pgvector`
+- **Hierarchical paths** via `ltree`
+- **Geospatial indexes** via PostGIS
+- **JSONB metadata filters** with GIN indexes
+- **A transactional job queue** for async embedding generation
+- **A real job queue** that survives crashes and rate limits
+
+In this tutorial, you'll design a single `documents` table that powers seven composable search modes, async embedding generation, and direct access from AI agents through MCP.
+
+**Why {C.CLOUD_LONG} for RAG?** {C.CLOUD_LONG} is the only managed {C.PG} provider that ships `pg_textsearch` (Tiger Data's BM25 extension) pre-installed. Other hosts rely on `tsvector`/`tsquery`, which works but delivers lower ranking quality. {C.CLOUD_LONG} also includes an MCP server purpose-built for AI agents, so your AI agent can provision services and inspect schemas without leaving the editor.
+
+**By the end of this tutorial, you'll be able to:**
+
+- Design a Postgres schema supporting hybrid retrieval, filtering, and vector search
+- Build an asynchronous embedding queue that survives crashes and rate limits
+- Run a multi-worker embedding process without coordination overhead
+- Compose search modes (BM25, semantic, hierarchical, geospatial, metadata, temporal) into ranked results
+- Expose search through an MCP server so AI agents can use it natively
+
+This tutorial is built using a [{C.CLOUD_LONG}](/get-started/quickstart/create-service) running {C.PG} 18+ (all required extensions pre-installed), but you could alternatively use a self-hosted {C.TIMESCALE_DB} or {C.PG} instance with `vector`, `ltree`, `postgis`, and `pg_textsearch` extensions. 
+
+<Prerequisites context="tutorial">
+
+**Database:**
+- [{C.CLOUD_LONG}](/get-started/quickstart/create-service) running {C.PG} 18+ (recommended), OR
+- Self-hosted {C.TIMESCALE_DB}/{C.PG} 16+ with extensions: `vector`, `ltree`, `postgis`, `pg_textsearch`
+
+**Client tools:**
+- A SQL client: `psql`, pgAdmin, or the {C.CLOUD_LONG} Console SQL Editor
+- [Node.js 20+](https://nodejs.org/) for the worker and MCP server code
+- An [OpenAI API key](https://platform.openai.com/api-keys) for generating embeddings
+- Optional — [Docker](https://docs.docker.com/get-docker/)  for containerizing the worker
+
+**Node.js packages:**
+- `ai@7` (Vercel AI SDK)
+- `@ai-sdk/openai@4` (OpenAI provider)
+- `postgres@3` ({C.PG} driver)
+- `zod@4` (schema validation)
+- `@modelcontextprotocol/sdk@1` (MCP server)
+
+</Prerequisites>
+
+
+---
+
+## Step 0: Clone and set up the project
+
+<NumberedList>
+
+<NumberedItem title="Clone the repository">
+
+```bash
+git clone https://github.com/timescale/rag-postgres-tutorial.git
+cd rag-postgres-tutorial
+npm install
+```
+
+</NumberedItem>
+
+<NumberedItem title="Create a .env file with your credentials">
+
+Create a `.env` file in the project root with your database and API keys (you'll fill these in after creating a {C.CLOUD_LONG} service):
+
+```bash
+cat > .env << EOF
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+OPENAI_API_KEY=sk-...
+EOF
+```
+
+<Callout variant="warning">
+Don't commit this `.env` file to git — it contains secrets. Add it to `.gitignore` if you haven't already.
+</Callout>
+
+</NumberedItem>
+
+</NumberedList>
+
+---
+
+## Getting started with {C.CLOUD_LONG} (recommended)
+
+{C.CLOUD_LONG} is the easiest way to run this tutorial — all required extensions come pre-installed on {C.PG} 18+, with automatic backups, replication, and built-in monitoring.
+
+<NumberedList>
+
+<NumberedItem title="Create a service">
+
+1. Log in or create an account at [https://console.cloud.tigerdata.com/login](https://console.cloud.tigerdata.com/login)
+2. Click **New Service**
+3. Choose {C.PG} 18+ (or newer)
+4. Pick your region and scale (the free tier is sufficient for this tutorial)
+5. Click **Create**
+
+</NumberedItem>
+
+<NumberedItem title="Verify and install extensions">
+
+Once your service is running, note the connection string (looks like `postgresql://user:password@host:5432/tsdb`). Connect and verify which extensions are already installed:
+
+```bash
+psql "postgresql://user:password@host:5432/tsdb"
+\dx
+```
+
+{C.CLOUD_LONG} comes with most extensions pre-installed, but verify `vector`, `ltree`, `postgis`, and `pg_textsearch` are listed. If any are missing, install them:
+
+```sql
+create extension if not exists vector;
+create extension if not exists ltree;
+create extension if not exists postgis;
+create extension if not exists pg_textsearch;
+```
+
+</NumberedItem>
+
+<NumberedItem title="Update your .env file">
+
+```
+DATABASE_URL=postgresql://user:password@host:5432/tsdb
+OPENAI_API_KEY=sk-...
+```
+
+</NumberedItem>
+
+</NumberedList>
+
+You're now ready to run the schema. All extensions are pre-installed and configured.
+
+## Why a single table?
+
+The natural instinct is to split this across multiple tables/systems: one for documents, one for embeddings, one for BM25 metadata. While it seems organized, it introduces significant complexity:
+
+- **Data sync challenges.** Write a document, embed it, update BM25 metadata — three transactions that must stay perfectly in sync. Lose sync on one, and retrieval breaks silently.
+- **Filter limitations.** Filter a vector store by "documents from Q3" and you'll find the vector store can't filter that way — you either bake the quarter into every embedding or fetch candidates in bulk and filter in code, both hurting recall.
+- **Infrastructure costs.** You pay twice to store the same content (once in SQL, once in the vector store) and spend weeks writing and debugging sync code.
+
+A single table offers one source of truth, one set of indexes, and filters that apply in the database *before* ranking—so you never lose documents accidentally. Write once, read once. If a document is visible in {C.PG}, it's searchable.
+
+## Step 1: Design the schema
+
+The schema supports seven search modes with first-class composability. This is the full version — drop the columns you don't need:
+
+```sql
+create table documents (
+  id                  uuid          not null primary key default uuidv7()
+                                    check (uuid_extract_version(id) = 7),
+  content             text          not null,
+  meta                jsonb         not null default '{}',
+  tree                ltree         not null default ''::ltree,
+  temporal            tstzrange,
+  geom                geometry(Point, 4326),
+  embedding           halfvec(1536),
+  embedding_version   int           not null default 1,
+  created_at          timestamptz   not null default now(),
+  updated_at          timestamptz
+);
+
+-- Constraints: meta must be an object, temporal uses open-ended ranges by convention
+alter table documents add check (jsonb_typeof(meta) = 'object');
+
+alter table documents add constraint temporal_bounds_convention check (
+  temporal is null
+  or (
+    not isempty(temporal)
+    and (
+      (lower(temporal) = upper(temporal) and lower_inc(temporal) and upper_inc(temporal))
+      or (lower(temporal) < upper(temporal) and lower_inc(temporal) and not upper_inc(temporal))
+    )
+  )
+);
+```
+
+A few design decisions worth understanding:
+
+- **`id` is `uuidv7`.** The first 48 bits encode a Unix millisecond timestamp, so lexicographic order is creation order. `order by id desc` gives newest-first *and* a deterministic tiebreak when BM25 scores tie (they tie constantly on structured data).
+- **`embedding` is `halfvec(1536)`.** 16-bit floats instead of 32-bit — half the storage, same recall for `text-embedding-3-small`. Always prefer it.
+- **`embedding` is nullable.** Writes don't block on calling OpenAI. The worker fills it in asynchronously (Step 3). This single decision is the difference between "my inserts take 5ms" and "my inserts take 500ms."
+- **`embedding_version` enforces correctness.** When content changes, this increments. The worker only writes back if the version still matches — otherwise it clobbers a fresh row with a stale vector. Race condition immunity in one column.
+- **`tree` (ltree) instead of `parent_id`.** Path queries (`work.projects.acme.notes <@ work.projects`) are O(log n) with GiST and don't need recursive CTEs.
+- **`temporal` (tstzrange) is optional.** Point-in-time events `[t,t]`, bounded ranges `[start,end)`, and open-ended still-active ranges `[start,'infinity')` live in the same column with the same operators.
+
+
+## Step 2: Build the indexes
+
+Each index is justified. All seven search modes lean on at least one:
+
+
+
+```sql
+-- JSONB attribute lookups: meta @> '{"type":"email"}'
+create index documents_meta_gin_idx
+  on documents using gin (meta);
+
+-- Hierarchical path queries: tree <@ 'work.projects'
+create index documents_tree_gist_idx
+  on documents using gist (tree);
+
+-- Range overlap & containment: temporal @> now() or temporal && range
+create index documents_temporal_gist_idx
+  on documents using gist (temporal)
+  where temporal is not null;
+
+-- Geospatial: ST_DWithin, ST_Intersects, <-> (kNN)
+create index documents_geom_gist_idx
+  on documents using gist (geom)
+  where geom is not null;
+
+-- BM25 full-text: content <@> to_bm25query(...)
+create index documents_content_bm25_idx
+  on documents using bm25 (content)
+  with (text_config = 'english', k1 = 1.2, b = 0.75);
+
+-- Vector similarity: embedding <=> query::halfvec
+create index documents_embedding_hnsw_idx
+  on documents using hnsw (embedding halfvec_cosine_ops)
+  with (m = 16, ef_construction = 64);
+```
+
+The BM25 tuning (k1 and b) are sensible defaults. Raise `k1` to reward repeated terms; lower `b` to weaken document-length normalization. For the HNSW index, `ef_construction = 64` is safe for ~1M docs. Bump it to 200+ if recall matters more than build time.
+
+
+## Step 3: Set up the embedding queue
+
+Synchronous embedding calls turn a 5ms write into a 500ms one, fail under rate limits, and leave no way to re-embed when you change models. The fix is a transactional outbox: writes enqueue a job in the same transaction, and a separate worker drains it.
+
+
+```sql
+create table embedding_queue (
+  id                bigint        generated always as identity primary key,
+  document_id       uuid          not null references documents(id) on delete cascade,
+  embedding_version int           not null,
+  vt                timestamptz   not null default now(),
+  outcome           text          check (outcome is null or outcome in
+                                         ('completed','failed','cancelled')),
+  attempts          int           not null default 0,
+  max_attempts      int           not null default 3,
+  last_error        text,
+  created_at        timestamptz   not null default now()
+);
+
+-- Workers claim by lowest vt where outcome is null
+create index embedding_queue_claim_idx
+  on embedding_queue (vt)
+  where outcome is null;
+
+-- Find the most recent job for a document (used to supersede older jobs)
+create index embedding_queue_document_idx
+  on embedding_queue (document_id, embedding_version desc)
+  where outcome is null;
+```
+
+The `vt` (visibility timestamp) is the key mechanism: rows are invisible to workers until `vt <= now()`. When a worker claims a batch, it pushes `vt` forward; if the worker crashes, the row becomes visible again. Multiple workers can pull from the same queue without conflicts or job loss — the same pattern AWS SQS uses.
+
+
+```sql
+create function documents_before_update() returns trigger as $$
+begin
+  new.updated_at := now();
+  if old.content <> new.content then
+    new.embedding := null;
+    new.embedding_version := old.embedding_version + 1;
+  end if;
+  return new;
+end
+$$ language plpgsql;
+
+create trigger documents_before_update_trg
+  before update on documents
+  for each row
+  execute function documents_before_update();
+
+create function enqueue_embedding() returns trigger as $$
+begin
+  insert into embedding_queue (document_id, embedding_version)
+  values (new.id, new.embedding_version);
+  return new;
+end
+$$ language plpgsql;
+
+create trigger documents_enqueue_on_insert
+  after insert on documents
+  for each row
+  when (new.embedding is null)
+  execute function enqueue_embedding();
+
+create trigger documents_enqueue_on_update
+  after update on documents
+  for each row
+  when (old.content is distinct from new.content and new.embedding is null)
+  execute function enqueue_embedding();
+```
+
+When `content` changes, the before-update trigger nulls the stale embedding and increments `embedding_version`. The after-insert and after-update triggers enqueue jobs only when needed.
+
+
+
+```sql
+create function claim_embedding_batch(
+  batch_size    int      default 10,
+  lock_duration interval default '5 minutes'
+)
+returns table (queue_id bigint, document_id uuid, embedding_version int, content text)
+language plpgsql as $$
+declare
+  rec record;
+  doc record;
+  claimed int := 0;
+begin
+  -- 1. Cancel jobs superseded by a newer version for the same document
+  update embedding_queue eq
+    set outcome = 'cancelled'
+    where eq.outcome is null
+      and eq.vt <= now()
+      and exists (
+        select 1 from embedding_queue newer
+        where newer.document_id = eq.document_id
+          and newer.embedding_version > eq.embedding_version
+          and newer.outcome is null
+      );
+
+  -- 2. Mark jobs from crashed workers (attempts exhausted) as failed
+  update embedding_queue
+    set outcome = 'failed',
+        last_error = coalesce(last_error, 'exceeded max attempts (worker crash)')
+    where outcome is null and vt <= now() and attempts >= max_attempts;
+
+  -- 3. Claim eligible rows; FOR UPDATE SKIP LOCKED prevents workers from blocking each other
+  for rec in
+    select eq.id, eq.document_id, eq.embedding_version
+    from embedding_queue eq
+    where eq.outcome is null
+      and eq.vt <= now()
+      and eq.attempts < eq.max_attempts
+    order by eq.vt
+    for update skip locked
+  loop
+    select d.content, d.embedding_version into doc
+    from documents d where d.id = rec.document_id;
+
+    if not found then
+      update embedding_queue set outcome = 'cancelled' where id = rec.id;
+      continue;
+    end if;
+
+    if rec.embedding_version <> doc.embedding_version then
+      update embedding_queue set outcome = 'cancelled' where id = rec.id;
+      continue;
+    end if;
+
+    update embedding_queue
+      set vt = now() + lock_duration,
+          attempts = embedding_queue.attempts + 1
+      where id = rec.id;
+
+    queue_id          := rec.id;
+    document_id       := rec.document_id;
+    embedding_version := rec.embedding_version;
+    content           := doc.content;
+    return next;
+
+    claimed := claimed + 1;
+    exit when claimed >= batch_size;
+  end loop;
+end
+$$;
+
+create function prune_embedding_queue(retention interval default '7 days')
+returns bigint
+language plpgsql as $$
+declare
+  pruned bigint;
+begin
+  delete from embedding_queue
+  where outcome is not null
+    and created_at < now() - retention;
+  get diagnostics pruned = row_count;
+  return pruned;
+end
+$$;
+```
+
+The `claim_embedding_batch` function is the core of the queue. The `FOR UPDATE SKIP LOCKED` is the secret: multiple workers can run this concurrently and they'll never wait on each other. It also supersedes old jobs, reclaims crashed workers' rows, and version-checks to catch races.
+
+## Step 3b: Load sample data
+
+Now that the schema, indexes, and embedding queue are in place, you can load sample data. The repository includes a pre-built loader that ingests NYC 311 Service Requests (1000 rows of structured complaint data with geographic and temporal metadata). This gives you realistic data to test all search modes without writing custom transformation logic.
+
+The loader demonstrates the core pattern you'll use for your own data: transform rows into column arrays, then use Postgres's `unnest(typed[]...)` to batch-insert in a single roundtrip.
+
+**To load the sample data:**
+
+First, set up your Node.js environment:
+
+```bash
+# From the project root
+npm install
+```
+
+Then run the loader:
+
+```bash
+npm run load
+```
+
+This reads `data/nyc311_1000.json`, transforms it into the schema columns, and inserts 1000 documents. You'll see output like:
+
+```
+read 1000 input rows from .../data/nyc311_1000.json
+1000 rows after slug + dedupe
+inserted 1000 / 1000
+finished: inserted 1000 rows in 2.34s (427.8 rows/s)
+documents in table: 1000
+embedding_queue (open): 1000
+```
+
+The `embedding_queue (open): 1000` means all 1000 rows are now queued for embedding. They'll be picked up by the worker in the next step.
+
+**To use your own data:**
+
+Edit `src/load.ts` to match your source format:
+
+1. Change the `Row` interface to match your input JSON schema.
+2. Modify `buildContent()` to compose your searchable text (what goes in the `content` column).
+3. Modify `buildTemporal()`, `rowToCols()` to extract `meta`, `tree`, `temporal`, and geospatial fields from your rows.
+4. Update `DATA_PATH` to point to your file.
+5. Run `npm run load` again.
+
+The loader batches inserts in 200-row chunks for speed; adjust `BATCH` if you're loading millions of rows (larger batches → fewer roundtrips, but higher memory footprint).
+
+<Callout variant="important" title="Embeddings are generated asynchronously">
+
+After running `npm run load`, your documents are in the database but **not yet searchable**. All 1000 rows sit in `embedding_queue` with `outcome=NULL`, waiting for the worker to call OpenAI and generate embeddings. This is by design and provides important benefits:
+
+- **Fast writes** (2-3 seconds): Inserts don't block waiting for OpenAI. Write latency stays low.
+- **Resilient**: Worker crashes? The queue remembers. No jobs are lost.
+- **Rate-limit friendly**: If OpenAI throttles, the worker backs off and retries gracefully.
+- **Model-agnostic**: Switch to a new embedding model anytime. Re-run the worker and it re-embeds only what's needed.
+
+**The workflow:**
+
+1. `npm run load` → documents enter the database, jobs enqueued
+2. `npm run worker` (Step 4) → polls the queue, calls OpenAI, writes vectors back
+3. Once the worker finishes (all `outcome=completed`), semantic search is ready
+4. New documents automatically enqueue themselves via triggers—no setup needed
+
+**Checking progress:** If you search now, semantic search returns nothing—the embeddings aren't ready yet. Monitor with: `SELECT COUNT(*) FROM documents WHERE embedding IS NOT NULL;` and return when that count reaches 1000.
+
+</Callout>
+
+## Step 4: Build the embedding worker
+
+The worker claims batches, generates embeddings, and writes them back with version guards. Run one or many workers — they coordinate through `SKIP LOCKED`:
+
+```bash
+npm install ai @ai-sdk/openai postgres zod dotenv
+```
+
+Create a `.env` file:
+
+```
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+OPENAI_API_KEY=sk-...
+```
+
+The SDK reads `OPENAI_API_KEY` at module-eval time, so load `.env` before importing:
+
+```typescript
+import 'dotenv/config';
+```
+
+
+Save this code as `src/worker.ts`:
+
+```typescript
+// worker.ts
+import 'dotenv/config';
+import { setTimeout as sleep } from 'node:timers/promises';
+import { embedMany } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import postgres from 'postgres';
+
+const sql = postgres(process.env.DATABASE_URL!);
+const model = openai.embeddingModel('text-embedding-3-small');
+
+type ClaimedRow = {
+  queue_id: string;
+  document_id: string;
+  embedding_version: number;
+  content: string;
+};
+
+async function processBatch() {
+  // 1. Claim up to 128 rows
+  const claimed = await sql<ClaimedRow[]>`
+    select queue_id, document_id, embedding_version, content
+    from claim_embedding_batch(128, '5 minutes'::interval)
+  `;
+  if (claimed.length === 0) return 0;
+
+  // 2. Embed all rows in one API call
+  const { embeddings } = await embedMany({
+    model,
+    values: claimed.map(r => r.content),
+    maxRetries: 5,
+  });
+
+  // 3. Write back in a single transaction, version-guarded
+  const ids      = claimed.map(r => r.document_id);
+  const versions = claimed.map(r => r.embedding_version);
+  const queueIds = claimed.map(r => r.queue_id);
+  const vecs     = embeddings.map(e => `[${e.join(',')}]`);
+
+  await sql`
+    with input as (
+      select * from unnest(
+        ${ids}::uuid[], ${versions}::int[], ${queueIds}::bigint[], ${vecs}::text[]
+      ) as t(doc_id, ver, q_id, vec)
+    ),
+    upd as (
+      update documents d
+         set embedding = i.vec::halfvec
+        from input i
+       where d.id = i.doc_id and d.embedding_version = i.ver
+      returning d.id, i.q_id
+    )
+    update embedding_queue eq
+       set outcome = case when upd.q_id is null then 'cancelled' else 'completed' end
+      from input i
+      left join upd on upd.q_id = i.q_id
+     where eq.id = i.q_id
+  `;
+
+  return claimed.length;
+}
+
+async function run({ oneShot = false } = {}) {
+  while (true) {
+    try {
+      const n = await processBatch();
+      if (n === 0) {
+        if (oneShot) return;
+        await sleep(10_000);  // idle: 10s
+      }
+    } catch (err) {
+      console.error('worker error:', err);
+      await sleep(5_000);
+    }
+  }
+}
+
+run().catch(console.error);
+```
+
+Run it in a dedicated terminal window: `npm run worker`. Multiple instances will coordinate through `SKIP LOCKED` — no explicit coordination needed. The `oneShot` flag makes the same script useful for initial backfills (it exits when the queue drains).
+
+Key behaviors:
+
+- **Adaptive polling.** Loop immediately when you find work; sleep when idle. Keeps the database from being hammered.
+- **Version-guarded writeback.** Only writes if `embedding_version` still matches — immunity to concurrent content edits.
+- **Batch size 128.** Amortizes both the two DB roundtrips (claim + writeback) and the per-request overhead of the embedding HTTP call. Raise to 256–512 if latency is high; go smaller and you leave throughput on the table.
+
+## Step 5: Implement composable search
+
+Each search mode is a SQL pattern. They compose freely in the `where` clause of a single query:
+
+Save this code as `src/search.ts`:
+
+```typescript
+// search.ts
+import 'dotenv/config';
+import postgres from 'postgres';
+import { embed } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+const sql = postgres(process.env.DATABASE_URL!);
+const embeddingModel = openai.embeddingModel('text-embedding-3-small');
+
+interface SearchParams {
+  semantic?: string;                // natural language query
+  fulltext?: string;                // BM25 query
+  tree?: string;                    // ltree filter
+  meta?: Record<string, any>;       // JSONB containment
+  temporal?: { from?: string; to?: string };
+  near?: { lon: number; lat: number; radiusMeters: number };
+  limit?: number;
+  candidateLimit?: number;
+}
+
+interface SearchResult {
+  id: string;
+  content: string;
+  meta: Record<string, unknown>;
+  tree: string;
+  score: number;
+  meters?: number;
+}
+
+export async function searchDocuments(params: SearchParams): Promise<SearchResult[]> {
+  const limit = params.limit ?? 10;
+  const candidateLimit = params.candidateLimit ?? 30;
+
+  // Embed the query if semantic search is requested
+  let queryVec: number[] | undefined;
+  if (params.semantic) {
+    const { embedding } = await embed({
+      model: embeddingModel,
+      value: params.semantic,
+      maxRetries: 5,
+    });
+    queryVec = embedding;
+  }
+
+  const wantsBM25 = !!params.fulltext;
+  const wantsSemantic = !!queryVec;
+
+  // Hybrid: run BM25 and semantic in parallel, fuse with RRF
+  if (wantsBM25 && wantsSemantic) {
+    const [bm25, semantic] = await Promise.all([
+      bm25Search(params.fulltext!, params, candidateLimit),
+      semanticSearch(queryVec!, params, candidateLimit),
+    ]);
+
+    const fused = rrfFusion(bm25, semantic, 60);
+    const topIds = fused.slice(0, limit).map(r => r.id);
+    const scoreMap = new Map(fused.map(r => [r.id, r.score]));
+
+    const rows = await fetchByIds(topIds, params);
+    return rows.map(row => ({ ...row, score: scoreMap.get(row.id) ?? 0 }));
+  }
+
+  if (wantsBM25)     return bm25Search(params.fulltext!, params, limit);
+  if (wantsSemantic) return semanticSearch(queryVec!, params, limit);
+  return filterOnly(params, limit);
+}
+
+// --- Mode implementations ---
+
+const jsonb = (v: unknown) => sql`${sql.json(v as postgres.JSONValue)}::jsonb`;
+
+function geoPoint(p: SearchParams) {
+  if (!p.near) return null;
+  return sql`ST_SetSRID(ST_MakePoint(${p.near.lon}, ${p.near.lat}), 4326)::geography`;
+}
+
+function metersProj(p: SearchParams) {
+  if (!p.near) return sql``;
+  const point = geoPoint(p);
+  return sql`, ST_Distance(geom::geography, ${point}) as meters`;
+}
+
+function buildFilters(p: SearchParams) {
+  const parts: postgres.Fragment[] = [];
+  if (p.tree) parts.push(sql`and tree <@ ${p.tree}::ltree`);
+  if (p.meta && Object.keys(p.meta).length > 0) parts.push(sql`and meta @> ${jsonb(p.meta)}`);
+  if (p.temporal) {
+    const { from, to } = p.temporal;
+    if (from && to) parts.push(sql`and temporal && tstzrange(${from}::timestamptz, ${to}::timestamptz, '[)')`);
+    else if (from)  parts.push(sql`and upper(temporal) > ${from}::timestamptz`);
+    else if (to)    parts.push(sql`and lower(temporal) < ${to}::timestamptz`);
+  }
+  if (p.near) {
+    const point = geoPoint(p);
+    parts.push(sql`and ST_DWithin(geom::geography, ${point}, ${p.near.radiusMeters})`);
+  }
+  return parts.length > 0 ? sql`${parts}` : sql``;
+}
+
+async function bm25Search(query: string, p: SearchParams, limit: number) {
+  const filters = buildFilters(p);
+  return sql<SearchResult[]>`
+    select id, content, meta, tree::text,
+           -(content <@> to_bm25query(${query}, 'documents_content_bm25_idx')) as score
+           ${metersProj(p)}
+    from documents
+    where content <@> to_bm25query(${query}, 'documents_content_bm25_idx') < 0
+      ${filters}
+    order by score desc, id desc
+    limit ${limit}
+  `;
+}
+
+async function semanticSearch(vec: number[], p: SearchParams, limit: number) {
+  const filters = buildFilters(p);
+  const vecLit = `[${vec.join(',')}]`;
+  return sql<SearchResult[]>`
+    select id, content, meta, tree::text,
+           (1 - (embedding <=> ${vecLit}::halfvec)) as score
+           ${metersProj(p)}
+    from documents
+    where embedding is not null
+      and (1 - (embedding <=> ${vecLit}::halfvec)) >= 0.0
+      ${filters}
+    order by embedding <=> ${vecLit}::halfvec, id desc
+    limit ${limit}
+  `;
+}
+
+async function filterOnly(p: SearchParams, limit: number) {
+  const filters = buildFilters(p);
+  if (p.near) {
+    const point = geoPoint(p);
+    return sql<SearchResult[]>`
+      select id, content, meta, tree::text, 1.0::float as score
+             ${metersProj(p)}
+      from documents
+      where geom is not null ${filters}
+      order by geom <-> ${point}
+      limit ${limit}
+    `;
+  }
+  return sql<SearchResult[]>`
+    select id, content, meta, tree::text, 1.0::float as score
+    from documents
+    where true ${filters}
+    order by id desc
+    limit ${limit}
+  `;
+}
+
+async function fetchByIds(ids: string[], p: SearchParams) {
+  if (ids.length === 0) return [];
+  return sql<SearchResult[]>`
+    select id, content, meta, tree::text, 0::float as score
+           ${metersProj(p)}
+    from documents
+    where id = any(${ids}::uuid[])
+    order by array_position(${ids}::uuid[], id)
+  `;
+}
+
+function rrfFusion(
+  bm25: { id: string }[],
+  semantic: { id: string }[],
+  k = 60  // Tuning parameter: higher k (e.g., 100) = trust both rankers equally; lower k (e.g., 20) = prioritize top results
+) {
+  const scores = new Map<string, number>();
+  bm25.forEach((r, i)     => scores.set(r.id, (scores.get(r.id) ?? 0) + 1 / (k + i + 1)));
+  semantic.forEach((r, i) => scores.set(r.id, (scores.get(r.id) ?? 0) + 1 / (k + i + 1)));
+  return [...scores]
+    .map(([id, score]) => ({ id, score }))
+    .sort((a, b) => b.score - a.score);
+}
+```
+
+The function handles four cases: hybrid (both signals), BM25 only, semantic only, and filters only. Every path respects all filters (hierarchical, temporal, geospatial, metadata) without recall loss — all filtering happens in the database.
+
+## Step 6: Expose search through MCP
+
+MCP servers register tools that show up as callable functions to AI agents (Claude, Cursor, custom). Here's how to wrap your search:
+
+Save this code as `src/mcp-server.ts`:
+
+```typescript
+// mcp-server.ts
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
+import { searchDocuments } from './search.js';
+
+const server = new McpServer({
+  name: 'documents',
+  version: '1.0.0',
+});
+
+const nullish = <T extends z.ZodTypeAny>(s: T) =>
+  s.optional().nullable().transform(v => v ?? undefined);
+
+server.registerTool(
+  'documents_search',
+  {
+    title: 'Search Documents',
+    description: `Search documents using BM25 keyword search, vector semantic search, or hybrid (both combined with RRF).
+Compose with hierarchical (tree), metadata (meta), temporal, and geospatial (near) filters.
+
+For a general query, set both semantic and fulltext to the same query string for hybrid search.
+Each result carries: id, content, meta, tree, score (and meters if near was set).`,
+    inputSchema: {
+      semantic: nullish(z.string())
+        .describe('Natural language query for vector search'),
+      fulltext: nullish(z.string())
+        .describe('Keywords/phrases for BM25'),
+      tree: nullish(z.string())
+        .describe('Hierarchical filter: work.projects matches exactly; work.projects.* includes descendants'),
+      meta: nullish(z.record(z.string(), z.any()))
+        .describe('JSONB containment filter'),
+      temporal: nullish(z.object({
+        from: nullish(z.string()),
+        to:   nullish(z.string()),
+      })).describe('ISO timestamps; restrict to documents overlapping [from, to)'),
+      near: nullish(z.object({
+        lon: z.number(),
+        lat: z.number(),
+        radiusMeters: z.number(),
+      })).describe('Geospatial filter: radius query around (lon, lat)'),
+      limit: nullish(z.number().int())
+        .describe('Maximum results (default 10, max 1000)'),
+    },
+    annotations: {
+      readOnlyHint: true,
+      idempotentHint: true,
+    },
+  },
+  async (args) => {
+    const results = await searchDocuments({
+      semantic: args.semantic,
+      fulltext: args.fulltext,
+      tree:     args.tree,
+      meta:     args.meta,
+      temporal: args.temporal,
+      near:     args.near,
+      limit:    args.limit && args.limit > 0 ? Math.min(args.limit, 1000) : 10,
+    });
+    return {
+      content: [{ type: 'text', text: JSON.stringify(results, null, 2) }],
+    };
+  },
+);
+
+await server.connect(new StdioServerTransport());
+```
+
+Three critical details:
+
+- **All inputs are optional and nullable.** LLMs sometimes pass `null` instead of omitting fields. The `nullish` helper normalizes both to `undefined`, saving hours of debugging.
+- **`readOnlyHint` and `idempotentHint` are true.** Tells the host (Claude, Cursor) that it can batch and cache calls without permission prompts.
+- **Write a rich description.** List the modes, the filter syntax, the score scales. Describe what your actual `content` contains and what `meta` keys are available. The model's tool-selection quality is proportional to description quality.
+
+### Claude Code
+
+1. Create `.claude/mcp-servers.json` if it doesn't exist (create `.claude/` directory first)
+2. Add this configuration:
+
+```json
+{
+  "documents": {
+    "command": "tsx",
+    "args": ["/absolute/path/to/mcp-server.ts"],
+    "env": {
+      "DATABASE_URL": "postgresql://user:password@host:5432/dbname",
+      "OPENAI_API_KEY": "sk-..."
+    }
+  }
+}
+```
+
+**Important:** Use **absolute paths** (e.g., `/Users/yourname/project/src/mcp-server.ts`), not relative paths. Use `tsx`, not `node`, to transpile TypeScript on-the-fly.
+
+Restart Claude Code to pick up the new configuration.
+
+### Cursor
+
+Add to your project's `.cursor/rules`:
+
+```
+# Documents MCP Server
+The project includes an MCP server for searching documents.
+It's configured to connect to the Postgres database and provide AI agents 
+access to documents via the documents_search tool.
+```
+
+In Cursor Settings → Features → MCP, add the server with the same configuration as Claude Code above.
+
+### Claude.ai (web)
+
+1. Go to [claude.ai/settings/connected-applications](https://claude.ai/settings/connected-applications)
+2. Click "Add MCP Server"
+3. Paste the connection details for your MCP server
+4. Once connected, ask Claude: "Search documents for 'RAG postgres'" and it will use the search tool directly
+
+## Step 7: Run end-to-end
+
+You've already loaded sample data with `npm run load` in Step 3b. Now start the worker and test search:
+
+### Terminal 1: Start the embedding worker
+
+Open a **new terminal window** and run:
+
+```bash
+npm run worker
+```
+
+You'll see output like:
+
+```
+Claiming batch of 128 rows...
+Generated 128 embeddings (5s)
+Updated documents + queue (1.2s)
+```
+
+The worker will loop, polling the queue for new jobs. Once you see "Claiming batch", embeddings are being generated. This takes a few minutes depending on batch size and OpenAI rate limits. The worker will keep running until the queue is empty, then idle and check periodically.
+
+**Monitor progress:** In your original terminal, check:
+```bash
+psql $DATABASE_URL -c "SELECT outcome, COUNT(*) FROM embedding_queue GROUP BY outcome;"
+```
+
+You'll see `completed` count increase as the worker finishes jobs. Once `null` reaches 0, all embeddings are done.
+
+### Terminal 2: Test search
+
+Once the worker has processed at least one batch, open a **separate terminal window** (keep the worker running in Terminal 1) and test search:
+
+```bash
+npm run search
+```
+
+This runs pre-configured search examples against the NYC 311 data. You'll see results like:
+
+```
+=== Hybrid search: "missing sidewalk" ===
+Result 1: Sidewalk complaint filed 03/15/2022 [score: 0.82]
+Result 2: Missing curb and sidewalk [score: 0.79]
+
+=== Hierarchical + temporal (last 6 months) ===
+Result 1: Pothole in street [score: 0.91]
+...
+```
+
+**To test custom queries:** Edit `src/search.ts` with your own `searchDocuments()` calls, or use it as a module in another script.
+
+### Terminal 3 (optional): Query through MCP
+
+If you've wired up the MCP server in Step 6, you can ask Claude in Claude Code:
+
+> "Search our documents for 'how to build RAG systems', then filter to blog posts from the last year."
+
+Claude will call `documents_search` with the right parameters automatically, and you get ranked results back.
+
+## Troubleshooting
+
+### Common issues and solutions
+
+#### **"Error: permission denied for schema public"** or **"permission denied to create extension vector"**
+
+**Cause:** Extensions require superuser privileges, or your {C.CLOUD_LONG} user lacks the right role.
+
+**Solution:**
+- Verify you're connected as the database owner (the connection string user should be the owner, not a read-only role)
+- If using a secondary connection, ensure it has `SUPERUSER` or `CREATEEXT` privileges
+- Try: `ALTER USER your_user CREATEEXTENSION;` (if you have admin access)
+
+#### **"Error: type "halfvec" does not exist"** or **"undefined operator \<=> for halfvec"**
+
+**Cause:** `pgvector` extension not installed, or Postgres version < 16.
+
+**Solution:**
+- Verify the extension is installed: `SELECT * FROM pg_extension WHERE extname='vector';`
+- Install it: `CREATE EXTENSION IF NOT EXISTS vector;`
+- Ensure you're running Postgres 16+ (halfvec requires a recent pgvector version)
+
+#### **"Worker sits idle forever, nothing happens"**
+
+**Cause:** The `embedding_queue` table doesn't exist, or the `claim_embedding_batch` function is missing. Your worker is like a waiter with no kitchen—it has nowhere to go.
+
+**Solution:**
+- Verify Step 3 schema was run: `SELECT * FROM embedding_queue LIMIT 1;`
+  - If you get an error, the table doesn't exist → go back and run Step 3's SQL
+- Verify the function exists: `SELECT * FROM pg_proc WHERE proname = 'claim_embedding_batch';`
+- Check if the queue actually has work: `SELECT COUNT(*) FROM embedding_queue WHERE outcome IS NULL;`
+  - If 0 rows, either all jobs finished (good!) or you never ran `npm run load` (go back to Step 3b)
+
+#### **"Search returns no results even though documents are loaded"**
+
+**Cause:** Documents are queued for embedding but the worker is still busy calling OpenAI. Your documents are *in* the database, but the vectors haven't arrived yet.
+
+**Solution:**
+- Check queue status: `SELECT outcome, COUNT(*) FROM embedding_queue GROUP BY outcome;`
+  - You should see some `completed`, some `null` (still processing)
+- Wait 5-10 minutes for the worker to churn through batches (OpenAI takes ~100ms per embedding)
+- Count finished embeddings: `SELECT COUNT(*) FROM documents WHERE embedding IS NOT NULL;`
+  - This number should grow over time. If it doesn't change for 5 minutes, your worker might be crashed
+- Once you see `embedding IS NOT NULL` hitting 1000 rows, try semantic search again
+
+#### **"Error: invalid input syntax for type tstzrange"** in temporal queries
+
+**Cause:** Temporal format mismatch. Must use ISO 8601 timestamps with timezone info.
+
+**Solution:**
+- Use: `'2024-01-01T00:00:00Z'` (with Z for UTC) or `'2024-01-01T00:00:00-05:00'` (with timezone offset)
+- In TypeScript: `new Date('2024-01-01').toISOString()` produces correct format
+- Avoid: `'2024-01-01'` (no time) or `'2024-01-01 12:00:00'` (no timezone)
+
+#### **"npm run worker: command not found" or "SyntaxError: Unexpected token"**
+
+**Cause:** TypeScript not compiled, or `tsx` not installed.
+
+**Solution:**
+- Run `npm install` to install dev dependencies (tsx is a devDependency)
+- Use `npm run worker` (which uses tsx to transpile on-the-fly), not `node worker.ts` directly
+- Verify: `npx tsx --version` should output a version number
+
+#### **"OpenAI API Error: 429 - Rate limited"**
+
+**Cause:** Hitting OpenAI rate limits (default is ~3500 requests/minute for standard accounts).
+
+**Solution:**
+- The worker automatically retries (5 attempts by default) with exponential backoff
+- Reduce batch size in `claim_embedding_batch()` to `32` or `64` to spread requests over time
+- Consider upgrading your OpenAI account tier
+- Monitor: Check `embedding_queue` for `outcome='failed'` rows to see rate-limit casualties
+
+#### **"Error: MCP server failed to start"** or **"Connection refused"**
+
+**Cause:** `.claude/mcp-servers.json` misconfigured, or paths don't exist.
+
+**Solution:**
+- Verify `.claude/mcp-servers.json` has correct command and args
+- Use absolute paths: `/path/to/mcp-server.ts` not `./mcp-server.ts`
+- Ensure environment variables are set in the `env` object
+- Check console for actual error: run `tsx src/mcp-server.ts` directly to see startup errors
+
+#### **"Search queries with geospatial filters return nothing"**
+
+**Cause:** `PostGIS` extension not installed, or documents have no `geom` values.
+
+**Solution:**
+- Install PostGIS: `CREATE EXTENSION IF NOT EXISTS postgis;`
+- Verify documents have location data: `SELECT COUNT(*) FROM documents WHERE geom IS NOT NULL;`
+- Check that your loader populates `geom` (see `src/load.ts` for NYC311 example)
+- Test without geospatial filter first: `nearbyWithoutGeo = await searchDocuments({...}); // remove `near` param`
+
+## Optimizing for your corpus
+
+The schema here is the *maximal* version. Real corpora rarely need every column. Here's what to drop:
+
+- **No hierarchies?** Drop `tree` and its GiST index.
+- **No time-bounded queries?** Drop `temporal` and its GiST index.
+- **No geospatial data?** Drop `geom`, PostGIS extension, and the GiST index.
+- **Semantic-only (no keyword search)?** Drop the BM25 index.
+
+What to add:
+
+- **Multiple time notions** (event time vs. validity window vs. ingestion time)? Add one indexed `tstzrange` column per notion — they don't conflict.
+- **Multiple locations** (incident location vs. reporter location)? Same — separate indexed geometry columns.
+- **Orthogonal hierarchies** (organizational structure *and* product taxonomy)? Add another `ltree` column per hierarchy.
+
+## Summary
+
+You now have a production-ready RAG retrieval layer in a single {C.PG} table — no external vector store, no search engine, no sync complexity.
+
+### What you've built
+
+- **Full-text + semantic + hybrid search** with first-class scoring and tuning
+- **Composable, first-class filters** (hierarchical, temporal, geospatial, metadata) that apply before ranking — no recall loss
+- **Asynchronous embedding generation** that survives worker crashes, rate limits, and model changes without data loss
+- **Multi-worker coordination** with zero coordination overhead (SKIP LOCKED handles it)
+- **Direct AI agent access** — Claude, Cursor, and custom agents can search natively through MCP without custom integration
+
+### The value
+
+**Cost efficiency:** You're not paying per-query fees, not licensing multiple services. One {C.PG} bill covers search, embeddings, and AI agent access. For {C.CLOUD_LONG} customers, all required extensions come pre-installed.
+
+**Single source of truth:** Documents visible in {C.PG} are immediately searchable. When content changes, triggers automatically re-embed—no manual flushing, no stale vectors, no data drift.
+
+**Resilience:** Worker crashes? The queue persists. Rate limits? Graceful backoff and retry. Change embedding models? Re-run the worker—it only processes rows needing updates.
+
+**Performance:** BM25 ranking outperforms the legacy `tsvector` approach. Vector indexes scale to millions of documents. Hybrid search beats either signal alone. Filters apply in the database before ranking—zero recall loss.
+
+**Extensibility:** Add custom search modes, phonetic search, or domain-specific ranking in SQL. Query the same data through SQL, MCP tools, or REST APIs—same indexes, infinite access patterns.
+
+### Scaling beyond 1M documents
+
+For large datasets (>1B rows), consider:
+
+- **Partitioning** by `tree` or by hash of `id` to keep index sizes manageable
+- **Sharding** across multiple {C.PG} instances with routing by document category
+- **Read replicas** — use {C.CLOUD_LONG}'s built-in read replicas for search queries to offload from writes
+- **HNSW tuning** — adjust `ef_construction` and `m` based on corpus size and latency requirements
+
+## What's next?
+
+### Production deployment
+
+Use this pattern for corpora up to 10M documents. Monitor the queue and set up alerts on `outcome='failed'` rows to catch rate limits or crashes early. Run multiple worker instances in parallel during backfill phases to maximize your OpenAI quota efficiently.
+
+### Tuning for your corpus
+
+- **BM25 parameters:** Adjust `k1` and `b` if results aren't optimal (higher `k1` rewards repeated keywords)
+- **Hybrid search:** Tune `candidateLimit` in `searchDocuments()` to trade latency for recall
+- **Custom ranking:** Add SQL functions for domain-specific ranking (boost recent docs, weight by quality, etc.)
+
+### Feature extensions
+
+- **Soft deletes:** Add `deleted_at` column, filter in queries (no index rebuild needed)
+- **Document versioning:** Track `version` alongside `embedding_version` for audit trails
+- **Multi-tenant filtering:** Add `user_id` column and index it for per-user search
+- **Feedback loops:** Log user interactions in a `signals` table to bias ranking dynamically
+
+### Going deeper
+
+Explore these topics to extend your RAG system:
+
+- **[Understand pg_textsearch and BM25 search](/learn/search/using-pg-textsearch)** — Learn how BM25 ranking works and how to tune it for your corpus
+- **[Build hybrid search with BM25 and vector similarity](/build/examples/hybrid-search)** — Combine keyword and semantic search with Reciprocal Rank Fusion
+- **[Understand pgvector](/learn/search/pgvector-pgvectorsearch)** — Vector indexes, HNSW tuning, and similarity search at scale
+- **[Key vector database concepts for pgvector](/learn/search/key-vector-database-concepts-for-understanding-pgvector)** — Embeddings, similarity metrics, and indexing
