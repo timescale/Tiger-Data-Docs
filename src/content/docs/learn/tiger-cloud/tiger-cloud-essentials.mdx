@@ -506,35 +506,37 @@ dataset the page tells the reader to unzip. The files are removed when the run e
      schedule_interval => INTERVAL '3 hours');
 35. run SQL: SELECT * FROM assets_candlestick_daily ORDER BY day DESC, symbol LIMIT 10;
 36. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
-37. click `Explorer` > `Data Tiering`
-38. click `Enable tiered storage`
-39. click `Let's go!`
-40. run SQL: SELECT add_tiering_policy('assets_candlestick_daily', INTERVAL '3 weeks');
-41. run SQL: set timescaledb.enable_tiered_reads = true;
-42. run SQL: SELECT * FROM crypto_ticks srt LIMIT 10;
-43. run SQL: set timescaledb.enable_tiered_reads = false;
-44. go to /overview
-45. click `Operations` > `High availability`
-46. expect url /operations
-47. choose an unselected option
-48. click `Change configuration`
-49. click `Change config`
-50. run SQL: DROP MATERIALIZED VIEW assets_candlestick_daily;
-51. expect no rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
-52. click `Explorer` > `Continuous Aggregates`
-53. click `Hypertables`
-54. click `Create a Continuous Aggregate`
-55. type `assets_candlestick_daily` into `View name`
-56. click `Continue`
-57. click `1 day`
-58. click `Run and proceed`
-59. click `3 weeks`
-60. click `24 hours`
-61. click `3 hours`
-62. click `Continue`
-63. click `Run and proceed`
-64. click `Close`
-65. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+37. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
+38. click `Explorer` > `Data Tiering`
+39. click `Enable tiered storage`
+40. click `Let's go!`
+41. run SQL: SELECT add_tiering_policy('assets_candlestick_daily', INTERVAL '3 weeks');
+42. run SQL: set timescaledb.enable_tiered_reads = true;
+43. run SQL: SELECT * FROM crypto_ticks srt LIMIT 10;
+44. run SQL: set timescaledb.enable_tiered_reads = false;
+45. go to /overview
+46. click `Operations` > `High availability`
+47. expect url /operations
+48. choose an unselected option
+49. click `Change configuration`
+50. click `Change config`
+51. run SQL: DROP MATERIALIZED VIEW assets_candlestick_daily;
+52. expect no rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+53. click `Explorer` > `Continuous Aggregates`
+54. click `Hypertables`
+55. click `Create a Continuous Aggregate`
+56. type `assets_candlestick_daily` into `View name`
+57. click `Continue`
+58. click `1 day`
+59. click `Run and proceed`
+60. click `3 weeks` in `Start offset`
+61. click `24 hours` in `End offset`
+62. click `3 hours` in `Schedule interval`
+63. click `Continue`
+64. click `Run and proceed`
+65. click `Close`
+66. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+67. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
 
 **Notes**: both documented routes into the data are walked, on the real files and the real table
 names. Steps 2 to 14 take the `psql` route and then drop what it created: the two routes are
@@ -543,10 +545,10 @@ tested as written. Steps 15 to 29 take the {C.CONSOLE} upload route, including t
 toggle, which is the point of that route and only appears for a time column; the data it leaves
 behind is what the sections after it use.
 
-Steps 50 to 65 walk the {C.CAGG_CAP} wizard, which is scriptable now that the page describes the
+Steps 51 to 67 walk the {C.CAGG_CAP} wizard, which is scriptable now that the page describes the
 redesigned Console. It runs last and drops the {C.CAGG} the SQL route already created, because the
-two build the same object: step 51 proves it is gone before the wizard rebuilds it, and step 65 that
-the wizard did.
+two build the same object: step 52 proves it is gone before the wizard rebuilds it, and steps 66 and 67 that
+the wizard rebuilt both the aggregate and its policy with the documented schedule.
 
 Assertions are steps, not a separate section. `run SQL:` only fails when a statement errors, so a
 `SELECT` over an empty table passes — without steps 9 to 11 and 30 to 32 this plan could walk an
@@ -555,5 +557,9 @@ entire ingest route, load nothing, and report a pass.
 Deliberately unscripted:
 
 - The {C.DATA_MODE} route's own steps. Its SQL is exercised above, so only the route goes untested.
+- The tiering policy step 41 creates, and the high-availability change steps 48 to 50 make. Neither
+  has a catalog this plan can check: no tiering view is visible until tiering is on, and the
+  high-availability setting is service metadata rather than SQL. Both steps only assert that the
+  action did not error, which is weaker than the rest of this plan.
 
 </TestPlan>
