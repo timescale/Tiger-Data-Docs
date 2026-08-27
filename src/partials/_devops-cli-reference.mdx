@@ -104,14 +104,28 @@ You see something like:
 
 Change the {C.PROJECT_SHORT} that later commands act on. Alias: `switch`.
 
-This requires a browser login (`tiger auth login` with no keys). A public/secret key pair belongs to a single {C.PROJECT_SHORT}, so if you authenticated with client credentials, the command refuses and tells you to log in with the other {C.PROJECT_SHORT}'s keys instead.
-
-Switching clears the default {C.SERVICE_SHORT} (`service_id`), because it belongs to the {C.PROJECT_SHORT} you set it in.
-
 **Usage**: `tiger project use <project-id>`
 
 ```bash
 tiger project use <project-id>
+```
+
+You see:
+
+```txt
+Switched to project <project-id>
+```
+
+If a default {C.SERVICE_SHORT} was set, it is cleared first, because it belongs to the {C.PROJECT_SHORT} you set it in:
+
+```txt
+Cleared default service (config key service_id): it belonged to the previous project
+```
+
+If that value came from `--service-id` or `TIGER_SERVICE_ID` rather than your config file, {C.CLI_LONG} cannot clear it, so it warns instead:
+
+```txt
+Warning: the default service from --service-id/TIGER_SERVICE_ID belongs to the previous project and is still in effect
 ```
 
 If you name the {C.PROJECT_SHORT} you are already on, nothing changes:
@@ -120,14 +134,26 @@ If you name the {C.PROJECT_SHORT} you are already on, nothing changes:
 Already using project <project-id>
 ```
 
-If you name a {C.PROJECT_SHORT} you cannot reach, the reason is printed and the command exits with code `3`:
+If you name a {C.PROJECT_SHORT} you cannot reach, the command exits with code `3`:
 
 ```txt
 Project <project-id> is not among your accessible projects
 Error: no access to the requested project
 ```
 
-Find your {C.PROJECT_SHORT} ID in [{C.CONSOLE_LONG}](/integrate/find-connection-details#find-your-project-and-service-id), or read it out of any {C.SERVICE_SHORT}'s connection string.
+Switching requires a browser login, because a public/secret key pair belongs to a single {C.PROJECT_SHORT}. With client credentials the command exits with code `4` instead. If your keys are stored:
+
+```txt
+Error: an API key is scoped to a single project. Run 'tiger auth login' without --public-key/--secret-key
+```
+
+If they come from the environment:
+
+```txt
+Error: cannot switch projects while TIGER_PUBLIC_KEY/TIGER_SECRET_KEY are set: an API key is scoped to a single project
+```
+
+There is no command that lists your {C.PROJECT_SHORT}s. Find the ID in [{C.CONSOLE_LONG}](/integrate/find-connection-details#find-your-project-and-service-id), or read it out of any {C.SERVICE_SHORT}'s connection string.
 
 ## Version
 
