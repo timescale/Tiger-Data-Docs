@@ -19,7 +19,6 @@ import { NumberedList, NumberedItem } from "@components/NumberedList";
 import IntegrationPrereqs from "../../../../partials/_prereqs-cloud-no-connection.mdx";
 import { Prerequisites } from "@components/Prerequisites";
 import HypercoreIntroShort from "../../../../partials/_hypercore-intro-short.mdx";
-import HypercoreDirectCompress from "../../../../partials/_hypercore-direct-compress.mdx";
 
 import CreateHypertablePolicyNote from "../../../../partials/_create-hypertable-columnstore-policy-note.mdx";
 import HASetup from "../../../../partials/_high-availability-setup.mdx";
@@ -32,8 +31,6 @@ import imgHypertableStructureLight from "../../../../assets/images/learn/hyperta
 import imgHypertableStructureDark from "../../../../assets/images/learn/hypertable-structure-dark.png";
 import imgCaggsLight from "../../../../assets/images/learn/deep-dive/continuous-aggregates-light.png";
 import imgCaggsDark from "../../../../assets/images/learn/deep-dive/continuous-aggregates-dark.png";
-import imgCaggWizardLight from "../../../../assets/images/get-started/tools/continuous-aggregate-wizard-tiger-console.png";
-import imgCaggWizardDark from "../../../../assets/images/get-started/tools/continuous-aggregate-wizard-tiger-console-dark.png";
 import imgTieredStorageLight from "../../../../assets/images/learn/deep-dive/tiered-storage-light.png";
 import imgTieredStorageDark from "../../../../assets/images/learn/deep-dive/tiered-storage-dark.png";
 import imgEnableTieredStorageLight from "../../../../assets/images/build/data-management/enable-tiered-storage-tiger-console.png";
@@ -112,19 +109,18 @@ relational and time-series data from external files.
        <TabItem label={C.CONSOLE}>
 
           {C.CONSOLE} data upload creates {C.HYPERTABLE}s and relational tables from the data you are uploading:
-          1. In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select the {C.SERVICE_SHORT} to add data to, then click `Actions` > `Import data` > `Upload .CSV`.
-          1. Click to browse, or drag and drop `<local folder>/tutorial_sample_tick.csv` to upload.
+          1. In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select the {C.SERVICE_SHORT} to add data to, then click `Actions` > `Import data`.
+          1. In `Upload Files`, click `Upload your files`, then click `CSV`.
+          1. In `Upload .CSV`, click to browse, or drag and drop `<local folder>/tutorial_sample_tick.csv` to upload.
           1. Leave the default settings for the delimiter, skipping the header, and creating a new table.
           1. In `Table`, provide `crypto_ticks` as the new table name.
-          1. Enable `hypertable partition` for the `time` column and click `Process CSV file`.
+          1. Enable `Hypertable partition` for the `time` column and click `Continue`.
 
               The upload wizard creates a {C.HYPERTABLE} containing the data from the CSV file.
-          1. When the data is uploaded, close `Upload .CSV`.
-
-              If you want to have a quick look at your data, press `Run`.
+          1. When the data is uploaded, press `Run` to have a quick look at your data, then close `Upload .CSV`.
           1. Repeat the process with `<local folder>/tutorial_sample_assets.csv` and rename to `crypto_assets`.
 
-              There is no time-series data in this table, so you don't see the `hypertable partition` option.
+              There is no time-series data in this table, so you don't see the `Hypertable partition` option.
 
        </TabItem>
 
@@ -170,7 +166,15 @@ relational and time-series data from external files.
             ```
        3. Speed up data ingestion:
 
-          <HypercoreDirectCompress />
+          Turn on direct compress for the {C.HYPERTABLE} you just created, so the `\COPY` below writes
+          compressed batches straight to the {C.COLUMNSTORE}:
+
+          ```sql
+          ALTER TABLE crypto_ticks SET (timescaledb.direct_compress);
+          ```
+
+          Direct compress is a tech preview. For how it works, when it helps, and the session-wide
+          alternatives, see [Speed up data ingestion](/learn/hypertables/optimize-data-in-hypertables#speed-up-data-ingestion).
 
        4. Upload the dataset to your {C.SERVICE_SHORT}:
 
@@ -295,17 +299,30 @@ This section shows you how to run fast analytical queries using {C.TIME_BUCKET}s
 <TabItem label={`${C.CAGG_CAP} wizard`}>
 
 <NumberedList>
-  <NumberedItem title={`In ${C.CONSOLE}, select the ${C.SERVICE_SHORT} you uploaded data to`}></NumberedItem>
 
-<NumberedItem title="Click `Explorer` > `Continuous Aggregates` > `Create a Continuous Aggregate` next to the `crypto_ticks` hypertable"></NumberedItem>
+<NumberedItem title={`In ${C.CONSOLE}, select the ${C.SERVICE_SHORT} you uploaded data to`}></NumberedItem>
 
-  <NumberedItem title="Create a view called `assets_candlestick_daily` on the `time` column with an interval of `1 day`, then click `Next step`">
+<NumberedItem title="Click `Explorer` > `Continuous Aggregates`, open the `Hypertables` tab, then click `Create a Continuous Aggregate` next to `crypto_ticks`">
 
-<ThemeImage light={imgCaggWizardLight} dark={imgCaggWizardDark} alt="Continuous aggregate wizard" />
+The `Hypertables` tab lists every {C.HYPERTABLE} in the {C.SERVICE_SHORT} with the number of
+{C.CAGG}s on it. The control only appears once the {C.SERVICE_SHORT} has a {C.HYPERTABLE}.
 
-  </NumberedItem>
+</NumberedItem>
 
-  <NumberedItem title="Update the view SQL with the following functions, then click `Run`">
+<NumberedItem title="In `Configure the aggregate`, type `assets_candlestick_daily` in `View name`, then click `Continue`">
+
+`Hypertable` and `Time column` are already set to `crypto_ticks` and `time`.
+
+</NumberedItem>
+
+<NumberedItem title="In `Review the view`, select a `Bucket interval` of `1 day`">
+
+`Bucket interval` sets how wide each aggregation bucket is. The wizard writes the matching
+`CREATE MATERIALIZED VIEW` statement below it, which you can edit before running.
+
+</NumberedItem>
+
+<NumberedItem title="Replace the statement with the following, then click `Run and proceed`">
 
 ````sql
 CREATE MATERIALIZED VIEW assets_candlestick_daily
@@ -321,23 +338,27 @@ FROM "public"."crypto_ticks" srt
 GROUP BY bucket, symbol;
 ````
 
-  </NumberedItem>
-
-<NumberedItem title="When the view is created, click `Next step`"></NumberedItem>
-
-<NumberedItem title="Define a refresh policy with the following values:">
-
-- `How far back do you want to materialize?`: `3 weeks`
-- `What recent data to exclude?`: `24 hours`
-- `How often do you want the job to run?`: `3 hours`
+The view is created empty. The refresh policy you set up next is what populates it.
 
 </NumberedItem>
 
-<NumberedItem title="Click `Next step`, then click `Run`">
+<NumberedItem title="In `Configure the refresh policy`, set the following values, then click `Continue`">
 
-{C.CLOUD_LONG} creates the {C.CAGG} and displays the aggregate ID in {C.CONSOLE}. Click `DONE` to close the wizard.
+- `Start offset`: `3 weeks`, how far back to materialize
+- `End offset`: `24 hours`, how recent to exclude
+- `Schedule interval`: `3 hours`, how often the refresh job runs
 
 </NumberedItem>
+
+<NumberedItem title="In `Review the refresh policy`, click `Run and proceed`">
+
+The wizard shows the `add_continuous_aggregate_policy` call it is about to run. Creating the policy
+triggers the first refresh, back as far as the `Start offset`.
+
+</NumberedItem>
+
+<NumberedItem title="Click `Close`"></NumberedItem>
+
 </NumberedList>
 
 </TabItem>
@@ -367,7 +388,7 @@ To set up data tiering:
 
  1. In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select the {C.SERVICE_SHORT} to modify.
 
- 1. In `Explorer`, click `Data tiering` > `Enable tiered storage`.
+ 1. In `Explorer`, click `Data Tiering` > `Enable tiered storage`.
 
      <ThemeImage light={imgEnableTieredStorageLight} dark={imgEnableTieredStorageDark} alt="Enable tiered storage" />
 
