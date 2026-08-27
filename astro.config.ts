@@ -568,6 +568,7 @@ export default defineConfig({
                 { label: "Ingest real-time financial data", link: "/build/examples/ingest-real-time-financial-data" },
                 { label: "Analyze application events with UUIDv7", link: "/build/examples/analyze-events-with-uuidv7" },
                 { label: "Build hybrid search with BM25 and vectors", link: "/build/examples/hybrid-search" },
+                { label: "Build a production RAG system with Postgres", link: "/build/examples/rag-postgres" },
                 { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
                 { label: "Analyze stock market data", link: "/build/examples/analyze-stock-market-data" },
                 { label: "Analyze NYC taxi data", link: "/build/examples/analyze-nyc-taxi-data" },
