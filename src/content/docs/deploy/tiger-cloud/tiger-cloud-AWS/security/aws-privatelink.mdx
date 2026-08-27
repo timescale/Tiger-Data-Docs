@@ -141,11 +141,43 @@ Your private hosted zone overrides public DNS for everything under it, in every 
 
 <NumberedItem title="Test the connection">
 
-From an EC2 instance inside your VPC, connect to your {C.SERVICE_SHORT} using a connection string with your [connection details](/integrate/find-connection-details). You should be able to connect successfully.
+Run these from an EC2 instance inside the {C.VPC} you associated with the hosted zone. They fail from anywhere else, including your laptop, because the hostname resolves to private addresses.
+
+1. Check that your zone resolves the hostname to your endpoint:
+
+   ```bash
+   dig +short <service-id>.<project-id>.tsdb.cloud.timescale.com
+   ```
+
+   You get the endpoint DNS name, then one private IP for each Availability Zone your endpoint spans. Two addresses means both zones can serve you. One address means the endpoint exists in a single Availability Zone and you have no failover.
+
+   No answer at all means the zone is not resolving. Check that the hosted zone is associated with this {C.VPC}, and that the record name matches the hostname exactly.
+
+1. Check that the endpoint accepts connections on the port for this endpoint:
+
+   ```bash
+   nc -zv <service-id>.<project-id>.tsdb.cloud.timescale.com <port>
+   ```
+
+   A timeout here, rather than a refusal, usually means the endpoint's security group does not allow inbound traffic on that port from this instance.
+
+1. Connect, verifying the certificate:
+
+   ```bash
+   psql "postgres://tsdbadmin@<service-id>.<project-id>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=verify-full"
+   ```
+
+   `sslmode=verify-full` is the point of publishing our hostname rather than the endpoint's own name: it proves you reached your {C.SERVICE_SHORT} privately and that the certificate matches. If this succeeds, your setup is correct.
+
+1. If you added a record for the read endpoint, repeat the check against it, using its own port:
+
+   ```bash
+   psql "postgres://tsdbadmin@<service-id>-repl.<project-id>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=verify-full"
+   ```
 
 <Callout variant="warning">
 
-Ports are specific to each endpoint, and are not `5432`. Your primary and your read replica listen on different ports. Always use the port shown for that endpoint in your [connection details](/integrate/find-connection-details).
+Ports are specific to each endpoint, and are not `5432`. Your primary and your read endpoint listen on different ports. Always use the port shown for that endpoint in your [connection details](/integrate/find-connection-details).
 
 </Callout>
 
