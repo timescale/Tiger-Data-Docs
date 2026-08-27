@@ -1,0 +1,166 @@
+---
+title: Continuous Aggregates
+description: Master materialized views that automatically keep your rollups fresh for real-time analytics
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+
+**Module:** Tiger Data 101 → An Introduction to {C.TIMESCALE_DB}
+**Estimated time:** 10–12 minutes
+
+---
+
+## Learning Objectives
+
+By the end of this module, you will be able to:
+
+- **Explain** what Continuous Aggregates are and how they improve query performance (Understand)
+- **Describe** the refresh mechanisms (invalidation, lookback, late-arriving data) and **apply** them appropriately (Understand/Apply)
+- **Design** hierarchical Continuous Aggregates and real-time aggregates for complex analytical queries (Create)
+- **Analyze** materialized views and **compare** with non-materialized approaches (Analyze)
+
+---
+
+## The Problem with Repeated Rollups
+
+> TODO: Content coming soon.
+
+---
+
+## What are Continuous Aggregates?
+
+> TODO: Content coming soon.
+
+---
+
+## Creating a Continuous Aggregate
+
+> TODO: Content coming soon.
+
+```sql
+CREATE MATERIALIZED VIEW hourly_sensor_summary
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('1 hour', time) AS bucket,
+  device_id,
+  avg(temperature) AS avg_temperature,
+  max(temperature) AS max_temperature,
+  min(temperature) AS min_temperature
+FROM sensor_readings
+GROUP BY bucket, device_id
+WITH NO DATA;
+
+-- Add a refresh policy
+SELECT add_continuous_aggregate_policy('hourly_sensor_summary',
+  start_offset => INTERVAL '3 hours',
+  end_offset   => INTERVAL '1 hour',
+  schedule_interval => INTERVAL '1 hour'
+);
+```
+
+---
+
+## Refresh Policies and Mechanisms
+
+> TODO: Content coming soon.
+
+Topics to cover:
+
+- Invalidation: how {C.TIMESCALE_DB} tracks which buckets need refreshing
+- Lookback window: how far back to refresh on each run
+- Late-arriving data: handling out-of-order inserts
+
+---
+
+## Real-Time Aggregates
+
+> TODO: Content coming soon.
+
+---
+
+## Hierarchical Continuous Aggregates
+
+> TODO: Content coming soon.
+
+```sql
+-- Daily rollup built from the hourly CAGG
+CREATE MATERIALIZED VIEW daily_sensor_summary
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('1 day', bucket) AS day,
+  device_id,
+  avg(avg_temperature) AS avg_temperature
+FROM hourly_sensor_summary
+GROUP BY day, device_id;
+```
+
+---
+
+## Materialized {C.HYPERTABLE}}s
+
+> TODO: Content coming soon.
+
+---
+
+## Summary & Next Steps
+
+**Up next:**
+
+- [Putting {C.TIMESCALE_DB} Into Action](/learn/tiger-data-academy/tiger-data-101/putting-timescaledb-into-action) — design patterns and real-world examples
+- [{C.TIMESCALE_DB} Core Use Cases](/learn/tiger-data-academy/tiger-data-101/use-cases) — deep-dives into specific industries
+
+---
+
+## Knowledge Check
+
+### Question 1
+
+What SQL object does a Continuous Aggregate most closely resemble in standard PostgreSQL?
+
+- A) A stored procedure
+- B) A trigger
+- C) A materialized view
+- D) A partial index
+
+### Question 2
+
+When new data is inserted into a time bucket that a CAGG has already processed, what mechanism marks that bucket for re-computation on the next refresh?
+
+- A) A cron job that scans the hypertable every minute
+- B) Invalidation tracking
+- C) A mandatory manual `REFRESH MATERIALIZED VIEW` call
+- D) Row-level triggers attached to the hypertable
+
+### Question 3
+
+A team serves hourly, daily, and monthly rollups from a single dataset. What is the most efficient approach in {C.TIMESCALE_DB}?
+
+- A) Run three separate GROUP BY queries against the raw hypertable on each request
+- B) Hierarchical CAGGs: the daily CAGG reads from the hourly CAGG, the monthly from the daily
+- C) Export data nightly to a data warehouse for daily and monthly queries
+- D) Create three separate hypertables, one per granularity
+
+---
+
+## Answers
+
+| # | Answer | Explanation |
+| --- | --- | --- |
+| 1 | **C** | A Continuous Aggregate is a specialized materialized view with automatic incremental refresh; {C.TIMESCALE_DB} only recomputes the buckets that have changed |
+| 2 | **B** | {C.TIMESCALE_DB}'s invalidation log tracks which time buckets have been modified. On the next refresh run, only those buckets are recomputed |
+| 3 | **B** | Hierarchical CAGGs avoid re-scanning raw data: the daily CAGG reads pre-aggregated hourly results, and the monthly reads from daily; each level only does incremental work |
+
+---
+
+## Resources
+
+### Tiger Data Docs
+
+- [Continuous Aggregates Overview](/reference/timescaledb/continuous-aggregates)
+- [Understand Continuous Aggregates](/learn/continuous-aggregates)
+- [Time and Continuous Aggregates](/learn/continuous-aggregates/time-and-continuous-aggregates)
+- [Hierarchical Continuous Aggregates](/learn/continuous-aggregates/hierarchical-continuous-aggregates)
+- [Real-Time Aggregates](/learn/continuous-aggregates/real-time-aggregates)
+- [Materialized {C.HYPERTABLE}}s](/learn/continuous-aggregates/materialized-hypertables)
+- [Continuous Aggregate Refresh, Demystified](https://www.tigerdata.com/blog/continuous-aggregate-refresh-demystified)

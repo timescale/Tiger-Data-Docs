@@ -1,0 +1,262 @@
+---
+title: What is TimescaleDB?
+description: Learn about TimescaleDB, how it extends PostgreSQL for time-series workloads, and its core architecture
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { KnowledgeCheck } from '@components/KnowledgeCheck';
+
+**Module:** Tiger Data 101 → An Introduction to {C.TIMESCALE_DB}
+**Estimated time:** 12–15 minutes
+
+---
+
+## Learning Objectives
+
+By the end of this module, you will be able to:
+
+- **Recall** key features and benefits of {C.TIMESCALE_DB} (Remember)
+- **Explain** how {C.TIMESCALE_DB} extends PostgreSQL for time-series workloads (Understand)
+
+---
+
+## The Problem: Data That Never Stops Moving
+
+Most databases were built for data that sits still: a user record, a product listing, an invoice. But a huge class of real-world data is fundamentally different; it's a continuous stream of measurements over time.
+
+Think of:
+
+- A server reporting CPU usage every 10 seconds
+- A smart meter recording energy consumption every minute
+- A stock exchange ticking prices thousands of times per second
+- A factory sensor logging temperature and pressure 24/7
+
+This is **time-series data**: an ordered sequence of data points indexed by time. It has distinct characteristics that make traditional relational databases struggle:
+
+| Challenge | Why it's hard for regular Postgres |
+| --- | --- |
+| **High write volume** | Thousands to millions of inserts per second |
+| **Data never updates** | Append-only workloads waste row-based storage |
+| **Recent data is hottest** | Queries almost always filter by time range |
+| **Old data can compress or expire** | Lifecycle management needs to be automatic |
+| **Aggregations are expensive** | Rolling averages, downsampling, done constantly |
+
+Standard PostgreSQL can store time-series data, but without specialized tooling it becomes slow, expensive, and painful to manage at scale.
+
+---
+
+## What is {C.TIMESCALE_DB}?
+
+{C.TIMESCALE_DB} is an **open-source database built for time-series workloads**, built *on top of PostgreSQL*, not beside it.
+
+> **The one-sentence version:** {C.TIMESCALE_DB} is PostgreSQL, supercharged for time-series data.
+
+It's packaged as a PostgreSQL **extension**, which means:
+
+- You get the full power of SQL (JOINs, indexes, transactions, foreign keys)
+- Every PostgreSQL tool, driver, and ORM works out of the box
+- You're not learning a new query language or giving up your existing stack
+- You add time-series superpowers, not a new database
+
+{C.TIMESCALE_DB} is an open-source extension built by Tiger Data, first released in 2017. **{C.CLOUD_LONG}}** is the fully managed cloud service for {C.TIMESCALE_DB}.
+
+---
+
+## How It Works: The Core Architecture
+
+{C.TIMESCALE_DB} introduces three core concepts that do the heavy lifting:
+
+### Hypertables
+
+A **{C.HYPERTABLE}}** is a regular PostgreSQL table from your application's perspective. Under the hood, {C.TIMESCALE_DB} automatically partitions it into smaller {C.CHUNK}}s by time (and optionally by another dimension like device ID).
+
+```
+         Hypertable: sensor_readings
+         ┌──────────────────────────┐
+         │  time  │ device │ value  │
+         └──────────────────────────┘
+                      │
+         ┌────────────┼────────────┐
+         ▼            ▼            ▼
+    [chunk: Jan]  [chunk: Feb]  [chunk: Mar]
+```
+
+Benefits:
+
+- Queries automatically target only the relevant chunks (no full-table scans)
+- Each chunk is a real PostgreSQL table with its own indexes
+- Old chunks can be compressed, moved to cheaper storage, or dropped automatically
+
+### Hypercore
+
+**{C.HYPERCORE}** is {C.TIMESCALE_DB}'s columnar storage engine for chunks. When you compress a chunk with {C.HYPERCORE}, it stores data column-by-column instead of row-by-row, following the same principle as analytical databases like Parquet or Redshift.
+
+Why it matters:
+
+- **10–40x storage compression** on typical time-series data
+- Analytical queries that scan one column are dramatically faster
+- You can mix compressed (cold) and uncompressed (hot) chunks in the same hypertable
+
+### Continuous Aggregates
+
+**Continuous Aggregates (CAGGs)** are materialized views that {C.TIMESCALE_DB} keeps automatically up to date as new data arrives.
+
+Instead of recomputing an expensive rollup on every query:
+
+```sql
+-- Without CAGGs: scans raw data every time (slow)
+SELECT time_bucket('1 hour', time), avg(temperature)
+FROM sensor_readings
+GROUP BY 1;
+
+-- With CAGGs: reads pre-computed results (fast)
+SELECT bucket, avg_temperature FROM hourly_sensor_summary;
+```
+
+CAGGs can be layered (daily from hourly, monthly from daily), enabling fast dashboards at any granularity without redundant raw data scans.
+
+---
+
+## Key Features at a Glance
+
+| Feature | What it does |
+| --- | --- |
+| **{C.HYPERTABLE_CAP}}s** | Automatic time-based partitioning under a single table interface |
+| **{C.HYPERCORE_CAP}** | Columnar storage + compression for cold data (10–40x savings) |
+| **Continuous Aggregates** | Auto-refreshing materialized rollups for fast analytics |
+| **Data Tiering** | Move old data to cheaper object storage (e.g., S3) automatically |
+| **Retention Policies** | Auto-drop data older than a defined period |
+| **Full SQL** | JOINs, CTEs, window functions, indexes, all of standard Postgres |
+| **Native time functions** | `time_bucket()`, `first()`, `last()`, `histogram()` and more |
+| **High ingest performance** | Optimized for append-heavy write patterns |
+
+---
+
+## TimescaleDB vs. the Alternatives
+
+| | {C.TIMESCALE_DB} | InfluxDB | ClickHouse | Plain Postgres |
+| --- | --- | --- | --- | --- |
+| **SQL support** | Full | Limited (Flux/InfluxQL) | SQL-like | Full |
+| **PostgreSQL compatible** | Yes (it *is* Postgres) | No | No | Yes |
+| **Time-series optimized** | Yes | Yes | Partial | No |
+| **Columnar storage** | Yes ({C.HYPERCORE}) | Yes | Yes | No |
+| **Continuous Aggregates** | Yes | Yes | Materialized Views | Manual |
+| **JOINs with relational data** | Yes | Limited | Yes | Yes |
+| **Ecosystem (ORMs, tools)** | Entire Postgres ecosystem | Telegraf/Grafana focused | Growing | Entire Postgres ecosystem |
+
+**The key differentiator:** {C.TIMESCALE_DB} gives you purpose-built time-series performance without abandoning the PostgreSQL ecosystem you (and your team) already know.
+
+---
+
+## Real-World Use Cases
+
+{C.TIMESCALE_DB} powers data-intensive applications across industries:
+
+### IoT & Sensors
+
+Ingest millions of sensor readings per second from devices in the field: factory equipment, smart buildings, connected vehicles, and query them in real time.
+
+### Financial Data
+
+Store and analyze tick data, OHLC price streams, order book events, and trade history with sub-millisecond precision and fast range queries.
+
+### Application & Infrastructure Monitoring
+
+Centralize metrics from your entire stack: servers, containers, services, and power real-time dashboards and alerting without expensive proprietary tools.
+
+### Analytics & Reporting
+
+Build always-fresh business dashboards over time-series events (clickstreams, transactions, user activity) using Continuous Aggregates instead of nightly batch jobs.
+
+### Energy & Industrial
+
+Monitor power grids, manufacturing lines, and HVAC systems, combining real-time anomaly detection with long-term trend analysis in a single database.
+
+---
+
+## Summary & Next Steps
+
+**What you learned:**
+
+- Time-series data has unique characteristics (high write volume, append-only, time-filtered) that challenge general-purpose databases
+- {C.TIMESCALE_DB} is a PostgreSQL extension, not a replacement, that adds time-series superpowers while keeping full SQL compatibility
+- Its three core pillars are **{C.HYPERTABLE}s** (automatic partitioning), **{C.HYPERCORE}** (columnar compression), and **Continuous Aggregates** (pre-computed rollups)
+- It's used across IoT, finance, monitoring, analytics, and industrial applications
+
+**Up next:**
+
+- [Working with Time-Series Data](/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data) — deep-dive into what time-series data looks like and how to model it
+- [{C.HYPERTABLE_CAP}}s](/learn/tiger-data-academy/tiger-data-101/hypertables) — hands-on, create your first hypertable
+- [{C.HYPERCORE_CAP}](/learn/tiger-data-academy/tiger-data-101/hypercore) — hands-on, compress your first chunk
+- [Continuous Aggregates](/learn/tiger-data-academy/tiger-data-101/continuous-aggregates) — hands-on, create your first continuous aggregate
+
+---
+
+## Knowledge Check
+
+Test your understanding with this interactive quiz:
+
+<KnowledgeCheck client:load
+  questions={[
+    {
+      id: 'tsdb-what-is-q1',
+      text: 'TimescaleDB is best described as:',
+      answers: [
+        { label: 'A standalone time-series database that replaces PostgreSQL', correct: false },
+        { label: 'A PostgreSQL extension that adds time-series capabilities', correct: true },
+        { label: 'A cloud-only managed database service', correct: false },
+      ],
+      explanation: 'TimescaleDB is a PostgreSQL extension; your app sees a regular Postgres database with superpowers for time-series workloads.',
+    },
+    {
+      id: 'tsdb-what-is-q2',
+      text: 'Which TimescaleDB feature automatically partitions a table into smaller pieces by time?',
+      answers: [
+        { label: 'Hypercore', correct: false },
+        { label: 'Continuous Aggregates', correct: false },
+        { label: 'Hypertables', correct: true },
+      ],
+      explanation: 'Hypertables handle automatic time-based (and optionally space-based) partitioning into chunks, enabling efficient time-series queries.',
+    },
+    {
+      id: 'tsdb-what-is-q3',
+      text: 'A team is building a dashboard showing hourly average temperature over the past year. Recomputing from raw data on every page load is too slow. Which feature is the best fit?',
+      answers: [
+        { label: 'Hypertable partitioning', correct: false },
+        { label: 'Hypercore compression', correct: false },
+        { label: 'Continuous Aggregates', correct: true },
+      ],
+      explanation: 'Continuous Aggregates pre-compute and store rollups, refreshing automatically as new data arrives—perfect for pre-computed dashboards.',
+    },
+    {
+      id: 'tsdb-what-is-q4',
+      text: 'Hypercore improves storage efficiency by switching from _______ storage to _______ storage.',
+      answers: [
+        { label: 'columnar to row-based', correct: false },
+        { label: 'row-based to columnar', correct: true },
+        { label: 'in-memory to disk-based', correct: false },
+      ],
+      explanation: 'Hypercore switches from row-based (traditional Postgres) to columnar storage, enabling high compression ratios on time-series data.',
+    },
+    {
+      id: 'tsdb-what-is-q5',
+      text: 'Which of the following is NOT an advantage of TimescaleDB being a PostgreSQL extension?',
+      answers: [
+        { label: 'Existing PostgreSQL drivers and ORMs work without changes', correct: false },
+        { label: 'You can use standard SQL including JOINs and CTEs', correct: false },
+        { label: 'You must learn a new proprietary query language', correct: true },
+      ],
+      explanation: 'The opposite is true: TimescaleDB uses standard SQL with no new query language required. This is a key advantage!',
+    },
+  ]}
+/>
+
+---
+
+## Further Reading
+
+- [Tiger Data Whitepaper](/learn/deep-dive/whitepaper) — technical breakdown of time-series databases and {C.TIMESCALE_DB}'s approach
+- [{C.TIMESCALE_DB}} Blog](https://www.tigerdata.com/blog) — deep-dives and real-world implementations
+- [Case Studies](https://www.tigerdata.com/case-studies) — how companies use {C.TIMESCALE_DB} in production

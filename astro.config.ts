@@ -417,6 +417,28 @@ export default defineConfig({
               ],
             },
             {
+              label: "Tiger Data Academy",
+              collapsed: true,
+              items: [
+                { label: "All Courses", link: "/learn/tiger-data-academy" },
+                {
+                  label: "Tiger Data 101",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/learn/tiger-data-academy/tiger-data-101" },
+                    { label: "What is TimescaleDB?", link: "/learn/tiger-data-academy/tiger-data-101/what-is-timescaledb" },
+                    { label: "Working with Time-Series Data", link: "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data" },
+                    { label: "Hypertables", link: "/learn/tiger-data-academy/tiger-data-101/hypertables" },
+                    { label: "Hypercore", link: "/learn/tiger-data-academy/tiger-data-101/hypercore" },
+                    { label: "Continuous Aggregates", link: "/learn/tiger-data-academy/tiger-data-101/continuous-aggregates" },
+                    { label: "Putting TimescaleDB Into Action", link: "/learn/tiger-data-academy/tiger-data-101/putting-timescaledb-into-action" },
+                    { label: "Core Use Cases", link: "/learn/tiger-data-academy/tiger-data-101/use-cases" },
+                    { label: "Resources", link: "/learn/tiger-data-academy/tiger-data-101/resources" },
+                  ],
+                },
+              ],
+            },
+            {
               label: "Tiger Cloud",
               collapsed: true,
               items: [
