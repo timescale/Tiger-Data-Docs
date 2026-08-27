@@ -480,7 +480,7 @@ tiger service start <service-id>
 You see something like:
 
 ```txt
-▶️ Start request accepted for service '<service-id>'.
+▶️  Start request accepted for service '<service-id>'.
 ⏳ Waiting for service to start (wait timeout: 10m0s)...
 ✅ Service has been successfully started!
 ```
@@ -502,7 +502,7 @@ tiger service stop <service-id>
 You see something like:
 
 ```txt
-⏹️ Stop request accepted for service '<service-id>'.
+⏹️  Stop request accepted for service '<service-id>'.
 ⏳ Waiting for service to stop (timeout: 10m0s)...
 ✅ Service has been successfully stopped!
 ```
@@ -549,8 +549,8 @@ tiger service delete <service-id> --confirm
 You see something like:
 
 ```txt
-🗑️ Delete request accepted for service '<service-id>'.
-⏳ Waiting for service '<service-id>' to be deleted
+🗑️  Delete request accepted for service '<service-id>'.
+Waiting for service '<service-id>' to be deleted
 ✅ Service '<service-id>' has been successfully deleted.
 ```
 
@@ -590,7 +590,7 @@ You see something like:
 | `--tail` | Number of log entries to show (default: `100`). One entry can span several lines, for example a `FATAL` followed by its `DETAIL`, so the output can be longer than the number you ask for. |
 | `--since`, `--until` | Fetch logs within a time range (RFC3339, for example `2024-01-15T09:00:00Z`). |
 | `--node` | Specific node to fetch logs from (for services with HA replicas; `0` is valid). |
-| `--output, -o` | Output format: `text`, `json`, or `yaml`. |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
 ## Database
 
@@ -892,12 +892,20 @@ Start {C.MCP_LONG}. `tiger mcp start` is the same as `tiger mcp start stdio`.
 tiger mcp start
 ```
 
-Produces no console output; it starts listening for JSON-RPC requests on stdio (or HTTP, with the `http` transport).
+The server starts listening for JSON-RPC requests on stdio (or HTTP, with the `http` transport) and logs its own activity to stderr, so the logs never corrupt the JSON-RPC stream on stdout:
+
+```txt
+2026/08/27 19:09:33 INFO server run start
+2026/08/27 19:09:33 INFO server connecting
+2026/08/27 19:09:33 INFO server session connected session_id=""
+```
+
+Logging is deliberately sparse: past startup it is mostly silent until something goes wrong.
 
 | Transport | Description |
 | --- | --- |
 | `stdio` | stdio transport (default). |
-| `http` | HTTP transport, with `--port` (default: `8080`) and `--host` (default: `localhost`). |
+| `http` | HTTP transport, with `--port` (default: `8080`) and `--host` (default: `localhost`). If the port is busy, the server picks an available one. |
 
 ## Shell completion
 
