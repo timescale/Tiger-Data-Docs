@@ -39,24 +39,12 @@ In this tutorial, you'll design a single `documents` table that powers seven com
 This tutorial is built using a [{C.CLOUD_LONG} service](/get-started/quickstart/create-service) running {C.PG} 18+ (all required extensions pre-installed, no setup needed), but you could alternatively use a {C.SELF_SHORT} {C.TIMESCALE_DB} instance or a {C.SELF_SHORT} {C.PG} instance with the `vector`, `ltree`, `postgis`, and `pg_textsearch` extensions installed.
 
 <Prerequisites context="tutorial">
-
-**Database:**
-- [{C.CLOUD_LONG}](/get-started/quickstart/create-service) running {C.PG} 18+ (recommended), OR
-- {C.SELF_SHORT_CAP} {C.TIMESCALE_DB}/{C.PG} 16+ with extensions: `vector`, `ltree`, `postgis`, `pg_textsearch`
-
-**Client tools:**
+- A [{C.CLOUD_LONG} service](/get-started/quickstart/create-service) running {C.PG} 18+ (recommended), OR a {C.SELF_SHORT_CAP} {C.TIMESCALE_DB}/{C.PG} 16+ instance with extensions: `vector`, `ltree`, `postgis`, `pg_textsearch`
 - A SQL client: `psql`, pgAdmin, or the {C.CLOUD_LONG} Console SQL Editor
 - [Node.js 20+](https://nodejs.org/) for the worker and MCP server code
 - An [OpenAI API key](https://platform.openai.com/api-keys) for generating embeddings
 - Optional: [Docker](https://docs.docker.com/get-docker/) for containerizing the worker
-
-**Node.js packages:**
-- `ai@7` (Vercel AI SDK)
-- `@ai-sdk/openai@4` (OpenAI provider)
-- `postgres@3` ({C.PG} driver)
-- `zod@4` (schema validation)
-- `@modelcontextprotocol/sdk@1` (MCP server)
-
+- Node.js packages: `ai@7`, `@ai-sdk/openai@4`, `postgres@3`, `zod@4`, `@modelcontextprotocol/sdk@1`
 </Prerequisites>
 
 
@@ -78,7 +66,7 @@ npm install
 
 <NumberedItem title="Create a .env file with your credentials">
 
-Create a `.env` file in the project root with your database and API keys (you'll fill these in after creating a {C.CLOUD_LONG} service):
+Create a `.env` file in the project root with your database and API keys (you'll fill these in after setting up your database):
 
 ```bash
 cat > .env << EOF
@@ -97,9 +85,14 @@ Make sure you're following good dev hygiene: ensure your `.env` file is listed i
 
 ---
 
-## Getting started with {C.CLOUD_LONG} (recommended)
+## Step 1: Set up your database
 
-{C.CLOUD_LONG} is the easiest way to run this tutorial — all required extensions come pre-installed on {C.PG} 18+, with automatic backups, replication, and built-in monitoring.
+Pick your adventure:
+
+<details>
+<summary>**Option 1: Use {C.CLOUD_LONG} (recommended for beginners)**</summary>
+
+{C.CLOUD_LONG} is the easiest way to get started — all required extensions come pre-installed on {C.PG} 18+, with automatic backups, replication, and built-in monitoring.
 
 <NumberedList>
 
@@ -139,6 +132,64 @@ OPENAI_API_KEY=sk-...
 
 You're now ready to run the schema. All extensions are pre-installed and configured.
 
+</details>
+
+<details>
+<summary>**Option 2: Use self-hosted PostgreSQL**</summary>
+
+If you prefer to run {C.PG} locally, you'll need to install the required extensions yourself.
+
+<NumberedList>
+
+<NumberedItem title="Start a PostgreSQL instance">
+
+Use Docker (recommended for local development):
+
+```bash
+docker run -d --name rag-postgres \
+  -p 5432:5432 \
+  -e POSTGRES_PASSWORD=password \
+  postgres:18
+```
+
+Or install {C.PG} 16+ locally using your system package manager.
+
+</NumberedItem>
+
+<NumberedItem title="Install the required extensions">
+
+Connect to your {C.PG} instance and run:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS ltree;
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS pg_textsearch;
+```
+
+<Callout variant="note">
+For `pg_textsearch`, you may need to build from source or use a precompiled binary depending on your platform. See the [pg_textsearch GitHub repository](https://github.com/timescale/pg_textsearch/releases) for installation details.
+</Callout>
+
+</NumberedItem>
+
+<NumberedItem title="Update your .env file">
+
+```
+DATABASE_URL=postgresql://postgres:password@localhost:5432/postgres
+OPENAI_API_KEY=sk-...
+```
+
+</NumberedItem>
+
+</NumberedList>
+
+</details>
+
+---
+
+## Why a single table?
+
 ## Why a single table?
 
 The natural instinct is to split this across multiple tables/systems: one for documents, one for embeddings, one for BM25 metadata. While it seems organized, it introduces significant complexity:
@@ -149,7 +200,7 @@ The natural instinct is to split this across multiple tables/systems: one for do
 
 A single table offers one source of truth, one set of indexes, and filters that apply in the database *before* ranking—so you never lose documents accidentally. Write once, read once. If a document is visible in {C.PG}, it's searchable.
 
-## Step 1: Design the schema
+## Step 2: Design the schema
 
 The schema supports seven search modes with first-class composability. This is the full version — drop the columns you don't need:
 
@@ -193,7 +244,7 @@ A few design decisions worth understanding:
 - **`temporal` (tstzrange) is optional.** Point-in-time events `[t,t]`, bounded ranges `[start,end)`, and open-ended still-active ranges `[start,'infinity')` live in the same column with the same operators.
 
 
-## Step 2: Build the indexes
+## Step 3: Build the indexes
 
 Each index is justified. All seven search modes lean on at least one:
 
@@ -232,7 +283,7 @@ create index documents_embedding_hnsw_idx
 The BM25 tuning (k1 and b) are sensible defaults. Raise `k1` to reward repeated terms; lower `b` to weaken document-length normalization. For the HNSW index, `ef_construction = 64` is safe for ~1M docs. Bump it to 200+ if recall matters more than build time.
 
 
-## Step 3: Set up the embedding queue
+## Step 4: Set up the embedding queue
 
 Synchronous embedding calls turn a 5ms write into a 500ms one, fail under rate limits, and leave no way to re-embed when you change models. The fix is a transactional outbox: writes enqueue a job in the same transaction, and a separate worker drains it.
 
@@ -394,7 +445,7 @@ $$;
 
 The `claim_embedding_batch` function is the core of the queue. The `FOR UPDATE SKIP LOCKED` is the secret: multiple workers can run this concurrently and they'll never wait on each other. It also supersedes old jobs, reclaims crashed workers' rows, and version-checks to catch races.
 
-## Step 3b: Load sample data
+## Step 4b: Load sample data
 
 Now that the schema, indexes, and embedding queue are in place, you can load sample data. The repository includes a pre-built loader that ingests New York City (NYC) 311 Service Requests (1000 rows of structured complaint data with geographic and temporal metadata). This gives you realistic data to test all search modes without writing custom transformation logic.
 
@@ -460,7 +511,7 @@ After running `npm run load`, your documents are in the database but **not yet s
 
 </Callout>
 
-## Step 4: Build the embedding worker
+## Step 5: Build the embedding worker
 
 The worker claims batches, generates embeddings, and writes them back with version guards. Run one or many workers (they coordinate through `SKIP LOCKED` — no explicit coordination needed).
 
@@ -560,7 +611,7 @@ Key behaviors:
 - **Version-guarded writeback.** Only writes if `embedding_version` still matches — immunity to concurrent content edits.
 - **Batch size 128.** Amortizes both the two DB roundtrips (claim + writeback) and the per-request overhead of the embedding HTTP call. Raise to 256–512 if latency is high; go smaller and you leave throughput on the table.
 
-## Step 5: Implement composable search
+## Step 6: Implement composable search
 
 Each search mode is a SQL pattern. They compose freely in the `where` clause of a single query:
 
@@ -745,7 +796,7 @@ function rrfFusion(
 
 The function handles four cases: hybrid (both signals), BM25 only, semantic only, and filters only. Every path respects all filters (hierarchical, temporal, geospatial, metadata) without recall loss — all filtering happens in the database.
 
-## Step 6: Expose search through MCP
+## Step 7: Expose search through MCP
 
 MCP servers register tools that show up as callable functions to AI agents (Claude, Cursor, custom). Here's how to wrap your search:
 
@@ -868,7 +919,7 @@ In Cursor Settings → Features → MCP, add the server with the same configurat
 3. Paste the connection details for your MCP server
 4. Once connected, ask Claude: "Search documents for 'RAG postgres'" and it will use the search tool directly
 
-## Step 7: Run end-to-end
+## Step 8: Run end-to-end
 
 You've already loaded sample data with `npm run load` in Step 3b. Now start the worker and test search:
 
