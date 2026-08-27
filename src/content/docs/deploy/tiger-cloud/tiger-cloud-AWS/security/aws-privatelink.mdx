@@ -26,6 +26,43 @@ With {C.CLOUD_LONG}, you can connect your {C.SERVICE_SHORT}s to AWS PrivateLink 
 
 You control DNS resolution for your {C.SERVICE_SHORT} over PrivateLink. In a private hosted zone attached to your {C.VPC}, you point the standard {C.SERVICE_SHORT} hostname at your VPC endpoint. Because you publish the same hostname that the public internet path uses, your connection strings, and the {C.SERVICE_SHORT} certificate, work unchanged.
 
+## Limits
+
+| Limit | Value |
+| --- | --- |
+| {C.SERVICE_SHORT}s per VPC endpoint | 1 |
+| VPC endpoints per {C.SERVICE_SHORT} | 2 |
+
+Each VPC endpoint serves a single {C.SERVICE_SHORT}, so create one endpoint for every {C.SERVICE_SHORT} you connect to. Each {C.SERVICE_SHORT} accepts up to two endpoints, which lets you reach it from two {C.VPC}s.
+
+AWS also applies its own quota of 60 interface endpoints per {C.VPC}, which you can raise through AWS Support.
+
+## Availability Zones
+
+{C.CLOUD_LONG} serves PrivateLink from two Availability Zones in each region. Create your VPC endpoint in **both** of them: one for the connection to work, the second so it survives the loss of an Availability Zone.
+
+| Region | Availability Zone IDs |
+| --- | --- |
+| `ap-northeast-1` | `apne1-az1`, `apne1-az4` |
+| `ap-south-1` | `aps1-az1`, `aps1-az3` |
+| `ap-southeast-1` | `apse1-az1`, `apse1-az2` |
+| `ap-southeast-2` | `apse2-az1`, `apse2-az2` |
+| `ca-central-1` | `cac1-az1`, `cac1-az2` |
+| `eu-central-1` | `euc1-az1`, `euc1-az2` |
+| `eu-central-2` | `euc2-az1`, `euc2-az2` |
+| `eu-west-1` | `euw1-az2`, `euw1-az3` |
+| `eu-west-2` | `euw2-az2`, `euw2-az3` |
+| `sa-east-1` | `sae1-az1`, `sae1-az2` |
+| `us-east-1` | `use1-az1`, `use1-az6` |
+| `us-east-2` | `use2-az1`, `use2-az2` |
+| `us-west-2` | `usw2-az3`, `usw2-az4` |
+
+<Callout variant="important">
+
+Match on the **Availability Zone ID**, such as `use1-az1`, not the Availability Zone name, such as `us-east-1a`. AWS maps names to physical zones differently in every account, so the same name points to a different zone for you than it does for us. When you choose subnets, the AWS console shows both, in the form `us-east-1a | use1-az1`.
+
+</Callout>
+
 <Prerequisites context="procedure">
 <PrereqsCloud />
 
@@ -73,7 +110,7 @@ Take the following steps to connect your {C.SERVICE_LONG} to a PrivateLink endpo
      alt="AWS endpoint service settings"
    />
 
-1. Select the VPC that contains the resources you want to connect to {C.CLOUD_LONG}, then choose one or more Availability Zones and subnets where the endpoint's private IPs will be created. For lowest latency and no cross-AZ data transfer charges, match the Availability Zones of your workloads; select multiple AZs for high availability.
+1. Select the VPC that contains the resources you want to connect to {C.CLOUD_LONG}, then choose the subnets where the endpoint's private IPs are created. Select a subnet in **both** of the Availability Zones listed for your region in [Availability Zones](#availability-zones). Selecting only one leaves you without failover, and selecting any other Availability Zone creates an interface that cannot reach your {C.SERVICE_SHORT}.
 1. Optionally configure the security groups and tags, then click `Create endpoint`.
 1. Copy the VPC endpoint ID of your new endpoint. You claim the connection with this ID:
 
