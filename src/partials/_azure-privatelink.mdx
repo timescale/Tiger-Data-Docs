@@ -94,13 +94,14 @@ You resolve your {C.SERVICE_SHORT} hostname to your private endpoint in a privat
 
 1. In [Azure Portal](https://azure.microsoft.com/en-us/get-started/azure-portal), create a [private DNS zone](https://learn.microsoft.com/en-us/azure/dns/private-dns-getstarted-portal) named `<project-id>.tsdb.cloud.timescale.com`, then add a [virtual network link](https://learn.microsoft.com/en-us/azure/dns/private-dns-virtual-network-links) to the Virtual Network that contains your resources. If you already have a private DNS zone for this domain, use it.
 1. In that zone, create an `A` record for your {C.SERVICE_SHORT} hostname, `<service-id>.<project-id>.tsdb.cloud.timescale.com`, that resolves to the private endpoint IP you copied from Azure Portal. An Azure private endpoint has a single IP address, so an `A` record is correct here.
-1. If you use a read replica, add a second `A` record for `<service-id>-repl.<project-id>.tsdb.cloud.timescale.com` pointing at the same IP. The connection pooler uses the same hostname as the primary, so it needs no extra record.
+1. If your {C.SERVICE_SHORT} has a read endpoint, add a second `A` record for `<service-id>-repl.<project-id>.tsdb.cloud.timescale.com` pointing at the same IP. This is the address of your {C.SERVICE_SHORT}'s replicas, shown as `Read endpoint` in your [connection details](/integrate/find-connection-details).
+1. If you use the connection pooler, it is reached at the primary hostname on its own port, so it needs no record of its own. Add the pooler port to your connection string instead.
 
    Find your {C.SERVICE_SHORT} ID and {C.PROJECT_SHORT} ID in your [connection details](/integrate/find-connection-details).
 
 <Callout variant="note">
 
-You publish the standard {C.SERVICE_SHORT} hostname, the same one used over the public internet. This means your existing connection strings work unchanged, and the {C.SERVICE_SHORT} certificate already covers the name, so `sslmode=verify-full` keeps working with no certificate changes.
+Your private DNS zone overrides public DNS for everything under it, in every VNet you link it to. A zone for `<project-id>.tsdb.cloud.timescale.com` takes over resolution for **all** {C.SERVICE_SHORT}s in that {C.PROJECT_SHORT}, not only the ones you add records for. A hostname in that zone with no record fails to resolve instead of falling back to the public address, so clients in those VNets can no longer reach that {C.SERVICE_SHORT} over the internet. Add a record for every {C.SERVICE_SHORT} those clients connect to.
 
 </Callout>
 
