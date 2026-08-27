@@ -870,7 +870,7 @@ export default defineConfig({
                       collapsed: true,
                       items: [
                         {
-                          label: "TigerLake (Iceberg)",
+                          label: "Tiger Lake (Iceberg)",
                           collapsed: true,
                           items: [
                             {
