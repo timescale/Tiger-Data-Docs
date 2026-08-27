@@ -8,11 +8,18 @@ interface Answer {
   correct: boolean;
 }
 
+interface Resource {
+  title: string;
+  url: string;
+  type?: 'docs' | 'blog' | 'external';
+}
+
 interface Question {
   id: string;
   text: string;
   answers: Answer[];
   explanation: string;
+  resources?: Resource[];
 }
 
 interface KnowledgeCheckProps {
@@ -70,6 +77,19 @@ export const KnowledgeCheck: React.FC<KnowledgeCheckProps> = ({ questions, title
     return question && question.answers[answerIndex]?.correct;
   }).length;
 
+  const incorrectQuestions = questions.filter(q => {
+    const answerIndex = selectedAnswers[q.id];
+    return answerIndex !== undefined && !q.answers[answerIndex]?.correct;
+  });
+
+  const suggestedResources = Array.from(
+    new Map(
+      incorrectQuestions
+        .flatMap(q => (q.resources || []).map(r => ({ ...r, questionText: q.text })))
+        .map(r => [r.url, r])
+    ).values()
+  );
+
   if (isComplete) {
     const percentage = Math.round((score / questions.length) * 100);
     return (
@@ -91,6 +111,36 @@ export const KnowledgeCheck: React.FC<KnowledgeCheckProps> = ({ questions, title
               ? 'Good effort! Consider reviewing the material.'
               : 'Keep learning! Review the module and try again.'}
           </p>
+
+          {suggestedResources.length > 0 && (
+            <div className={styles.suggestedResources}>
+              <h4>📚 Suggested Reading</h4>
+              <p className={styles.suggestionsSubtext}>
+                Here are some resources to help you with the concepts you found challenging:
+              </p>
+              <ul className={styles.resourcesList}>
+                {suggestedResources.map((resource, index) => (
+                  <li key={`${resource.url}-${index}`}>
+                    <a
+                      href={resource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.resourceLink}
+                    >
+                      <span className={styles.resourceTitle}>{resource.title}</span>
+                      {resource.type && (
+                        <span className={`${styles.resourceBadge} ${styles[`badge-${resource.type}`]}`}>
+                          {resource.type === 'docs' ? '📖' : resource.type === 'blog' ? '📝' : '🔗'}
+                          {' '}{resource.type}
+                        </span>
+                      )}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <button className={styles.button} onClick={handleRestart}>
             Retake Quiz
           </button>
