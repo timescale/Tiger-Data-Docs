@@ -120,7 +120,7 @@ if (opt.lint) {
   // Explicit paths lint just those files: what CI wants for a changed-files run, and the only way to
   // exercise the checks against a fixture without putting a broken page in the content tree.
   const only = argv.filter((a) => !a.startsWith("--"));
-  const planned = (only.length ? only : pages).filter((f) => read(f).includes("<TestPlan"));
+  const planned = (only.length ? only : pages).filter((f) => resolved(read(f)).includes("<TestPlan"));
   const BLOCK = /<TestPlan\b[^>]*>([\s\S]*?)<\/TestPlan>/;
   const STEP = /^\s*(\d+)[.)]\s+(.*\S)\s*$/;
 
@@ -132,7 +132,10 @@ if (opt.lint) {
 
   let errors = 0;
   for (const f of planned) {
-    const src = read(f);
+    // Through partials: a plan for a flow documented in a shared partial belongs in that partial, so
+    // ONE plan covers every page importing it (the AWS and Azure security pages, say). Reading only
+    // the page file made those plans invisible to both this lint and the coverage count.
+    const src = resolved(read(f));
     const block = src.match(BLOCK);
     const problems = [];
     if (!block) { problems.push("a <TestPlan> tag with no closing </TestPlan>"); }
@@ -189,7 +192,7 @@ for (const s of inventory) {
   const file = bySlug.get(s);
   if (!file) { unknown.push(s); continue; }
   if (changed && !changed.has(file)) continue;
-  rows.push({ slug: s, plan: read(file).includes("<TestPlan") });
+  rows.push({ slug: s, plan: resolved(read(file)).includes("<TestPlan") });
 }
 
 const have = rows.filter((r) => r.plan);
