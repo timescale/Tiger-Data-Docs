@@ -59,8 +59,17 @@ disabled until something changes. All three were found by running, not reading. 
    | a policy | `expect rows: SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = '<proc>' AND <the documented interval>` |
    | a drop, before a route rebuilds the same object | `expect no rows: …` |
 
-   Assert the **documented value**, not just existence: a policy assertion that checks
-   `schedule_interval = INTERVAL '3 hours'` fails when the page's number is wrong, which is the point.
+   **Assert only what the page claims.** The tool tests the docs, not the product: if a documented
+   control is there and responds, the page is right, and a setting that then fails to take effect is a
+   Console bug. So the assertions worth writing are the ones that check a documented VALUE — a policy
+   assertion checking `schedule_interval = INTERVAL '3 hours'` fails when the page's number is wrong,
+   which is exactly a docs bug. An existence check earns its place where the page states the outcome
+   ("the wizard creates a hypertable containing the data"), and `expect label` where the page states
+   what the interface will say (the members table groups people into `Meeting policy` and `Not meeting
+   policy`).
+
+   The high-availability section is the clearest case of NOT asserting: the page documents a click
+   path and promises nothing about what the setting becomes, so the click path is the whole claim.
 
 7. **Never write a credential, address or CIDR.** `type $INVITE_EMAIL into \`Email\`` reads
    `DOCTEST_INPUT_INVITE_EMAIL` from the environment. Never write a service or project id either:
@@ -93,9 +102,9 @@ These are limits of the walker, not of any one page:
 - **Data view / PopSQL.** A cross-origin iframe the walker cannot reach inside. When a page documents
   both a Data view route and another route for the same SQL, script the other one: the statements
   still get exercised and only the route goes untested.
-- **High-availability configuration.** Neither SQL nor `tiger service get` exposes the replication
-  strategy, so a plan can prove the controls worked but not that the setting changed. Script the
-  clicks and leave the outcome unasserted.
+- **High-availability configuration.** Script the clicks and assert nothing: nothing in SQL or
+  `tiger service get` exposes the replication strategy, and the page does not claim a specific
+  outcome anyway.
 - **Drag-and-drop targets and unlabelled icons.** `[resolve: <hint>]` is the escape hatch, and a hint
   with no resolver behind it is reported rather than run. Only reach for it when there is genuinely no
   label to name.
