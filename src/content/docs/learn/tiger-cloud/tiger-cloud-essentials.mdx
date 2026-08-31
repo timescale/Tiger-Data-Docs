@@ -336,7 +336,8 @@ SELECT
   last(price, time) AS close,
   min(price) AS low
 FROM "public"."crypto_ticks" srt
-GROUP BY bucket, symbol;
+GROUP BY bucket, symbol
+WITH NO DATA;
 ````
 
 The view is created empty. The refresh policy you set up next is what populates it.
@@ -519,14 +520,27 @@ What next? See [Build](/build) for more advanced tutorials, interact with the da
 58. type `assets_candlestick_daily` into `View name`
 59. click `Continue`
 60. click `1 day`
-61. click `Run and proceed`
-62. click `3 weeks` in `Start offset`
-63. click `24 hours` in `End offset`
-64. click `3 hours` in `Schedule interval`
-65. click `Continue`
-66. click `Run and proceed`
-67. click `Close`
-68. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
-69. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
+61. replace the statement with:
+     CREATE MATERIALIZED VIEW assets_candlestick_daily
+     WITH (timescaledb.continuous) AS
+     SELECT
+     time_bucket('1 day', "time") AS bucket,
+     symbol,
+     max(price) AS high,
+     first(price, time) AS open,
+     last(price, time) AS close,
+     min(price) AS low
+     FROM "public"."crypto_ticks" srt
+     GROUP BY bucket, symbol
+     WITH NO DATA;
+62. click `Run and proceed`
+63. click `3 weeks` in `Start offset`
+64. click `24 hours` in `End offset`
+65. click `3 hours` in `Schedule interval`
+66. click `Continue`
+67. click `Run and proceed`
+68. click `Close`
+69. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+70. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
 
 </TestPlan>
