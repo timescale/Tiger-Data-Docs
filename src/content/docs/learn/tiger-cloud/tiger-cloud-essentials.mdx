@@ -449,113 +449,88 @@ What next? See [Build](/build) for more advanced tutorials, interact with the da
 
 <TestPlan>
 
-**Isolation**: fork. The run creates tables and a {C.CAGG}, turns on tiered storage, and changes the
-high-availability configuration, all of which are service-level changes.
-
-**Setup**: fetch https://assets.timescale.com/docs/downloads/candlestick/crypto_sample.zip — the
-dataset the page tells the reader to unzip. The files are removed when the run ends.
-
-**Steps**:
-1. select the service
-2. run command: `psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"`
-3. run SQL:
+1. fork the service
+2. download https://assets.timescale.com/docs/downloads/candlestick/crypto_sample.zip
+3. select the service
+4. run command: `psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"`
+5. run SQL:
      CREATE TABLE crypto_ticks ("time" TIMESTAMPTZ, symbol TEXT, price DOUBLE PRECISION,
      day_volume NUMERIC) WITH (tsdb.hypertable, tsdb.segmentby = 'symbol');
-4. run SQL:
+6. run SQL:
      CREATE TABLE crypto_assets (symbol TEXT NOT NULL, name TEXT NOT NULL);
-5. run SQL: ALTER TABLE crypto_ticks SET (timescaledb.direct_compress);
-6. run SQL: \COPY crypto_ticks from './tutorial_sample_tick.csv' DELIMITER ',' CSV HEADER;
-7. run SQL: \COPY crypto_assets from './tutorial_sample_assets.csv' DELIMITER ',' CSV HEADER;
-8. run SQL: SELECT * FROM crypto_ticks ORDER BY time DESC LIMIT 10;
-9. expect rows: SELECT 1 FROM crypto_ticks LIMIT 1
-10. expect rows: SELECT 1 FROM crypto_assets LIMIT 1
-11. expect rows: SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'crypto_ticks'
-12. run SQL: DROP TABLE crypto_ticks;
-13. run SQL: DROP TABLE crypto_assets;
-14. exit psql
-15. click `Actions` > `Import data`
-16. click `Upload your files`, then click `CSV`
-17. upload tutorial_sample_tick.csv
-18. type `crypto_ticks` into `Table`
-19. toggle `Hypertable partition` on for `time`
-20. click `Continue`
-21. click `Run`
-22. click `Close`
-23. click `Actions` > `Import data`
-24. click `Upload your files`, then click `CSV`
-25. upload tutorial_sample_assets.csv
-26. type `crypto_assets` into `Table`
-27. click `Continue`
-28. click `Run`
-29. click `Close`
-30. expect rows: SELECT 1 FROM crypto_ticks LIMIT 1
-31. expect rows: SELECT 1 FROM crypto_assets LIMIT 1
-32. expect rows: SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'crypto_ticks'
-33. run SQL:
+7. run SQL: ALTER TABLE crypto_ticks SET (timescaledb.direct_compress);
+8. run SQL: \COPY crypto_ticks from './tutorial_sample_tick.csv' DELIMITER ',' CSV HEADER;
+9. run SQL: \COPY crypto_assets from './tutorial_sample_assets.csv' DELIMITER ',' CSV HEADER;
+10. run SQL: SELECT * FROM crypto_ticks ORDER BY time DESC LIMIT 10;
+11. expect rows: SELECT 1 FROM crypto_ticks LIMIT 1
+12. expect rows: SELECT 1 FROM crypto_assets LIMIT 1
+13. expect rows: SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'crypto_ticks'
+14. run SQL: DROP TABLE crypto_ticks;
+15. run SQL: DROP TABLE crypto_assets;
+16. exit psql
+17. click `Actions` > `Import data`
+18. click `Upload your files`, then click `CSV`
+19. upload tutorial_sample_tick.csv
+20. type `crypto_ticks` into `Table`
+21. toggle `Hypertable partition` on for `time`
+22. click `Continue`
+23. click `Run`
+24. click `Close`
+25. click `Actions` > `Import data`
+26. click `Upload your files`, then click `CSV`
+27. upload tutorial_sample_assets.csv
+28. type `crypto_assets` into `Table`
+29. click `Continue`
+30. click `Run`
+31. click `Close`
+32. expect rows: SELECT 1 FROM crypto_ticks LIMIT 1
+33. expect rows: SELECT 1 FROM crypto_assets LIMIT 1
+34. expect rows: SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'crypto_ticks'
+35. run SQL:
      CREATE MATERIALIZED VIEW assets_candlestick_daily WITH (timescaledb.continuous) AS
      SELECT time_bucket('1 day', "time") AS day, symbol, max(price) AS high,
      first(price, time) AS open, last(price, time) AS close, min(price) AS low
      FROM crypto_ticks srt GROUP BY day, symbol;
-34. run SQL:
+36. run SQL:
      SELECT add_continuous_aggregate_policy('assets_candlestick_daily',
      start_offset => INTERVAL '3 weeks', end_offset => INTERVAL '24 hours',
      schedule_interval => INTERVAL '3 hours');
-35. run SQL: SELECT * FROM assets_candlestick_daily ORDER BY day DESC, symbol LIMIT 10;
-36. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
-37. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
-38. click `Explorer` > `Data Tiering`
-39. click `Enable tiered storage`
-40. click `Let's go!`
-41. run SQL: SELECT add_tiering_policy('assets_candlestick_daily', INTERVAL '3 weeks');
-42. run SQL: set timescaledb.enable_tiered_reads = true;
-43. run SQL: SELECT * FROM crypto_ticks srt LIMIT 10;
-44. run SQL: set timescaledb.enable_tiered_reads = false;
-45. go to /overview
-46. click `Operations` > `High availability`
-47. expect url /operations
-48. choose an unselected option
-49. click `Change configuration`
-50. click `Change config`
-51. run SQL: DROP MATERIALIZED VIEW assets_candlestick_daily;
-52. expect no rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
-53. click `Explorer` > `Continuous Aggregates`
-54. click `Hypertables`
-55. click `Create a Continuous Aggregate`
-56. type `assets_candlestick_daily` into `View name`
-57. click `Continue`
-58. click `1 day`
-59. click `Run and proceed`
-60. click `3 weeks` in `Start offset`
-61. click `24 hours` in `End offset`
-62. click `3 hours` in `Schedule interval`
-63. click `Continue`
-64. click `Run and proceed`
-65. click `Close`
-66. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
-67. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
-
-**Notes**: both documented routes into the data are walked, on the real files and the real table
-names. Steps 2 to 14 take the `psql` route and then drop what it created: the two routes are
-alternatives that build the same tables, so the first has to be undone before the second can be
-tested as written. Steps 15 to 29 take the {C.CONSOLE} upload route, including the `Hypertable partition`
-toggle, which is the point of that route and only appears for a time column; the data it leaves
-behind is what the sections after it use.
-
-Steps 51 to 67 walk the {C.CAGG_CAP} wizard, which is scriptable now that the page describes the
-redesigned Console. It runs last and drops the {C.CAGG} the SQL route already created, because the
-two build the same object: step 52 proves it is gone before the wizard rebuilds it, and steps 66 and 67 that
-the wizard rebuilt both the aggregate and its policy with the documented schedule.
-
-Assertions are steps, not a separate section. `run SQL:` only fails when a statement errors, so a
-`SELECT` over an empty table passes — without steps 9 to 11 and 30 to 32 this plan could walk an
-entire ingest route, load nothing, and report a pass.
-
-Deliberately unscripted:
-
-- The {C.DATA_MODE} route's own steps. Its SQL is exercised above, so only the route goes untested.
-- The tiering policy step 41 creates, and the high-availability change steps 48 to 50 make. Neither
-  has a catalog this plan can check: no tiering view is visible until tiering is on, and the
-  high-availability setting is service metadata rather than SQL. Both steps only assert that the
-  action did not error, which is weaker than the rest of this plan.
+37. run SQL: SELECT * FROM assets_candlestick_daily ORDER BY day DESC, symbol LIMIT 10;
+38. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+39. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
+40. click `Explorer` > `Data Tiering`
+41. click `Enable tiered storage`
+42. click `Let's go!`
+43. run SQL: SELECT add_tiering_policy('assets_candlestick_daily', INTERVAL '3 weeks');
+44. run SQL: set timescaledb.enable_tiered_reads = true;
+45. run SQL: SELECT * FROM crypto_ticks srt LIMIT 10;
+46. run SQL: set timescaledb.enable_tiered_reads = false;
+47. go to /overview
+48. click `Operations` > `High availability`
+49. expect url /operations
+50. choose an unselected option
+51. click `Change configuration`
+52. click `Change config`
+53. run SQL: DROP MATERIALIZED VIEW assets_candlestick_daily;
+54. expect no rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+55. click `Explorer` > `Continuous Aggregates`
+56. click `Hypertables`
+57. click `Create a Continuous Aggregate`
+58. type `assets_candlestick_daily` into `View name`
+59. click `Continue`
+60. click `1 day`
+61. click `Run and proceed`
+62. click `3 weeks` in `Start offset`
+63. click `24 hours` in `End offset`
+64. click `3 hours` in `Schedule interval`
+65. click `Continue`
+66. click `Run and proceed`
+67. click `Close`
+68. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+69. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
+70. skip the Data view route: PopSQL runs in a cross-origin iframe the walker cannot drive; its SQL is exercised through the Console editor above, so only the route goes untested
+71. skip the wizard's replace-the-statement edit: the page tells the reader to paste its own CREATE MATERIALIZED VIEW over the generated one, and the wizard's own statement is what runs here instead
+72. skip asserting the tiering policy: chunks tier asynchronously, so which of timescaledb_osm.tiered_hypertables and timescaledb_information.jobs is populated the moment add_tiering_policy returns is unverified, so adding the policy only proves the call did not error
+73. skip asserting the high-availability change: no SQL and no tiger service get field exposes the replication strategy, so choosing a strategy and confirming it only prove that the controls worked
 
 </TestPlan>
