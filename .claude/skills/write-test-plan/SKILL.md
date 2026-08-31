@@ -9,9 +9,77 @@ effort: high
 
 # Write a doc-testing test plan
 
-**STUB.** Only the section below is written. The rest of this skill (how to read a page's routes, turn
-each documented step into a verb, and choose assertions) is not yet built. The grammar itself is
-documented in `src/components/TestPlan.astro` — read that first; it is the authoritative verb set.
+A plan is a bot-facing script of the same flow the page documents. The tool runs it against the live
+Tiger Console and a real service, and every failing step means something on the page is wrong.
+
+**Read `src/components/TestPlan.astro` before writing anything.** It is the authoritative verb set,
+and it is kept current; this skill is the method, not the grammar.
+
+Your job ends at a draft that lints and has been run once. **The last fifth of a plan cannot be
+derived from the page** — confirmation dialogs, a panel that covers a form, a submit that stays
+disabled until something changes. All three were found by running, not reading. Draft, run, fix.
+
+## Method
+
+1. **Read the whole page, following partials.** Steps often live in `src/partials/_*.mdx`; the tool
+   inlines them, so the plan must cover them. `resolvePage` in the tool does the same resolution if
+   you want to see exactly what it sees.
+
+2. **List the page's routes.** A `<Tabs>` block is a set of alternatives for the same outcome (psql
+   vs Console vs Data view). A plan is ONE linear script, so it walks each testable route in turn and
+   **undoes what a route created before the next one runs** — two routes that build the same table
+   will collide on "already exists" otherwise. That undo is ordinary steps, in order, where a reader
+   of the plan can see them.
+
+3. **Decide isolation.** If any step creates, deletes, or alters anything at service level, step 1 is
+   `fork the service`. Without it the run uses the standing service and refuses every destructive
+   step. There is nothing to write for the project-level case: not forking is the default.
+
+4. **Fetch what the page tells the reader to download.** `download <url>` as a step. Archives are
+   unzipped, the folder becomes psql's working directory and the source for `upload`.
+
+5. **Transcribe each route's steps into verbs, in the page's own order.** Use the page's own labels
+   and its own statements, written out. Two rules with teeth:
+   - **Name the kind of control when a label is ambiguous**: `click tab \`Hypertables\``. The Explorer
+     has a `Hypertables` tab and a sidebar filter button of the same name, and the tool tries
+     `button` before `tab`.
+   - **`go to <path>` is positioning, never a test.** Navigating by URL proves nothing about the nav
+     labels the page promises. Use it to reach or reset state; use documented clicks for the claim
+     under test, and `expect url` to turn "the label was clickable" into "the documented path works".
+
+6. **Add assertions.** `run SQL:` only fails when a statement ERRORS, so a `SELECT` over an empty
+   table passes: without assertions a plan can walk an entire ingest route, load nothing, and report
+   a pass. The mechanical pairs:
+
+   | the step created | assert |
+   |---|---|
+   | a table or hypertable | `expect rows: SELECT 1 FROM <table> LIMIT 1` |
+   | a hypertable specifically | `expect rows: SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = '<t>'` |
+   | a continuous aggregate | `expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = '<v>'` |
+   | a policy | `expect rows: SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = '<proc>' AND <the documented interval>` |
+   | a drop, before a route rebuilds the same object | `expect no rows: …` |
+
+   Assert the **documented value**, not just existence: a policy assertion that checks
+   `schedule_interval = INTERVAL '3 hours'` fails when the page's number is wrong, which is the point.
+
+7. **Never write a credential, address or CIDR.** `type $INVITE_EMAIL into \`Email\`` reads
+   `DOCTEST_INPUT_INVITE_EMAIL` from the environment. Never write a service or project id either:
+   `select the service` means whichever service the run is about.
+
+8. **Lint, then run.**
+   ```bash
+   node scripts/testplan-coverage.mjs --lint <path to the page>
+   cd ../doc-testing-tool-poc && node scripts/test-page.mjs "<page url>"
+   ```
+   The lint catches a step no verb matches, an angle-bracket placeholder outside backticks (it fails
+   the site build), and numbering that is not 1..n. Wrap a long statement in backticks so MDX leaves
+   it alone; the parser strips them.
+
+9. **Fix what the run reports, and expect the fix to land in three different places.** On
+   tiger-cloud-essentials, five runs sent fixes to the docs (an undocumented dialog), to the plan (a
+   missing "choose an option" before a disabled submit), and to the tool (a panel covering a form).
+   Read the screenshots: the terminal output misled three times on one bug, and a single wrong control
+   produced 13 consecutive failures.
 
 ## Routes not to script, and why
 
@@ -20,23 +88,28 @@ cannot drive simply gets no steps: absence of steps IS the skip. A per-page skip
 what the author remembered to declare, so a plan with three honest skips reads as more complete than
 one that quietly ignored four routes, and nothing can check that a stated reason is still true.
 
-These are limits of the walker, not of any one page, so they are listed once here:
+These are limits of the walker, not of any one page:
 
 - **Data view / PopSQL.** A cross-origin iframe the walker cannot reach inside. When a page documents
-  both a Data view route and another route for the same SQL, script the other route: the statements
+  both a Data view route and another route for the same SQL, script the other one: the statements
   still get exercised and only the route goes untested.
 - **High-availability configuration.** Neither SQL nor `tiger service get` exposes the replication
   strategy, so a plan can prove the controls worked but not that the setting changed. Script the
-  clicks, and do not try to assert the outcome until the tool grows an `expect label` verb.
-- **Drag-and-drop targets and unlabelled icons.** `[resolve: <hint>]` is the escape hatch. A hint with
-  no resolver behind it is reported rather than run, so only reach for it when there is genuinely no
+  clicks and leave the outcome unasserted.
+- **Drag-and-drop targets and unlabelled icons.** `[resolve: <hint>]` is the escape hatch, and a hint
+  with no resolver behind it is reported rather than run. Only reach for it when there is genuinely no
   label to name.
 
-## Open questions for when this skill is built
+## What a plan is not
 
-- Which assertion belongs with which kind of step. The mechanical pairs so far: a hypertable →
-  `timescaledb_information.hypertables`, a continuous aggregate → `continuous_aggregates`, a policy →
-  `timescaledb_information.jobs` (assert `schedule_interval`, so a wrong documented value fails).
-- The last 20% of a plan cannot be derived from the page. Confirm dialogs, a panel that covers a form,
-  a submit that stays disabled until something changes: all three were found by RUNNING, not reading.
-  So the loop is draft → run → fix, and the skill's job ends at the draft.
+- **Not the docs.** It may say things no page should tell a human ("click `Let's go!`" for an obvious
+  confirm dialog). Docs are for readers; a plan is for a bot covering the same flow.
+- **Not graded against the prose.** There is no rule that a plan's labels must appear in the page, and
+  no rule that every documented step must have one. Both existed and were deleted: they flagged every
+  bot-only step and every legitimately unscripted route.
+- **Not sectioned.** No Isolation, Setup, Inputs, Notes, Assert or Cleanup headings. One numbered
+  list; text that is not numbered is commentary.
+- **Not a picture list.** Screenshots are a property of the run (`DOCTEST_SHOTS=evidence|doc-update|none`),
+  and doc-update finds its own moments from the images the page already publishes.
+- **Not per-step pass criteria.** Each verb already carries one, and explicit criteria are the
+  `expect` steps.
