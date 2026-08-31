@@ -21,6 +21,26 @@
  *   node scripts/testplan-coverage.mjs --quiet        summary only
  *   node scripts/testplan-coverage.mjs --candidates   pages that may belong in the inventory
  *   node scripts/testplan-coverage.mjs --changed      only inventory pages touched vs origin/main
+ *   node scripts/testplan-coverage.mjs --lint         check every plan the repo contains
+ *
+ * --lint is the gate that makes a plan maintainable by someone who has never read
+ * the tool's parser. It catches the three ways a plan goes wrong silently:
+ *
+ *   1. A step no verb matches. The tool reports it as `unparsed` at run time, which
+ *      means a documented instruction sat there untested until somebody read the
+ *      report closely.
+ *   2. An angle-bracket placeholder outside backticks. A plan is parsed as MDX, so
+ *      `<database-name>` reads as an unclosed JSX tag and fails the site build with
+ *      a message that names neither the plan nor the step.
+ *   3. Numbering that isn't 1..n. The parser ignores the numbers, so a plan can be
+ *      misnumbered and only the report's own indices are right — which is how a
+ *      reviewer ends up looking at the wrong step, and screenshots off by one cost
+ *      real time before.
+ *
+ * Check 1 needs the tool's own parser: point DOC_TESTING_TOOL at the checkout (it
+ * defaults to ../doc-testing-tool-poc). Reimplementing the grammar here is exactly
+ * the second-copy mistake that let a mutation gate drift; without the parser, --lint
+ * runs the container checks and says which check it skipped.
  */
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, relative, basename } from "node:path";
@@ -35,6 +55,7 @@ const opt = {
   quiet: argv.includes("--quiet"),
   candidates: argv.includes("--candidates"),
   changed: argv.includes("--changed"),
+  lint: argv.includes("--lint"),
 };
 
 const read = (p) => { try { return readFileSync(p, "utf8"); } catch { return ""; } };
@@ -92,6 +113,62 @@ if (opt.candidates) {
   for (const f of cand) console.log(`    ${slug(f)}`);
   console.log(`\n  These are guesses. Add the real ones to ${INVENTORY}; ignore the rest.\n`);
   process.exit(0);
+}
+
+
+if (opt.lint) {
+  // Explicit paths lint just those files: what CI wants for a changed-files run, and the only way to
+  // exercise the checks against a fixture without putting a broken page in the content tree.
+  const only = argv.filter((a) => !a.startsWith("--"));
+  const planned = (only.length ? only : pages).filter((f) => read(f).includes("<TestPlan"));
+  const BLOCK = /<TestPlan\b[^>]*>([\s\S]*?)<\/TestPlan>/;
+  const STEP = /^\s*(\d+)[.)]\s+(.*\S)\s*$/;
+
+  // The tool's parser, if the checkout is there. Never a local reimplementation.
+  let parsePlan = null;
+  const toolDir = process.env.DOC_TESTING_TOOL || join("..", "doc-testing-tool-poc");
+  try { ({ parsePlan } = await import(new URL(`file://${join(process.cwd(), toolDir, "lib", "plan.mjs")}`))); }
+  catch { /* reported below, once */ }
+
+  let errors = 0;
+  for (const f of planned) {
+    const src = read(f);
+    const block = src.match(BLOCK);
+    const problems = [];
+    if (!block) { problems.push("a <TestPlan> tag with no closing </TestPlan>"); }
+    else {
+      const lines = block[1].split("\n");
+      let expected = 0;
+      for (const raw of lines) {
+        const m = raw.match(STEP);
+        if (!m) continue;
+        expected += 1;
+        if (Number(m[1]) !== expected) problems.push(`step numbered ${m[1]} where ${expected} was expected: ${m[2].slice(0, 60)}`);
+        // Angle brackets are only safe inside backticks, which MDX treats as code.
+        const outsideCode = m[2].replace(/`[^`]*`/g, "");
+        const angle = outsideCode.match(/<[^\s>][^>]*>/);
+        if (angle) problems.push(`\`${angle[0]}\` outside backticks will fail the MDX build: ${m[2].slice(0, 60)}`);
+      }
+      if (expected === 0) problems.push("a plan with no numbered steps (deliberate? absence of steps is the skip)");
+      if (parsePlan) {
+        const parsed = parsePlan(src);
+        for (const u of parsed.unparsed) problems.push(`no verb matches: ${u.slice(0, 80)}`);
+      }
+    }
+    if (problems.length) {
+      errors += problems.length;
+      console.log(`\n  ${slug(f)}`);
+      for (const p of problems) console.log(`    \u2717 ${p}`);
+    }
+  }
+
+  console.log(`\n  linted ${planned.length} plan(s): ${errors ? `${errors} problem(s)` : "clean"}`);
+  if (!parsePlan) {
+    console.log(`  \u26a0\ufe0f  the tool's parser was not importable from ${toolDir}, so "no verb matches" was NOT checked.`);
+    console.log(`     set DOC_TESTING_TOOL to the doc-testing-tool checkout to run that check too.`);
+  }
+  console.log();
+  process.exit(errors ? 1 : 0);
 }
 
 let changed = null;
