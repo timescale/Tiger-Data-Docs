@@ -1,0 +1,236 @@
+---
+/**
+ * Academy-specific page navigation that detects chapter boundaries
+ * Shows "NEXT CHAPTER ➜" when crossing sections, "NEXT PAGE ➜" within sections
+ */
+import { getPrevNextPage } from "../lib/pagination";
+import config from "virtual:starlight/user-config";
+
+const route = Astro.locals.starlightRoute;
+const paginationEnabled = config?.pagination ?? false;
+const result = route != null
+  ? await getPrevNextPage(route, paginationEnabled)
+  : null;
+const prev = result?.prev ?? undefined;
+const next = result?.next ?? undefined;
+const hasNav = prev || next;
+
+// Chapter structure - map each page to its chapter
+const chapters: Record<string, string> = {
+  // What is TimescaleDB
+  "/learn/tiger-data-academy/tiger-data-101/what-is-timescaledb/the-problem-and-the-solution": "What is TimescaleDB?",
+  "/learn/tiger-data-academy/tiger-data-101/what-is-timescaledb/core-architecture": "What is TimescaleDB?",
+  "/learn/tiger-data-academy/tiger-data-101/what-is-timescaledb/features-and-comparison": "What is TimescaleDB?",
+  "/learn/tiger-data-academy/tiger-data-101/what-is-timescaledb/real-world-applications": "What is TimescaleDB?",
+
+  // Working with Time-Series Data
+  "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/what-makes-data-time-series": "Working with Time-Series Data",
+  "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/characteristics-of-time-series-data": "Working with Time-Series Data",
+  "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/time-series-vs-relational-data-models": "Working with Time-Series Data",
+  "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/common-time-series-patterns": "Working with Time-Series Data",
+  "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/choosing-the-right-storage-solution": "Working with Time-Series Data",
+
+  // Hypertables
+  "/learn/tiger-data-academy/tiger-data-101/hypertables/what-is-a-hypertable": "Hypertables",
+  "/learn/tiger-data-academy/tiger-data-101/hypertables/creating-your-first-hypertable": "Hypertables",
+  "/learn/tiger-data-academy/tiger-data-101/hypertables/partitioning-indexing-and-optimization": "Hypertables",
+
+  // Hypercore
+  "/learn/tiger-data-academy/tiger-data-101/hypercore/row-based-vs-columnar-storage": "Hypercore",
+  "/learn/tiger-data-academy/tiger-data-101/hypercore/compression-methods": "Hypercore",
+  "/learn/tiger-data-academy/tiger-data-101/hypercore/enabling-and-best-practices": "Hypercore",
+
+  // Continuous Aggregates
+  "/learn/tiger-data-academy/tiger-data-101/continuous-aggregates/the-problem-and-solution": "Continuous Aggregates",
+  "/learn/tiger-data-academy/tiger-data-101/continuous-aggregates/refresh-policies-and-hierarchies": "Continuous Aggregates",
+  "/learn/tiger-data-academy/tiger-data-101/continuous-aggregates/knowledge-check": "Continuous Aggregates",
+
+  // Putting TimescaleDB Into Action
+  "/learn/tiger-data-academy/tiger-data-101/putting-timescaledb-into-action/from-development-to-production": "Putting TimescaleDB Into Action",
+  "/learn/tiger-data-academy/tiger-data-101/putting-timescaledb-into-action/data-lifecycle-and-design-for-scale": "Putting TimescaleDB Into Action",
+  "/learn/tiger-data-academy/tiger-data-101/putting-timescaledb-into-action/case-studies-and-knowledge-check": "Putting TimescaleDB Into Action",
+
+  // Core Use Cases
+  "/learn/tiger-data-academy/tiger-data-101/core-use-cases/iot-financial-and-analytics": "Core Use Cases",
+  "/learn/tiger-data-academy/tiger-data-101/core-use-cases/industrial-apm-and-infrastructure": "Core Use Cases",
+  "/learn/tiger-data-academy/tiger-data-101/core-use-cases/knowledge-check": "Core Use Cases",
+};
+
+// Check if next page is in a different chapter
+function isChapterBoundary(): boolean {
+  if (!next) return false;
+  const currentChapter = chapters[route?.pathname || ""];
+  const nextChapter = chapters[next.href];
+  return currentChapter && nextChapter && currentChapter !== nextChapter;
+}
+
+const isAcademyPage = route?.pathname?.includes("/tiger-data-academy/tiger-data-101/");
+const crossingChapterBoundary = isChapterBoundary();
+---
+
+{hasNav && (
+  <nav class="page-nav academy-nav print:hidden stl-ui-not-prose" aria-label="Page navigation">
+    <div class="page-nav__line" aria-hidden="true" />
+    <div
+      class:list={[
+        "page-nav__inner",
+        prev && !next && "page-nav__inner--prev-only",
+        !prev && next && "page-nav__inner--next-only",
+      ]}
+    >
+      {prev && (
+        <a href={prev.href} class="page-nav__link page-nav__link--prev" rel="prev">
+          <span class="page-nav__icon page-nav__icon--left" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </span>
+          <span class="page-nav__text">
+            <span class="page-nav__label">Previous</span>
+            <span class="page-nav__title">{prev.label}</span>
+          </span>
+        </a>
+      )}
+      {next && (
+        <a href={next.href} class="page-nav__link page-nav__link--next" rel="next">
+          <span class="page-nav__text">
+            <span class={`page-nav__label ${crossingChapterBoundary ? 'chapter-boundary' : ''}`}>
+              {crossingChapterBoundary ? 'Next Chapter' : 'Next'}
+            </span>
+            <span class="page-nav__title">{next.label}</span>
+          </span>
+          <span class="page-nav__icon page-nav__icon--right" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </span>
+        </a>
+      )}
+    </div>
+  </nav>
+)}
+
+<style is:global>
+  @layer starlight.core {
+    .page-nav,
+    .page-nav a,
+    .page-nav a:hover {
+      all: revert-layer;
+    }
+  }
+
+  .page-nav {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 0;
+    padding-bottom: 12px;
+    color: var(--page-nav-default, #15151e);
+  }
+
+  .page-nav__line {
+    width: 100%;
+    height: 1px;
+    flex-shrink: 0;
+    background-color: var(--page-nav-line, #15151e);
+    margin-bottom: 14px;
+  }
+
+  .page-nav__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .page-nav__inner--next-only {
+    justify-content: flex-end;
+  }
+
+  .page-nav__inner--prev-only {
+    justify-content: flex-start;
+  }
+
+  .page-nav__link {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    text-decoration: none;
+    color: var(--page-nav-default, #15151e);
+    font-size: 13px;
+    line-height: 1.5;
+    letter-spacing: 0.14px;
+    transition: color 0.15s ease;
+  }
+
+  .page-nav__link:hover {
+    color: var(--page-nav-hover, #4f6bed);
+  }
+
+  .page-nav__link:hover .page-nav__icon {
+    color: var(--page-nav-hover, #4f6bed);
+  }
+
+  .page-nav__link--prev {
+    justify-content: flex-start;
+  }
+
+  .page-nav__link--next {
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  .page-nav__icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    color: inherit;
+    transition: color 0.15s ease;
+  }
+
+  .page-nav__icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .page-nav__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .page-nav__link--next .page-nav__text {
+    align-items: flex-end;
+  }
+
+  .page-nav__label {
+    font-weight: 500;
+    letter-spacing: 0.36px;
+    text-transform: uppercase;
+  }
+
+  /* Highlight chapter boundary transitions */
+  .page-nav__label.chapter-boundary {
+    color: #4f6bed;
+    font-weight: 700;
+    font-size: 12px;
+  }
+
+  .page-nav__title {
+    font-size: 13px;
+    font-weight: 450;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+  }
+
+  @media (min-width: 50rem) {
+    .page-nav__title {
+      max-width: 320px;
+    }
+  }
+</style>

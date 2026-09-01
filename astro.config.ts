@@ -326,7 +326,7 @@ export default defineConfig({
             MobileMenuToggle: "./src/components/MobileMenuToggle.astro",
             PageTitle: "./src/components/PageTitle.astro",
             PageSidebar: "./src/components/PageSidebar.astro",
-            Pagination: "./src/components/PageNavigation.astro",
+            Pagination: "./src/components/AcademyPageNavigation.astro",
             Callout: "./src/components/Callout.astro",
             Footer: "./src/components/Footer.astro",
           } as Record<string, string>,
