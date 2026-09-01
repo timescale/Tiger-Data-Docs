@@ -1,0 +1,73 @@
+---
+title: Row-Based vs. Columnar Storage
+description: Understand how columnar storage enables compression
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+
+**Module:** Tiger Data 101 → An Introduction to {C.TIMESCALE_DB}  
+**Section:** {C.HYPERCORE_CAP}  
+**Estimated time:** 8–10 minutes total (this page: ~2 minutes)
+
+---
+
+## Learning Objectives
+
+By the end of this module, you will be able to:
+
+- **Explain** what {C.HYPERCORE} is and how it differs from row-based storage (Understand)
+- **Describe** compression methods used in {C.HYPERCORE} and their benefits (Understand)
+- **Apply** {C.HYPERCORE} to optimize storage and query performance for analytical workloads (Apply)
+- **Compare** {C.HYPERCORE} capabilities with traditional columnar storage approaches (Analyze)
+
+---
+
+## Row-Based Storage (Traditional)
+
+In traditional row-based storage, data is organized by row:
+
+```
+Row 1: time=2025-01-01, device_id=sensor_1, temp=22.5, humidity=45
+Row 2: time=2025-01-01, device_id=sensor_2, temp=23.1, humidity=48
+Row 3: time=2025-01-01, device_id=sensor_1, temp=22.6, humidity=44
+Row 4: time=2025-01-01, device_id=sensor_2, temp=23.2, humidity=47
+```
+
+**Good for:** Random access, frequent updates, mixed queries
+**Bad for:** Analytical queries on specific columns, compression
+
+---
+
+## Columnar Storage
+
+In columnar storage, data is organized by column:
+
+```
+time:     [2025-01-01, 2025-01-01, 2025-01-01, 2025-01-01]
+device:   [sensor_1, sensor_2, sensor_1, sensor_2]
+temp:     [22.5, 23.1, 22.6, 23.2]
+humidity: [45, 48, 44, 47]
+```
+
+**Good for:** Analytical queries, compression (similar values clustered)
+**Bad for:** Random access, frequent updates
+
+---
+
+## Why Columnar Enables Compression
+
+When data is stored column-by-column, identical or similar values are adjacent, enabling extreme compression:
+
+```
+temperature column:   [22.5, 23.1, 22.6, 23.2, 22.4, 23.0, ...]
+                      ↓ Similar values cluster together
+                      Can compress to: "avg_23, range ±1, deltas"
+                      Result: 10–40x compression
+```
+
+---
+
+## Next: Compression Methods
+
+Learn the specific techniques {C.HYPERCORE} uses to achieve these compression ratios.

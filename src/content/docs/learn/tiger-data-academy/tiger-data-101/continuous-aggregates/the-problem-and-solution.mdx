@@ -1,0 +1,84 @@
+---
+title: The Problem and Solution
+description: Learn why Continuous Aggregates matter for analytics
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+
+**Module:** Tiger Data 101 → An Introduction to {C.TIMESCALE_DB}  
+**Section:** Continuous Aggregates  
+**Estimated time:** 10–12 minutes total (this page: ~3 minutes)
+
+---
+
+## Learning Objectives
+
+By the end of this module, you will be able to:
+
+- **Explain** what Continuous Aggregates are and how they improve query performance (Understand)
+- **Describe** the refresh mechanisms and **apply** them appropriately (Understand/Apply)
+- **Design** hierarchical Continuous Aggregates for complex analytical queries (Create)
+- **Compare** materialized views with traditional approaches (Analyze)
+
+---
+
+## The Problem with Repeated Rollups
+
+Imagine querying hourly average temperatures across thousands of sensors, daily. Traditional approach:
+
+```sql
+-- Run this query every time—scans millions of raw rows
+SELECT 
+  time_bucket('1 hour', time) as bucket,
+  avg(temperature) as avg_temp
+FROM sensor_readings
+WHERE time > NOW() - INTERVAL '30 days'
+GROUP BY bucket;
+```
+
+**The problem:**
+- Scans 30 days × 24 hours × 1000s of sensors = millions of rows
+- Recomputes the same aggregations every query
+- Dashboard becomes slow as data grows
+
+---
+
+## What are Continuous Aggregates?
+
+**Continuous Aggregates (CAGGs)** are materialized views that {C.TIMESCALE_DB}} automatically keeps fresh as new data arrives:
+
+```sql
+CREATE MATERIALIZED VIEW hourly_temp_summary
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('1 hour', time) AS bucket,
+  device_id,
+  avg(temperature) AS avg_temperature,
+  max(temperature) AS max_temperature
+FROM sensor_readings
+GROUP BY bucket, device_id
+WITH NO DATA;
+
+-- Add automatic refresh policy
+SELECT add_continuous_aggregate_policy('hourly_temp_summary',
+  start_offset => INTERVAL '3 hours',
+  end_offset => INTERVAL '1 hour',
+  schedule_interval => INTERVAL '1 hour'
+);
+```
+
+Now queries hit the pre-computed results—milliseconds instead of seconds:
+
+```sql
+-- Instead of scanning raw data, query the CAGG
+SELECT bucket, device_id, avg_temperature
+FROM hourly_temp_summary
+WHERE bucket > NOW() - INTERVAL '30 days';
+```
+
+---
+
+## Next: Refresh Policies
+
+Understand how {C.TIMESCALE_DB} keeps aggregates fresh automatically.

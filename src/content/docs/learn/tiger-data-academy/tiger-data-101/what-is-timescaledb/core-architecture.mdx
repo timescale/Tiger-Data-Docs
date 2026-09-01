@@ -1,0 +1,72 @@
+---
+title: Core Architecture
+description: Learn the three pillars of TimescaleDB
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+
+**Module:** Tiger Data 101 → An Introduction to {C.TIMESCALE_DB}  
+**Section:** What is {C.TIMESCALE_DB}?  
+**Estimated time:** 12–15 minutes total (this page: ~3 minutes)
+
+---
+
+## How It Works: The Core Architecture
+
+{C.TIMESCALE_DB} introduces three core concepts that do the heavy lifting:
+
+### Hypertables
+
+A **{C.HYPERTABLE}}** is a regular PostgreSQL table from your application's perspective. Under the hood, {C.TIMESCALE_DB} automatically partitions it into smaller {C.CHUNK}}s by time (and optionally by another dimension like device ID).
+
+```
+         Hypertable: sensor_readings
+         ┌──────────────────────────┐
+         │  time  │ device │ value  │
+         └──────────────────────────┘
+                      │
+         ┌────────────┼────────────┐
+         ▼            ▼            ▼
+    [chunk: Jan]  [chunk: Feb]  [chunk: Mar]
+```
+
+**Benefits:**
+
+- Queries automatically target only the relevant chunks (no full-table scans)
+- Each chunk is a real PostgreSQL table with its own indexes
+- Old chunks can be compressed, moved to cheaper storage, or dropped automatically
+
+### Hypercore
+
+**{C.HYPERCORE}}** is {C.TIMESCALE_DB}'s columnar storage engine for chunks. When you compress a chunk with {C.HYPERCORE}}, it stores data column-by-column instead of row-by-row, following the same principle as analytical databases like Parquet or Redshift.
+
+**Why it matters:**
+
+- **10–40x storage compression** on typical time-series data
+- Analytical queries that scan one column are dramatically faster
+- You can mix compressed (cold) and uncompressed (hot) chunks in the same hypertable
+
+### Continuous Aggregates
+
+**Continuous Aggregates (CAGGs)** are materialized views that {C.TIMESCALE_DB}} keeps automatically up to date as new data arrives.
+
+Instead of recomputing an expensive rollup on every query:
+
+```sql
+-- Without CAGGs: scans raw data every time (slow)
+SELECT time_bucket('1 hour', time), avg(temperature)
+FROM sensor_readings
+GROUP BY 1;
+
+-- With CAGGs: reads pre-computed results (fast)
+SELECT bucket, avg_temperature FROM hourly_sensor_summary;
+```
+
+CAGGs can be layered (daily from hourly, monthly from daily), enabling fast dashboards at any granularity without redundant raw data scans.
+
+---
+
+## Next: Features and Comparison
+
+Explore the full feature set and how {C.TIMESCALE_DB}} compares to alternatives.

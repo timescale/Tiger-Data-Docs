@@ -1,0 +1,54 @@
+---
+title: Compression Methods
+description: Learn how Hypercore compresses time-series data
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+
+**Module:** Tiger Data 101 → An Introduction to {C.TIMESCALE_DB}  
+**Section:** {C.HYPERCORE_CAP}  
+**Estimated time:** 8–10 minutes total (this page: ~2 minutes)
+
+---
+
+## Key Compression Methods
+
+### Dictionary Encoding
+For columns with repeated values (e.g., device IDs, status codes):
+- Store unique values once, reference by ID
+- Example: 1000 rows of "sensor_A" stored as "1 → sensor_A" + 1000 copies of "1"
+
+### Delta Encoding
+For numeric sequences with small differences:
+- Store only differences between consecutive values
+- Example: temperatures [22.5, 22.6, 22.4, 22.7] → store [22.5, +0.1, -0.2, +0.3]
+
+### Gorilla Compression
+Specifically optimized for floating-point time-series (from Facebook's Gorilla paper):
+- Compresses timestamps and floating-point values in log-linear fashion
+- Achieves 10–40x compression on typical sensor/metric data
+
+### Array Encoding
+For repeated patterns or constant-width structures
+
+---
+
+## Enabling Compression
+
+```sql
+ALTER TABLE sensor_readings SET (
+  timescaledb.compress,
+  timescaledb.compress_orderby = 'time DESC',
+  timescaledb.compress_segmentby = 'device_id'
+);
+
+-- Add automatic compression policy
+SELECT add_compression_policy('sensor_readings', INTERVAL '7 days');
+```
+
+---
+
+## Next: Enabling Hypercore
+
+Learn how to apply compression and manage hot vs. cold data.

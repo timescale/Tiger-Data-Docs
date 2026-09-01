@@ -1,0 +1,103 @@
+---
+title: Enabling Hypercore & Best Practices
+description: Apply compression and manage data lifecycle
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+import { KnowledgeCheck } from '@components/KnowledgeCheck';
+
+**Module:** Tiger Data 101 → An Introduction to {C.TIMESCALE_DB}  
+**Section:** {C.HYPERCORE_CAP}  
+**Estimated time:** 8–10 minutes total (this page: ~3 minutes)
+
+---
+
+## Hot vs. Cold Data: Mixed Chunk Access
+
+{C.TIMESCALE_DB}} allows you to keep recent chunks uncompressed (hot) while compressing older chunks (cold), all in the same hypertable:
+
+```
+sensor_readings
+├── Jan 2025 (compressed, 50MB)  ← cold, compressed, queryable
+├── Feb 2025 (compressed, 48MB)
+├── Mar 2025 (compressed, 52MB)
+└── Apr 2025 (uncompressed, 500MB) ← hot, fast writes, recent data
+```
+
+**Benefits:**
+- Recent data stays fast for writes and quick queries
+- Old data compressed for storage savings
+- No schema changes needed—hypertable hides the complexity
+
+---
+
+## When to Use {C.HYPERCORE}
+
+**Use compression when:**
+- Storing historical data you query infrequently
+- Data has patterns (sensors, metrics, events)
+- You need to reduce storage costs significantly
+- Analytical queries outweigh random access
+
+**Avoid compression when:**
+- Data is frequently updated or deleted
+- You need ultra-low latency random access
+- Compression would add overhead that doesn't save space
+
+---
+
+## Knowledge Check
+
+<KnowledgeCheck client:load
+  questions={[
+    {
+      id: 'hypercore-q1',
+      text: 'Kempower achieved approximately what storage footprint reduction using {C.HYPERCORE} compression?',
+      answers: [
+        { label: '2x', correct: false },
+        { label: '5x', correct: false },
+        { label: '15x', correct: true },
+        { label: '100x', correct: false },
+      ],
+      explanation: 'Kempower achieved a 15x storage reduction after migrating EV charging session data with {C.HYPERCORE} compression.',
+      resources: [
+        { title: 'Compression Methods', url: '/learn/tiger-data-academy/tiger-data-101/hypercore/compression-methods', type: 'docs' },
+      ],
+    },
+    {
+      id: 'hypercore-q2',
+      text: 'Which {C.HYPERCORE} compression method is specifically optimized for floating-point time-series values?',
+      answers: [
+        { label: 'Dictionary encoding', correct: false },
+        { label: 'Array encoding', correct: false },
+        { label: 'Delta encoding', correct: false },
+        { label: 'Gorilla compression', correct: true },
+      ],
+      explanation: 'Gorilla compression (from Facebook) is designed for floating-point time-series and achieves very high compression ratios.',
+      resources: [
+        { title: 'Compression Methods', url: '/learn/tiger-data-academy/tiger-data-101/hypercore/compression-methods', type: 'docs' },
+      ],
+    },
+    {
+      id: 'hypercore-q3',
+      text: 'What is the key advantage of mixing compressed and uncompressed chunks in the same hypertable?',
+      answers: [
+        { label: 'Compressed chunks support faster writes', correct: false },
+        { label: 'Recent data stays uncompressed for fast writes while older data is compressed for storage savings', correct: true },
+        { label: 'Each team member can independently choose chunks to compress', correct: false },
+        { label: 'Compressed chunks are automatically replicated', correct: false },
+      ],
+      explanation: '{C.TIMESCALE_DB} automatically applies compression to older chunks via policy while leaving recent chunks uncompressed; the hypertable interface stays identical.',
+      resources: [
+        { title: 'Enabling Hypercore & Best Practices', url: '/learn/tiger-data-academy/tiger-data-101/hypercore/enabling-and-best-practices', type: 'docs' },
+      ],
+    },
+  ]}
+/>
+
+---
+
+## Next: Continuous Aggregates
+
+Learn how to pre-compute rollups for fast analytics.

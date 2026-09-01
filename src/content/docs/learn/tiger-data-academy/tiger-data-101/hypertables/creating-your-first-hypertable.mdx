@@ -1,0 +1,55 @@
+---
+title: Creating Your First Hypertable
+description: Hands-on guide to creating and configuring hypertables
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+
+**Module:** Tiger Data 101 → An Introduction to {C.TIMESCALE_DB}  
+**Section:** {C.HYPERTABLE_CAP}s  
+**Estimated time:** 10–12 minutes total (this page: ~2 minutes)
+
+---
+
+## Creating a {C.HYPERTABLE} from Scratch
+
+The recommended approach is to use the modern `CREATE TABLE` syntax with the `tsdb.hypertable` option:
+
+```sql
+CREATE TABLE sensor_readings (
+  time       TIMESTAMPTZ NOT NULL,
+  device_id  TEXT NOT NULL,
+  temperature FLOAT,
+  humidity   FLOAT
+) WITH (tsdb.hypertable, tsdb.partition_column = 'time');
+```
+
+Or, if you already have a regular table, convert it:
+
+```sql
+SELECT create_hypertable('sensor_readings', by_range('time'));
+```
+
+---
+
+## Configuring Chunk Intervals
+
+{C.TIMESCALE_DB}} automatically chooses chunk intervals (typically 7 days for new data), but you can customize:
+
+```sql
+ALTER TABLE sensor_readings SET (
+  timescaledb.chunk_time_interval = INTERVAL '1 day'
+);
+```
+
+**Guidelines:**
+- **Smaller intervals (1 hour – 1 day)**: For high-cardinality or very high write volume
+- **Medium intervals (1 week)**: Good default for most use cases
+- **Larger intervals (1 month+)**: For lower cardinality or sparse data
+
+---
+
+## Next: Partitioning Strategies
+
+Discover advanced techniques for optimizing your hypertable layout.

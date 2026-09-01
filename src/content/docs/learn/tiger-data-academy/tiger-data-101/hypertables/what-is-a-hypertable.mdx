@@ -1,0 +1,63 @@
+---
+title: What is a Hypertable?
+description: Learn how hypertables partition time-series data automatically
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+
+**Module:** Tiger Data 101 → An Introduction to {C.TIMESCALE_DB}  
+**Section:** {C.HYPERTABLE_CAP}s  
+**Estimated time:** 10–12 minutes total (this page: ~3 minutes)
+
+---
+
+## Learning Objectives
+
+By the end of this module, you will be able to:
+
+- **Define** {C.HYPERTABLE}s and **explain** their role in {C.TIMESCALE_DB} architecture (Understand)
+- **Demonstrate** how to create and configure {C.HYPERTABLE}s for time-series data (Apply)
+- **Apply** partitioning strategies to {C.HYPERTABLE}s for optimal performance (Apply)
+- **Analyze** {C.HYPERTABLE} indexing and optimization techniques and **implement** improvements (Analyze/Apply)
+
+---
+
+## What is a {C.HYPERTABLE}?
+
+A **{C.HYPERTABLE}}** is a virtual table abstraction that wraps a time-series table and automatically partitions it into smaller, manageable pieces called **{C.CHUNK}}s**. From your application's perspective, you query it just like a regular table.
+
+Under the hood, {C.TIMESCALE_DB}} handles all the complexity:
+
+- **Automatic time-based partitioning**: Data is split into chunks, typically one per time interval (e.g., one chunk per day)
+- **Optional space-based partitioning**: You can also partition by a second dimension (e.g., by device ID or region) for high-cardinality scenarios
+- **Transparent query routing**: Your queries see one table, but {C.TIMESCALE_DB}} routes them only to relevant chunks
+
+---
+
+## How Chunking Works
+
+Imagine you have sensors sending temperature readings. With a {C.HYPERTABLE}} using daily chunks:
+
+```
+sensor_readings (hypertable)
+├── 2025-01-01 chunk (500MB)
+├── 2025-01-02 chunk (520MB)
+├── 2025-01-03 chunk (510MB)
+└── 2025-01-04 chunk (490MB) [currently being written to]
+```
+
+When you query `SELECT * FROM sensor_readings WHERE time > NOW() - INTERVAL '1 day'`, {C.TIMESCALE_DB}} automatically scans only the last chunk(s), skipping the rest entirely.
+
+**Benefits:**
+
+- Queries are **faster** because they scan less data
+- **Indexing is more efficient** at the chunk level
+- **Compression, tiering, and retention policies** work on whole chunks
+- **Concurrent writes** are more efficient (multiple chunks can be written to in parallel)
+
+---
+
+## Next: Creating Your First Hypertable
+
+Learn the practical steps to create and configure a hypertable in your database.
