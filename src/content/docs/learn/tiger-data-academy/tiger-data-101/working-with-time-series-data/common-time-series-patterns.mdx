@@ -1,0 +1,127 @@
+---
+title: Common Time-Series Patterns
+description: Learn the three primary patterns for organizing time-series data
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+
+**Module:** Tiger Data 101 → An Introduction to {C.TIMESCALE_DB}  
+**Section:** Working with Time-Series Data  
+**Estimated time:** 8–10 minutes total (this page: ~2 minutes)
+
+---
+
+## Three Core Patterns
+
+Most time-series data falls into one of these three patterns. Understanding which pattern you're working with helps you design the right schema.
+
+### Pattern 1: Metrics (Numeric Measurements)
+
+**What it is:** Continuous measurements of a quantity over time.
+
+**Examples:**
+- CPU usage (0–100%), memory utilization, disk I/O
+- Temperature, humidity, pressure from sensors
+- Request latency, throughput, error rates
+- Stock prices, exchange rates
+
+**Schema example:**
+```sql
+CREATE TABLE metrics (
+  time TIMESTAMPTZ NOT NULL,
+  host_id TEXT,        -- which server/device
+  metric_name TEXT,    -- 'cpu_usage', 'memory', etc.
+  value FLOAT,         -- the measurement
+  unit TEXT            -- '%', 'ms', 'bytes', etc.
+);
+```
+
+**Typical queries:**
+- "What was the average CPU usage on server X in the last hour?"
+- "Show me the 95th percentile of request latency over time"
+- "When did memory spike above 90%?"
+
+**Key trait:** Numeric, aggregatable, and often visualized as time-series charts.
+
+---
+
+### Pattern 2: Events (Discrete Occurrences)
+
+**What it is:** Records of something that happened at a specific moment, with metadata about the event.
+
+**Examples:**
+- Login events (user ID, timestamp, IP address, browser)
+- Machine faults (error code, severity, message, hostname)
+- Transactions (user, amount, timestamp, payment method)
+- Page views (user, page URL, timestamp, referrer)
+
+**Schema example:**
+```sql
+CREATE TABLE events (
+  time TIMESTAMPTZ NOT NULL,
+  event_type TEXT,      -- 'login', 'error', 'purchase', etc.
+  user_id BIGINT,
+  metadata JSONB,       -- context-specific fields
+  severity TEXT         -- 'info', 'warning', 'critical'
+);
+```
+
+**Typical queries:**
+- "How many login failures occurred in the last 24 hours?"
+- "Show me all critical errors from server X"
+- "What was the peak transaction volume today?"
+
+**Key trait:** Categorical, not necessarily numeric, but ordered by time and often filtered by type or category.
+
+---
+
+### Pattern 3: States (Tracking Change)
+
+**What it is:** Records of when something changed state or when a condition became true/false.
+
+**Examples:**
+- Service uptime/downtime events (when did the API go down?)
+- Device status changes (when did a sensor go offline?)
+- Order status history (pending → shipped → delivered)
+- Feature flag changes (when was feature X enabled for user Y?)
+
+**Schema example:**
+```sql
+CREATE TABLE state_changes (
+  time TIMESTAMPTZ NOT NULL,
+  entity_id TEXT,       -- device, service, order, etc.
+  entity_type TEXT,     -- 'service', 'sensor', 'order'
+  old_state TEXT,       -- previous state
+  new_state TEXT,       -- current state
+  reason TEXT           -- why the change occurred
+);
+```
+
+**Typical queries:**
+- "How long was the database server down?"
+- "Show me the full history of order #42"
+- "When did sensor 12 go offline?"
+
+**Key trait:** Discrete, categorical, often involves temporal reasoning (how long in each state?).
+
+---
+
+## Real-World Mix
+
+Most production systems use **all three patterns**:
+
+An e-commerce platform might have:
+
+- **Metrics**: Transaction processing latency, request throughput, database query times
+- **Events**: Order placements, payment authorizations, customer support tickets
+- **States**: Order status (pending → processing → shipped), service availability (up/down)
+
+{C.TIMESCALE_DB} handles all three patterns naturally because they're all time-ordered append-only data.
+
+---
+
+## Next: Choosing the Right Storage Solution
+
+Now you're ready to learn how to **choose** an appropriate database and storage approach based on your data patterns.

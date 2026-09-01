@@ -427,7 +427,17 @@ export default defineConfig({
                   items: [
                     { label: "Overview", link: "/learn/tiger-data-academy/tiger-data-101" },
                     { label: "What is TimescaleDB?", link: "/learn/tiger-data-academy/tiger-data-101/what-is-timescaledb" },
-                    { label: "Working with Time-Series Data", link: "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data" },
+                    {
+                      label: "Working with Time-Series Data",
+                      collapsed: true,
+                      items: [
+                        { label: "What Makes Data \"Time-Series\"?", link: "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/what-makes-data-time-series" },
+                        { label: "Characteristics of Time-Series Data", link: "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/characteristics-of-time-series-data" },
+                        { label: "Time-Series vs. Relational Data Models", link: "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/time-series-vs-relational-data-models" },
+                        { label: "Common Time-Series Patterns", link: "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/common-time-series-patterns" },
+                        { label: "Choosing the Right Storage Solution", link: "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/choosing-the-right-storage-solution" },
+                      ],
+                    },
                     { label: "Hypertables", link: "/learn/tiger-data-academy/tiger-data-101/hypertables" },
                     { label: "Hypercore", link: "/learn/tiger-data-academy/tiger-data-101/hypercore" },
                     { label: "Continuous Aggregates", link: "/learn/tiger-data-academy/tiger-data-101/continuous-aggregates" },

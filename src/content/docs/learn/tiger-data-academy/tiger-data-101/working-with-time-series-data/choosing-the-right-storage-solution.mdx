@@ -1,0 +1,163 @@
+---
+title: Choosing the Right Storage Solution
+description: Learn how to select the appropriate database for your time-series workload
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { KnowledgeCheck } from '@components/KnowledgeCheck';
+
+**Module:** Tiger Data 101 → An Introduction to {C.TIMESCALE_DB}  
+**Section:** Working with Time-Series Data  
+**Estimated time:** 8–10 minutes total (this page: ~2 minutes)
+
+---
+
+## When You Need a Time-Series Database
+
+You should consider a specialized time-series database when:
+
+### ✅ Consider Time-Series Storage If...
+
+- **High write volume**: Thousands to millions of writes per second
+- **Append-only pattern**: Data rarely or never updates once written
+- **Large dataset**: Terabytes to petabytes of data
+- **Time-range queries**: Most queries filter by time ranges, not entity IDs
+- **Retention policies**: You need automatic data lifecycle management (compression, downsampling, deletion)
+- **Real-time analytics**: You need fast aggregations over recent data
+
+### ❌ Stick with Relational Storage If...
+
+- **Small dataset**: Gigabytes to low terabytes
+- **Frequent updates**: Data changes often after initial write
+- **Entity lookups**: Most queries search by ID or key, not time ranges
+- **Complex transactions**: You need ACID guarantees across multiple tables
+- **Relational structure**: Your data is highly normalized with many foreign keys
+
+<Callout type="tip">
+Remember: {C.TIMESCALE_DB} is a PostgreSQL extension, so you can use **both** storage patterns in the same database. Relational tables for your user and order data, hypertables for your metrics and events.
+</Callout>
+
+---
+
+## The TimescaleDB Advantage
+
+{C.TIMESCALE_DB} is purpose-built for time-series data:
+
+| Aspect | Standard PostgreSQL | {C.TIMESCALE_DB} |
+| --- | --- | --- |
+| **Write throughput** | Good for moderate load | Optimized for millions/sec |
+| **Storage** | Row-based | Row and columnar (compression) |
+| **Time-range queries** | Slower (full-table scans) | Fast (time-partitioned chunks) |
+| **Lifecycle management** | Manual | Automatic policies |
+| **Compression** | Not built-in | Native columnstore compression |
+| **Aggregations** | Resource-intensive | Continuous aggregates |
+
+---
+
+## Decision Tree
+
+Here's a simple decision tree to help you choose:
+
+```
+Do you have time-ordered data with high write volume?
+├─ NO  → Use standard PostgreSQL/MySQL
+└─ YES
+   └─ Is it mostly append-only?
+      ├─ NO  → Use standard PostgreSQL/MySQL
+      └─ YES
+         └─ Do you need automatic lifecycle management?
+            ├─ NO  → Time-series storage can help, but not critical
+            └─ YES → Use TimescaleDB or a specialized TSDB
+```
+
+---
+
+## Next: Build on This Foundation
+
+You've now mastered the fundamentals of time-series data! Next, you'll learn **how {C.TIMESCALE_DB} is built** and the three core features that make it powerful:
+
+- **Hypertables**: Automatic time-based partitioning
+- **Hypercore**: Columnar storage and compression
+- **Continuous Aggregates**: Pre-computed rollups for fast queries
+
+---
+
+## Knowledge Check
+
+Test your understanding of time-series data concepts with this quiz. You'll get immediate feedback and resource recommendations for any questions you miss.
+
+<KnowledgeCheck client:load
+  questions={[
+    {
+      id: 'tsds-q1-definition',
+      text: 'Which of the following is NOT a characteristic of time-series data?',
+      answers: [
+        { label: 'A) Data points are ordered by timestamp', correct: false },
+        { label: 'B) Data is rarely updated once written', correct: false },
+        { label: 'C) Queries most often filter by primary key lookup', correct: true },
+        { label: 'D) Write volume is typically high and continuous', correct: false },
+      ],
+      explanation: 'Time-series queries typically filter by time range, not by primary key. Primary key lookups are a relational database pattern, not a time-series pattern.',
+      resources: [
+        { title: 'Characteristics of Time-Series Data', url: '/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/characteristics-of-time-series-data', type: 'docs' },
+        { title: 'Time-Series vs. Relational Data Models', url: '/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/time-series-vs-relational-data-models', type: 'docs' },
+      ],
+    },
+    {
+      id: 'tsds-q2-patterns',
+      text: 'Which pattern describes discrete occurrences with associated metadata, such as a user login event or a machine fault code?',
+      answers: [
+        { label: 'A) Metrics', correct: false },
+        { label: 'B) Events', correct: true },
+        { label: 'C) States', correct: false },
+        { label: 'D) Rollups', correct: false },
+      ],
+      explanation: 'Events are discrete occurrences with timestamps and metadata (like login events). Metrics are continuous numeric measurements; states track changes over time.',
+      resources: [
+        { title: 'Common Time-Series Patterns', url: '/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/common-time-series-patterns', type: 'docs' },
+      ],
+    },
+    {
+      id: 'tsds-q3-storage',
+      text: 'A team stores user profile data (name, email, account tier) alongside application clickstream events in the same database. Which data is time-series?',
+      answers: [
+        { label: 'A) User profiles only', correct: false },
+        { label: 'B) Clickstream events only', correct: true },
+        { label: 'C) Both, since any data with a timestamp is time-series', correct: false },
+        { label: 'D) Neither, both are relational data', correct: false },
+      ],
+      explanation: 'Clickstream events are time-ordered, append-only events. User profiles are entity records that update frequently — they\'re relational, not time-series. The presence of a timestamp alone doesn\'t make data time-series.',
+      resources: [
+        { title: 'What Makes Data "Time-Series"?', url: '/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/what-makes-data-time-series', type: 'docs' },
+        { title: 'Time-Series vs. Relational Data Models', url: '/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/time-series-vs-relational-data-models', type: 'docs' },
+      ],
+    },
+    {
+      id: 'tsds-q4-selection',
+      text: 'You\'re building a system to track user login events with high volume (100,000+ logins per second). Data is append-only and queries always filter by time range. Should you use TimescaleDB?',
+      answers: [
+        { label: 'A) No, standard PostgreSQL is fine for this scale', correct: false },
+        { label: 'B) No, you should use a key-value store instead', correct: false },
+        { label: 'C) Yes, TimescaleDB is purpose-built for this workload', correct: true },
+        { label: 'D) Yes, but only if you also need lifecycle management', correct: false },
+      ],
+      explanation: 'TimescaleDB is ideal for high-write-volume, append-only, time-range-query workloads — even without additional features. While lifecycle management is a bonus, the core optimization for this access pattern makes TimescaleDB the right choice.',
+      resources: [
+        { title: 'Choosing the Right Storage Solution', url: '/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/choosing-the-right-storage-solution', type: 'docs' },
+        { title: 'Common Time-Series Patterns', url: '/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/common-time-series-patterns', type: 'docs' },
+      ],
+    },
+  ]}
+/>
+
+---
+
+## Up Next
+
+Ready to dive deeper? Here's what comes next:
+
+- **[Hypertables](/learn/tiger-data-academy/tiger-data-101/hypertables)** — Learn how {C.TIMESCALE_DB} automatically partitions time-series data
+- **[Hypercore](/learn/tiger-data-academy/tiger-data-101/hypercore)** — Understand columnar storage and compression
+- **[Continuous Aggregates](/learn/tiger-data-academy/tiger-data-101/continuous-aggregates)** — Discover pre-computed rollups for fast queries
