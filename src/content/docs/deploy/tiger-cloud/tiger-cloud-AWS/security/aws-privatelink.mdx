@@ -19,21 +19,65 @@ import imgAwsPrivateEndpointServiceSettingsLight from "../../../../../../assets/
 import imgAwsPrivateEndpointServiceSettingsDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-service-settings-dark.png";
 import imgAwsPrivateEndpointVpceIdLight from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-vpce-id.png";
 import imgAwsPrivateEndpointVpceIdDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-vpce-id-dark.png";
-import imgAwsPrivateEndpointNetworkInterfaceLight from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-network-interface.png";
-import imgAwsPrivateEndpointNetworkInterfaceDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-network-interface-dark.png";
 import imgClaimPrivateEndpointLight from "../../../../../../assets/images/deploy/tiger-cloud/claim-private-endpoint-tiger-console.png";
 import imgClaimPrivateEndpointDark from "../../../../../../assets/images/deploy/tiger-cloud/claim-private-endpoint-tiger-console-dark.png";
-import imgPrivateEndpointAttachedLight from "../../../../../../assets/images/deploy/tiger-cloud/private-endpoint-attached-tiger-console.png";
-import imgPrivateEndpointAttachedDark from "../../../../../../assets/images/deploy/tiger-cloud/private-endpoint-attached-tiger-console-dark.png";
+import imgAwsPrivateEndpointSubnetsLight from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-subnets.png";
+import imgAwsPrivateEndpointSubnetsDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-subnets-dark.png";
+import imgAwsPrivateEndpointHostedZoneLight from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-hosted-zone.png";
+import imgAwsPrivateEndpointHostedZoneDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-hosted-zone-dark.png";
+import imgAwsPrivateEndpointHostedZoneVpcLight from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-hosted-zone-vpc.png";
+import imgAwsPrivateEndpointHostedZoneVpcDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-hosted-zone-vpc-dark.png";
+import imgAwsPrivateEndpointDnsRecordLight from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-dns-record.png";
+import imgAwsPrivateEndpointDnsRecordDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-dns-record-dark.png";
 
-With {C.CLOUD_LONG}, you can connect your {C.SERVICE_SHORT}s to AWS PrivateLink endpoints. A private endpoint in your {C.VPC} routes traffic to your {C.SERVICE_SHORT} over the AWS backbone, without crossing the public internet or requiring {C.VPC} peering. This page describes how to create a private endpoint on the AWS side, claim it in {C.CONSOLE_LONG}, and attach a {C.SERVICE_SHORT} to it.
+With {C.CLOUD_LONG}, you can connect your {C.SERVICE_SHORT}s to AWS PrivateLink endpoints. A private endpoint in your {C.VPC} routes traffic to your {C.SERVICE_SHORT} over the AWS backbone, without crossing the public internet or requiring {C.VPC} peering. This page describes how to create a private endpoint on the AWS side, claim it in {C.CONSOLE_LONG}, attach a {C.SERVICE_SHORT} to it, and publish the {C.SERVICE_SHORT} hostname in your own private DNS zone.
+
+You control DNS resolution for your {C.SERVICE_SHORT} over PrivateLink. In a private hosted zone attached to your {C.VPC}, you point the standard {C.SERVICE_SHORT} hostname at your VPC endpoint. Because you publish the same hostname that the public internet path uses, your connection strings and the {C.SERVICE_SHORT} certificate work as before.
 
 <Prerequisites context="procedure">
 <PrereqsCloud />
 
-* An [AWS account](https://signin.aws.amazon.com/signup?request_type=register) with a [VPC](https://docs.aws.amazon.com/vpc/latest/userguide/create-vpc.html) and a subnet for the resources you will connect to {C.CLOUD_LONG}.
-* [IAM permissions](https://docs.aws.amazon.com/vpc/latest/privatelink/identity-access-management.html) configured to create VPC endpoints.
+- An [AWS account](https://signin.aws.amazon.com/signup?request_type=register) with a [VPC](https://docs.aws.amazon.com/vpc/latest/userguide/create-vpc.html) and a subnet for the resources you will connect to {C.CLOUD_LONG}.
+- [Identity and Access Management (IAM) permissions](https://docs.aws.amazon.com/vpc/latest/privatelink/identity-access-management.html) configured to create VPC endpoints.
+
 </Prerequisites>
+
+## Limits
+
+| Limit | Value |
+| --- | --- |
+| {C.SERVICE_SHORT_CAP}s per VPC endpoint | 1 |
+| VPC endpoints per {C.SERVICE_SHORT} | 2 |
+
+Each VPC endpoint serves a single {C.SERVICE_SHORT}, so create one endpoint for every {C.SERVICE_SHORT} you connect to. Each {C.SERVICE_SHORT} accepts up to two endpoints, which lets you reach it from two {C.VPC}s.
+
+AWS also applies its own default quota of [50 interface and Gateway Load Balancer endpoints per {C.VPC}](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-limits-endpoints.html), which you can raise through AWS Support.
+
+## Availability zones
+
+{C.CLOUD_LONG} serves PrivateLink from two Availability Zones in each region. Create your VPC endpoint in **both** of them: one for the connection to work, the second so it survives the loss of an Availability Zone.
+
+| Region | Availability Zone IDs |
+| --- | --- |
+| `ap-northeast-1` | `apne1-az1`, `apne1-az4` |
+| `ap-south-1` | `aps1-az1`, `aps1-az3` |
+| `ap-southeast-1` | `apse1-az1`, `apse1-az2` |
+| `ap-southeast-2` | `apse2-az1`, `apse2-az2` |
+| `ca-central-1` | `cac1-az1`, `cac1-az2` |
+| `eu-central-1` | `euc1-az1`, `euc1-az2` |
+| `eu-central-2` | `euc2-az1`, `euc2-az2` |
+| `eu-west-1` | `euw1-az2`, `euw1-az3` |
+| `eu-west-2` | `euw2-az2`, `euw2-az3` |
+| `sa-east-1` | `sae1-az1`, `sae1-az2` |
+| `us-east-1` | `use1-az1`, `use1-az6` |
+| `us-east-2` | `use2-az1`, `use2-az2` |
+| `us-west-2` | `usw2-az3`, `usw2-az4` |
+
+<Callout variant="important">
+
+Match on the `Availability Zone ID`, such as `use1-az1`, not the Availability Zone name, such as `us-east-1a`. AWS maps names to physical zones differently in every account, so the same name points to a different zone for you than it does for {C.CLOUD_LONG}. When you choose subnets, the AWS console shows both in the `us-east-1a | use1-az1` form.
+
+</Callout>
 
 ## Set up a private endpoint connection
 
@@ -46,7 +90,11 @@ Take the following steps to connect your {C.SERVICE_LONG} to a PrivateLink endpo
 1. In [{C.CONSOLE_LONG}](https://console.cloud.tigerdata.com/dashboard/aws-privatelink), select `Security` > `Private Endpoints` > `Manage endpoints`.
 1. Under `Create the endpoint`, copy the `Alias` for the region in which you need to create the connection. **Choose the region of your AWS resources**.
 
-   <ThemeImage light={imgManagePrivateEndpointsLight} dark={imgManagePrivateEndpointsDark} alt="Copying the region alias in the Manage endpoints panel" />
+   <ThemeImage
+     light={imgManagePrivateEndpointsLight}
+     dark={imgManagePrivateEndpointsDark}
+     alt="Copying the region alias in the Manage endpoints panel"
+   />
 
 </NumberedItem>
 
@@ -56,21 +104,36 @@ Take the following steps to connect your {C.SERVICE_LONG} to a PrivateLink endpo
 1. Optionally provide a name tag for your endpoint.
 1. Under `Type`, select `PrivateLink Ready partner services`.
 
-   <ThemeImage light={imgAwsPrivateEndpointSettingsLight} dark={imgAwsPrivateEndpointSettingsDark} alt="AWS create endpoint settings" />
+   <ThemeImage
+     light={imgAwsPrivateEndpointSettingsLight}
+     dark={imgAwsPrivateEndpointSettingsDark}
+     alt="AWS create endpoint settings"
+   />
 
 1. Under `Service settings` > `Service name`, paste in the alias your copied in {C.CONSOLE} and click `Verify service`. Wait for the `Service name verified.` success message.
 
-   <ThemeImage light={imgAwsPrivateEndpointServiceSettingsLight} dark={imgAwsPrivateEndpointServiceSettingsDark} alt="AWS endpoint service settings" />
+   <ThemeImage
+     light={imgAwsPrivateEndpointServiceSettingsLight}
+     dark={imgAwsPrivateEndpointServiceSettingsDark}
+     alt="AWS endpoint service settings"
+   />
 
-1. Select the VPC that contains the resources you want to connect to {C.CLOUD_LONG}, then choose one or more Availability Zones and subnets where the endpoint's private IPs will be created. For lowest latency and no cross-AZ data transfer charges, match the Availability Zones of your workloads; select multiple AZs for high availability.
+1. Select the VPC that contains the resources you want to connect to {C.CLOUD_LONG}, then choose the subnets where the endpoint's private IPs are created. Select a subnet in **both** of the Availability Zones listed for your region in [Availability zones](#availability-zones). Selecting only one leaves you without failover, and selecting any other Availability Zone creates an interface that cannot reach your {C.SERVICE_SHORT}.
+
+   <ThemeImage
+     light={imgAwsPrivateEndpointSubnetsLight}
+     dark={imgAwsPrivateEndpointSubnetsDark}
+     alt="Selecting a subnet in each of the two Availability Zones, listed by Availability Zone ID"
+   />
+
 1. Optionally configure the security groups and tags, then click `Create endpoint`.
 1. Copy the VPC endpoint ID of your new endpoint. You claim the connection with this ID:
 
-   <ThemeImage light={imgAwsPrivateEndpointVpceIdLight} dark={imgAwsPrivateEndpointVpceIdDark} alt="The VPC endpoint ID of a new AWS endpoint" />
-
-1. Go to `EC2` > `Network interfaces` and copy the primary private IPv4 address of your endpoint:
-
-   <ThemeImage light={imgAwsPrivateEndpointNetworkInterfaceLight} dark={imgAwsPrivateEndpointNetworkInterfaceDark} alt="The primary private IPv4 address of an AWS network interface" />
+   <ThemeImage
+     light={imgAwsPrivateEndpointVpceIdLight}
+     dark={imgAwsPrivateEndpointVpceIdDark}
+     alt="The VPC endpoint ID of a new AWS endpoint"
+   />
 
 </NumberedItem>
 
@@ -79,7 +142,11 @@ Take the following steps to connect your {C.SERVICE_LONG} to a PrivateLink endpo
 1. In [{C.CONSOLE_LONG}](https://console.cloud.tigerdata.com/dashboard/aws-privatelink) > `Security` > `Private Endpoints`, click `Manage endpoints`.
 1. Under `Claim it`, paste your VPC endpoint ID into `Endpoint identifier`, then click `Claim connection`. {C.CLOUD_LONG} links the connection to the project you are working in, and it appears in the list.
 
-   <ThemeImage light={imgClaimPrivateEndpointLight} dark={imgClaimPrivateEndpointDark} alt="Claiming a private endpoint connection with the endpoint identifier" />
+   <ThemeImage
+     light={imgClaimPrivateEndpointLight}
+     dark={imgClaimPrivateEndpointDark}
+     alt="Claiming a private endpoint connection with the endpoint identifier"
+   />
 
    <Callout variant="note">
 
@@ -91,14 +158,132 @@ Take the following steps to connect your {C.SERVICE_LONG} to a PrivateLink endpo
 
 </NumberedItem>
 
-<NumberedItem title="Configure and attach">
+<NumberedItem title="Attach a service">
 
-1. Under `IP Address` click `Add IP` and paste the private endpoint IP address you have copied from AWS.
-1. Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the dropdown and click `Attach`. You can attach a {C.SERVICE_SHORT} to one private endpoint.
+Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the dropdown and click `Attach`. You can attach a {C.SERVICE_SHORT} to one private endpoint.
 
-   <ThemeImage light={imgPrivateEndpointAttachedLight} dark={imgPrivateEndpointAttachedDark} alt="A private endpoint connection with an IP address and an attached service" />
+</NumberedItem>
 
-1. From an EC2 instance inside your VPC, connect to your {C.SERVICE_SHORT} using a connection string with your [connection details](/integrate/find-connection-details). You should be able to connect successfully.
+<NumberedItem title="Publish the service hostname in your private DNS">
+
+You resolve your {C.SERVICE_SHORT} hostname to your VPC endpoint in a private hosted zone that you control.
+
+1. In [Route 53](https://console.aws.amazon.com/route53/), create a [private hosted zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/hosted-zone-private-creating.html) for `<project-id>.tsdb.cloud.timescale.com`. Set `Type` to `Private hosted zone`.
+
+   <ThemeImage
+     light={imgAwsPrivateEndpointHostedZoneLight}
+     dark={imgAwsPrivateEndpointHostedZoneDark}
+     alt="Creating a private hosted zone for the project domain"
+   />
+
+   Under `VPCs to associate with the hosted zone`, select the region and the {C.VPC} that contains your resources. If you already have a private hosted zone for this domain, use it instead of creating another.
+
+   <ThemeImage
+     light={imgAwsPrivateEndpointHostedZoneVpcLight}
+     dark={imgAwsPrivateEndpointHostedZoneVpcDark}
+     alt="Associating the private hosted zone with the VPC that contains your resources"
+   />
+
+1. In that zone, create a record for your {C.SERVICE_SHORT} hostname, `<service-id>.<project-id>.tsdb.cloud.timescale.com`. Create an `A` record, enable `Alias`, choose `Alias to VPC endpoint`, then select your region. An alias record resolves in a single step and Route 53 does not charge for queries to it, so prefer it over a `CNAME`.
+
+   The endpoint dropdown lists three names for your endpoint: one regional and one for each Availability Zone. Select the regional name, which has no Availability Zone in it:
+
+   ```
+   vpce-<id>-<hash>.vpce-svc-<id>.<region>.vpce.amazonaws.com
+   ```
+
+   The zonal names carry the Availability Zone just before `.vpce-svc-`, as in `vpce-<id>-<hash>-us-east-1a.vpce-svc-<id>...`. The regional name resolves across every healthy interface, so traffic fails over if an Availability Zone goes down. A zonal name pins traffic to one zone and fails with it.
+
+   <ThemeImage
+     light={imgAwsPrivateEndpointDnsRecordLight}
+     dark={imgAwsPrivateEndpointDnsRecordDark}
+     alt="Creating an A record aliased to the regional VPC endpoint name"
+   />
+
+1. If your {C.SERVICE_SHORT} has a read endpoint, add a second record for `<service-id>-repl.<project-id>.tsdb.cloud.timescale.com`, pointing at the same VPC endpoint. This is the address of your {C.SERVICE_SHORT}'s replicas, shown as `Read endpoint` in your [connection details](/integrate/find-connection-details).
+1. If you use the connection pooler, it is reached at the primary hostname on its own port, so it needs no record of its own. Add the pooler port to your connection string instead.
+
+   Find your {C.SERVICE_SHORT} ID and {C.PROJECT_SHORT} ID in your [connection details](/integrate/find-connection-details).
+
+<Callout variant="note">
+
+Your private hosted zone overrides public DNS for everything under it, in every {C.VPC} you associate it with. A zone for `<project-id>.tsdb.cloud.timescale.com` takes over resolution for **all** {C.SERVICE_SHORT}s in that {C.PROJECT_SHORT}, not only the ones you add records for. A hostname in that zone with no record returns `NXDOMAIN` instead of falling back to the public address, so clients in those {C.VPC}s can no longer reach that {C.SERVICE_SHORT} over the internet. Add a record for every {C.SERVICE_SHORT} those clients connect to.
+
+</Callout>
+
+</NumberedItem>
+
+<NumberedItem title="Test the connection">
+
+Run these from an EC2 instance inside the {C.VPC} you associated with the hosted zone. They fail from anywhere else, including your laptop, because the hostname resolves to private addresses.
+
+1. Check that your zone resolves the hostname to your endpoint:
+
+   ```bash
+   dig +short <service-id>.<project-id>.tsdb.cloud.timescale.com
+   ```
+
+   You get one private IP for each Availability Zone your endpoint spans. Two addresses means both zones can serve you. One address means the endpoint exists in a single Availability Zone and you have no failover.
+
+   No answer at all means the zone is not resolving. Check that the hosted zone is associated with this {C.VPC}, and that the record name matches the hostname exactly.
+
+1. Check that the endpoint accepts connections on the port for this endpoint:
+
+   ```bash
+   nc -zv <service-id>.<project-id>.tsdb.cloud.timescale.com <port>
+   ```
+
+   A timeout here, rather than a refusal, usually means the endpoint's security group does not allow inbound traffic on that port from this instance.
+
+1. Connect, verifying the certificate:
+
+   ```bash
+   psql "postgres://tsdbadmin@<service-id>.<project-id>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=verify-full"
+   ```
+
+   `sslmode=verify-full` is the point of publishing {C.CLOUD_LONG}'s hostname rather than the endpoint's own name: it proves you reached your {C.SERVICE_SHORT} privately and that the certificate matches. If this succeeds, your setup is correct. For how to supply the certificate and make this mode your default, see [Connect with a stricter SSL mode](/deploy/tiger-cloud/tiger-cloud-aws/security/strict-ssl).
+
+1. If you added a record for the read endpoint, repeat the check against it, using its own port:
+
+   ```bash
+   psql "postgres://tsdbadmin@<service-id>-repl.<project-id>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=verify-full"
+   ```
+
+<Callout variant="warning">
+
+Ports are specific to each endpoint. {C.CLOUD_LONG} uses the standard `5432` where it can, but this is not guaranteed, and your primary and your read endpoint listen on different ports. Never assume a port: always use the one shown for that endpoint in your [connection details](/integrate/find-connection-details).
+
+</Callout>
+
+</NumberedItem>
+
+</NumberedList>
+
+## Migrate from a configured IP address
+
+If you set up PrivateLink before {C.CLOUD_LONG} supported private DNS that you control, you configured your connection by adding the endpoint IP address in {C.CONSOLE_LONG}, and {C.CLOUD_LONG} published the DNS records for you. That flow is retired.
+
+To see whether this applies to you, open `Security` > `Private Endpoints` in {C.CONSOLE_LONG} and look at the `IP Address` column for your connection. If it is empty, you are already resolving through your own zone and you can skip this section. If it shows an address, follow the steps below to move to your own private DNS.
+
+<NumberedList>
+
+<NumberedItem title="Publish the hostname in your own zone">
+
+Create the records described in [Publish the service hostname in your private DNS](#set-up-a-private-endpoint-connection), then run the checks in [Test the connection](#set-up-a-private-endpoint-connection) before you continue.
+
+While your connection still has an IP address configured, the `dig` output shows which records are answering: one private IP per Availability Zone your endpoint spans means your own zone is live, and a single IP address means you are still resolving through the records {C.CLOUD_LONG} publishes. If your endpoint spans a single Availability Zone, both answers are one address, so compare it against the IP address shown in {C.CONSOLE_LONG} instead.
+
+</NumberedItem>
+
+<NumberedItem title={`Remove the IP address in ${C.CONSOLE_LONG}`}>
+
+In `Security` > `Private Endpoints`, remove the IP address from your connection. This deletes the DNS records that {C.CLOUD_LONG} published and hands resolution to your zone.
+
+<Callout variant="warning">
+
+Your own zone must already resolve the {C.SERVICE_SHORT} hostname before you remove the IP address, otherwise connections fail until your DNS is in place. If that happens, add the IP address back in {C.CONSOLE_LONG} to restore the records {C.CLOUD_LONG} publishes, then try again once your zone resolves the hostname.
+
+</Callout>
 
 </NumberedItem>
 
