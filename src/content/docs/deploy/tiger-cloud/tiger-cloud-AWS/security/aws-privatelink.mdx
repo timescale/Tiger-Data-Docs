@@ -223,7 +223,7 @@ Run these from an EC2 instance inside the {C.VPC} you associated with the hosted
    dig +short <service-id>.<project-id>.tsdb.cloud.timescale.com
    ```
 
-   You get the endpoint DNS name, then one private IP for each Availability Zone your endpoint spans. Two addresses means both zones can serve you. One address means the endpoint exists in a single Availability Zone and you have no failover.
+   You get one private IP for each Availability Zone your endpoint spans. Two addresses means both zones can serve you. One address means the endpoint exists in a single Availability Zone and you have no failover.
 
    No answer at all means the zone is not resolving. Check that the hosted zone is associated with this {C.VPC}, and that the record name matches the hostname exactly.
 
@@ -241,7 +241,7 @@ Run these from an EC2 instance inside the {C.VPC} you associated with the hosted
    psql "postgres://tsdbadmin@<service-id>.<project-id>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=verify-full"
    ```
 
-   `sslmode=verify-full` is the point of publishing {C.CLOUD_LONG}'s hostname rather than the endpoint's own name: it proves you reached your {C.SERVICE_SHORT} privately and that the certificate matches. If this succeeds, your setup is correct.
+   `sslmode=verify-full` is the point of publishing {C.CLOUD_LONG}'s hostname rather than the endpoint's own name: it proves you reached your {C.SERVICE_SHORT} privately and that the certificate matches. If this succeeds, your setup is correct. For how to supply the certificate and make this mode your default, see [Connect with a stricter SSL mode](/deploy/tiger-cloud/tiger-cloud-aws/security/strict-ssl).
 
 1. If you added a record for the read endpoint, repeat the check against it, using its own port:
 
@@ -251,7 +251,7 @@ Run these from an EC2 instance inside the {C.VPC} you associated with the hosted
 
 <Callout variant="warning">
 
-Ports are specific to each endpoint, and are not `5432`. Your primary and your read endpoint listen on different ports. Always use the port shown for that endpoint in your [connection details](/integrate/find-connection-details).
+Ports are specific to each endpoint. {C.CLOUD_LONG} uses the standard `5432` where it can, but this is not guaranteed, and your primary and your read endpoint listen on different ports. Never assume a port: always use the one shown for that endpoint in your [connection details](/integrate/find-connection-details).
 
 </Callout>
 
@@ -271,7 +271,7 @@ To see whether this applies to you, open `Security` > `Private Endpoints` in {C.
 
 Create the records described in [Publish the service hostname in your private DNS](#set-up-a-private-endpoint-connection), then run the checks in [Test the connection](#set-up-a-private-endpoint-connection) before you continue.
 
-While your connection still has an IP address configured, `dig` tells you which records are answering: your VPC endpoint's DNS name followed by one private IP per Availability Zone means your own zone is live, and a single IP address on its own means you are still resolving through the records {C.CLOUD_LONG} publishes.
+While your connection still has an IP address configured, `dig` tells you which records are answering: one private IP per Availability Zone your endpoint spans means your own zone is live, and a single IP address means you are still resolving through the records {C.CLOUD_LONG} publishes. If your endpoint spans a single Availability Zone, both answers are one address, so compare it against the IP address shown in {C.CONSOLE_LONG} instead.
 
 </NumberedItem>
 

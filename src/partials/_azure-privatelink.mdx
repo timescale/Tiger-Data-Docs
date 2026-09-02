@@ -93,7 +93,9 @@ Take the following steps to connect your {C.SERVICE_LONG} to a Private Link endp
 
 <NumberedItem title="Attach a service">
 
-Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the dropdown and click `Attach`. You can attach a {C.SERVICE_SHORT} to one private endpoint.
+Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the dropdown and click `Attach`.
+
+To reach this {C.SERVICE_SHORT} from a second Virtual Network, attach it to a second private endpoint as well. See [Reach a service from a second Virtual Network](#reach-a-service-from-a-second-virtual-network).
 
 </NumberedItem>
 
@@ -101,16 +103,16 @@ Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the 
 
 You resolve your {C.SERVICE_SHORT} hostname to your private endpoint in a private DNS zone that you control.
 
-1. In [Azure Portal](https://azure.microsoft.com/en-us/get-started/azure-portal), create a [private DNS zone](https://learn.microsoft.com/en-us/azure/dns/private-dns-getstarted-portal) named `<project-id>.tsdb.cloud.timescale.com`, then add a [virtual network link](https://learn.microsoft.com/en-us/azure/dns/private-dns-virtual-network-links) to the Virtual Network that contains your resources. If you already have a private DNS zone for this domain, use it.
-1. In that zone, create an `A` record for your {C.SERVICE_SHORT} hostname, `<service-id>.<project-id>.tsdb.cloud.timescale.com`, that resolves to the private endpoint IP you copied from Azure Portal. An Azure private endpoint has a single IP address, so an `A` record is correct here.
-1. If your {C.SERVICE_SHORT} has a read endpoint, add a second `A` record for `<service-id>-repl.<project-id>.tsdb.cloud.timescale.com` pointing at the same IP. This is the address of your {C.SERVICE_SHORT}'s replicas, shown as `Read endpoint` in your [connection details](/integrate/find-connection-details).
+1. In [Azure Portal](https://azure.microsoft.com/en-us/get-started/azure-portal), create a [private DNS zone](https://learn.microsoft.com/en-us/azure/dns/private-dns-getstarted-portal) named `<project-id>.db.az.tigerdata.com`, then add a [virtual network link](https://learn.microsoft.com/en-us/azure/dns/private-dns-virtual-network-links) to the Virtual Network that contains your resources. If you already have a private DNS zone for this domain, use it.
+1. In that zone, create an `A` record for your {C.SERVICE_SHORT} hostname, `<service-id>.<project-id>.db.az.tigerdata.com`, that resolves to the private endpoint IP you copied from Azure Portal. An Azure private endpoint has a single IP address, so an `A` record is correct here.
+1. If your {C.SERVICE_SHORT} has a read endpoint, add a second `A` record for `<service-id>-repl.<project-id>.db.az.tigerdata.com` pointing at the same IP. This is the address of your {C.SERVICE_SHORT}'s replicas, shown as `Read endpoint` in your [connection details](/integrate/find-connection-details).
 1. If you use the connection pooler, it is reached at the primary hostname on its own port, so it needs no record of its own. Add the pooler port to your connection string instead.
 
    Find your {C.SERVICE_SHORT} ID and {C.PROJECT_SHORT} ID in your [connection details](/integrate/find-connection-details).
 
 <Callout variant="note">
 
-Your private DNS zone overrides public DNS for everything under it, in every VNet you link it to. A zone for `<project-id>.tsdb.cloud.timescale.com` takes over resolution for **all** {C.SERVICE_SHORT}s in that {C.PROJECT_SHORT}, not only the ones you add records for. A hostname in that zone with no record fails to resolve instead of falling back to the public address, so clients in those VNets can no longer reach that {C.SERVICE_SHORT} over the internet. Add a record for every {C.SERVICE_SHORT} those clients connect to.
+Your private DNS zone overrides public DNS for everything under it, in every VNet you link it to. A zone for `<project-id>.db.az.tigerdata.com` takes over resolution for **all** {C.SERVICE_SHORT}s in that {C.PROJECT_SHORT}, not only the ones you add records for. A hostname in that zone with no record fails to resolve instead of falling back to the public address, so clients in those VNets can no longer reach that {C.SERVICE_SHORT} over the internet. Add a record for every {C.SERVICE_SHORT} those clients connect to.
 
 </Callout>
 
@@ -123,7 +125,7 @@ Run these from a VM inside the VNet you linked to the private DNS zone. They fai
 1. Check that your zone resolves the hostname to your private endpoint:
 
    ```bash
-   dig +short <service-id>.<project-id>.tsdb.cloud.timescale.com
+   dig +short <service-id>.<project-id>.db.az.tigerdata.com
    ```
 
    You get the private IP of your private endpoint, the same address you copied from Azure Portal.
@@ -133,13 +135,13 @@ Run these from a VM inside the VNet you linked to the private DNS zone. They fai
 1. Check that the endpoint accepts connections on the port for this endpoint:
 
    ```bash
-   nc -zv <service-id>.<project-id>.tsdb.cloud.timescale.com <port>
+   nc -zv <service-id>.<project-id>.db.az.tigerdata.com <port>
    ```
 
 1. Connect, verifying the certificate:
 
    ```bash
-   psql "postgres://tsdbadmin@<service-id>.<project-id>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=verify-full"
+   psql "postgres://tsdbadmin@<service-id>.<project-id>.db.az.tigerdata.com:<port>/tsdb?sslmode=verify-full"
    ```
 
    `sslmode=verify-full` is the point of publishing our hostname rather than connecting to the endpoint IP directly: it proves you reached your {C.SERVICE_SHORT} privately and that the certificate matches. If this succeeds, your setup is correct.
@@ -147,18 +149,42 @@ Run these from a VM inside the VNet you linked to the private DNS zone. They fai
 1. If you added a record for the read endpoint, repeat the check against it, using its own port:
 
    ```bash
-   psql "postgres://tsdbadmin@<service-id>-repl.<project-id>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=verify-full"
+   psql "postgres://tsdbadmin@<service-id>-repl.<project-id>.db.az.tigerdata.com:<port>/tsdb?sslmode=verify-full"
    ```
 
 <Callout variant="warning">
 
-Ports are specific to each endpoint, and are not `5432`. Your primary and your read endpoint listen on different ports. Always use the port shown for that endpoint in your [connection details](/integrate/find-connection-details).
+Ports are specific to each endpoint, and are not `5432`. Your primary, your read endpoint, and your pooler each listen on their own port. Never assume a port: always use the one shown for that endpoint in your [connection details](/integrate/find-connection-details).
 
 </Callout>
 
 </NumberedItem>
 
 </NumberedList>
+
+## Reach a service from a second Virtual Network
+
+An Azure private endpoint lives in a single Virtual Network. To reach the same {C.SERVICE_SHORT} from a second Virtual Network, create a second private endpoint there and attach the same {C.SERVICE_SHORT} to it. A {C.SERVICE_SHORT} accepts up to two private endpoints.
+
+Repeat [Set up a private endpoint connection](#set-up-a-private-endpoint-connection) from the second Virtual Network, with two differences:
+
+- Claim the second connection with its own endpoint identifier. Each endpoint has a distinct ID, and {C.CONSOLE_LONG} lists each claimed connection separately.
+- Create the DNS records in a private DNS zone linked to the second Virtual Network, resolving to the second endpoint's own private IP.
+
+Each Virtual Network resolves the {C.SERVICE_SHORT} hostname through the zone linked to it, so both Virtual Networks use the same hostname and each reaches its own endpoint:
+
+| Virtual Network | Private DNS zone linked to it | `A` record resolves to |
+| --- | --- | --- |
+| VNet A | Zone for `<project-id>.db.az.tigerdata.com` | Private IP of the endpoint in VNet A |
+| VNet B | Zone for `<project-id>.db.az.tigerdata.com` | Private IP of the endpoint in VNet B |
+
+You need one zone per Virtual Network. A single zone linked to both Virtual Networks cannot do this, because it holds one record for the hostname and so returns the same IP to both.
+
+<Callout variant="note">
+
+Ports are per endpoint, so your second endpoint may listen on different ports than your first. Check the [connection details](/integrate/find-connection-details) for each connection rather than reusing the first endpoint's ports.
+
+</Callout>
 
 ## Migrate from a configured IP address
 
