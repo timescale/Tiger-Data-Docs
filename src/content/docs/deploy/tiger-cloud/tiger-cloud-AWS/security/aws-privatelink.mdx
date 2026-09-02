@@ -21,10 +21,18 @@ import imgAwsPrivateEndpointVpceIdLight from "../../../../../../assets/images/de
 import imgAwsPrivateEndpointVpceIdDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-vpce-id-dark.png";
 import imgClaimPrivateEndpointLight from "../../../../../../assets/images/deploy/tiger-cloud/claim-private-endpoint-tiger-console.png";
 import imgClaimPrivateEndpointDark from "../../../../../../assets/images/deploy/tiger-cloud/claim-private-endpoint-tiger-console-dark.png";
+import imgAwsPrivateEndpointSubnetsLight from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-subnets.png";
+import imgAwsPrivateEndpointSubnetsDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-subnets-dark.png";
+import imgAwsPrivateEndpointHostedZoneLight from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-hosted-zone.png";
+import imgAwsPrivateEndpointHostedZoneDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-hosted-zone-dark.png";
+import imgAwsPrivateEndpointHostedZoneVpcLight from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-hosted-zone-vpc.png";
+import imgAwsPrivateEndpointHostedZoneVpcDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-hosted-zone-vpc-dark.png";
+import imgAwsPrivateEndpointDnsRecordLight from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-dns-record.png";
+import imgAwsPrivateEndpointDnsRecordDark from "../../../../../../assets/images/deploy/tiger-cloud/aws-private-endpoint-dns-record-dark.png";
 
 With {C.CLOUD_LONG}, you can connect your {C.SERVICE_SHORT}s to AWS PrivateLink endpoints. A private endpoint in your {C.VPC} routes traffic to your {C.SERVICE_SHORT} over the AWS backbone, without crossing the public internet or requiring {C.VPC} peering. This page describes how to create a private endpoint on the AWS side, claim it in {C.CONSOLE_LONG}, attach a {C.SERVICE_SHORT} to it, and publish the {C.SERVICE_SHORT} hostname in your own private DNS zone.
 
-You control DNS resolution for your {C.SERVICE_SHORT} over PrivateLink. In a private hosted zone attached to your {C.VPC}, you point the standard {C.SERVICE_SHORT} hostname at your VPC endpoint. Because you publish the same hostname that the public internet path uses, your connection strings, and the {C.SERVICE_SHORT} certificate, work unchanged.
+You control DNS resolution for your {C.SERVICE_SHORT} over PrivateLink. In a private hosted zone attached to your {C.VPC}, you point the standard {C.SERVICE_SHORT} hostname at your VPC endpoint. Because you publish the same hostname that the public internet path uses, your connection strings and the {C.SERVICE_SHORT} certificate work as before.
 
 <Prerequisites context="procedure">
 <PrereqsCloud />
@@ -38,14 +46,14 @@ You control DNS resolution for your {C.SERVICE_SHORT} over PrivateLink. In a pri
 
 | Limit | Value |
 | --- | --- |
-| {C.SERVICE_SHORT}s per VPC endpoint | 1 |
+| {C.SERVICE_SHORT_CAP}s per VPC endpoint | 1 |
 | VPC endpoints per {C.SERVICE_SHORT} | 2 |
 
 Each VPC endpoint serves a single {C.SERVICE_SHORT}, so create one endpoint for every {C.SERVICE_SHORT} you connect to. Each {C.SERVICE_SHORT} accepts up to two endpoints, which lets you reach it from two {C.VPC}s.
 
 AWS also applies its own default quota of [50 interface and Gateway Load Balancer endpoints per {C.VPC}](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-limits-endpoints.html), which you can raise through AWS Support.
 
-## Availability zones
+## Availability Zones
 
 {C.CLOUD_LONG} serves PrivateLink from two Availability Zones in each region. Create your VPC endpoint in **both** of them: one for the connection to work, the second so it survives the loss of an Availability Zone.
 
@@ -67,7 +75,7 @@ AWS also applies its own default quota of [50 interface and Gateway Load Balance
 
 <Callout variant="important">
 
-Match on the **Availability Zone ID**, such as `use1-az1`, not the Availability Zone name, such as `us-east-1a`. AWS maps names to physical zones differently in every account, so the same name points to a different zone for you than it does for us. When you choose subnets, the AWS console shows both, in the form `us-east-1a | use1-az1`.
+Match on the **Availability Zone ID**, such as `use1-az1`, not the Availability Zone name, such as `us-east-1a`. AWS maps names to physical zones differently in every account, so the same name points to a different zone for you than it does for Tiger Cloud. When you choose subnets, the AWS console shows both in the `us-east-1a | use1-az1` form.
 
 </Callout>
 
@@ -111,6 +119,13 @@ Take the following steps to connect your {C.SERVICE_LONG} to a PrivateLink endpo
    />
 
 1. Select the VPC that contains the resources you want to connect to {C.CLOUD_LONG}, then choose the subnets where the endpoint's private IPs are created. Select a subnet in **both** of the Availability Zones listed for your region in [Availability zones](#availability-zones). Selecting only one leaves you without failover, and selecting any other Availability Zone creates an interface that cannot reach your {C.SERVICE_SHORT}.
+
+   <ThemeImage
+     light={imgAwsPrivateEndpointSubnetsLight}
+     dark={imgAwsPrivateEndpointSubnetsDark}
+     alt="Selecting a subnet in each of the two Availability Zones, listed by Availability Zone ID"
+   />
+
 1. Optionally configure the security groups and tags, then click `Create endpoint`.
 1. Copy the VPC endpoint ID of your new endpoint. You claim the connection with this ID:
 
@@ -119,14 +134,6 @@ Take the following steps to connect your {C.SERVICE_LONG} to a PrivateLink endpo
      dark={imgAwsPrivateEndpointVpceIdDark}
      alt="The VPC endpoint ID of a new AWS endpoint"
    />
-
-1. On your endpoint's detail page, copy the **regional** DNS name. It looks like `vpce-<id>-<hash>.vpce-svc-<id>.<region>.vpce.amazonaws.com`. You point your DNS records at this name.
-
-   <Callout variant="important">
-
-   Use the regional DNS name, not a zonal name, and not an IP address. An interface VPC endpoint has one network interface per Availability Zone. The regional name resolves across all healthy interfaces, so traffic fails over if an Availability Zone becomes unavailable. A zonal name or a hardcoded IP pins your traffic to a single Availability Zone and fails with it.
-
-   </Callout>
 
 </NumberedItem>
 
@@ -161,8 +168,38 @@ Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the 
 
 You resolve your {C.SERVICE_SHORT} hostname to your VPC endpoint in a private hosted zone that you control.
 
-1. In [Route 53](https://console.aws.amazon.com/route53/), create a [private hosted zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/hosted-zone-private-creating.html) for `<project-id>.tsdb.cloud.timescale.com`, and associate it with the {C.VPC} that contains your resources. If you already have a private hosted zone for this domain, use it.
-1. In that zone, create a record for your {C.SERVICE_SHORT} hostname, `<service-id>.<project-id>.tsdb.cloud.timescale.com`. Create an `A` record, enable `Alias`, choose `Alias to VPC endpoint`, then select your endpoint in its region. An alias record resolves in a single step and Route 53 does not charge for queries to it, so prefer it over a `CNAME`.
+1. In [Route 53](https://console.aws.amazon.com/route53/), create a [private hosted zone](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/hosted-zone-private-creating.html) for `<project-id>.tsdb.cloud.timescale.com`. Set `Type` to `Private hosted zone`.
+
+   <ThemeImage
+     light={imgAwsPrivateEndpointHostedZoneLight}
+     dark={imgAwsPrivateEndpointHostedZoneDark}
+     alt="Creating a private hosted zone for the project domain"
+   />
+
+   Under `VPCs to associate with the hosted zone`, select the region and the {C.VPC} that contains your resources. If you already have a private hosted zone for this domain, use it instead of creating another.
+
+   <ThemeImage
+     light={imgAwsPrivateEndpointHostedZoneVpcLight}
+     dark={imgAwsPrivateEndpointHostedZoneVpcDark}
+     alt="Associating the private hosted zone with the VPC that contains your resources"
+   />
+
+1. In that zone, create a record for your {C.SERVICE_SHORT} hostname, `<service-id>.<project-id>.tsdb.cloud.timescale.com`. Create an `A` record, enable `Alias`, choose `Alias to VPC endpoint`, then select your region. An alias record resolves in a single step and Route 53 does not charge for queries to it, so prefer it over a `CNAME`.
+
+   The endpoint dropdown lists three names for your endpoint: one regional and one for each Availability Zone. Select the **regional** name, which has no Availability Zone in it:
+
+   ```
+   vpce-<id>-<hash>.vpce-svc-<id>.<region>.vpce.amazonaws.com
+   ```
+
+   The zonal names carry the Availability Zone just before `.vpce-svc-`, as in `vpce-<id>-<hash>-us-east-1a.vpce-svc-<id>...`. The regional name resolves across every healthy interface, so traffic fails over if an Availability Zone goes down. A zonal name pins traffic to one zone and fails with it.
+
+   <ThemeImage
+     light={imgAwsPrivateEndpointDnsRecordLight}
+     dark={imgAwsPrivateEndpointDnsRecordDark}
+     alt="Creating an A record aliased to the regional VPC endpoint name"
+   />
+
 1. If your {C.SERVICE_SHORT} has a read endpoint, add a second record for `<service-id>-repl.<project-id>.tsdb.cloud.timescale.com`, pointing at the same VPC endpoint. This is the address of your {C.SERVICE_SHORT}'s replicas, shown as `Read endpoint` in your [connection details](/integrate/find-connection-details).
 1. If you use the connection pooler, it is reached at the primary hostname on its own port, so it needs no record of its own. Add the pooler port to your connection string instead.
 
@@ -204,7 +241,7 @@ Run these from an EC2 instance inside the {C.VPC} you associated with the hosted
    psql "postgres://tsdbadmin@<service-id>.<project-id>.tsdb.cloud.timescale.com:<port>/tsdb?sslmode=verify-full"
    ```
 
-   `sslmode=verify-full` is the point of publishing our hostname rather than the endpoint's own name: it proves you reached your {C.SERVICE_SHORT} privately and that the certificate matches. If this succeeds, your setup is correct.
+   `sslmode=verify-full` is the point of publishing {C.CLOUD_LONG}'s hostname rather than the endpoint's own name: it proves you reached your {C.SERVICE_SHORT} privately and that the certificate matches. If this succeeds, your setup is correct.
 
 1. If you added a record for the read endpoint, repeat the check against it, using its own port:
 
