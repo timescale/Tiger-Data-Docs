@@ -13,6 +13,10 @@ import imgManagePrivateEndpointsLight from "../assets/images/deploy/tiger-cloud/
 import imgManagePrivateEndpointsDark from "../assets/images/deploy/tiger-cloud/manage-private-endpoints-tiger-console-dark.png";
 import imgClaimPrivateEndpointLight from "../assets/images/deploy/tiger-cloud/claim-private-endpoint-tiger-console-azure.png";
 import imgClaimPrivateEndpointDark from "../assets/images/deploy/tiger-cloud/claim-private-endpoint-tiger-console-azure-dark.png";
+import imgAzurePrivateEndpointDnsZoneLight from "../assets/images/deploy/tiger-cloud/azure-private-endpoint-dns-zone.png";
+import imgAzurePrivateEndpointDnsZoneDark from "../assets/images/deploy/tiger-cloud/azure-private-endpoint-dns-zone-dark.png";
+import imgAzurePrivateEndpointDnsRecordLight from "../assets/images/deploy/tiger-cloud/azure-private-endpoint-dns-record.png";
+import imgAzurePrivateEndpointDnsRecordDark from "../assets/images/deploy/tiger-cloud/azure-private-endpoint-dns-record-dark.png";
 
 <Prerequisites context="procedure">
 <PrereqsCloud />
@@ -104,7 +108,13 @@ To reach this {C.SERVICE_SHORT} from a second virtual network, attach it to a se
 You resolve your {C.SERVICE_SHORT} hostname to your private endpoint in a private DNS zone that you control.
 
 1. In [Azure Portal](https://azure.microsoft.com/en-us/get-started/azure-portal), create a [private DNS zone](https://learn.microsoft.com/en-us/azure/dns/private-dns-getstarted-portal) named `<project-id>.db.az.tigerdata.com`, then add a [virtual network link](https://learn.microsoft.com/en-us/azure/dns/private-dns-virtual-network-links) to the Virtual Network that contains your resources. If you already have a private DNS zone for this domain, use it.
+
+   <ThemeImage light={imgAzurePrivateEndpointDnsZoneLight} dark={imgAzurePrivateEndpointDnsZoneDark} alt="Creating a private DNS zone for the project domain" />
+
 1. In that zone, create an `A` record for your {C.SERVICE_SHORT} hostname, `<service-id>.<project-id>.db.az.tigerdata.com`, that resolves to the private endpoint IP you copied from Azure Portal. An Azure private endpoint has a single IP address, so an `A` record is correct here.
+
+   <ThemeImage light={imgAzurePrivateEndpointDnsRecordLight} dark={imgAzurePrivateEndpointDnsRecordDark} alt="Adding an A record for the service hostname pointing at the private endpoint IP" />
+
 1. If your {C.SERVICE_SHORT} has a read endpoint, add a second `A` record for `<service-id>-repl.<project-id>.db.az.tigerdata.com` pointing at the same IP. This is the address of your {C.SERVICE_SHORT}'s replicas, shown as `Read endpoint` in your [connection details](/integrate/find-connection-details).
 1. If you use the connection pooler, it is reached at the primary hostname on its own port, so it needs no record of its own. Add the pooler port to your connection string instead.
 
@@ -144,7 +154,7 @@ Run these from a VM inside the VNet you linked to the private DNS zone. They fai
    psql "postgres://tsdbadmin@<service-id>.<project-id>.db.az.tigerdata.com:<port>/tsdb?sslmode=verify-full"
    ```
 
-   `sslmode=verify-full` is the point of publishing our hostname rather than connecting to the endpoint IP directly: it proves you reached your {C.SERVICE_SHORT} privately and that the certificate matches. If this succeeds, your setup is correct.
+   `sslmode=verify-full` is the point of publishing our hostname rather than connecting to the endpoint IP directly: it proves you reached your {C.SERVICE_SHORT} privately and that the certificate matches. If this succeeds, your setup is correct. For how to supply the certificate and make this mode your default, see [Connect with a stricter SSL mode](/deploy/tiger-cloud/tiger-cloud-azure/security/strict-ssl).
 
 1. If you added a record for the read endpoint, repeat the check against it, using its own port:
 
@@ -154,7 +164,7 @@ Run these from a VM inside the VNet you linked to the private DNS zone. They fai
 
 <Callout variant="warning">
 
-Ports are specific to each endpoint, and are not `5432`. Your primary, your read endpoint, and your pooler each listen on their own port. Never assume a port: always use the one shown for that endpoint in your [connection details](/integrate/find-connection-details).
+Ports are specific to each endpoint. {C.CLOUD_LONG} uses the standard `5432` where it can, but this is not guaranteed, and your primary, your read endpoint, and your pooler each listen on their own port. Never assume a port: always use the one shown for that endpoint in your [connection details](/integrate/find-connection-details).
 
 </Callout>
 
