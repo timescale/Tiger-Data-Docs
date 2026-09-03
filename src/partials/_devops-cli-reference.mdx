@@ -5,6 +5,8 @@ import CONFIGOPTIONS from "./_devops-cli-config-options.mdx";
 
 Use the following commands to manage {C.CLOUD_LONG} from the terminal. Every command supports `-h` for inline help, for example `tiger service create -h`. For the single-command version of common operations, see [common tasks](/build/tiger-cli-mcp/common-tasks); for longer, multi-step workflows, see the [cookbook](/build/tiger-cli-mcp/cookbook).
 
+Many commands have shorter aliases, listed with each command below. Command names, aliases, and flag names are case-insensitive, so `tiger SERVICE LIST --OUTPUT json` does the same thing as `tiger service list --output json`. Shorthand flags such as `-o`, and flag values such as `json`, remain case-sensitive.
+
 ## Authentication
 
 ### `tiger auth login`
@@ -30,7 +32,7 @@ Select a project:
 Use ↑/↓ arrows or number keys to navigate, enter to select, q to quit
 ```
 
-The project picker only appears if you have multiple {C.PROJECT_SHORT}s. After you select one (or automatically, if you have only one):
+The project picker only appears if you have multiple {C.PROJECT_SHORT}s and you did not pass `--project-id`. After you select one (or automatically, if you have only one):
 
 ```txt
 Successfully logged in (project: <project-id>)
@@ -44,10 +46,15 @@ Successfully logged in (project: <project-id>)
 
 | Flag | Description |
 | --- | --- |
+| `--project-id` | {C.PROJECT_SHORT} to log in to. Skips the interactive picker. |
 | `--public-key` | Public key for non-interactive login. |
 | `--secret-key` | Secret key for non-interactive login. |
 
 You can also set the `TIGER_PUBLIC_KEY` and `TIGER_SECRET_KEY` environment variables; the {C.PROJECT_SHORT} is auto-detected from your credentials. See [Authentication parameters](#authentication-parameters) and [Client credentials](/integrate/find-connection-details#create-client-credentials) for how to create a public/secret key pair.
+
+Pass `--project-id` to choose the {C.PROJECT_SHORT} up front instead of picking it from the list. With a browser login, this skips the picker; with client credentials, the command fails if the {C.PROJECT_SHORT} does not match the one your keys belong to. To change {C.PROJECT_SHORT} after logging in, use [`tiger project use`](#tiger-project-use).
+
+Unless you log back in to the same {C.PROJECT_SHORT} as last time, the default {C.SERVICE_SHORT} (`service_id`) is cleared, because it belongs to the {C.PROJECT_SHORT} you set it in. If that value came from `--service-id` or `TIGER_SERVICE_ID` rather than your config file, {C.CLI_LONG} warns you instead of clearing it.
 
 ### `tiger auth logout`
 
@@ -67,7 +74,7 @@ Successfully logged out and removed stored credentials
 
 ### `tiger auth status`
 
-Show your current authentication status. What it lists depends on how you logged in: an OAuth login shows the authentication method and the user, and a client-credentials login shows the credential name, public key, {C.PROJECT_SHORT}, and plan type.
+Show your current authentication status. What it lists depends on how you logged in: an OAuth login shows the authentication method and the user, and a client-credentials login shows the credential name, public key, {C.PROJECT_SHORT}, and plan type. Alias: `whoami`.
 
 **Usage**: `tiger auth status [flags]`
 
@@ -91,6 +98,64 @@ You see something like:
 | --- | --- |
 | `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
+## Projects
+
+### `tiger project use`
+
+Change the {C.PROJECT_SHORT} that later commands act on. Alias: `switch`.
+
+**Usage**: `tiger project use <project-id>`
+
+```bash
+tiger project use <project-id>
+```
+
+You see:
+
+```txt
+Switched to project <project-id>
+```
+
+If a default {C.SERVICE_SHORT} was set, it is cleared first, because it belongs to the {C.PROJECT_SHORT} you set it in. The message comes before the line above:
+
+```txt
+Cleared default service (config key service_id): it belonged to the previous project
+Switched to project <project-id>
+```
+
+The `service_id` config key is always cleared. If `--service-id` or `TIGER_SERVICE_ID` is also set, that value takes precedence over the config key, so it survives the switch and still points at a {C.SERVICE_SHORT} in the {C.PROJECT_SHORT} you just left. {C.CLI_LONG} warns you rather than silently leaving it in place:
+
+```txt
+Warning: the default service from --service-id/TIGER_SERVICE_ID belongs to the previous project and is still in effect
+```
+
+If you name the {C.PROJECT_SHORT} you are already on, nothing changes:
+
+```txt
+Already using project <project-id>
+```
+
+If you name a {C.PROJECT_SHORT} you cannot reach, the command exits with code `3`:
+
+```txt
+Project <project-id> is not among your accessible projects
+Error: no access to the requested project
+```
+
+Switching requires a browser login, because a public/secret key pair belongs to a single {C.PROJECT_SHORT}. With client credentials the command exits with code `4` instead. If your keys are stored:
+
+```txt
+Error: an API key is scoped to a single project. Run 'tiger auth login' without --public-key/--secret-key
+```
+
+If they come from the environment:
+
+```txt
+Error: cannot switch projects while TIGER_PUBLIC_KEY/TIGER_SECRET_KEY are set: an API key is scoped to a single project
+```
+
+There is no command that lists your {C.PROJECT_SHORT}s. Find the ID in [{C.CONSOLE_LONG}](/integrate/find-connection-details#find-your-project-and-service-id), or read it out of any {C.SERVICE_SHORT}'s connection string.
+
 ## Version
 
 ### `tiger version`
@@ -107,10 +172,10 @@ You see something like:
 
 ```txt
 ┌───────────────────┬──────────────────────────────────────────┐
-│ Tiger CLI Version │ 0.21.2                                   │
-│ Build Time        │ 2026-07-16T16:23:17Z                     │
-│ Git Commit        │ 377b0e6bbc1e605d55efef9c874f5b7d64ea62ba │
-│ Go Version        │ go1.25.5                                 │
+│ Tiger CLI Version │ 0.22.0                                   │
+│ Build Time        │ 2026-08-26T21:38:28Z                     │
+│ Git Commit        │ 56dd79944b4afbf8d86162533ad4bd14e56ebcc8 │
+│ Go Version        │ go1.27.0                                 │
 │ Platform          │ darwin/arm64                             │
 └───────────────────┴──────────────────────────────────────────┘
 ```
@@ -118,7 +183,7 @@ You see something like:
 | Flag | Description |
 | --- | --- |
 | `--check` | Force a check for updates, regardless of the last check time. |
-| `--output, -o` | Output format: `table`, `json`, `yaml`, or `bare`. |
+| `--output, -o` | Output format: `table`, `json`, `yaml`, or `bare`. Defaults to your `output` [configuration option](#configuration-options). |
 
 ### `tiger upgrade`
 
@@ -133,20 +198,22 @@ tiger upgrade
 If you installed {C.CLI_LONG} with the direct install script and a newer version is available, you see:
 
 ```txt
-Upgrading tiger 0.21.1 → v0.21.2
-Downloading https://cli.tigerdata.com/releases/v0.21.2/tiger-cli_Darwin_arm64.tar.gz
+Upgrading tiger 0.21.2 → v0.22.0
+Downloading https://cli.tigerdata.com/releases/v0.22.0/tiger-cli_Darwin_arm64.tar.gz
 Verifying checksum
 Installing new binary to <install-path>/tiger
-tiger upgraded successfully to v0.21.2
+tiger upgraded successfully to v0.22.0
 ```
 
 If you installed {C.CLI_LONG} with a package manager such as Homebrew, `apt`, or `yum`/`dnf`, this command refuses to run and points you to that package manager instead.
 
 ## Configuration
 
+Manage {C.CLI_LONG}'s own settings. `tiger config` has the alias `cfg`, so `tiger cfg show` is the same as `tiger config show`. For the full list of keys, see [Configuration options](#configuration-options).
+
 ### `tiger config show`
 
-Show the current configuration.
+Show the current configuration. Aliases: `list`, `ls`.
 
 **Usage**: `tiger config show [flags]`
 
@@ -157,25 +224,24 @@ tiger config show
 You see something like:
 
 ```txt
-┌──────────────────┬───────────────────────────────────────────────────────────────┐
-│     PROPERTY     │                             VALUE                             │
-├──────────────────┼───────────────────────────────────────────────────────────────┤
-│ api_url          │ https://console.cloud.tigerdata.com/public/api/v1             │
-│ analytics        │ true                                                          │
-│ console_url      │ https://console.cloud.tigerdata.com                           │
-│ debug            │ false                                                         │
-│ docs_mcp         │ true                                                          │
-│ docs_mcp_url     │ https://mcp.tigerdata.com/docs                               │
-│ gateway_url      │ https://console.cloud.tigerdata.com/api                       │
-│ mcp_max_rows     │ 100                                                           │
-│ color            │ true                                                          │
-│ output           │ table                                                         │
-│ password_storage │ keyring                                                       │
-│ read_only        │ false                                                         │
-│ releases_url     │ https://cli.tigerdata.com                                     │
-│ service_id       │                                                               │
-│ version_check    │ true                                                          │
-└──────────────────┴───────────────────────────────────────────────────────────────┘
+┌──────────────────┬───────────────────────────────────────────────────┐
+│     PROPERTY     │                       VALUE                       │
+├──────────────────┼───────────────────────────────────────────────────┤
+│ api_url          │ https://console.cloud.tigerdata.com/public/api/v1 │
+│ analytics        │ true                                              │
+│ console_url      │ https://console.cloud.tigerdata.com               │
+│ docs_mcp         │ true                                              │
+│ docs_mcp_url     │ https://mcp.tigerdata.com/docs                    │
+│ gateway_url      │ https://console.cloud.tigerdata.com/api           │
+│ mcp_max_rows     │ 100                                               │
+│ color            │ true                                              │
+│ output           │ table                                             │
+│ password_storage │ keyring                                           │
+│ read_only        │ false                                             │
+│ releases_url     │ https://cli.tigerdata.com                         │
+│ service_id       │                                                   │
+│ version_check    │ true                                              │
+└──────────────────┴───────────────────────────────────────────────────┘
 ```
 
 | Flag | Description |
@@ -204,7 +270,7 @@ Set read_only = true
 
 ### `tiger config unset`
 
-Clear a configuration value.
+Clear a configuration value. Aliases: `rm`, `delete`.
 
 **Usage**: `tiger config unset <key>`
 
@@ -220,7 +286,7 @@ Unset read_only
 
 ### `tiger config reset`
 
-Reset the configuration to defaults, including your default {C.SERVICE_SHORT} and output preferences. This does not log you out; your authentication credentials are unaffected.
+Reset the configuration to defaults, including your default {C.SERVICE_SHORT} and output preferences. This does not log you out; your authentication credentials are unaffected. Alias: `clear`.
 
 **Usage**: `tiger config reset`
 
@@ -236,7 +302,7 @@ Configuration reset to defaults
 
 ## Services
 
-Manage {C.SERVICE_SHORT}s from the terminal. For the {C.MCP_SHORT}-tool equivalent of each command, see the [{C.MCP_LONG} reference](/reference/tiger-cloud/tiger-mcp); for a task-by-task comparison, see [common tasks](/build/tiger-cli-mcp/common-tasks#manage-your-services).
+Manage {C.SERVICE_SHORT}s from the terminal. `tiger service` has the aliases `services` and `svc`, so `tiger svc list` is the same as `tiger service list`. For the {C.MCP_SHORT}-tool equivalent of each command, see the [{C.MCP_LONG} reference](/reference/tiger-cloud/tiger-mcp); for a task-by-task comparison, see [common tasks](/build/tiger-cli-mcp/common-tasks#manage-your-services).
 
 ### `tiger service create`
 
@@ -282,7 +348,7 @@ Allowed compute configurations: `shared`/`shared` (only in `us-east-1`), 0.5&nbs
 
 ### `tiger service list`
 
-List the {C.SERVICE_SHORT}s in the current {C.PROJECT_SHORT}.
+List the {C.SERVICE_SHORT}s in the current {C.PROJECT_SHORT}. Alias: `ls`.
 
 **Usage**: `tiger service list [flags]`
 
@@ -294,7 +360,7 @@ You see something like:
 
 ```txt
 ┌──────────────┬───────────┬────────┬─────────────┬───────────┬──────────────────┐
-│  SERVICE ID  │    NAME   │ STATUS │     TYPE    │   REGION  │     CREATED      │
+│  SERVICE ID  │   NAME    │ STATUS │    TYPE     │  REGION   │     CREATED      │
 ├──────────────┼───────────┼────────┼─────────────┼───────────┼──────────────────┤
 │ <service-id> │ analytics │ READY  │ TIMESCALEDB │ us-east-1 │ 2026-08-11 09:00 │
 └──────────────┴───────────┴────────┴─────────────┴───────────┴──────────────────┘
@@ -318,7 +384,7 @@ You see something like:
 
 ```txt
 ┌───────────────────┬─────────────────────────────────────────────────────────────────────┐
-│      PROPERTY     │                                VALUE                                │
+│     PROPERTY      │                                VALUE                                │
 ├───────────────────┼─────────────────────────────────────────────────────────────────────┤
 │ Service ID        │ <service-id>                                                        │
 │ Name              │ analytics                                                           │
@@ -402,7 +468,7 @@ You see something like:
 
 ### `tiger service start`
 
-Start an inactive {C.SERVICE_SHORT}.
+Start an inactive {C.SERVICE_SHORT}. Alias: `resume`.
 
 **Usage**: `tiger service start <service-id> [flags]`
 
@@ -413,7 +479,7 @@ tiger service start <service-id>
 You see something like:
 
 ```txt
-▶️ Start request accepted for service '<service-id>'.
+▶️  Start request accepted for service '<service-id>'.
 ⏳ Waiting for service to start (wait timeout: 10m0s)...
 ✅ Service has been successfully started!
 ```
@@ -424,7 +490,7 @@ You see something like:
 
 ### `tiger service stop`
 
-Stop an active {C.SERVICE_SHORT}. After stopping, the service no longer accepts connections.
+Stop an active {C.SERVICE_SHORT}. After stopping, the service no longer accepts connections. Alias: `pause`.
 
 **Usage**: `tiger service stop <service-id> [flags]`
 
@@ -435,7 +501,7 @@ tiger service stop <service-id>
 You see something like:
 
 ```txt
-⏹️ Stop request accepted for service '<service-id>'.
+⏹️  Stop request accepted for service '<service-id>'.
 ⏳ Waiting for service to stop (timeout: 10m0s)...
 ✅ Service has been successfully stopped!
 ```
@@ -471,7 +537,7 @@ To view your new password, run:
 
 ### `tiger service delete`
 
-Delete a {C.SERVICE_SHORT}. This is irreversible and prompts for confirmation before proceeding.
+Delete a {C.SERVICE_SHORT}. This is irreversible and prompts for confirmation before proceeding. Alias: `rm`.
 
 **Usage**: `tiger service delete <service-id> [flags]`
 
@@ -482,8 +548,8 @@ tiger service delete <service-id> --confirm
 You see something like:
 
 ```txt
-🗑️ Delete request accepted for service '<service-id>'.
-⏳ Waiting for service '<service-id>' to be deleted
+🗑️  Delete request accepted for service '<service-id>'.
+Waiting for service '<service-id>' to be deleted
 ✅ Service '<service-id>' has been successfully deleted.
 ```
 
@@ -523,7 +589,7 @@ You see something like:
 | `--tail` | Number of log entries to show (default: `100`). One entry can span several lines, for example a `FATAL` followed by its `DETAIL`, so the output can be longer than the number you ask for. |
 | `--since`, `--until` | Fetch logs within a time range (RFC3339, for example `2024-01-15T09:00:00Z`). |
 | `--node` | Specific node to fetch logs from (for services with HA replicas; `0` is valid). |
-| `--output, -o` | Output format: `text`, `json`, or `yaml`. |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
 ## Database
 
@@ -562,7 +628,7 @@ tsdb=>
 
 ### `tiger db connection-string`
 
-Print the connection string for a {C.SERVICE_SHORT}.
+Print the connection string for a {C.SERVICE_SHORT}. Alias: `uri`.
 
 **Usage**: `tiger db connection-string <service-id> [flags]`
 
@@ -591,7 +657,7 @@ postgresql://tsdbadmin@<direct-endpoint>/tsdb?sslmode=require&options=-c%20tsdb_
 
 ### `tiger db create role`
 
-Create a database role.
+Create a database role. The `role` subcommand has the alias `user`, so `tiger db create user` is the same command.
 
 **Usage**: `tiger db create role <service-id> [flags]`
 
@@ -673,7 +739,7 @@ Password saved successfully for service <service-id> (role: tsdbadmin)
 
 ### `tiger db test-connection`
 
-Test connectivity to a {C.SERVICE_SHORT}.
+Test connectivity to a {C.SERVICE_SHORT}. Aliases: `test`, `ping`.
 
 **Usage**: `tiger db test-connection <service-id> [flags]`
 
@@ -715,7 +781,7 @@ Install and manage {C.MCP_LONG}, the tool your AI agent uses to work with {C.CLO
 
 ### `tiger mcp install`
 
-Install and configure {C.MCP_LONG} for an AI agent. Supported clients: `claude-code`, `codex`, `cursor`, `gemini`, `vscode`, `windsurf`, `antigravity`, `kiro-cli`. If no client is given, you are prompted to choose.
+Install and configure {C.MCP_LONG} for an AI agent. Supported clients: `claude-code`, `codex`, `cursor`, `gemini`, `vscode`, `windsurf`, `antigravity`, `kiro-cli`. If no client is given, you are prompted to choose. Alias: `add`.
 
 **Usage**: `tiger mcp install [client] [flags]`
 
@@ -732,7 +798,7 @@ For sample output, see [Install and configure Tiger MCP](/get-started/quickstart
 
 ### `tiger mcp list`
 
-List the available {C.MCP_SHORT} tools, prompts, and resources.
+List the available {C.MCP_SHORT} tools, prompts, and resources. Alias: `ls`.
 
 **Usage**: `tiger mcp list [flags]`
 
@@ -749,7 +815,6 @@ You see something like:
 │ prompt │ design-postgis-tables                  │
 │ prompt │ design-postgres-tables                 │
 │ prompt │ find-hypertable-candidates             │
-│ prompt │ ghost-database                         │
 │ prompt │ migrate-postgres-tables-to-hypertables │
 │ prompt │ pgvector-semantic-search               │
 │ prompt │ postgres                               │
@@ -826,12 +891,26 @@ Start {C.MCP_LONG}. `tiger mcp start` is the same as `tiger mcp start stdio`.
 tiger mcp start
 ```
 
-Produces no console output; it starts listening for JSON-RPC requests on stdio (or HTTP, with the `http` transport).
+The server starts listening for JSON-RPC requests on stdio (or HTTP, with the `http` transport) and logs its own activity to stderr, so the logs never corrupt the JSON-RPC stream on stdout:
+
+```txt
+2026/08/27 19:09:33 INFO server run start
+2026/08/27 19:09:33 INFO server connecting
+2026/08/27 19:09:33 INFO server session connected session_id=""
+```
 
 | Transport | Description |
 | --- | --- |
 | `stdio` | stdio transport (default). |
-| `http` | HTTP transport, with `--port` (default: `8080`) and `--host` (default: `localhost`). |
+| `http` | HTTP transport, with `--port` (default: `8080`) and `--host` (default: `localhost`). If the port is busy, the server picks an available one. |
+
+## Shell completion
+
+{C.CLI_LONG} ships completions for bash, zsh, fish, and PowerShell. Installing with Homebrew sets up the bash, zsh, and fish completions for you; otherwise generate them with `tiger completion <shell>`.
+
+Completion covers command and flag names, most flag values, and most command arguments. That includes {C.SERVICE_SHORT} and project IDs, so you can complete them instead of typing or pasting them.
+
+Aliases are not offered as suggestions, so `tiger service <TAB>` proposes `list` rather than `ls`, even though both work.
 
 ## Configuration parameters
 
