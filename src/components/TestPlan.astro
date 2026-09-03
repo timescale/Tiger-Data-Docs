@@ -1,0 +1,81 @@
+---
+/**
+ * TestPlan – the doc testing tool's script for this page. Renders nothing.
+ *
+ * One block per page, at the end of the content. A plan is ONE NUMBERED LIST and nothing else: a
+ * single linear script that walks every testable route the page documents, in order, reverting state
+ * between them. Ordering between procedures, and interference between documented alternatives, are
+ * handled by the script rather than guessed at by the tool.
+ *
+ * A plan is NOT graded against the prose. It is the same flow written for a bot: it names the same
+ * controls, and spells out the mechanical steps a human is never told (dismissing an obvious confirm
+ * dialog, collapsing a panel that covers a form). A failing step means something on the page is
+ * wrong, and the matching doc step is easy to find by hand.
+ *
+ * There are no sections. Isolation, Setup, Inputs and Notes were headings once; each was a step
+ * wearing a hat, and hiding them made real work invisible to the run and to coverage. Every line is
+ * a numbered step, so every line is countable. Text that is not numbered is commentary and ignored.
+ *
+ * A route the tool can't drive simply gets no steps: absence of steps IS the skip. There is no skip
+ * marker, because a declared skip only records what the author remembered to declare and nothing can
+ * check that its reason is still true. Absence of the whole block means nobody has written the plan
+ * yet, and keeping those two apart is what makes plan coverage countable.
+ *
+ * A plan is parsed as MDX like the rest of the page, so an angle-bracket placeholder in a step —
+ * <database-name> in a documented connection string, say — reads as an unclosed JSX tag and FAILS THE
+ * BUILD. Wrap a statement in backticks to make it inline code; the parser strips them back off.
+ *
+ * Steps use a fixed verb set, so execution stays deterministic and no LLM reads a plan at run time.
+ * A line matching no verb is REPORTED, never skipped. The whole set:
+ *
+ *   Where the run happens
+ *     fork the service              run what follows on a throwaway copy; without this the run uses
+ *                                   the standing service and refuses every destructive step
+ *     select the service            navigate to the service under test
+ *     go to /operations             reach a path directly — positioning and resetting state, never a
+ *                                   substitute for a documented click
+ *
+ *   Files
+ *     download https://…            fetch what the page tells the reader to download (archives are
+ *                                   unzipped; the folder is psql's cwd and the source for `upload`)
+ *     upload sample.csv             put a fetched file into a file input
+ *
+ *   The interface
+ *     click `Label`                 a labelled control
+ *     click `A` > `B`               a path through menus or nav, one click per hop
+ *     click `X` in `Group`          one option out of several identically-labelled ones
+ *     click tab `X`                 name the kind of control (tab, button, link, menuitem) when a
+ *                                   label is ambiguous — the Explorer has a `Hypertables` tab AND a
+ *                                   sidebar filter button of the same name
+ *     toggle `X` on                 a switch; `on`/`off` optional, add "for `row`" to pick a row
+ *     type `value` into `Field`     literal text
+ *     type $INVITE_EMAIL into `Email`
+ *                                   a value from DOCTEST_INPUT_INVITE_EMAIL — never write a real
+ *                                   address, CIDR or credential in a plan
+ *     use the row for $OWNER_EMAIL  act on the table row holding a value this run owns
+ *     choose an unselected option   where the docs leave the choice open ("choose your strategy")
+ *
+ *   Data
+ *     run SQL: SELECT …             inline; multi-line as indented lines under a trailing ":"
+ *     run command: `psql -d "…"`    a shell command; documented placeholders are resolved from the
+ *                                   environment at run time
+ *     exit psql                     end the psql session, so later SQL goes back through the Console
+ *
+ *   Assertions
+ *     expect rows: <query>          fails when the query returns nothing
+ *     expect no rows: <query>       fails when it returns anything
+ *     expect url /explorer          fails unless the url contains the fragment — this is what makes
+ *                                   a nav step mean "it navigated", not "the label existed"
+ *     expect label `Meeting policy` fails unless that text is on the page. The assertion of last
+ *     expect label $INVITE_EMAIL    resort, for state with no catalog and no url behind it: the
+ *                                   high-availability setting, or an invited address in the members
+ *                                   table on a page with no SQL at all
+ *
+ *   Escape hatch
+ *     [resolve: dropzone]           a control the docs cannot name (a dropzone, a hover-only icon)
+ *
+ * A plan never names a service or project id. `select the service` means whichever service the run
+ * is about, and the id comes from the tool — an id written into a plan rots the next time a standing
+ * service is recreated.
+ */
+---
