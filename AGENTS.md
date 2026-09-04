@@ -61,6 +61,61 @@ Key overrides and components in `src/components/`:
 - `AuthorByline.astro`, `SinceRelease.astro`, `ChangelogEntry.astro` (plus `ChangelogFilter`/`ChangelogTag`), `Glossary/`, `IntegrateOverview.astro`, `IntegrateToc/`, `BuildToc/`, `HeaderSearchBar.astro`.
 - React `.tsx` components for interactive pieces: `CopyToClipboard`, `Prerequisites`.
 
+#### KnowledgeCheck Component (Tiger Data Academy Only)
+
+**Location:** `src/components/KnowledgeCheck.tsx` (React component) + `KnowledgeCheck.module.css`
+
+**Purpose:** Interactive quiz component for **Tiger Data Academy courses only** (located at `/learn/tiger-data-academy/`). Do not use elsewhere in the documentation.
+
+**Features:**
+- Multiple-choice questions with immediate feedback and explanations
+- Smart resource recommendations based on incorrect answers (deduped automatically)
+- Score tracking and completion messaging (varies by percentage)
+- Light/dark mode support, fully responsive, accessible
+
+**Usage in Academy modules:**
+```mdx
+import { KnowledgeCheck } from '@components/KnowledgeCheck';
+
+<KnowledgeCheck client:load
+  questions={[
+    {
+      id: 'unique-id',
+      text: 'Question text?',
+      answers: [
+        { label: 'Wrong answer', correct: false },
+        { label: 'Correct answer', correct: true },
+        { label: 'Another wrong answer', correct: false },
+      ],
+      explanation: 'Why this answer is correct...',
+      resources: [
+        { title: 'Resource Title', url: '/path/to/page', type: 'docs' },
+        { title: 'Blog Post', url: 'https://tigerdata.com/blog/...', type: 'blog' },
+      ],
+    },
+  ]}
+/>
+```
+
+**Required:**
+- `client:load` directive in MDX for interactivity
+- Each question needs: `id`, `text`, `answers` (3-4 items), `explanation`
+- Each answer needs: `label`, `correct` (boolean)
+
+**Optional:**
+- `resources` array: suggestions shown only when user answers question incorrectly
+- Resource types: `'docs'` (internal docs), `'blog'` (blog posts), `'external'` (other URLs)
+- Type badges display automatically with emoji indicators
+
+**Full documentation:** See [`src/components/KnowledgeCheck.README.md`](./src/components/KnowledgeCheck.README.md) for:
+- Academy-only usage guidelines and restrictions
+- Question design best practices
+- Creating new Academy courses and modules
+- Resource linking strategy
+- Troubleshooting
+
+**Reference implementation:** `/learn/tiger-data-academy/tiger-data-101/what-is-timescaledb.mdx`
+
 ### Custom plugins
 
 - `src/plugins/remark-resolve-constants-in-headings.ts`: resolves `{C.CONSTANT}` syntax in headings.
