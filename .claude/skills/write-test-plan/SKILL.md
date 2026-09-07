@@ -46,6 +46,15 @@ disabled until something changes. All three were found by running, not reading. 
    - **`go to <path>` is positioning, never a test.** Navigating by URL proves nothing about the nav
      labels the page promises. Use it to reach or reset state; use documented clicks for the claim
      under test, and `expect url` to turn "the label was clickable" into "the documented path works".
+   - **`use the row for $X` pins for the NEXT step only.** Put it immediately before the step that
+     needs it, with nothing in between, and repeat it before every further row action — the members
+     plan pins twice, once before each. Only the first click of the following step is scoped to
+     the row, because a row's `⋮` menu and its confirm dialog render in portals outside the row.
+   - **Expect a confirm dialog after any row action, and give it its own step.** Every destructive
+     row action in the Console opens one, and the pages routinely stop before it. `Resend invitation`
+     opens a `Resend invitation` dialog that waits for `Resend`; without that step the modal stays
+     open and covers the table, so every later step in the plan acts on nothing. Finding this fixed
+     the PAGE as well as the plan.
 
 6. **Add assertions.** `run SQL:` only fails when a statement ERRORS, so a `SELECT` over an empty
    table passes: without assertions a plan can walk an entire ingest route, load nothing, and report
@@ -71,6 +80,15 @@ disabled until something changes. All three were found by running, not reading. 
    The high-availability section is the clearest case of NOT asserting: the page documents a click
    path and promises nothing about what the setting becomes, so the click path is the whole claim.
 
+   **A plan whose steps are all clicks needs an assertion at the END, without exception.** A click
+   step is the weakest evidence a plan can carry: it says a control was found and pressed, not that
+   anything happened. That is not a hypothetical — for a stretch of the tool's history every
+   unresolvable click reported green, and the plans that stayed honest through it were the ones whose
+   last step was an `expect`. On a page with no SQL behind it (project members, and anything else at
+   project scope) the closing assertion is the only thing standing between you and a plan that walks
+   twelve steps, changes nothing, and passes. Assert the end state you created is gone, or that the
+   thing you made is named on the page.
+
 7. **Never write a credential, address or CIDR.** `type $INVITE_EMAIL into \`Email\`` reads
    `DOCTEST_INPUT_INVITE_EMAIL` from the environment. Never write a service or project id either:
    `select the service` means whichever service the run is about.
@@ -90,6 +108,12 @@ disabled until something changes. All three were found by running, not reading. 
    Read the screenshots: the terminal output misled three times on one bug, and a single wrong control
    produced 13 consecutive failures.
 
+   **Hash the screenshots before theorising about a failure.** `md5 screenshots/<page>-p0-step*.png`
+   takes a second and answers the question the log cannot: whether the page ever changed. Seven
+   byte-identical shots across seven consecutive "passing" steps is what exposed the members plan's
+   real problem, and two shots that merely LOOK identical in the visible region have sent this work
+   down a wrong path before, so compare bytes rather than eyes.
+
 ## Routes not to script, and why
 
 Do not write steps for these, and do not write a marker saying you skipped them. A route the tool
@@ -105,6 +129,12 @@ These are limits of the walker, not of any one page:
 - **High-availability configuration.** Script the clicks and assert nothing: nothing in SQL or
   `tiger service get` exposes the replication strategy, and the page does not claim a specific
   outcome anyway.
+- **A control that exists only in an object state your plan cannot reach.** The members page
+  documents changing a user's role in a drop-down, but a PENDING invite has no drop-down: its role is
+  plain text, and only an accepted member gets the control. The tool cannot accept an invitation, so
+  that route gets no steps. Before scripting a row action, check the row your plan actually creates
+  has the control the procedure describes — a plan that clicks a label absent from the row it pinned
+  is indistinguishable from a broken page until someone looks.
 - **Drag-and-drop targets and unlabelled icons.** `[resolve: <hint>]` is the escape hatch, and a hint
   with no resolver behind it is reported rather than run. Only reach for it when there is genuinely no
   label to name.
