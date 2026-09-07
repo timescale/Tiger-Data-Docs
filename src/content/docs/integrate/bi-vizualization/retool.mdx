@@ -1,0 +1,122 @@
+---
+title: Integrate Retool with Tiger Data
+description: Connect Retool to Tiger Cloud or self-hosted TimescaleDB to build internal tools and dashboards on your data.
+products: [cloud, self_hosted]
+integrationCategory: bi-vizualization
+integrationPlatforms: [aws, azure, self-hosted]
+integrationIndustry: [saas, fintech, iot]
+keywords: [retool, business intelligence, internal tools, dashboards, low-code, postgresql]
+integrationCardLogo: retool.png
+sidebar:
+  label: Retool
+---
+
+import * as C from "@constants";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-or-self.mdx";
+import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+
+[Retool](https://retool.com/) is a low-code platform for building internal tools, admin panels, and dashboards on top of your data.
+
+This page shows you how to connect Retool to {C.COMPANY} as a resource, so that you can build apps and dashboards on the data in your service or database.
+
+In this integration guide, you:
+
+- Add your service or database to Retool as a PostgreSQL resource.
+- Verify that Retool can query your data.
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+- A [Retool](https://retool.com/signup) account, either Retool Cloud or a self-hosted Retool instance.
+</Prerequisites>
+
+## Add your service or database to Retool
+
+Retool connects to your service or database with a standard {C.PG} resource. To keep the connection read-only, you can optionally create a dedicated role with `SELECT` access before you start.
+
+<NumberedList>
+  <NumberedItem title="Open the resource settings in Retool">
+
+    In Retool, go to `Resources`, then click `Create new` > `Resource`.
+
+  </NumberedItem>
+  <NumberedItem title="Enter your connection details">
+
+    From the resource type list, select `PostgreSQL`, then enter your [connection details](/integrate/find-connection-details):
+
+    - **Host**: your service or database `host`.
+    - **Port**: your `port`, usually `5432`.
+    - **Database name**: your `dbname`.
+    - **Username** and **Password**: your `user` and `password`.
+
+    Give the resource a name so you can recognize it later.
+
+  </NumberedItem>
+  <NumberedItem title="Configure connection options">
+
+    {C.CLOUD_LONG} requires an encrypted connection, so turn on `Use SSL`.
+
+    If your service or database isn't reachable from the internet, either use an SSH tunnel (add the tunnel host, port, and public key to the resource) or, for a self-hosted Retool instance, make sure the Retool server has network access to your database. For Retool Cloud, your service or database must accept connections from [Retool's IP addresses](https://docs.retool.com/data-sources/guides/connect/postgresql), so add them to your network or firewall allowlist.
+
+  </NumberedItem>
+  <NumberedItem title="Test and save">
+
+    Click `Test Connection` to confirm Retool can reach your service or database, then click `Create`.
+
+    A successful test confirms Retool can connect using the credentials and network settings you entered.
+
+  </NumberedItem>
+</NumberedList>
+
+## Verify the integration
+
+To confirm Retool is working with your service or database:
+
+<NumberedList>
+  <NumberedItem title="Create a query">
+
+    In Retool, create a new app, add a `Query` against your resource, and select SQL mode.
+
+  </NumberedItem>
+  <NumberedItem title="Run a query and add a table">
+
+    Run a simple query against one of your tables:
+
+    ```sql
+    SELECT * FROM <table_name> LIMIT 10;
+    ```
+
+    Add a `Table` component to the app and bind its data to the query.
+
+    You see rows from your service or database rendered in the table, confirming that Retool can read your data.
+
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated Retool with {C.COMPANY}.
+
+## Troubleshooting
+
+- **Connection test fails or times out:** confirm the host, port, and credentials, and that your network allows connections from Retool. For Retool Cloud, make sure your firewall allows Retool's IP addresses; for a self-hosted Retool instance, confirm the Retool server can reach your database directly. For {C.CLOUD_LONG}, make sure `Use SSL` is turned on.
+- **Connection test fails only when SSL is enabled:** confirm your SSL mode matches what your service or database expects; a mismatched CA certificate or hostname verification setting causes the handshake to fail.
+- **Query fails with a permissions error:** confirm the role in your connection details has `SELECT` access to the schema and tables you're querying.
+
+For other connectivity and authentication issues, see [Troubleshoot {C.CLOUD_LONG} integrations](/integrate/troubleshooting).
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Find your connection details"
+    description="Locate the host, port, database, user, and password for your service or database."
+    href="/integrate/find-connection-details"
+  />
+  <RelatedContentCard
+    title="Integrate Tableau with Tiger Data"
+    description="Connect Tableau to your service or database to build dashboards."
+    href="/integrate/bi-vizualization/tableau"
+  />
+</RelatedContentCards>

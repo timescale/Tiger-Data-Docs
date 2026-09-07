@@ -848,6 +848,7 @@ export default defineConfig({
                   items: [
                     { label: "Overview", link: "/integrate/bi-vizualization" },
                     { label: "Power BI", link: "/integrate/bi-vizualization/power-bi" },
+                    { label: "Retool", link: "/integrate/bi-vizualization/retool" },
                     { label: "Tableau", link: "/integrate/bi-vizualization/tableau" },
                   ],
                 },
