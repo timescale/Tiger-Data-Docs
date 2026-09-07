@@ -1,0 +1,134 @@
+---
+title: Integrate Streamlit with Tiger Data
+description: Connect Streamlit to Tiger Cloud or self-hosted TimescaleDB to build interactive Python data apps and dashboards.
+integrationCategory: bi-vizualization
+integrationPlatforms: [aws, azure, self-hosted]
+integrationIndustry: [saas, fintech, iot]
+keywords: [streamlit, python, data apps, dashboards, data visualization, postgresql]
+integrationCardLogo: streamlit.png
+sidebar:
+  label: Streamlit
+---
+
+import * as C from "@constants";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-or-self.mdx";
+import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+
+[Streamlit](https://streamlit.io/) is an open-source Python framework for turning data scripts into interactive web apps, without requiring any frontend experience.
+
+This page shows you how to connect a Streamlit app to {C.COMPANY}, so that you can query your data and display it in a live app.
+
+In this integration guide, you:
+
+- Install the packages Streamlit needs to connect to your service or database.
+- Store your connection details as a Streamlit secret.
+- Load data from your service or database into a DataFrame and display it.
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+- Python 3.9 or later, with `pip` installed.
+- [Streamlit](https://docs.streamlit.io/get-started/installation) 1.28 or later, which added the built-in `st.connection` SQL connection.
+</Prerequisites>
+
+## Connect Streamlit to your service or database
+
+Streamlit's built-in `st.connection` handles secrets retrieval, connection setup, and query caching for you, using [SQLAlchemy](https://www.sqlalchemy.org/) and the `psycopg2` driver underneath.
+
+<NumberedList>
+  <NumberedItem title="Install the required packages">
+
+    In your project's virtual environment, install Streamlit and the {C.PG} driver:
+
+    ```bash
+    pip install streamlit psycopg2-binary sqlalchemy
+    ```
+
+    `psycopg2-binary` installs the `psycopg2` driver as a prebuilt wheel, so you don't need a local {C.PG} build toolchain.
+
+  </NumberedItem>
+  <NumberedItem title="Store your connection details as a secret">
+
+    In your project, create `.streamlit/secrets.toml` and add your [connection details](/integrate/find-connection-details):
+
+    ```toml
+    [connections.tigerdata]
+    dialect = "postgresql"
+    host = "<host>"
+    port = "<port>"
+    database = "<dbname>"
+    username = "<user>"
+    password = "<password>"
+    ```
+
+    {C.CLOUD_LONG} requires an encrypted connection. If your connection fails without it, add `sslmode = "require"` to the `[connections.tigerdata]` section.
+
+    Add `.streamlit/secrets.toml` to `.gitignore` so you don't commit credentials to version control.
+
+  </NumberedItem>
+  <NumberedItem title="Connect and load data into a DataFrame">
+
+    In your app's Python file, open the connection and query your data:
+
+    ```python
+    import streamlit as st
+
+    conn = st.connection("tigerdata", type="sql")
+    df = conn.query("SELECT * FROM <table_name> LIMIT 10;", ttl="10m")
+
+    st.dataframe(df)
+    ```
+
+    `st.connection` reads the `[connections.tigerdata]` section from your secrets file by matching the name you pass in. The `ttl` argument caches the query result for 10 minutes; set it to `0` while you're developing to see every change immediately.
+
+  </NumberedItem>
+</NumberedList>
+
+## Verify the integration
+
+To confirm Streamlit is working with your service or database:
+
+<NumberedList>
+  <NumberedItem title="Run your app">
+
+    From your project directory, start the app:
+
+    ```bash
+    streamlit run app.py
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Check the rendered data">
+
+    In the browser tab Streamlit opens, you see the DataFrame from your service or database rendered as a table, confirming the connection works.
+
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated Streamlit with {C.COMPANY}.
+
+## Troubleshooting
+
+- **`ModuleNotFoundError: No module named 'psycopg2'`:** install the `psycopg2-binary` package rather than `psycopg2` unless you have {C.PG} build tools installed locally.
+- **Connection refused or times out:** confirm the host and port, and that your network allows outbound connections from where the app runs. For {C.CLOUD_LONG}, make sure `sslmode` is set to `require`.
+- **`KeyError` on the connection name:** the name passed to `st.connection` (`tigerdata` above) must match the `[connections.<name>]` section in `secrets.toml` exactly.
+
+For other connectivity and authentication issues, see [Troubleshoot {C.CLOUD_LONG} integrations](/integrate/troubleshooting).
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Find your connection details"
+    description="Locate the host, port, database, user, and password for your service or database."
+    href="/integrate/find-connection-details"
+  />
+  <RelatedContentCard
+    title="Integrate Tableau with Tiger Data"
+    description="Connect Tableau to your service or database to build dashboards."
+    href="/integrate/bi-vizualization/tableau"
+  />
+</RelatedContentCards>

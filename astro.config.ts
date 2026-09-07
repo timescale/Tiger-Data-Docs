@@ -848,6 +848,7 @@ export default defineConfig({
                   items: [
                     { label: "Overview", link: "/integrate/bi-vizualization" },
                     { label: "Power BI", link: "/integrate/bi-vizualization/power-bi" },
+                    { label: "Streamlit", link: "/integrate/bi-vizualization/streamlit" },
                     { label: "Tableau", link: "/integrate/bi-vizualization/tableau" },
                   ],
                 },
