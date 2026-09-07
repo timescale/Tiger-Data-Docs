@@ -50,11 +50,20 @@ disabled until something changes. All three were found by running, not reading. 
      needs it, with nothing in between, and repeat it before every further row action — the members
      plan pins twice, once before each. Only the first click of the following step is scoped to
      the row, because a row's `⋮` menu and its confirm dialog render in portals outside the row.
-   - **Expect a confirm dialog after any row action, and give it its own step.** Every destructive
-     row action in the Console opens one, and the pages routinely stop before it. `Resend invitation`
-     opens a `Resend invitation` dialog that waits for `Resend`; without that step the modal stays
-     open and covers the table, so every later step in the plan acts on nothing. Finding this fixed
-     the PAGE as well as the plan.
+   - **Expect a confirm dialog after any row action, and write it as `confirm`.** Every destructive
+     row action in the Console opens one, and pages routinely stop before it — correctly, because a
+     reader is looking at the dialog and the button says what it does. The bot still needs the step:
+     without it the modal stays open and covers the table, so every later step acts on nothing.
+     `confirm` is not a style preference. A plain `click` on a dialog button reads as a plan that
+     wandered off the documented path (see the control-naming rule below), and `confirm` additionally
+     makes the walker check that a dialog is actually open, which a click never did.
+   - **Press only the controls the page names, in the places the page names them.** A reader and the
+     run must not diverge on this, or the run is not evidence about the page. Every run reports a
+     press whose label is not in the page's code-font spans (or, for a multi-word label, stated
+     verbatim in its prose). A finding means one of two things and both need you: the page is missing
+     a step, or the plan invented a control. The members plan typed into `Email`, which neither the
+     page nor the Console has — the field is `Type the email` — and it passed for weeks because the
+     tool resolved it by placeholder.
 
 6. **Add assertions.** `run SQL:` only fails when a statement ERRORS, so a `SELECT` over an empty
    table passes: without assertions a plan can walk an entire ingest route, load nothing, and report
@@ -141,11 +150,13 @@ These are limits of the walker, not of any one page:
 
 ## What a plan is not
 
-- **Not the docs.** It may say things no page should tell a human ("click `Let's go!`" for an obvious
-  confirm dialog). Docs are for readers; a plan is for a bot covering the same flow.
-- **Not graded against the prose.** There is no rule that a plan's labels must appear in the page, and
-  no rule that every documented step must have one. Both existed and were deleted: they flagged every
-  bot-only step and every legitimately unscripted route.
+- **Not the docs.** It may say things no page should tell a human (`confirm \`Let's go!\`` for an
+  obvious dialog). Docs are for readers; a plan is for a bot covering the same flow.
+- **Not graded step-for-step against the prose.** `expect rows:` has no counterpart in writing,
+  `go to /path` is positioning, and `fork the service` is infrastructure; there is no rule that every
+  documented step must have a plan step either. A rule that graded everything existed and was deleted
+  for flagging every plan everywhere. What IS enforced is narrower and survives: the controls a plan
+  presses must be controls the page names.
 - **Not sectioned.** No Isolation, Setup, Inputs, Notes, Assert or Cleanup headings. One numbered
   list; text that is not numbered is commentary.
 - **Not a picture list.** Screenshots are a property of the run (`DOCTEST_SHOTS=evidence|doc-update|none`),
