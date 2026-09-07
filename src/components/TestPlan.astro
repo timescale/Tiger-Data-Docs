@@ -7,10 +7,22 @@
  * between them. Ordering between procedures, and interference between documented alternatives, are
  * handled by the script rather than guessed at by the tool.
  *
- * A plan is NOT graded against the prose. It is the same flow written for a bot: it names the same
- * controls, and spells out the mechanical steps a human is never told (dismissing an obvious confirm
- * dialog, collapsing a panel that covers a form). A failing step means something on the page is
- * wrong, and the matching doc step is easy to find by hand.
+ * A plan is the same flow written for a bot, and it MUST NOT DIVERGE FROM THE PAGE ON WHICH CONTROLS
+ * IT PRESSES OR WHERE IT PRESSES THEM. A reader and the run go to the same places and press the same
+ * buttons, or the run is not evidence about the page. Every run therefore reports any control a plan
+ * presses that the page does not name, matched against the page's code-font spans (house style puts
+ * UI element names in code font, so those ARE the page's control vocabulary) or, for a multi-word
+ * label, a verbatim phrase in its prose. A finding there means the page is missing a step or the plan
+ * invented a path; both need a person.
+ *
+ * A plan is still not graded step-for-step against the prose: `expect rows:` has no counterpart in
+ * writing, `go to /path` is positioning rather than a test, and `fork the service` is infrastructure.
+ * Only presses are comparable. An earlier rule graded everything and flagged every plan everywhere.
+ *
+ * Confirmation dialogs are the one press a page is not expected to document — a reader is looking at
+ * the dialog and the button says what it does — so they get their own verb, `confirm`, rather than
+ * being excused by guesswork. A failing step means something on the page is wrong, and the matching
+ * doc step is easy to find by hand.
  *
  * There are no sections. Isolation, Setup, Inputs and Notes were headings once; each was a step
  * wearing a hat, and hiding them made real work invisible to the run and to coverage. Every line is
@@ -54,6 +66,10 @@
  *                                   label is ambiguous — the Explorer has a `Hypertables` tab AND a
  *                                   sidebar filter button of the same name
  *     toggle `X` on                 a switch; `on`/`off` optional, add "for `row`" to pick a row
+ *     confirm `Let's go!`           the button on a confirmation dialog. Fails if no dialog is open,
+ *                                   so a plan whose previous step failed to open one stops here
+ *                                   instead of pressing something else that matches. Exempt from the
+ *                                   control-naming check above; a plain `click` is not
  *     type `value` into `Field`     literal text
  *     type $INVITE_EMAIL into `Email`
  *                                   a value from DOCTEST_INPUT_INVITE_EMAIL — never write a real
