@@ -1,0 +1,150 @@
+---
+title: Integrate Prisma with Tiger Data
+description: Connect Prisma to Tiger Cloud or self-hosted TimescaleDB to introspect your schema and query your data with type-safe Prisma Client code.
+products: [cloud, self_hosted]
+integrationCategory: code
+integrationPlatforms: [aws, azure, self-hosted]
+integrationIndustry: [saas, fintech, iot]
+keywords: [prisma, orm, node.js, typescript, database client, postgresql]
+integrationCardLogo: prisma.png
+sidebar:
+  label: Prisma
+---
+
+import * as C from "@constants";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-or-self.mdx";
+import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+
+[Prisma](https://www.prisma.io/) is an open-source object-relational mapper (ORM) for Node.js and TypeScript that gives you a type-safe database client, schema migrations, and auto-generated queries.
+
+This page shows you how to connect Prisma to {C.COMPANY}, so that you can introspect an existing schema and query your data with a type-safe Prisma Client.
+
+In this integration guide, you:
+
+- Install Prisma and initialize a project.
+- Set your connection details as the Prisma datasource.
+- Introspect your schema and generate Prisma Client.
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+- [Node.js](https://nodejs.org/en/download) 18 or later, with `npm` installed.
+- At least one existing table in your service or database for Prisma to introspect.
+</Prerequisites>
+
+## Connect Prisma to your service or database
+
+Prisma reads your schema from an existing database rather than the other way around, so you introspect your service or database to generate the models Prisma Client uses.
+
+<NumberedList>
+  <NumberedItem title="Install Prisma">
+
+    In your project, install the Prisma CLI as a dev dependency, and the Prisma Client package:
+
+    ```bash
+    npm install -D prisma
+    npm install @prisma/client
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Initialize a Prisma project">
+
+    Run the init command, targeting {C.PG}:
+
+    ```bash
+    npx prisma init --datasource-provider postgresql
+    ```
+
+    This creates a `prisma/schema.prisma` file with a `postgresql` datasource, and a `.env` file with a placeholder `DATABASE_URL`.
+
+  </NumberedItem>
+  <NumberedItem title="Set your connection details">
+
+    In `.env`, replace the placeholder with your [connection details](/integrate/find-connection-details):
+
+    ```bash
+    DATABASE_URL="postgresql://<user>:<password>@<host>:<port>/<dbname>?sslmode=require"
+    ```
+
+    {C.CLOUD_LONG} requires an encrypted connection, so keep `sslmode=require` in the URL. If your service or database isn't reachable from where you run Prisma, make sure your network or firewall allows the connection first.
+
+  </NumberedItem>
+  <NumberedItem title="Introspect your schema">
+
+    Pull the existing schema from your service or database into `prisma/schema.prisma`:
+
+    ```bash
+    npx prisma db pull
+    ```
+
+    Prisma connects using `DATABASE_URL` and adds a model for each table it finds. Running this again overwrites models it generated previously, so keep any manual edits to `schema.prisma` in version control before you re-run it.
+
+  </NumberedItem>
+  <NumberedItem title="Generate Prisma Client">
+
+    Generate a type-safe client from the introspected schema:
+
+    ```bash
+    npx prisma generate
+    ```
+
+    Re-run this command any time `schema.prisma` changes, so Prisma Client stays in sync with it.
+
+  </NumberedItem>
+</NumberedList>
+
+## Verify the integration
+
+To confirm Prisma is working with your service or database:
+
+<NumberedList>
+  <NumberedItem title="Query your data">
+
+    In a script in your project, import Prisma Client and query one of the introspected models. Replace `<Model>` with the name Prisma generated for one of your tables:
+
+    ```ts
+    import { PrismaClient } from "@prisma/client";
+
+    const prisma = new PrismaClient();
+
+    const rows = await prisma.<Model>.findMany({ take: 10 });
+    console.log(rows);
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Run the script">
+
+    Run the script with Node (for example, `npx tsx script.ts` if you're using [tsx](https://www.npmjs.com/package/tsx), or compile with `tsc` first).
+
+    You see rows from your service or database printed to the console, confirming Prisma Client can read your data.
+
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated Prisma with {C.COMPANY}.
+
+## Troubleshooting
+
+- **`Environment variable not found: DATABASE_URL`:** the Prisma CLI loads `.env` from your project root automatically; if you moved the file or you're running Prisma Client from a different working directory, load it yourself with a package like `dotenv` before Prisma Client is instantiated.
+- **`P1001: Can't reach database server`:** confirm the host and port in `DATABASE_URL`, and that your network allows outbound connections from where Prisma runs. For {C.CLOUD_LONG}, make sure `sslmode=require` is set.
+- **`prisma db pull` adds no models:** confirm the role in your connection string has `SELECT` access to the schema and tables you expect to see, and that those tables already exist. Prisma introspects existing structure, it doesn't create tables.
+
+For other connectivity and authentication issues, see [Troubleshoot {C.CLOUD_LONG} integrations](/integrate/troubleshooting).
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Find your connection details"
+    description="Locate the host, port, database, user, and password for your service or database."
+    href="/integrate/find-connection-details"
+  />
+  <RelatedContentCard
+    title="Connect your app"
+    description="Connect to your service or database using other programming languages and client libraries."
+    href="/integrate/code/connect-your-app"
+  />
+</RelatedContentCards>
