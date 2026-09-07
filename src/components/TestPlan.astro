@@ -26,7 +26,13 @@
  * BUILD. Wrap a statement in backticks to make it inline code; the parser strips them back off.
  *
  * Steps use a fixed verb set, so execution stays deterministic and no LLM reads a plan at run time.
- * A line matching no verb is REPORTED, never skipped. The whole set:
+ * A line matching no verb is REPORTED, never skipped.
+ *
+ * Two steps may share a line, joined by ", then": click `Upload your files`, then click `CSV`. The
+ * statement verbs (run SQL, run command, replace the statement with) are taken whole instead, so a
+ * ", then" inside a statement is never split off.
+ *
+ * The whole set:
  *
  *   Where the run happens
  *     fork the service              run what follows on a throwaway copy; without this the run uses
@@ -52,7 +58,8 @@
  *     type $INVITE_EMAIL into `Email`
  *                                   a value from DOCTEST_INPUT_INVITE_EMAIL — never write a real
  *                                   address, CIDR or credential in a plan
- *     use the row for $OWNER_EMAIL  act on the table row holding a value this run owns
+ *     use the row for $OWNER_EMAIL  act on the table row holding a value this run owns; "act on the
+ *                                   row for" is accepted too
  *     choose an unselected option   where the docs leave the choice open ("choose your strategy")
  *
  *   Data
@@ -60,6 +67,9 @@
  *     run command: `psql -d "…"`    a shell command; documented placeholders are resolved from the
  *                                   environment at run time
  *     exit psql                     end the psql session, so later SQL goes back through the Console
+ *     replace the statement with:   swap the statement a Console editor generated for the one the
+ *                                   page gives (the continuous-aggregate wizard). Multi-line as
+ *                                   indented lines under the trailing ":", same as run SQL
  *
  *   Assertions
  *     expect rows: <query>          fails when the query returns nothing
@@ -70,6 +80,8 @@
  *     expect label $INVITE_EMAIL    resort, for state with no catalog and no url behind it: the
  *                                   high-availability setting, or an invited address in the members
  *                                   table on a page with no SQL at all
+ *     expect no label $INVITE_EMAIL fails while that text is STILL on the page — how a removal is
+ *                                   asserted where there is no catalog to query for its absence
  *
  *   Escape hatch
  *     [resolve: dropzone]           a control the docs cannot name (a dropzone, a hover-only icon)
