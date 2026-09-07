@@ -22,6 +22,7 @@ import HypercoreIntroShort from "../../../../partials/_hypercore-intro-short.mdx
 
 import CreateHypertablePolicyNote from "../../../../partials/_create-hypertable-columnstore-policy-note.mdx";
 import HASetup from "../../../../partials/_high-availability-setup.mdx";
+import TestPlan from "@components/TestPlan.astro";
 import SupportPlans from "../../../../partials/_support-plans.mdx";
 
 import ThemeImage from "@components/ThemeImage.astro";
@@ -445,3 +446,102 @@ For more information, see [{C.HA_REPLICA_CAP}](/deploy/tiger-cloud/tiger-cloud-a
 What next? See [Build](/build) for more advanced tutorials, interact with the data in your {C.SERVICE_LONG} using
 [your favorite programming language](/integrate/code/connect-your-app), integrate your {C.SERVICE_LONG} with a range of
 [third-party tools](/integrate), [build with {C.COMPANY} products](/build), or dive into [the API reference](/reference).
+
+
+<TestPlan>
+
+1. fork the service
+2. download https://assets.timescale.com/docs/downloads/candlestick/crypto_sample.zip
+3. select the service
+4. run command: `psql -d "postgres://<username>:<password>@<host>:<port>/<database-name>"`
+5. run SQL:
+     CREATE TABLE crypto_ticks ("time" TIMESTAMPTZ, symbol TEXT, price DOUBLE PRECISION,
+     day_volume NUMERIC) WITH (tsdb.hypertable, tsdb.segmentby = 'symbol');
+6. run SQL:
+     CREATE TABLE crypto_assets (symbol TEXT NOT NULL, name TEXT NOT NULL);
+7. run SQL: ALTER TABLE crypto_ticks SET (timescaledb.direct_compress);
+8. run SQL: \COPY crypto_ticks from './tutorial_sample_tick.csv' DELIMITER ',' CSV HEADER;
+9. run SQL: \COPY crypto_assets from './tutorial_sample_assets.csv' DELIMITER ',' CSV HEADER;
+10. run SQL: SELECT * FROM crypto_ticks ORDER BY time DESC LIMIT 10;
+11. expect rows: SELECT 1 FROM crypto_ticks LIMIT 1
+12. expect rows: SELECT 1 FROM crypto_assets LIMIT 1
+13. expect rows: SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'crypto_ticks'
+14. run SQL: DROP TABLE crypto_ticks;
+15. run SQL: DROP TABLE crypto_assets;
+16. exit psql
+17. click `Actions` > `Import data`
+18. click `Upload your files`, then click `CSV`
+19. upload tutorial_sample_tick.csv
+20. type `crypto_ticks` into `Table`
+21. toggle `Hypertable partition` on for `time`
+22. click `Continue`
+23. click `Run`
+24. click `Close`
+25. click `Actions` > `Import data`
+26. click `Upload your files`, then click `CSV`
+27. upload tutorial_sample_assets.csv
+28. type `crypto_assets` into `Table`
+29. click `Continue`
+30. click `Run`
+31. click `Close`
+32. expect rows: SELECT 1 FROM crypto_ticks LIMIT 1
+33. expect rows: SELECT 1 FROM crypto_assets LIMIT 1
+34. expect rows: SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'crypto_ticks'
+35. run SQL:
+     CREATE MATERIALIZED VIEW assets_candlestick_daily WITH (timescaledb.continuous) AS
+     SELECT time_bucket('1 day', "time") AS day, symbol, max(price) AS high,
+     first(price, time) AS open, last(price, time) AS close, min(price) AS low
+     FROM crypto_ticks srt GROUP BY day, symbol;
+36. run SQL:
+     SELECT add_continuous_aggregate_policy('assets_candlestick_daily',
+     start_offset => INTERVAL '3 weeks', end_offset => INTERVAL '24 hours',
+     schedule_interval => INTERVAL '3 hours');
+37. run SQL: SELECT * FROM assets_candlestick_daily ORDER BY day DESC, symbol LIMIT 10;
+38. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+39. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
+40. click `Explorer` > `Data Tiering`
+41. click `Enable tiered storage`
+42. click `Let's go!`
+43. run SQL: SELECT add_tiering_policy('assets_candlestick_daily', INTERVAL '3 weeks');
+44. run SQL: set timescaledb.enable_tiered_reads = true;
+45. run SQL: SELECT * FROM crypto_ticks srt LIMIT 10;
+46. run SQL: set timescaledb.enable_tiered_reads = false;
+47. go to /overview
+48. click `Operations` > `High availability`
+49. expect url /operations
+50. choose an unselected option
+51. click `Change configuration`
+52. click `Change config`
+53. run SQL: DROP MATERIALIZED VIEW assets_candlestick_daily;
+54. expect no rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+55. click `Explorer` > `Continuous Aggregates`
+56. click tab `Hypertables`
+57. click `Create a Continuous Aggregate`
+58. type `assets_candlestick_daily` into `View name`
+59. click `Continue`
+60. click `1 day`
+61. replace the statement with:
+     CREATE MATERIALIZED VIEW assets_candlestick_daily
+     WITH (timescaledb.continuous) AS
+     SELECT
+     time_bucket('1 day', "time") AS bucket,
+     symbol,
+     max(price) AS high,
+     first(price, time) AS open,
+     last(price, time) AS close,
+     min(price) AS low
+     FROM "public"."crypto_ticks" srt
+     GROUP BY bucket, symbol
+     WITH NO DATA;
+62. click `Run and proceed`
+63. click `3 weeks` in `Start offset`
+64. click `24 hours` in `End offset`
+65. click `3 hours` in `Schedule interval`
+66. click `Continue`
+67. click `Run and proceed`
+68. click `Close`
+69. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+70. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
+71. expect rows: `SELECT 1 FROM information_schema.columns WHERE table_name = 'assets_candlestick_daily' AND column_name IN ('symbol','high','open','close','low') GROUP BY table_name HAVING count(*) = 5`
+
+</TestPlan>
