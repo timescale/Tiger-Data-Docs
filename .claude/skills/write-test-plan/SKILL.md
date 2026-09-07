@@ -117,6 +117,20 @@ disabled until something changes. All three were found by running, not reading. 
    Read the screenshots: the terminal output misled three times on one bug, and a single wrong control
    produced 13 consecutive failures.
 
+   **Inspect the decisive screenshots on a PASS too, not only on a failure.** A pass means each step
+   met its own criterion, which is not the same as the flow having worked. Open the shots behind the
+   assertions and check each passed for the RIGHT REASON: that `expect label` saw a created row and
+   not the text still sitting in a form, that the confirm dialog was the one the step meant, that the
+   end state is really the end state. An ip-allow-list run passed 14/14 while its create steps
+   failed, because a leftover list from the previous run satisfied the assertion and the attach ran
+   against the leftover.
+
+   This is also the ONLY way to catch a page whose control names have drifted from the Console. The
+   control-naming check compares a plan to its page, never a page to the product, so when both are
+   wrong together it stays silent: the same run had `IP Allow List` where the nav says
+   `IP Allow Lists`, and named a `+ Create IP Allow List` button that is really `+ Create new`.
+   Neither the check nor any run would have found either.
+
    **Hash the screenshots before theorising about a failure.** `md5 screenshots/<page>-p0-step*.png`
    takes a second and answers the question the log cannot: whether the page ever changed. Seven
    byte-identical shots across seven consecutive "passing" steps is what exposed the members plan's
