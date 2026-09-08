@@ -44,11 +44,11 @@ ALTER ROLE my_app SET statement_timeout TO '2s';
 
 <NumberedItem title="In a new terminal window, connect on the pooler with the new user `<MY_APP>`">
 
-Replace `$POOLER_URL_WITH_PORT` with the connection pooler host and port shown in the
-`Connection pooling` tab. This is the same host as your {C.SERVICE_SHORT}, on a different port:
+Replace `<POOLER_HOST>` and `<POOLER_PORT>` with the values shown in the `Connection pooling` tab.
+The host is the same as your {C.SERVICE_SHORT}, the port is different:
 
 ```bash
-PGPASSWORD=<NEW_PASSWORD> psql "postgres://my_app@$POOLER_URL_WITH_PORT/tsdb?sslmode=require"
+PGPASSWORD=<NEW_PASSWORD> psql "postgres://my_app@<POOLER_HOST>:<POOLER_PORT>/tsdb?sslmode=require"
 ```
 
 The output looks something like this:
@@ -250,18 +250,15 @@ You can set `max_connections` within the following ranges, based on your {C.SERV
 3. click `Operations` > `Connection pooling` > `Add pooler`
 4. confirm `Add pooler`
 5. expect enabled `Remove connection pooler`
-6. click `Remove connection pooler`
-7. confirm `Remove`
-8. expect no label `Remove connection pooler`
-
-Not scripted:
-- User authentication: connects on the POOLER, whose host and port exist only once a pooler has been
-  created and which no page can supply, and creates a role with a password a plan must not carry.
-- Pool types: reference, no procedure to drive.
-- Connection pool sizes: reference, no procedure to drive.
-- pgBouncer statistics commands: needs a psql session on the pooler's `pgbouncer` database, a
-  different port and database from the one the run connects to.
-- VPC and connection pooling: reference, no procedure to drive.
-- Min and max connection ranges: reference, no procedure to drive.
+6. run SQL: `CREATE ROLE my_app LOGIN PASSWORD '$POOLER_PASSWORD';`
+7. run SQL: `ALTER ROLE my_app SET statement_timeout TO '2s';`
+8. run command: `PGPASSWORD=$POOLER_PASSWORD psql "postgres://my_app@<POOLER_HOST>:<POOLER_PORT>/tsdb?sslmode=require"`
+9. expect rows: `SELECT 1 WHERE current_user = 'my_app'`
+10. expect rows: `SELECT 1 WHERE current_setting('statement_timeout') = '2s'`
+11. exit psql
+12. run command: `psql "postgres://tsdbadmin@<POOLER_HOST>:<POOLER_PORT>/pgbouncer" -c "SHOW STATS;"`
+13. click `Remove connection pooler`
+14. confirm `Remove`
+15. expect no label `Remove connection pooler`
 
 </TestPlan>
