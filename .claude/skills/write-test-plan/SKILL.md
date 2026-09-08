@@ -143,8 +143,16 @@ Not scripted:
 
 It is unnumbered prose, so the parser ignores it and nothing executes it. It exists for the person
 reading the plan, who otherwise cannot tell a procedure left out on purpose from one nobody
-remembered. Name every procedure the plan does not drive, whatever the reason: a list filtered by
-category leaves the reader doing the same guessing.
+remembered.
+
+**Only PROCEDURES belong on it.** A `##` section of pure reference prose has nothing to press, so it
+is not a gap and listing it is noise: connection-pooling has eight headings of which four are
+explanation (`Pool types`, `Connection pool sizes`, `VPC and connection pooling`, `Min and max
+connection ranges`), and naming those buried the one thing the list is for. When every procedure on a
+page is driven, the block goes away entirely rather than listing what was never drivable.
+
+Among procedures, name every one the plan does not drive, whatever the reason: a list filtered by
+reason leaves the reader doing the same guessing the list exists to stop.
 
 An earlier version of this was a `skip` verb, and knowing why it was dropped keeps this list honest.
 That marker was a plan's ONLY record of its own gaps, so three declared skips read as more complete
