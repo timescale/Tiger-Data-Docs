@@ -102,7 +102,10 @@ function normalizePath(h: string): string {
   return stripBasePrefix(h.split("#")[0]).replace(/\/$/, "") || "/";
 }
 
-const currentPath = normalizePath(String(routeData?.pathname || ""));
+// `StarlightRouteData` has no `pathname` field (only `id`, the content slug), so
+// reading `routeData?.pathname` was always undefined and `currentPath` always fell
+// back to "/", making the home icon look active on every page. Use Astro.url instead.
+const currentPath = normalizePath(Astro.url.pathname);
 const isHomeActive = currentPath === normalizePath(docsHomeLink);
 
 /**
