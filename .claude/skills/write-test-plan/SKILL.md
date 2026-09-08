@@ -31,6 +31,13 @@ disabled until something changes. All three were found by running, not reading. 
    will collide on "already exists" otherwise. That undo is ordinary steps, in order, where a reader
    of the plan can see them.
 
+   **Then put the list of `##` procedures to the page's writer and ask which to leave out, and why.**
+   Some procedures must not be completed by a run even though nothing on the page says so:
+   transferring project ownership gives the automation account away irreversibly, leaving a project
+   removes it, enforcing MFA or SSO can lock it out. Those sections look no less automatable than any
+   other, which is exactly why a teammate reads them as forgotten. It cannot be inferred from the
+   page, so ask, and record what you are told in the closing `Not scripted:` list.
+
 3. **Decide isolation.** If any step creates, deletes, or alters anything at service level, step 1 is
    `fork the service`. Without it the run uses the standing service and refuses every destructive
    step. There is nothing to write for the project-level case: not forking is the default.
@@ -117,20 +124,6 @@ disabled until something changes. All three were found by running, not reading. 
    Read the screenshots: the terminal output misled three times on one bug, and a single wrong control
    produced 13 consecutive failures.
 
-   **Inspect the decisive screenshots on a PASS too, not only on a failure.** A pass means each step
-   met its own criterion, which is not the same as the flow having worked. Open the shots behind the
-   assertions and check each passed for the RIGHT REASON: that `expect label` saw a created row and
-   not the text still sitting in a form, that the confirm dialog was the one the step meant, that the
-   end state is really the end state. An ip-allow-list run passed 14/14 while its create steps
-   failed, because a leftover list from the previous run satisfied the assertion and the attach ran
-   against the leftover.
-
-   This is also the ONLY way to catch a page whose control names have drifted from the Console. The
-   control-naming check compares a plan to its page, never a page to the product, so when both are
-   wrong together it stays silent: the same run had `IP Allow List` where the nav says
-   `IP Allow Lists`, and named a `+ Create IP Allow List` button that is really `+ Create new`.
-   Neither the check nor any run would have found either.
-
    **Hash the screenshots before theorising about a failure.** `md5 screenshots/<page>-p0-step*.png`
    takes a second and answers the question the log cannot: whether the page ever changed. Seven
    byte-identical shots across seven consecutive "passing" steps is what exposed the members plan's
@@ -139,12 +132,27 @@ disabled until something changes. All three were found by running, not reading. 
 
 ## Routes not to script, and why
 
-Do not write steps for these, and do not write a marker saying you skipped them. A route the tool
-cannot drive simply gets no steps: absence of steps IS the skip. A per-page skip marker only records
-what the author remembered to declare, so a plan with three honest skips reads as more complete than
-one that quietly ignored four routes, and nothing can check that a stated reason is still true.
+Close every plan with a `Not scripted:` list naming each `##` procedure the plan does not drive and
+why, one line each, keyed to the heading verbatim:
 
-These are limits of the walker, not of any one page:
+```
+Not scripted:
+- Join a project: needs the invitee's mailbox and a second account.
+- Change your current project: needs two projects, and this account has one.
+```
+
+It is unnumbered prose, so the parser ignores it and nothing executes it. It exists for the person
+reading the plan, who otherwise cannot tell a procedure left out on purpose from one nobody
+remembered. Name every procedure the plan does not drive, whatever the reason: a list filtered by
+category leaves the reader doing the same guessing.
+
+An earlier version of this was a `skip` verb, and knowing why it was dropped keeps this list honest.
+That marker was a plan's ONLY record of its own gaps, so three declared skips read as more complete
+than four silent ones. This list claims less. It explains the omissions it names; it does not prove
+there are no others, and a reviewer still reads it against the page's headings.
+
+The limits below are properties of the walker rather than of any one page. They are here so you do
+not re-derive them, not so you can leave a route off the list:
 
 - **Data view / PopSQL.** A cross-origin iframe the walker cannot reach inside. When a page documents
   both a Data view route and another route for the same SQL, script the other one: the statements
@@ -152,12 +160,14 @@ These are limits of the walker, not of any one page:
 - **High-availability configuration.** Script the clicks and assert nothing: nothing in SQL or
   `tiger service get` exposes the replication strategy, and the page does not claim a specific
   outcome anyway.
-- **A control that exists only in an object state your plan cannot reach.** The members page
-  documents changing a user's role in a drop-down, but a PENDING invite has no drop-down: its role is
-  plain text, and only an accepted member gets the control. The tool cannot accept an invitation, so
-  that route gets no steps. Before scripting a row action, check the row your plan actually creates
-  has the control the procedure describes — a plan that clicks a label absent from the row it pinned
-  is indistinguishable from a broken page until someone looks.
+- **A control that exists only in an object state your plan cannot reach.** Before scripting a row
+  action, check the row your plan actually pins has the control the procedure describes: a plan that
+  clicks a label absent from the row it pinned is indistinguishable from a broken page until someone
+  looks. The members page documents changing a user's role in a drop-down, and a PENDING invite has
+  no drop-down — its role is plain text, and only an accepted member gets the control. That is a
+  reason to pin a DIFFERENT row, not to leave the procedure unscripted: the plan pins `$ROLE_EMAIL`,
+  a standing accepted member, rather than the invite it just created. Reach for the `Not scripted:`
+  list only when no reachable object has the control at all.
 - **Drag-and-drop targets and unlabelled icons.** `[resolve: <hint>]` is the escape hatch, and a hint
   with no resolver behind it is reported rather than run. Only reach for it when there is genuinely no
   label to name.
@@ -172,7 +182,8 @@ These are limits of the walker, not of any one page:
   for flagging every plan everywhere. What IS enforced is narrower and survives: the controls a plan
   presses must be controls the page names.
 - **Not sectioned.** No Isolation, Setup, Inputs, Notes, Assert or Cleanup headings. One numbered
-  list; text that is not numbered is commentary.
+  list; text that is not numbered is commentary. The closing `Not scripted:` list is commentary of
+  exactly that kind, not a section coming back: nothing parses it and it carries no steps.
 - **Not a picture list.** Screenshots are a property of the run (`DOCTEST_SHOTS=evidence|doc-update|none`),
   and doc-update finds its own moments from the images the page already publishes.
 - **Not per-step pass criteria.** Each verb already carries one, and explicit criteria are the
