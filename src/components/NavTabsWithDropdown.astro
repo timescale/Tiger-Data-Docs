@@ -295,7 +295,7 @@ for (const item of navItems) {
 
 <div class="stl-secondary-nav-tabs stl-nav-tabs-with-dropdown">
   <ul>
-    <li class:list={[isHomeActive && "active"]}>
+    <li class:list={["nav-home-item", isHomeActive && "active"]}>
       <Button
         href={docsHomeLink}
         variant="ghost"
@@ -377,7 +377,12 @@ for (const item of navItems) {
     border-bottom: 2px solid transparent;
   }
 
-  .stl-nav-tabs-with-dropdown li.active {
+  /*
+   * The home <li>'s active indicator is drawn separately (see .nav-home-link::after below):
+   * this li's box is sized by shrink-to-fit around the icon-only button's negative-margin
+   * hit-target trick, which does not reliably center a border-bottom under the icon.
+   */
+  .stl-nav-tabs-with-dropdown li.active:not(.nav-home-item) {
     border-color: var(--stl-color-accent-border-strong);
   }
 
@@ -462,6 +467,7 @@ for (const item of navItems) {
   }
 
   .stl-nav-tabs-with-dropdown .stl-ui-button.nav-home-link {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -474,6 +480,25 @@ for (const item of navItems) {
   .stl-nav-tabs-with-dropdown .stl-ui-button.nav-home-link:focus,
   .stl-nav-tabs-with-dropdown .stl-ui-button.nav-home-link:focus-visible {
     text-decoration: none;
+  }
+
+  /*
+   * Active indicator for the home icon: positioned relative to the button's own box
+   * (which is symmetric around the icon, since both the button and its label center
+   * the icon via flexbox) instead of the parent <li>'s border-bottom. The <li>'s
+   * shrink-to-fit width collapses around the icon's negative-margin hit-target trick
+   * and is not reliably centered under the icon, which produced a lopsided line.
+   * 16px matches the icon's fixed width (the icon does not resize across breakpoints).
+   */
+  .nav-home-link.stl-active-secondary-link::after {
+    content: "";
+    position: absolute;
+    bottom: -3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 2px;
+    background-color: var(--stl-color-accent-border-strong);
   }
 
   .nav-home-link :global(.stl-ui-button-label) {
