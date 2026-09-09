@@ -140,6 +140,11 @@ const noindexSchema = z.object({
   noindex: z.boolean().optional(),
 });
 
+/** When true, hide the right rail and let the page content use that space. */
+const layoutSchema = z.object({
+  widePage: z.boolean().optional(),
+});
+
 export const collections = {
   docs: defineCollection({
     loader: docsLoader(),
@@ -150,7 +155,8 @@ export const collections = {
         .merge(pageLabelsSchema)
         .merge(productsSchema)
         .merge(learnMoreSchema)
-        .merge(noindexSchema),
+        .merge(noindexSchema)
+        .merge(layoutSchema),
     }),
   }),
 };
