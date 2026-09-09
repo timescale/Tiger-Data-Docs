@@ -319,7 +319,9 @@ ALTER TABLE <table_name> SET (
   tigerlake.iceberg_sync = true | false,
   tigerlake.iceberg_partitionby = '<partition_specification>',
   tigerlake.iceberg_namespace = '<namespace>',
-  tigerlake.iceberg_table = '<table>'
+  tigerlake.iceberg_table = '<table>',
+  tigerlake.iceberg_spec_version = 2 | 3,
+  tigerlake.enable_tiered_reads = true | false
 )
 ```
 
@@ -330,6 +332,14 @@ ALTER TABLE <table_name> SET (
   to {C.HYPERTABLE}s. For more information, see [partitioning](/integrate/connectors/destination/tigerlake#partitioning-intervals).
 - `tigerlake.iceberg_namespace`: optional property to set a namespace, the default is `timescaledb`.
 - `tigerlake.iceberg_table`: optional property to specify a different table name. If no name is specified the {C.PG} table name is used.
+- `tigerlake.iceberg_spec_version`: optional `integer`, either `2` or `3`. The default for new syncs is `3`. Set it
+  to `2` if the query engine or catalog you read the table with does not support format version 3. You can only set
+  this property when you start the sync. For more information, see
+  [Iceberg format version](/integrate/connectors/destination/tigerlake#iceberg-format-version).
+- `tigerlake.enable_tiered_reads`: optional `boolean`, the default is `false`. Set to `true` to include data that has
+  been moved to the [low-cost object storage tier](/learn/data-lifecycle/storage/about-storage-tiers) in the sync.
+  You can only set this property when you start the sync. For more information, see
+  [tiered data](/integrate/connectors/destination/tigerlake#tiered-data).
 
 ### Partitioning intervals
 
@@ -346,6 +356,50 @@ By default, the partition interval for an Iceberg table is one day(time-column) 
 | `truncate[W]` | Value truncated to width W, see [options](https://iceberg.apache.org/spec/#truncate-transform-details)       |
 
 These partitions define the behavior using the [Iceberg partition specification](https://iceberg.apache.org/spec/#partition-transforms).
+
+### Tiered data
+
+By default, data that has been moved to the [low-cost object storage tier](/learn/data-lifecycle/storage/about-storage-tiers)
+is not synced to Iceberg. To include it, set `tigerlake.enable_tiered_reads` to `true` in the same statement that starts
+the sync:
+
+```sql
+ALTER TABLE my_hypertable SET (
+  tigerlake.iceberg_sync = true,
+  tigerlake.enable_tiered_reads = true
+);
+```
+
+Note the following:
+
+- You can only set `tigerlake.enable_tiered_reads` when you start the sync. Setting it on a table that is already
+  syncing returns an error, because whether tiered data is included changes which rows the initial snapshot reads.
+  To change it, stop the sync and start a new one.
+- This property applies to the sync only, and is independent of the `timescaledb.enable_tiered_reads` setting that
+  controls whether [your own queries read tiered data](/build/data-management/storage/query-tiered-data). Leaving
+  `tigerlake.enable_tiered_reads` at `false` keeps tiered data out of Iceberg even when
+  `timescaledb.enable_tiered_reads` is enabled for the database or the session.
+- Tiered data can be much larger than the data in local storage. Including it increases both the duration of the
+  initial snapshot and the volume of data written to Iceberg.
+
+### Iceberg format version
+
+New syncs create the Iceberg table using [format version](https://iceberg.apache.org/spec/#format-versioning) 3.
+To use format version 2 instead, set `tigerlake.iceberg_spec_version` in the statement that starts the sync:
+
+```sql
+ALTER TABLE my_hypertable SET (
+  tigerlake.iceberg_sync = true,
+  tigerlake.iceberg_spec_version = 2
+);
+```
+
+Note the following:
+
+- The only accepted values are `2` and `3`. Any other value returns an error.
+- You can only set `tigerlake.iceberg_spec_version` when you start the sync. To change the format version of a table
+  that is already syncing, stop the sync and start a new one.
+- Tables that started syncing before this property was available remain on format version 2.
 
 ### Sample code
 
@@ -442,7 +496,7 @@ ALTER TABLE Mixed_CASE_TableNAME SET (
 - Throughput figures in [Stream data from your service to your data lake](#stream-data-from-your-service-to-your-data-lake) were measured using Amazon S3 Tables. Generic REST catalog throughput can differ, depending on the catalog's own API latency and table-commit performance.
 - In order to collect deletes made to data in the columstore, certain columnstore optimizations are disabled for {C.HYPERTABLE}s, this includes [Direct Compress](/learn/hypertables/optimize-data-in-hypertables#speed-up-data-ingestion).
 - The `TRUNCATE` statement is not supported, and does not truncate data in the corresponding Iceberg table.
-- Data in a {C.HYPERTABLE} that has been moved to the [low-cost object storage tier](/learn/data-lifecycle/storage/about-storage-tiers) is not synced.
+- Data in a {C.HYPERTABLE} that has been moved to the [low-cost object storage tier](/learn/data-lifecycle/storage/about-storage-tiers) is not synced, unless you set [tigerlake.enable\_tiered\_reads](/integrate/connectors/destination/tigerlake#tiered-data) when you start the sync.
 - Writing to the same S3 table bucket from multiple services is not supported, bucket-to-service mapping is one-to-one.
 - Iceberg snapshots are pruned automatically if the amount exceeds 2500.
 - A {C.HYPERTABLE} with long running continuous aggregates refresh transactions, plus 30 minutes, can cause issues with holding the replication slot too long. Please consider batching in these cases.
