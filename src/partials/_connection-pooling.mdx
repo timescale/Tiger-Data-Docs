@@ -1,5 +1,6 @@
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 
 You can scale your {C.SERVICE_LONG} connections and improve its performance by
 using connection poolers. {C.CLOUD_LONG} uses `pgBouncer` for connection pooling.
@@ -43,8 +44,11 @@ ALTER ROLE my_app SET statement_timeout TO '2s';
 
 <NumberedItem title="In a new terminal window, connect on the pooler with the new user `<MY_APP>`">
 
+Replace `<POOLER_HOST>` and `<POOLER_PORT>` with the values shown in the `Connection pooling` tab.
+The host is the same as your {C.SERVICE_SHORT}, the port is different:
+
 ```bash
-PGPASSWORD=<NEW_PASSWORD> psql 'postgres://my_app@service.project.tsdb.cloud.timescale.com:30477/tsdb?sslmode=require'
+PGPASSWORD=<NEW_PASSWORD> psql "postgres://my_app@<POOLER_HOST>:<POOLER_PORT>/tsdb?sslmode=require"
 ```
 
 The output looks something like this:
@@ -238,3 +242,23 @@ You can set `max_connections` within the following ranges, based on your {C.SERV
 | 8 CPU / 32 GiB and more                | 25      | 2000    |
 
 `max_connections` of the primary {C.SERVICE_SHORT} cannot be higher than its replica's.
+
+<TestPlan>
+
+1. fork the service
+2. select the service
+3. click `Operations` > `Connection pooling` > `Add pooler`
+4. confirm `Add pooler`
+5. expect enabled `Remove connection pooler`
+6. run SQL: `CREATE ROLE my_app LOGIN PASSWORD '$POOLER_PASSWORD';`
+7. run SQL: `ALTER ROLE my_app SET statement_timeout TO '2s';`
+8. run command: `PGPASSWORD=$POOLER_PASSWORD psql "postgres://my_app@<POOLER_HOST>:<POOLER_PORT>/tsdb?sslmode=require"`
+9. expect rows: `SELECT 1 WHERE current_user = 'my_app'`
+10. expect rows: `SELECT 1 WHERE current_setting('statement_timeout') = '2s'`
+11. exit psql
+12. run command: `psql "postgres://tsdbadmin@<POOLER_HOST>:<POOLER_PORT>/pgbouncer" -c "SHOW STATS;"`
+13. click `Remove connection pooler`
+14. confirm `Remove`
+15. expect no label `Remove connection pooler`
+
+</TestPlan>
