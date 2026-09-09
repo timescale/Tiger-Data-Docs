@@ -96,6 +96,27 @@ disabled until something changes. All three were found by running, not reading. 
    The high-availability section is the clearest case of NOT asserting: the page documents a click
    path and promises nothing about what the setting becomes, so the click path is the whole claim.
 
+   **Prove every assertion can fail, before you trust it passing.** Write it, then break the thing it
+   watches and confirm it goes red. An assertion nobody has seen fail is indistinguishable from one
+   that cannot: `run SQL:` only fails when a statement ERRORS, so a mistyped catalog name, a filter
+   that matches nothing, or a `DO` block that never reaches its `RAISE` all report green forever.
+   Cheapest form is to run the compiled SQL against a local database twice, once with the documented
+   state and once without.
+
+   **Assert on values the way the catalog stores them, not the way the page words them.** The
+   continuous-aggregate refresh policy is the worked example: the page says `24 hours` and `3 weeks`,
+   and `timescaledb_information.jobs.config` holds `{"end_offset": "24:00:00", "start_offset":
+   "21 days"}`. A string comparison against the page's wording therefore fails on a *correct* page.
+   Compare typed instead — `(config->>'end_offset')::interval = INTERVAL '24 hours'` — and check the
+   real shape on a live job first rather than predicting it.
+
+   **Two controls offering the same options need one assertion each.** `End offset` and `Schedule
+   interval` both offer 3/6/12/24 hours, which is why `click \`X\` in \`Y\`` exists — a bare
+   `click \`3 hours\`` takes the first match and silently sets the wrong field. Asserting only one of
+   them hides that completely: the later step overwrites its own field correctly, so the assertion on
+   *it* still passes while the other value is quietly wrong. Verified: with `end_offset` regressed,
+   the `schedule_interval` assertion still passed and only the `end_offset` one caught it.
+
    **A plan whose steps are all clicks needs an assertion at the END, without exception.** A click
    step is the weakest evidence a plan can carry: it says a control was found and pressed, not that
    anything happened. That is not a hypothetical — for a stretch of the tool's history every
@@ -109,20 +130,58 @@ disabled until something changes. All three were found by running, not reading. 
    `DOCTEST_INPUT_INVITE_EMAIL` from the environment. Never write a service or project id either:
    `select the service` means whichever service the run is about.
 
-8. **Lint, then run.**
+   **`$NAME` is the only form that resolves. An `<ANGLE>` placeholder does not.** `inputs` is
+   hardcoded `{}` in `scripts/test-page.mjs`, so `applyInputs` never fills anything: a page's
+   `<SCHEMA_NAME>` copied into a `run SQL:` step reaches the database literally and the step fails as
+   a syntax error, which reads exactly like a docs bug. Only `run command:` resolves angle
+   placeholders, and only the connection-shaped ones (`<POOLER_HOST>`, a whole `postgres://` URI);
+   `<table-name>`, `<database-name>` and `<password>` deliberately skip the step instead.
+
+   So the plan names something real where the page names a gap, and **that divergence is correct, not
+   drift to be fixed.** House style is placeholders everywhere on the page, including the names of
+   objects the procedure creates, so the page says `CREATE ROLE <ROLE_NAME>` while the plan says
+   `CREATE ROLE readaccess` — the plan may be literal because everything it touches is a throwaway
+   fork. Where the page's gap is a table or schema the reader already owns, **the plan creates its
+   own** rather than guessing at what the standing service holds.
+
+8. **Parse the draft with the tool's own parser, verify its SQL locally, then run.**
    ```bash
-   node scripts/testplan-coverage.mjs --lint <path to the page>
-   cd ../doc-testing-tool-poc && node scripts/test-page.mjs "<page url>"
+   cd ../doc-testing-tool-poc
+   node -e 'import("./lib/resolve-page.mjs").then(async (rp) => {
+     const { parsePlan } = await import("./lib/plan.mjs");
+     const p = parsePlan(rp.resolvePage("<page url>").mdx);
+     console.log("steps", p.steps.length, "| unparsed", p.unparsed, "| inputs", p.inputs);
+   })'
+   node scripts/test-page.mjs "<page url>"
    ```
-   The lint catches a step no verb matches, an angle-bracket placeholder outside backticks (it fails
-   the site build), and numbering that is not 1..n. Wrap a long statement in backticks so MDX leaves
-   it alone; the parser strips them.
+   `parsePlan` is the gate the run itself uses, so ask it rather than reading the grammar: it reports
+   the step count, every line that matched no verb, and the `DOCTEST_INPUT_*` names the plan needs —
+   and it compiles each `expect` into the `DO … RAISE EXCEPTION` block that will really execute, so
+   you can read back exactly what the database will see. (An earlier version of this step ran
+   `scripts/testplan-coverage.mjs --lint`. **That script no longer exists** — plan coverage was
+   settled the other way, as an author-written `Not scripted:` list with no tool check.)
+
+   Wrap a long statement in backticks so MDX leaves it alone; the parser strips them back off. Do it
+   for **every** statement, not just the long ones: bare SQL in a plan trips Vale's
+   `TigerData.Acronyms` on `ROLE`, `GRANT`, `USAGE` and `ALL`, which it reads as prose acronyms.
+
+   **A plan whose steps are SQL costs nothing to verify before you spend a fork.** Extract the
+   compiled statements from `parsePlan` and run them against a local PostgreSQL with TimescaleDB
+   (`pg_available_extensions`), in plan order, under `-v ON_ERROR_STOP=1`. Today that caught a
+   would-be assertion bug before a single cloud minute was spent. Never retype the SQL by hand for
+   this — extract it, or you are testing something the plan does not say.
 
 9. **Fix what the run reports, and expect the fix to land in three different places.** On
    tiger-cloud-essentials, five runs sent fixes to the docs (an undocumented dialog), to the plan (a
    missing "choose an option" before a disabled submit), and to the tool (a panel covering a form).
    Read the screenshots: the terminal output misled three times on one bug, and a single wrong control
    produced 13 consecutive failures.
+
+   **Your verification harness can false-pass too, and it is not exempt.** A one-liner that split the
+   compiled SQL per step matched `-- step N` while the generated lines read `\echo -- step N`, so every
+   extracted file was empty and `psql` exited 0 on nothing: five steps reported PASS, including the one
+   that was supposed to fail. It was caught only because a negative test is expected to go red, and a
+   green there is a bug in the test. Assert the fixture is non-empty; make the negative case fail first.
 
    **Hash the screenshots before theorising about a failure.** `md5 screenshots/<page>-p0-step*.png`
    takes a second and answers the question the log cannot: whether the page ever changed. Seven
