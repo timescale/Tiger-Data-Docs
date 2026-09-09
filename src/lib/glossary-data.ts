@@ -167,6 +167,7 @@ export const glossaryTerms: GlossaryTerm[] = [
   { term: "Parallel copy", definition: "a technique for copying large amounts of data using multiple concurrent processes to improve performance.", category: "Data & migration" },
   { term: "Parallel Query Execution", definition: "a PostgreSQL feature that uses multiple CPU cores to execute single queries faster, inherited by TimescaleDB.", category: "PostgreSQL" },
   { term: "Partitioning", definition: "the practice of dividing large tables into smaller, more manageable pieces based on certain criteria.", category: "PostgreSQL" },
+  { term: "Passwordless database access", definition: "database access that does not require the user to supply database credentials. In Tiger Console, a per-service setting controls this access for SQL Editor and Data View.", category: "Security" },
   { term: "Percentile", definition: "a statistical measure that indicates the value below which a certain percentage of observations fall.", category: "Time-series" },
   { term: "Performance", definition: "a measure of how efficiently a system operates, often quantified by metrics like throughput, latency, and resource utilization.", category: "Observability" },
   { term: "pg\\_basebackup", definition: "a PostgreSQL utility for taking base backups of a running PostgreSQL cluster.", category: "Operations" },
