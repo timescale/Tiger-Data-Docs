@@ -41,8 +41,10 @@ Successfully logged in (project: <project-id>)
 • Install MCP server for your favorite AI coding tool: tiger mcp install
 • List existing services: tiger service list
 • Create a new service: tiger service create
-• Enable read-only mode: tiger config set read_only true
+• Protect services from writes: tiger config set read_only prod (or all, off)
 ```
+
+The first time you log in interactively, {C.CLI_LONG} also asks `Which services should be protected from writes?` and stores your choice in the [`read_only` configuration option](#configuration-options). The question is asked once; to change the mode later, use `tiger config set read_only <mode>`.
 
 | Flag | Description |
 | --- | --- |
@@ -118,6 +120,33 @@ You see something like:
 
 ## Projects
 
+### `tiger project list`
+
+List the {C.PROJECT_SHORT}s you have access to. The active {C.PROJECT_SHORT}, the one later commands act on, is marked in the `CURRENT` column. Alias: `ls`.
+
+**Usage**: `tiger project list [flags]`
+
+```bash
+tiger project list
+```
+
+You see something like:
+
+```txt
+┌──────────────┬─────────────────────────────────┬─────────┐
+│  PROJECT ID  │              NAME               │ CURRENT │
+├──────────────┼─────────────────────────────────┼─────────┤
+│ <project-id> │ Tiger Project                   │ *       │
+│ <project-id> │ YourCompany (Company wide)      │         │
+└──────────────┴─────────────────────────────────┴─────────┘
+```
+
+To switch to another {C.PROJECT_SHORT}, use [`tiger project use`](#tiger-project-use).
+
+| Flag | Description |
+| --- | --- |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
+
 ### `tiger project use`
 
 Change the {C.PROJECT_SHORT} that later commands act on. Alias: `switch`.
@@ -172,7 +201,7 @@ If they come from the environment:
 Error: cannot switch projects while TIGER_PUBLIC_KEY/TIGER_SECRET_KEY are set: an API key is scoped to a single project
 ```
 
-There is no command that lists your {C.PROJECT_SHORT}s. Find the ID in [{C.CONSOLE_LONG}](/integrate/find-connection-details#find-your-project-and-service-id), or read it out of any {C.SERVICE_SHORT}'s connection string.
+To find the ID of the {C.PROJECT_SHORT} you want, run [`tiger project list`](#tiger-project-list), look it up in [{C.CONSOLE_LONG}](/integrate/find-connection-details#find-your-project-and-service-id), or read it out of any {C.SERVICE_SHORT}'s connection string.
 
 ## Version
 
@@ -255,7 +284,7 @@ You see something like:
 │ color            │ true                                              │
 │ output           │ table                                             │
 │ password_storage │ keyring                                           │
-│ read_only        │ false                                             │
+│ read_only        │ off                                               │
 │ releases_url     │ https://cli.tigerdata.com                         │
 │ service_id       │                                                   │
 │ version_check    │ true                                              │
@@ -277,13 +306,13 @@ Set a configuration value. See [Configuration parameters](#configuration-paramet
 ```bash
 tiger config set <key> <value>
 # for example
-tiger config set read_only true
+tiger config set read_only prod
 ```
 
 You see:
 
 ```txt
-Set read_only = true
+Set read_only = prod
 ```
 
 ### `tiger config unset`
@@ -641,7 +670,7 @@ tsdb=>
 | --- | --- |
 | `--pooled` | Use connection pooling (default: `false`). |
 | `--role` | Database role (default: `tsdbadmin`). |
-| `--read-only` | Open the session in {C.CLOUD_LONG}'s immutable read-only mode, so writes and DDL are rejected by the server. The [`read_only` config option](#configuration-parameters) or `TIGER_READ_ONLY=true` forces the same behavior. |
+| `--read-only` | Open the session in {C.CLOUD_LONG}'s immutable read-only mode, so writes and DDL are rejected by the server. The [`read_only` config option](#configuration-parameters) (or `TIGER_READ_ONLY`) forces the same behavior for every {C.SERVICE_SHORT} (`all`) or for {C.SERVICE_SHORT}s tagged `PROD` (`prod`). |
 | `--no-replica-prompt` | Do not prompt to connect to a read replica. |
 
 ### `tiger db query`
@@ -676,7 +705,7 @@ Row-returning statements print a `psql`-style table (or JSON/YAML with `--output
 | `--file, -f` | Path to a SQL file to execute (mutually exclusive with `--command`). |
 | `--role` | Database role (default: `tsdbadmin`). |
 | `--pooled` | Use connection pooling (default: `false`). |
-| `--read-only` | Open the session in {C.CLOUD_LONG}'s immutable read-only mode, so writes and DDL are rejected by the server. The [`read_only` config option](#configuration-parameters) or `TIGER_READ_ONLY=true` forces the same behavior. |
+| `--read-only` | Open the session in {C.CLOUD_LONG}'s immutable read-only mode, so writes and DDL are rejected by the server. The [`read_only` config option](#configuration-parameters) (or `TIGER_READ_ONLY`) forces the same behavior for every {C.SERVICE_SHORT} (`all`) or for {C.SERVICE_SHORT}s tagged `PROD` (`prod`). |
 | `--timeout` | Query timeout, for example `30s`, `5m` (default: `0`, no timeout). |
 | `--output, -o` | Output format: `table`, `json`, or `yaml`. |
 
