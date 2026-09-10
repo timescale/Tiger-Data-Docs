@@ -12,17 +12,19 @@ import { Callout } from "@stainless-api/docs/components";
 
 ## Restrict agents to read-only
 
-When you want an agent to explore and query without making any changes, turn on read-only mode. See [Restrict {C.MCP_LONG} to read-only](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only) for the commands: it blocks mutating {C.CLI_SHORT} commands and {C.MCP_SHORT} tools, and puts database sessions into {C.CLOUD_LONG}'s immutable read-only mode so writes and schema changes are rejected by the server.
+When you want an agent to explore and query without making any changes, turn on read-only mode. See [Restrict {C.MCP_LONG} to read-only](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only) for the commands: it blocks mutating `tiger service` commands and the matching {C.MCP_SHORT} tools, and puts database sessions into {C.CLOUD_LONG}'s immutable read-only mode so writes and schema changes are rejected by the server.
 
-This also protects your bill: creating, forking, and resizing {C.SERVICE_SHORT}s all provision or change billable resources, and read-only mode disables the {C.MCP_SHORT} tools for all three.
+Read-only mode protects `all` {C.SERVICE_SHORT}s, only {C.SERVICE_SHORT}s tagged `PROD` (`prod`), or none (`off`). For agent work, `prod` is usually the right setting: the agent can create, modify, and experiment on `DEV` {C.SERVICE_SHORT}s while production stays protected.
+
+This also protects your bill: creating, forking, and resizing {C.SERVICE_SHORT}s all provision or change billable resources, and `read_only=all` disables the {C.MCP_SHORT} tools for all three.
 
 <Callout variant="tip" title="Default production to read-only">
-Keep production {C.SERVICE_SHORT}s in read-only mode and only escalate to write access deliberately, for the specific change you intend to make.
+Keep production {C.SERVICE_SHORT}s in read-only mode (`tiger config set read_only prod`) and only escalate to write access deliberately, for the specific change you intend to make.
 </Callout>
 
 For an additional layer of security, create a dedicated read-only database role, save its password with `tiger db save-password <service-id> --role <role> --password=<password>`, then connect the agent as that role (`tiger db connect <service-id> --role <role>`, or the `role` parameter on {C.MCP_SHORT}'s database tools). Because the restriction is enforced by the database itself, it applies no matter how the agent connects. See [Manage data security in your {C.SERVICE_LONG}](/deploy/tiger-cloud/tiger-cloud-aws/security/read-only-role#create-a-read-only-user) to create the role.
 
-Grant the role `SELECT` on the tables the agent needs. A role created with `tiger db create role --read-only` can log in but holds no table privileges, so an agent connecting as it gets `permission denied` on every query until you grant access.
+Grant the role `SELECT` on the tables the agent needs. A role created with `tiger db create role <service-id> --name <role> --read-only` can log in but holds no table privileges, so an agent connecting as it gets `permission denied` on every query until you grant access.
 
 ## Test against a fork or a read replica
 
@@ -53,7 +55,7 @@ When you use an agent like Claude Code against your database, add project instru
 - For schema changes or risky queries, fork production first (`service_fork`) and test
   on the fork.
 - Development service ID: `<dev-service-id>`. Safe to modify freely.
-- Show the SQL you're about to run before calling `db_execute_query` with anything other
+- Show the SQL you're about to run before calling `db_query` with anything other
   than a `SELECT`.
 ```
 
@@ -65,6 +67,7 @@ When you use an agent like Claude Code against your database, add project instru
 - Ask for a single computed answer instead of raw rows, and set an explicit row limit.
 - Ask the agent to show the SQL it will run before it executes anything that writes.
 - State which {C.SERVICE_SHORT}s are production in your project instructions (for example, `CLAUDE.md`).
+- To cut off an agent's access entirely, revoke its {C.CLI_SHORT} session from [{C.CONSOLE}](/deploy/tiger-cloud/tiger-cloud-aws/security/overview#active-sessions); {C.MCP_LONG} uses the same login, so this signs both out.
 
 ## Next steps
 
