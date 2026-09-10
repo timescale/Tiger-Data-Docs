@@ -140,6 +140,17 @@ const noindexSchema = z.object({
   noindex: z.boolean().optional(),
 });
 
+/**
+ * Sitewide banner field (optional, controlled by src/lib/banner-config.ts)
+ */
+const bannerSchema = z.object({
+  banner: z
+    .object({
+      content: z.string(),
+    })
+    .optional(),
+});
+
 export const collections = {
   docs: defineCollection({
     loader: docsLoader(),
@@ -150,7 +161,8 @@ export const collections = {
         .merge(pageLabelsSchema)
         .merge(productsSchema)
         .merge(learnMoreSchema)
-        .merge(noindexSchema),
+        .merge(noindexSchema)
+        .merge(bannerSchema),
     }),
   }),
 };
