@@ -1,7 +1,21 @@
 name: git-bounce
 
 on:
-  pull_request:
+  # pull_request_target, not pull_request: on a PR from a fork the
+  # pull_request GITHUB_TOKEN is read-only no matter what the permissions
+  # block below says, so the comment API calls fail with
+  # "Resource not accessible by integration" (403). Fork PRs are also held
+  # behind the manual "Approve and run workflows" gate, so the run never
+  # starts on its own. pull_request_target runs this file from the base
+  # branch with a writable token and no approval gate, which fixes both.
+  #
+  # SAFE ONLY BECAUSE this job never checks out or executes PR code: it has
+  # no actions/checkout and no run: step, and it reads the PR body purely as
+  # data (.includes()/.test(), never interpolated into the comment or a
+  # shell). Do not add a checkout, a run: step, or a dependency install here
+  # without moving the privileged part back out; pull_request_target plus
+  # untrusted code is a secret-exfiltration hole.
+  pull_request_target:
     types: [opened, ready_for_review]
 
 concurrency:
@@ -17,7 +31,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Check PR template and checkboxes
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prBody = context.payload.pull_request.body || '';

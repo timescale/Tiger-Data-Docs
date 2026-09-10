@@ -24,7 +24,7 @@ Maintainers will add the entry to `src/content/docs/get-started/news/new.mdx` us
 
 ### Summary / body
 
-<!-- What's new, for whom, and any links (docs, blog). This will be turned into the visible card content. -->
+<!-- What's new, for whom, and any links (docs, blog). This will be turned into the visible card content. If this entry covers more than one feature or change, the first sentence of "What's new" must summarize all of them, not just the first one. -->
 
 **What's new:**
 
