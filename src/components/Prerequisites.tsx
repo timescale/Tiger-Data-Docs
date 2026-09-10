@@ -39,7 +39,7 @@ import type { ReactNode } from "react";
  *   import { Prerequisites } from "@components/Prerequisites";
  *
  *   <Prerequisites context="tutorial">
- *     - A [Tiger Cloud account](/get-started/quickstart/quickstart-5-minutes)
+ *     - A [Tiger Cloud account](/get-started/quickstart/create-account)
  *     - [Python 3.9+](https://www.python.org/) installed
  *   </Prerequisites>
  *
