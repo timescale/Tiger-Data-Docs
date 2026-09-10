@@ -1,0 +1,193 @@
+---
+title: "Integrate Apache Kafka with Tiger Cloud"
+description: "Stream, process, and analyze real-time event data from Apache Kafka topics"
+products: [cloud, self_hosted]
+integrationCategory: "data-ingestion-streaming"
+integrationPlatforms: ["aws", "azure", "self-hosted"]
+integrationIndustry: ["crypto", "iot", "energy"]
+keywords: ["kafka integration","event streaming","real-time data","message broker","kafka topics","event processing","stream processing"]
+integrationCardLogo: "apache-kafka.png"
+integrationCardLogoDark: "kafka-dark.png"
+sidebar:
+  label: "Apache Kafka"
+---
+
+import * as C from "@constants";
+
+import { Callout } from '@stainless-api/docs/components';
+import CreateHypertablePolicyNote from '@partials/_create-hypertable-columnstore-policy-note.mdx';
+import IntegrationApacheKafka from '@partials/_integration-apache-kafka-install.mdx';
+import IntegrationPrereqs from '@partials/_prereqs-cloud-and-self.mdx';
+import ConnectionDetails from '@partials/_prereqs-connection-details.mdx';
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+[Apache Kafka](https://kafka.apache.org/documentation/) is a distributed event streaming platform used for high-performance data pipelines,
+streaming analytics, and data integration. [Apache Kafka Connect](https://docs.confluent.io/platform/current/connect/index.html) is a tool to scalably and reliably
+stream data between Apache Kafka® and other data systems. Kafka Connect is an ecosystem of pre-written and maintained
+Kafka Producers (source connectors) and Kafka Consumers (sink connectors) for data products and platforms like
+databases and message brokers.
+
+This guide explains how to set up Kafka and Kafka Connect to stream data from a Kafka topic into your {C.SERVICE_LONG}.
+
+<Callout variant="note">
+This page covers streaming from a self-managed Apache Kafka cluster using Kafka Connect and the Camel {C.PG} sink. If your Kafka cluster runs on Confluent Cloud, use the fully managed [Apache Kafka source connector](/integrate/connectors/source/sync-from-kafka) in {C.CONSOLE} instead.
+</Callout>
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+
+- [Java8 or higher](https://www.oracle.com/java/technologies/downloads/) installed to run Apache Kafka.
+</Prerequisites>
+
+## Install and configure Apache Kafka
+
+To install and configure Apache Kafka:
+
+<IntegrationApacheKafka />
+
+Keep these terminals open, you use them to test the integration later.
+
+## Install the sink connector to communicate with {C.CLOUD_LONG}
+
+To set up Kafka Connect server, plugins, drivers, and connectors:
+
+<NumberedList>
+  <NumberedItem title={`Install the ${C.PG} connector`}>
+    In another terminal window, navigate to `<KAFKA_HOME>`, then download and configure the {C.PG} sink and driver.
+
+    ```bash
+    mkdir -p "plugins/camel-postgresql-sink-kafka-connector"
+    curl https://repo.maven.apache.org/maven2/org/apache/camel/kafkaconnector/camel-postgresql-sink-kafka-connector/3.21.0/camel-postgresql-sink-kafka-connector-3.21.0-package.tar.gz \
+    | tar -xzf - -C "plugins/camel-postgresql-sink-kafka-connector" --strip-components=1
+    curl  -H "Accept: application/zip" https://jdbc.postgresql.org/download/postgresql-42.7.5.jar -o  "plugins/camel-postgresql-sink-kafka-connector/postgresql-42.7.5.jar"
+    echo "plugin.path=`pwd`/plugins/camel-postgresql-sink-kafka-connector" >> "config/connect-distributed.properties"
+    echo "plugin.path=`pwd`/plugins/camel-postgresql-sink-kafka-connector" >> "config/connect-standalone.properties"
+    ```
+  </NumberedItem>
+  <NumberedItem title="Start Kafka Connect">
+    ```bash
+    export CLASSPATH=`pwd`/plugins/camel-postgresql-sink-kafka-connector/*
+    ./bin/connect-standalone.sh config/connect-standalone.properties
+    ```
+
+    Use the `-daemon` flag to run this process in the background.
+  </NumberedItem>
+  <NumberedItem title="Verify Kafka Connect is running">
+    In yet another another terminal window, run the following command:
+
+    ```bash
+    curl http://localhost:8083
+    ```
+
+    You see something like:
+
+    ```bash
+    {"version":"3.9.0","commit":"a60e31147e6b01ee","kafka_cluster_id":"J-iy4IGXTbmiALHwPZEZ-A"}
+    ```
+  </NumberedItem>
+</NumberedList>
+
+## Create a table in your service to ingest Kafka events
+
+To prepare your {C.SERVICE_LONG} for Kafka integration:
+
+<NumberedList>
+  <NumberedItem title={`Connect to your ${C.SERVICE_LONG}`}>
+    [Connect](/build/data-management/run-queries-from-tiger-console) to your {C.SERVICE_LONG}.
+  </NumberedItem>
+  <NumberedItem title={`Create a ${C.HYPERTABLE} to ingest Kafka events`}>
+    ```sql
+    CREATE TABLE accounts (
+     created_at TIMESTAMPTZ DEFAULT NOW(),
+     name TEXT,
+     city TEXT
+    ) WITH (
+      tsdb.hypertable
+    );
+    ```
+
+    <CreateHypertablePolicyNote />
+  </NumberedItem>
+</NumberedList>
+
+## Create the {C.CLOUD_LONG} sink
+
+To create a {C.CLOUD_LONG} sink in Apache Kafka:
+
+<NumberedList>
+  <NumberedItem title="Create the connection configuration">
+    1. In the terminal running Kafka Connect, stop the process by pressing `Ctrl+C`.
+    1. Write the following configuration to `<KAFKA_HOME>/config/timescale-standalone-sink.properties`, then update the `<properties>` with your [connection details](/integrate/find-connection-details).
+
+       ```properties
+       name=timescale-standalone-sink
+       connector.class=org.apache.camel.kafkaconnector.postgresqlsink.CamelPostgresqlsinkSinkConnector
+       errors.tolerance=all
+       errors.deadletterqueue.topic.name=deadletter
+       tasks.max=10
+       value.converter=org.apache.kafka.connect.storage.StringConverter
+       key.converter=org.apache.kafka.connect.storage.StringConverter
+       topics=accounts
+       camel.kamelet.postgresql-sink.databaseName=<dbname>
+       camel.kamelet.postgresql-sink.username=<user>
+       camel.kamelet.postgresql-sink.password=<password>
+       camel.kamelet.postgresql-sink.serverName=<host>
+       camel.kamelet.postgresql-sink.serverPort=<port>
+       camel.kamelet.postgresql-sink.query=INSERT INTO accounts (name,city) VALUES (:#name,:#city)
+       ```
+    1. Restart Kafka Connect with the new configuration:
+
+       ```bash
+       export CLASSPATH=`pwd`/plugins/camel-postgresql-sink-kafka-connector/*
+       ./bin/connect-standalone.sh config/connect-standalone.properties config/timescale-standalone-sink.properties
+       ```
+  </NumberedItem>
+  <NumberedItem title="Test the connection">
+    To see your sink, query the `/connectors` route in a GET request:
+
+    ```bash
+    curl -X GET http://localhost:8083/connectors
+    ```
+
+    You see:
+
+    ```bash
+    #["timescale-standalone-sink"]
+    ```
+  </NumberedItem>
+</NumberedList>
+
+## Test the integration with {C.CLOUD_LONG}
+
+To test this integration, send some messages onto the `accounts` topic. You can do this using the kafkacat or kcat utility.
+
+<NumberedList>
+  <NumberedItem title="In the terminal running `kafka-console-producer.sh` enter the following json strings">
+    ```bash
+    {"name":"Lola","city":"Copacabana"}
+    {"name":"Holly","city":"Miami"}
+    {"name":"Jolene","city":"Tennessee"}
+    {"name":"Barbara Ann ","city":"California"}
+    ```
+
+    Look in your terminal running `kafka-console-consumer` to see the messages being processed.
+  </NumberedItem>
+  <NumberedItem title={`Query your ${C.SERVICE_LONG} for all rows in the \`accounts\` table`}>
+    ```sql
+    SELECT * FROM accounts;
+    ```
+
+    You see something like:
+
+    | created\_at                    |  name  |      city |
+    | -- | --| -- |
+    |2025-02-18 13:55:05.147261+00 | Lola | Copacabana |
+    |2025-02-18 13:55:05.216673+00 | Holly | Miami |
+    |2025-02-18 13:55:05.283549+00 | Jolene | Tennessee |
+    |2025-02-18 13:55:05.35226+00 | Barbara Ann | California |
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated Apache Kafka with {C.CLOUD_LONG}.

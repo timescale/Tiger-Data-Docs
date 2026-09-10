@@ -20,4 +20,5 @@ Issue: #number
 - [ ] - I have tested any code that is added or updated on the latest available version.
 - [ ] - I have confirmed the content is free of typos or grammar errors.
 - [ ] - I have verified all images and videos are clear and match production (or dev for unreleased features).
+- [ ] - I have checked the component kitchen sink for any visual breakage (only needed if you changed components, styles, or dependencies). A link to this PR's own preview appears under **Affected pages** once the build deploys.
 - [ ] - This references a feature that is public. If not, add a note and we can schedule the merge for after the feature release.
