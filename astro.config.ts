@@ -892,6 +892,7 @@ export default defineConfig({
                   items: [
                     { label: "Overview", link: "/integrate/code" },
                     { label: "Connect your app", link: "/integrate/code/connect-your-app" },
+                    { label: "Prisma", link: "/integrate/code/prisma" },
                   ],
                 },
                 {
