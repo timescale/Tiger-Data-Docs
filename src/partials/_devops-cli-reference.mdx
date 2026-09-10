@@ -11,7 +11,7 @@ Many commands have shorter aliases, listed with each command below. Command name
 
 ### `tiger auth login`
 
-Create an authenticated connection to your {C.ACCOUNT_LONG}. This opens a browser to authorize. For non-interactive login, pass credentials as flags.
+Create an authenticated connection to your {C.ACCOUNT_LONG}. By default, this opens a browser on the same machine to authorize. On a machine without a browser, pass `--headless` to authorize with a device code instead. For non-interactive login, pass credentials as flags.
 
 **Usage**: `tiger auth login [flags]`
 
@@ -41,14 +41,34 @@ Successfully logged in (project: <project-id>)
 • Install MCP server for your favorite AI coding tool: tiger mcp install
 • List existing services: tiger service list
 • Create a new service: tiger service create
-• Enable read-only mode: tiger config set read_only true
+• Protect services from writes: tiger config set read_only prod (or all, off)
 ```
+
+The first time you log in interactively, {C.CLI_LONG} also asks `Which services should be protected from writes?` and stores your choice in the [`read_only` configuration option](#configuration-options). The question is asked once; to change the mode later, use `tiger config set read_only <mode>`.
 
 | Flag | Description |
 | --- | --- |
+| `--headless` | Authorize with a device code entered in a browser on any machine, instead of waiting for a redirect back to this one. |
 | `--project-id` | {C.PROJECT_SHORT} to log in to. Skips the interactive picker. |
 | `--public-key` | Public key for non-interactive login. |
 | `--secret-key` | Secret key for non-interactive login. |
+
+The browser login redirects back to a `localhost` port on the machine running {C.CLI_SHORT}, so it only works when the browser and {C.CLI_SHORT} are on the same machine; opening the auth URL from another machine does not complete the login. When {C.CLI_SHORT} runs somewhere without a browser, such as an SSH session, a container, or a remote development environment, pass `--headless` to use the device code flow instead:
+
+```bash
+tiger auth login --headless
+```
+
+You see something like:
+
+```txt
+To authenticate, visit: https://console.cloud.tigerdata.com/activate
+and enter code: K7QP3XVR
+
+Waiting for authorization (this can take a few seconds after you enter the code)...
+```
+
+Open the URL in a browser on any machine, enter the code, and authorize {C.CLI_LONG}; the command then continues exactly like the browser login. You don't have to remember the flag: if the browser cannot be opened, `tiger auth login` falls back to the device code flow automatically.
 
 You can also set the `TIGER_PUBLIC_KEY` and `TIGER_SECRET_KEY` environment variables; the {C.PROJECT_SHORT} is auto-detected from your credentials. See [Authentication parameters](#authentication-parameters) and [Client credentials](/integrate/find-connection-details#create-client-credentials) for how to create a public/secret key pair.
 
@@ -71,6 +91,8 @@ You see:
 ```txt
 Successfully logged out and removed stored credentials
 ```
+
+To sign a {C.CLI_SHORT} login out remotely, for example on a machine you no longer control, revoke its session in [{C.CONSOLE}](/deploy/tiger-cloud/tiger-cloud-aws/security/overview#active-sessions) instead.
 
 ### `tiger auth status`
 
@@ -99,6 +121,33 @@ You see something like:
 | `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
 ## Projects
+
+### `tiger project list`
+
+List the {C.PROJECT_SHORT}s you have access to. The active {C.PROJECT_SHORT}, the one later commands act on, is marked in the `CURRENT` column. Alias: `ls`.
+
+**Usage**: `tiger project list [flags]`
+
+```bash
+tiger project list
+```
+
+You see something like:
+
+```txt
+┌──────────────┬─────────────────────────────────┬─────────┐
+│  PROJECT ID  │              NAME               │ CURRENT │
+├──────────────┼─────────────────────────────────┼─────────┤
+│ <project-id> │ Tiger Project                   │ *       │
+│ <project-id> │ YourCompany (Company wide)      │         │
+└──────────────┴─────────────────────────────────┴─────────┘
+```
+
+To switch to another {C.PROJECT_SHORT}, use [`tiger project use`](#tiger-project-use).
+
+| Flag | Description |
+| --- | --- |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
 ### `tiger project use`
 
@@ -154,7 +203,7 @@ If they come from the environment:
 Error: cannot switch projects while TIGER_PUBLIC_KEY/TIGER_SECRET_KEY are set: an API key is scoped to a single project
 ```
 
-There is no command that lists your {C.PROJECT_SHORT}s. Find the ID in [{C.CONSOLE_LONG}](/integrate/find-connection-details#find-your-project-and-service-id), or read it out of any {C.SERVICE_SHORT}'s connection string.
+To find the ID of the {C.PROJECT_SHORT} you want, run [`tiger project list`](#tiger-project-list), look it up in [{C.CONSOLE_LONG}](/integrate/find-connection-details#find-your-project-and-service-id), or read it out of any {C.SERVICE_SHORT}'s connection string.
 
 ## Version
 
@@ -172,8 +221,8 @@ You see something like:
 
 ```txt
 ┌───────────────────┬──────────────────────────────────────────┐
-│ Tiger CLI Version │ 0.22.0                                   │
-│ Build Time        │ 2026-08-26T21:38:28Z                     │
+│ Tiger CLI Version │ 0.24.0                                   │
+│ Build Time        │ 2026-09-09T11:55:41Z                     │
 │ Git Commit        │ 56dd79944b4afbf8d86162533ad4bd14e56ebcc8 │
 │ Go Version        │ go1.27.0                                 │
 │ Platform          │ darwin/arm64                             │
@@ -198,11 +247,11 @@ tiger upgrade
 If you installed {C.CLI_LONG} with the direct install script and a newer version is available, you see:
 
 ```txt
-Upgrading tiger 0.21.2 → v0.22.0
-Downloading https://cli.tigerdata.com/releases/v0.22.0/tiger-cli_Darwin_arm64.tar.gz
+Upgrading tiger 0.23.0 → v0.24.0
+Downloading https://cli.tigerdata.com/releases/v0.24.0/tiger-cli_Darwin_arm64.tar.gz
 Verifying checksum
 Installing new binary to <install-path>/tiger
-tiger upgraded successfully to v0.22.0
+tiger upgraded successfully to v0.24.0
 ```
 
 If you installed {C.CLI_LONG} with a package manager such as Homebrew, `apt`, or `yum`/`dnf`, this command refuses to run and points you to that package manager instead.
@@ -237,7 +286,7 @@ You see something like:
 │ color            │ true                                              │
 │ output           │ table                                             │
 │ password_storage │ keyring                                           │
-│ read_only        │ false                                             │
+│ read_only        │ off                                               │
 │ releases_url     │ https://cli.tigerdata.com                         │
 │ service_id       │                                                   │
 │ version_check    │ true                                              │
@@ -259,13 +308,13 @@ Set a configuration value. See [Configuration parameters](#configuration-paramet
 ```bash
 tiger config set <key> <value>
 # for example
-tiger config set read_only true
+tiger config set read_only prod
 ```
 
 You see:
 
 ```txt
-Set read_only = true
+Set read_only = prod
 ```
 
 ### `tiger config unset`
@@ -623,8 +672,46 @@ tsdb=>
 | --- | --- |
 | `--pooled` | Use connection pooling (default: `false`). |
 | `--role` | Database role (default: `tsdbadmin`). |
-| `--read-only` | Open the session in {C.CLOUD_LONG}'s immutable read-only mode, so writes and DDL are rejected by the server. The [`read_only` config option](#configuration-parameters) or `TIGER_READ_ONLY=true` forces the same behavior. |
+| `--read-only` | Open the session in {C.CLOUD_LONG}'s immutable read-only mode, so writes and DDL are rejected by the server. The [`read_only` config option](#configuration-parameters) (or `TIGER_READ_ONLY`) forces the same behavior for every {C.SERVICE_SHORT} (`all`) or for {C.SERVICE_SHORT}s tagged `PROD` (`prod`). |
 | `--no-replica-prompt` | Do not prompt to connect to a read replica. |
+
+### `tiger db query`
+
+Run a SQL query against a {C.SERVICE_SHORT} and print the results. Unlike [`db connect`](#tiger-db-connect), this runs the query directly and does not require a local `psql` installation. Pass a read replica set ID instead of a {C.SERVICE_SHORT} ID to query that replica. Alias: `sql`.
+
+**Usage**: `tiger db query [service-id] [flags]`
+
+The query comes from `--command`, from the SQL file named by `--file`, or, if neither is given, from stdin:
+
+```bash
+tiger db query <service-id> -c "SELECT * FROM users LIMIT 5"
+tiger db query <service-id> -f schema.sql
+echo "SELECT 1" | tiger db query <service-id>
+```
+
+You see something like:
+
+```txt
+ id | name  |       created_at
+----|-------|------------------------
+ 1  | alice | 2026-01-01 00:00:00+00
+ 2  | bob   | 2026-01-02 00:00:00+00
+(2 rows)
+```
+
+Row-returning statements print a `psql`-style table (or JSON/YAML with `--output`); other statements print their command tag, such as `INSERT 0 1`. Multi-statement queries (semicolon-separated) are supported, and the results of every row-returning statement are displayed. The statements run in an implicit transaction that commits on success and rolls back on error; a transaction opened with `BEGIN` must be committed explicitly or it rolls back when the connection closes.
+
+| Flag | Description |
+| --- | --- |
+| `--command, -c` | SQL query to execute (mutually exclusive with `--file`). |
+| `--file, -f` | Path to a SQL file to execute (mutually exclusive with `--command`). |
+| `--role` | Database role (default: `tsdbadmin`). |
+| `--pooled` | Use connection pooling (default: `false`). |
+| `--read-only` | Open the session in {C.CLOUD_LONG}'s immutable read-only mode, so writes and DDL are rejected by the server. The [`read_only` config option](#configuration-parameters) (or `TIGER_READ_ONLY`) forces the same behavior for every {C.SERVICE_SHORT} (`all`) or for {C.SERVICE_SHORT}s tagged `PROD` (`prod`). |
+| `--timeout` | Query timeout, for example `30s`, `5m` (default: `0`, no timeout). |
+| `--output, -o` | Output format: `table`, `json`, or `yaml`. |
+
+This command is the {C.CLI_SHORT} equivalent of the [`db_query`](/reference/tiger-cloud/tiger-mcp#db_query) {C.MCP_SHORT} tool, with one difference: the {C.MCP_SHORT} tool caps how many rows it returns to the agent, while the {C.CLI_SHORT} command returns everything the query produced.
 
 ### `tiger db connection-string`
 
@@ -781,7 +868,9 @@ Install and manage {C.MCP_LONG}, the tool your AI agent uses to work with {C.CLO
 
 ### `tiger mcp install`
 
-Install and configure {C.MCP_LONG} for an AI agent. Supported clients: `claude-code`, `codex`, `cursor`, `gemini`, `vscode`, `windsurf`, `antigravity`, `kiro-cli`. If no client is given, you are prompted to choose. Alias: `add`.
+Install and configure {C.MCP_LONG} for an AI agent. Supported clients: `claude-code`, `codex`, `copilot`, `cursor`, `gemini`, `vscode`, `windsurf`, `antigravity`, `kiro-cli`. If no client is given, you are prompted to choose. Alias: `add`.
+
+The `copilot` client configures the GitHub Copilot CLI, and the GitHub Copilot desktop app picks up the same configuration.
 
 **Usage**: `tiger mcp install [client] [flags]`
 
@@ -821,7 +910,7 @@ You see something like:
 │ prompt │ postgres-database-migration            │
 │ prompt │ postgres-hybrid-text-search            │
 │ prompt │ setup-timescaledb-hypertables          │
-│ tool   │ db_execute_query                       │
+│ tool   │ db_query                               │
 │ tool   │ db_schema                              │
 │ tool   │ search_docs                            │
 │ tool   │ service_create                         │
