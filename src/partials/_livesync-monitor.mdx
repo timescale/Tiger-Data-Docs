@@ -1,0 +1,58 @@
+import * as C from "@constants";
+
+```bash
+docker logs -f livesync
+```
+
+**Table sync status**
+
+```bash
+psql "$TARGET" -c "
+  SELECT state, last_error, count(*)
+  FROM _ts_live_sync.subscription_rel
+  GROUP BY 1, 2 ORDER BY 1, 2;
+"
+```
+
+Tables with errors appear as separate rows grouped by `last_error`.
+
+| State | Meaning |
+| --- | --- |
+| `i` | Initial state; table data sync not started. |
+| `d` | Initial table data sync is in progress. |
+| `f` | Initial table data sync completed; catching up with incremental changes. |
+| `s` | Synchronized; waiting for the main apply worker to take over. |
+| `r` | Table is ready; applying changes in real time. |
+
+**COPY progress during initial sync**
+
+Monitor that the initial data copy is progressing as expected. The number of rows returned should usually match the `--table-sync-workers` value.
+
+```bash
+psql "$SOURCE" -c "SELECT * FROM pg_stat_progress_copy;"
+```
+
+**Replication lag**
+
+On the source using `pg_replication_slots`:
+
+```bash
+psql "$SOURCE" -c "
+  SELECT slot_name,
+    pg_size_pretty(pg_current_wal_flush_lsn() - confirmed_flush_lsn) AS lag
+  FROM pg_replication_slots
+  WHERE slot_name LIKE 'live_sync_%' AND slot_type = 'logical';
+"
+```
+
+On the target using `_ts_live_sync.subscription` (also shows `last_error` if any):
+
+```bash
+psql "$TARGET" -c "
+  SELECT
+    pg_size_pretty(source_flush_lsn - last_replicated_lsn) AS lag_bytes,
+    (metrics_updated_at - last_replicated_txn_time) AS lag_duration,
+    *
+  FROM _ts_live_sync.subscription;
+"
+```

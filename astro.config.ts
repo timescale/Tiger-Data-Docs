@@ -309,8 +309,8 @@ export default defineConfig({
         layout: "stacked",
         links: [
           {
-            label: "Get started",
-            link: "/get-started",
+            label: "Start a free trial",
+            link: "https://console.cloud.tigerdata.com/signup",
           },
         ],
       },
@@ -366,6 +366,7 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "5-minute quickstart", link: "/get-started/quickstart/quickstart-5-minutes" },
+                { label: "Create a Tiger Cloud account", link: "/get-started/quickstart/create-account" },
                 { label: "Create a Tiger Cloud service", link: "/get-started/quickstart/create-service" },
                 { label: "Supported regions", link: "/get-started/supported-regions" },
               ],
@@ -567,6 +568,7 @@ export default defineConfig({
                 { label: "Ingest real-time financial data", link: "/build/examples/ingest-real-time-financial-data" },
                 { label: "Analyze application events with UUIDv7", link: "/build/examples/analyze-events-with-uuidv7" },
                 { label: "Build hybrid search with BM25 and vectors", link: "/build/examples/hybrid-search" },
+                { label: "Build a production RAG system with Postgres", link: "/build/examples/rag-postgres" },
                 { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
                 { label: "Analyze stock market data", link: "/build/examples/analyze-stock-market-data" },
                 { label: "Analyze NYC taxi data", link: "/build/examples/analyze-nyc-taxi-data" },
@@ -868,7 +870,7 @@ export default defineConfig({
                       collapsed: true,
                       items: [
                         {
-                          label: "TigerLake (Iceberg)",
+                          label: "Tiger Lake (Iceberg)",
                           collapsed: true,
                           items: [
                             {
