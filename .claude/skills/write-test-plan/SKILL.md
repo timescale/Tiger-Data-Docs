@@ -70,9 +70,9 @@ disabled until something changes. All three were found by running, not reading. 
      ``click `Download the config` in `Download your database config` ``.
 
    - **Press only the controls the page names, in the places the page names them.** A reader and the
-     run must not diverge on this, or the run is not evidence about the page. Every run reports a
-     press whose label is not in the page's code-font spans (or, for a multi-word label, stated
-     verbatim in its prose). A finding means one of two things and both need you: the page is missing
+     run must not diverge on this, or the run is not evidence about the page. A press whose label is
+     not in the page's code-font spans (or, for a multi-word label, stated verbatim in its prose) is
+     reported by `lint-plan.mjs` before you spend a walk, and again by the run. A finding means one of two things and both need you: the page is missing
      a step, or the plan invented a control. The members plan typed into `Email`, which neither the
      page nor the Console has — the field is `Type the email` — and it passed for weeks because the
      tool resolved it by placeholder.
@@ -103,8 +103,8 @@ disabled until something changes. All three were found by running, not reading. 
 
    **Prove every assertion can fail, before you trust it passing.** Write it, then break the thing it
    watches and confirm it goes red. An assertion nobody has seen fail is indistinguishable from one
-   that cannot: `run SQL:` only fails when a statement ERRORS, so a mistyped catalog name, a filter
-   that matches nothing, or a `DO` block that never reaches its `RAISE` all report green forever.
+   that cannot, and for the same reason as above: a mistyped catalog name, a filter that matches
+   nothing, or a `DO` block that never reaches its `RAISE` all report green forever.
    Cheapest form is to run the compiled SQL against a local database twice, once with the documented
    state and once without.
 
@@ -169,9 +169,8 @@ disabled until something changes. All three were found by running, not reading. 
    Three checks, none of which needs a browser, a service or a fork, so run this on every draft
    before spending a walk:
    - **Grammar.** Any line matching no verb, which would otherwise be dropped silently.
-   - **Controls not named on the page.** The plan presses something the page never mentions. Either
-     the page is missing a step or the plan invented a path; both need you. This used to surface only
-     after a run, which is the wrong end of the loop for a check that reads a file.
+   - **Controls not named on the page.** The rule in step 5, checked before you spend a walk rather
+     than after one.
    - **Statements drifted from the page.** A `run SQL:` that is *almost* one of the page's blocks.
      Filled placeholders and fixtures the plan invents are not flagged, by construction; what is
      flagged is a retyping slip, or a page that moved under its plan.
@@ -286,8 +285,8 @@ not re-derive them, not so you can leave a route off the list:
 - **Not graded step-for-step against the prose.** `expect rows:` has no counterpart in writing,
   `go to /path` is positioning, and `fork the service` is infrastructure; there is no rule that every
   documented step must have a plan step either. A rule that graded everything existed and was deleted
-  for flagging every plan everywhere. What IS enforced is narrower and survives: the controls a plan
-  presses must be controls the page names.
+  for flagging every plan everywhere. What IS enforced is narrower and survives: the control rule in
+  step 5, and the statement rule in step 8.
 - **Not sectioned.** No Isolation, Setup, Inputs, Notes, Assert or Cleanup headings. One numbered
   list; text that is not numbered is commentary. The closing `Not scripted:` list is commentary of
   exactly that kind, not a section coming back: nothing parses it and it carries no steps.
