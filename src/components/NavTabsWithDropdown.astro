@@ -83,6 +83,8 @@ const SECTION_DROPDOWN_EXPAND: Record<string, Set<string>> = {
 
 const BASE_PREFIX = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+const docsHomeLink = BASE_PREFIX || "/";
+
 /**
  * Strip the Astro base path (e.g. `/docs` in production) from a root-relative href.
  * Tab links from the TABS virtual module arrive already base-prefixed, while sidebar
@@ -99,6 +101,12 @@ function stripBasePrefix(p: string): string {
 function normalizePath(h: string): string {
   return stripBasePrefix(h.split("#")[0]).replace(/\/$/, "") || "/";
 }
+
+// `StarlightRouteData` has no `pathname` field (only `id`, the content slug), so
+// reading `routeData?.pathname` was always undefined and `currentPath` always fell
+// back to "/", making the home icon look active on every page. Use Astro.url instead.
+const currentPath = normalizePath(Astro.url.pathname);
+const isHomeActive = currentPath === normalizePath(docsHomeLink);
 
 /**
  * First page URL in sidebar order (depth-first). Used when a section has nested groups
@@ -290,6 +298,23 @@ for (const item of navItems) {
 
 <div class="stl-secondary-nav-tabs stl-nav-tabs-with-dropdown">
   <ul>
+    <li class:list={["nav-home-item", isHomeActive && "active"]}>
+      <Button
+        href={docsHomeLink}
+        variant="ghost"
+        className={["nav-home-link", isHomeActive && "stl-active-secondary-link"].filter(Boolean).join(" ")}
+        aria-label="Docs homepage"
+      >
+        <Button.Label>
+          <span class="nav-home-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+          </span>
+        </Button.Label>
+      </Button>
+    </li>
     {
       navItems.map((item) => {
         const tree = dropdownTreeByTab.get(item.label) ?? [];
@@ -355,7 +380,12 @@ for (const item of navItems) {
     border-bottom: 2px solid transparent;
   }
 
-  .stl-nav-tabs-with-dropdown li.active {
+  /*
+   * The home <li>'s active indicator is drawn separately (see .nav-home-link::after below):
+   * this li's box is sized by shrink-to-fit around the icon-only button's negative-margin
+   * hit-target trick, which does not reliably center a border-bottom under the icon.
+   */
+  .stl-nav-tabs-with-dropdown li.active:not(.nav-home-item) {
     border-color: var(--stl-color-accent-border-strong);
   }
 
@@ -371,6 +401,129 @@ for (const item of navItems) {
 
   .stl-nav-tabs-with-dropdown li:not(:last-child) {
     margin-inline-end: 12px;
+  }
+
+  @media (max-width: 85rem) {
+    .stl-nav-tabs-with-dropdown .stl-ui-button {
+      padding: 8px 8px;
+      margin-inline: -8px;
+    }
+
+    .stl-nav-tabs-with-dropdown li:not(:first-child) {
+      margin-inline-start: 8px;
+    }
+
+    .stl-nav-tabs-with-dropdown li:not(:last-child) {
+      margin-inline-end: 8px;
+    }
+
+    .stl-nav-tabs-with-dropdown .stl-ui-button.nav-home-link {
+      padding: 8px 6px;
+      margin-inline: -6px;
+    }
+  }
+
+  @media (max-width: 72rem) {
+    .stl-nav-tabs-with-dropdown .stl-ui-button {
+      padding: 6px 5px;
+      margin-inline: -5px;
+      font-size: 0.875rem;
+    }
+
+    .stl-nav-tabs-with-dropdown li:not(:first-child) {
+      margin-inline-start: 5px;
+    }
+
+    .stl-nav-tabs-with-dropdown li:not(:last-child) {
+      margin-inline-end: 5px;
+    }
+
+    .stl-nav-tabs-with-dropdown .stl-ui-button.nav-home-link {
+      padding: 6px 4px;
+      margin-inline: -4px;
+    }
+
+    .nav-chevron {
+      margin-left: 2px;
+    }
+  }
+
+  @media (max-width: 60rem) {
+    .stl-nav-tabs-with-dropdown .stl-ui-button {
+      padding: 6px 3px;
+      margin-inline: -3px;
+      font-size: 0.8125rem;
+    }
+
+    .stl-nav-tabs-with-dropdown li:not(:first-child) {
+      margin-inline-start: 3px;
+    }
+
+    .stl-nav-tabs-with-dropdown li:not(:last-child) {
+      margin-inline-end: 3px;
+    }
+
+    .stl-nav-tabs-with-dropdown .stl-ui-button.nav-home-link {
+      padding: 6px 2px;
+      margin-inline: -2px;
+    }
+  }
+
+  .stl-nav-tabs-with-dropdown .stl-ui-button.nav-home-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* Match .nav-dropdown-wrapper (38px) so the home <li> is the same height as the tab <li>s */
+    min-height: 38px;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    margin-inline: -10px;
+    text-decoration: none;
+  }
+
+  .stl-nav-tabs-with-dropdown .stl-ui-button.nav-home-link:hover,
+  .stl-nav-tabs-with-dropdown .stl-ui-button.nav-home-link:focus,
+  .stl-nav-tabs-with-dropdown .stl-ui-button.nav-home-link:focus-visible {
+    text-decoration: none;
+  }
+
+  /*
+   * Active indicator for the home icon: positioned relative to the button's own box
+   * (which is symmetric around the icon, since both the button and its label center
+   * the icon via flexbox) instead of the parent <li>'s border-bottom. The <li>'s
+   * shrink-to-fit width collapses around the icon's negative-margin hit-target trick
+   * and is not reliably centered under the icon, which produced a lopsided line.
+   * 16px matches the icon's fixed width (the icon does not resize across breakpoints).
+   */
+  .nav-home-link.stl-active-secondary-link::after {
+    content: "";
+    position: absolute;
+    bottom: -3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 2px;
+    background-color: var(--stl-color-accent-border-strong);
+  }
+
+  .nav-home-link :global(.stl-ui-button-label) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    text-decoration: none;
+  }
+
+  .nav-home-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-home-icon svg {
+    display: block;
+    vertical-align: middle;
   }
 
   .nav-chevron {

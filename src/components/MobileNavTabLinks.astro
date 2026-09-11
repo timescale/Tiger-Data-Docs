@@ -28,6 +28,12 @@ const navItems = tabsFromConfig
 
 const BASE_PREFIX = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+const docsHomeLink = BASE_PREFIX || "/";
+// `StarlightRouteData` has no `pathname` field, so reading it always fell back to "/",
+// which made the home icon look active on every page. Use Astro.url instead.
+const currentPath = Astro.url.pathname.replace(/\/$/, "") || "/";
+const isHomeActive = currentPath === (docsHomeLink.replace(/\/$/, "") || "/");
+
 function prefixHref(href: string): string {
   if (!href.startsWith("/")) return href;
   if (href.startsWith(BASE_PREFIX + "/") || href === BASE_PREFIX) return href;
@@ -37,6 +43,25 @@ function prefixHref(href: string): string {
 
 <nav class="docs-mobile-tab-links" aria-label="Documentation sections">
   <ul class="docs-mobile-tab-links__list">
+    <li>
+      <a
+        href={docsHomeLink}
+        class:list={[
+          "docs-mobile-tab-links__link",
+          "docs-mobile-tab-links__link--home",
+          isHomeActive && "docs-mobile-tab-links__link--active",
+        ]}
+        aria-current={isHomeActive ? "page" : undefined}
+        aria-label="Docs homepage"
+      >
+        <span class="nav-home-icon" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+        </span>
+      </a>
+    </li>
     {
       navItems.map((item) => (
         <li>
@@ -98,6 +123,13 @@ function prefixHref(href: string): string {
 
   .docs-mobile-tab-links__link:hover {
     background-color: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
+  }
+
+  /* Keep the icon-only home link the same height as the text links */
+  .docs-mobile-tab-links__link--home .nav-home-icon,
+  .docs-mobile-tab-links__link--home .nav-home-icon svg {
+    display: block;
+    line-height: 0;
   }
 
   .docs-mobile-tab-links__link--active {
