@@ -64,6 +64,11 @@ disabled until something changes. All three were found by running, not reading. 
      `confirm` is not a style preference. A plain `click` on a dialog button reads as a plan that
      wandered off the documented path (see the control-naming rule below), and `confirm` additionally
      makes the walker check that a dialog is actually open, which a click never did.
+   - **Check for a duplicate label before writing a bare `click`.** A bare click takes the first
+     match in DOM order. The screen shown after a {C.SERVICE_SHORT} is created has TWO buttons
+     labelled `Download the config`, one per file, and the plan hit the right one by luck. Scope it:
+     ``click `Download the config` in `Download your database config` ``.
+
    - **Press only the controls the page names, in the places the page names them.** A reader and the
      run must not diverge on this, or the run is not evidence about the page. Every run reports a
      press whose label is not in the page's code-font spans (or, for a multi-word label, stated
@@ -117,6 +122,18 @@ disabled until something changes. All three were found by running, not reading. 
    *it* still passes while the other value is quietly wrong. Verified: with `end_offset` regressed,
    the `schedule_interval` assertion still passed and only the `end_offset` one caught it.
 
+   **`expect label` is the weakest assertion there is, and it passes on text you cannot see.** On
+   create-service it reported `✓ \`Ready\` is on the page` where the screenshot shows no such word:
+   it had matched the SQL editor's own connection indicator, not the {C.SERVICE_SHORT}'s status. Reach
+   for `expect rows` or `expect url` first, and when only `expect label` will do, open the screenshot
+   for that step before you believe it.
+
+   **Never assert a step that belongs to a procedure the plan declares unscripted.** The
+   create-service plan ended on the `Ready` check, which is the opening step of "Connect to your
+   {C.SERVICE_SHORT}" — the procedure listed under `Not scripted:` three lines below. A plan that
+   contradicts its own list is worse than one that covers less, because the list is the only record a
+   reviewer has of what was left out on purpose.
+
    **A plan whose steps are all clicks needs an assertion at the END, without exception.** A click
    step is the weakest evidence a plan can carry: it says a control was found and pressed, not that
    anything happened. That is not a hypothetical — for a stretch of the tool's history every
@@ -144,9 +161,26 @@ disabled until something changes. All three were found by running, not reading. 
    fork. Where the page's gap is a table or schema the reader already owns, **the plan creates its
    own** rather than guessing at what the standing service holds.
 
-8. **Parse the draft with the tool's own parser, verify its SQL locally, then run.**
+8. **Lint the draft, verify its SQL locally, then run.**
    ```bash
    cd ../doc-testing-tool-poc
+   node scripts/lint-plan.mjs "<page url>"
+   ```
+   Three checks, none of which needs a browser, a service or a fork, so run this on every draft
+   before spending a walk:
+   - **Grammar.** Any line matching no verb, which would otherwise be dropped silently.
+   - **Controls not named on the page.** The plan presses something the page never mentions. Either
+     the page is missing a step or the plan invented a path; both need you. This used to surface only
+     after a run, which is the wrong end of the loop for a check that reads a file.
+   - **Statements drifted from the page.** A `run SQL:` that is *almost* one of the page's blocks.
+     Filled placeholders and fixtures the plan invents are not flagged, by construction; what is
+     flagged is a retyping slip, or a page that moved under its plan.
+
+   It also warns when a plan asserts nothing at all.
+
+   For the detail behind a finding, or to see the compiled `DO … RAISE EXCEPTION` block an `expect`
+   turns into, ask `parsePlan` directly:
+   ```bash
    node -e 'import("./lib/resolve-page.mjs").then(async (rp) => {
      const { parsePlan } = await import("./lib/plan.mjs");
      const p = parsePlan(rp.resolvePage("<page url>").mdx);
@@ -182,6 +216,12 @@ disabled until something changes. All three were found by running, not reading. 
    extracted file was empty and `psql` exited 0 on nothing: five steps reported PASS, including the one
    that was supposed to fail. It was caught only because a negative test is expected to go red, and a
    green there is a bug in the test. Assert the fixture is non-empty; make the negative case fail first.
+
+   **Read the screenshots on a PASS too. They prove things an assertion cannot.** The quickstart run
+   confirmed the page's "most recent first" claim from the result grid, which no `expect` could check
+   because the tool never sees result order, and confirmed `tsdb.segmentby` and `tsdb.orderby` reached
+   the database verbatim. They also catch the opposite: a green step whose screenshot shows a screen
+   where the thing it claims to have found is not present.
 
    **Hash the screenshots before theorising about a failure.** `md5 screenshots/<page>-p0-step*.png`
    takes a second and answers the question the log cannot: whether the page ever changed. Seven
