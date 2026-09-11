@@ -61,6 +61,45 @@ data.
    | 2025-12-10 12:00:00+00 | 2 | 19.985153555974925 | 19.985153555974925 | 19.985153555974925 |
    | 2025-12-10 12:00:00+00 | 3 | 20.002541510158228 | 20.002541510158228 | 20.002541510158228 |
 
+3. **Fill gaps between the earliest and latest rows in the table**
+
+   In {C.TIMESCALE_DB} 2.28 and later, the gapfill boundaries can come from subquery results instead of constants. For example, use the table's own minimum and maximum timestamps as the gapfill range:
+
+   ```sql
+   SELECT
+     time_bucket_gapfill('1 hour', time) AS hour,
+     sensor_id,
+     locf(AVG(temperature)) AS locf_temp
+   FROM sensor_data
+   WHERE time >= (SELECT min(time) FROM sensor_data)
+     AND time < (SELECT max(time) FROM sensor_data)
+   GROUP BY hour, sensor_id
+   ORDER BY sensor_id, hour;
+   ```
+
+   The subqueries must be uncorrelated: a subquery that references a column of the outer query cannot be used to infer the gapfill boundaries.
+
+4. **Use a different bucket width for each group**
+
+   In {C.TIMESCALE_DB} 2.28 and later, `bucket_width` can also come from a subquery. Combine this with a `LATERAL` join to gapfill each sensor at its own resolution:
+
+   ```sql
+   SELECT s.sensor_id, bucket, locf_temp
+   FROM (VALUES (1, '15 minutes'::interval),
+                (2, '1 hour'::interval)) s (sensor_id, bucket_width)
+   INNER JOIN LATERAL (
+     SELECT
+       time_bucket_gapfill(s.bucket_width, time) AS bucket,
+       locf(AVG(temperature)) AS locf_temp
+     FROM sensor_data
+     WHERE sensor_id = s.sensor_id
+       AND time >= (SELECT min(time) FROM sensor_data)
+       AND time < (SELECT max(time) FROM sensor_data)
+     GROUP BY bucket
+   ) sq ON true
+   ORDER BY s.sensor_id, bucket;
+   ```
+
 ## Arguments
 
 The syntax is:
