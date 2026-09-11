@@ -901,6 +901,7 @@ export default defineConfig({
                     { label: "Overview", link: "/integrate/query-administration" },
                     { label: "Azure Data Studio", link: "/integrate/query-administration/azure-data-studio" },
                     { label: "DBeaver", link: "/integrate/query-administration/dbeaver" },
+                    { label: "LibreDB Studio", link: "/integrate/query-administration/libredb-studio" },
                     { label: "pgAdmin", link: "/integrate/query-administration/pgadmin" },
                     { label: "PostgreSQL", link: "/integrate/query-administration/postgresql" },
                     { label: "psql", link: "/integrate/query-administration/psql" },
