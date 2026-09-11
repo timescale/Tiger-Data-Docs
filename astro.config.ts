@@ -840,6 +840,7 @@ export default defineConfig({
                     { label: "Kepware KEPServerEX", link: "/integrate/data-ingestion-streaming/kepware-kepserverex" },
                     { label: "Litmus Edge", link: "/integrate/data-ingestion-streaming/litmus-edge" },
                     { label: "Node-RED", link: "/integrate/data-ingestion-streaming/node-red" },
+                    { label: "sqlflow", link: "/integrate/data-ingestion-streaming/sqlflow" },
                   ],
                 },
                 {
