@@ -73,9 +73,8 @@ disabled until something changes. All three were found by running, not reading. 
      run must not diverge on this, or the run is not evidence about the page. A press whose label is
      not in the page's code-font spans (or, for a multi-word label, stated verbatim in its prose) is
      reported by `lint-plan.mjs` before you spend a walk, and again by the run. A finding means one of two things and both need you: the page is missing
-     a step, or the plan invented a control. The members plan typed into `Email`, which neither the
-     page nor the Console has — the field is `Type the email` — and it passed for weeks because the
-     tool resolved it by placeholder.
+     a step, or the plan invented a control. A plan once typed into `Email`, a field neither the page
+     nor the Console has, and passed for weeks because the tool resolved it by placeholder.
 
 6. **Add assertions.** `run SQL:` only fails when a statement ERRORS, so a `SELECT` over an empty
    table passes: without assertions a plan can walk an entire ingest route, load nothing, and report
@@ -204,29 +203,21 @@ disabled until something changes. All three were found by running, not reading. 
    would-be assertion bug before a single cloud minute was spent. Never retype the SQL by hand for
    this — extract it, or you are testing something the plan does not say.
 
-9. **Fix what the run reports, and expect the fix to land in three different places.** On
-   tiger-cloud-essentials, five runs sent fixes to the docs (an undocumented dialog), to the plan (a
-   missing "choose an option" before a disabled submit), and to the tool (a panel covering a form).
-   Read the screenshots: the terminal output misled three times on one bug, and a single wrong control
-   produced 13 consecutive failures.
+9. **Fix what the run reports.** A fix lands in one of three places, and which one is not obvious
+   from the failure: the docs, the plan, or the tool.
 
-   **Your verification harness can false-pass too, and it is not exempt.** A one-liner that split the
-   compiled SQL per step matched `-- step N` while the generated lines read `\echo -- step N`, so every
-   extracted file was empty and `psql` exited 0 on nothing: five steps reported PASS, including the one
-   that was supposed to fail. It was caught only because a negative test is expected to go red, and a
-   green there is a bug in the test. Assert the fixture is non-empty; make the negative case fail first.
+   **Read the screenshots, on a pass as much as a failure.** The terminal says what a step claimed;
+   the screenshot says what was on screen. They prove things an assertion cannot — result ordering,
+   or a value reaching the database verbatim — and they expose the opposite: a green step whose
+   screenshot does not show the thing it claims to have found.
 
-   **Read the screenshots on a PASS too. They prove things an assertion cannot.** The quickstart run
-   confirmed the page's "most recent first" claim from the result grid, which no `expect` could check
-   because the tool never sees result order, and confirmed `tsdb.segmentby` and `tsdb.orderby` reached
-   the database verbatim. They also catch the opposite: a green step whose screenshot shows a screen
-   where the thing it claims to have found is not present.
+   **Hash them before theorising.** `md5 screenshots/<page>-p0-step*.png` answers what the log cannot:
+   whether the page ever changed. Identical shots across consecutive passing steps mean the steps did
+   nothing. Compare bytes, not eyes — shots that look alike in the visible region have misled before.
 
-   **Hash the screenshots before theorising about a failure.** `md5 screenshots/<page>-p0-step*.png`
-   takes a second and answers the question the log cannot: whether the page ever changed. Seven
-   byte-identical shots across seven consecutive "passing" steps is what exposed the members plan's
-   real problem, and two shots that merely LOOK identical in the visible region have sent this work
-   down a wrong path before, so compare bytes rather than eyes.
+   **Your verification harness can false-pass too.** Assert its fixtures are non-empty, and make the
+   negative case fail before you trust the positive one. A harness that silently extracted no SQL
+   once reported five passes, including the step that was supposed to fail.
 
 ## Routes not to script, and why
 
@@ -244,10 +235,8 @@ reading the plan, who otherwise cannot tell a procedure left out on purpose from
 remembered.
 
 **Only PROCEDURES belong on it.** A `##` section of pure reference prose has nothing to press, so it
-is not a gap and listing it is noise: connection-pooling has eight headings of which four are
-explanation (`Pool types`, `Connection pool sizes`, `VPC and connection pooling`, `Min and max
-connection ranges`), and naming those buried the one thing the list is for. When every procedure on a
-page is driven, the block goes away entirely rather than listing what was never drivable.
+is not a gap, and listing it buries the entries that are. When every procedure on a page is driven,
+the block goes away entirely rather than listing what was never drivable.
 
 Among procedures, name every one the plan does not drive, whatever the reason: a list filtered by
 reason leaves the reader doing the same guessing the list exists to stop.
