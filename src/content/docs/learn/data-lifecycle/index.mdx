@@ -1,8 +1,15 @@
 ---
 title: Understand the data lifecycle
 description: Learn how to manage time-series data from ingestion to deletion using hypertables, continuous aggregates, tiered storage, and retention policies
-products: [cloud, mst, self_hosted]
+products: [cloud, self_hosted]
 keywords: [data lifecycle, data management, data retention, continuous aggregates, tiered storage, compression]
+learnMore:
+  relatedPostsHeading: Related resources
+  relatedPosts:
+    - label: "Moving from row deletes to instant data retention"
+      href: https://www.tigerdata.com/blog/moving-from-row-deletes-to-instant-data-retention
+    - label: "Video: a cheap way to scale your PostgreSQL storage with Timescale data tiering"
+      href: https://www.youtube.com/watch?v=SJll9l4NU4I
 ---
 
 import * as C from "@constants";
@@ -189,8 +196,8 @@ to automatically convert {C.CHUNK}s after a set interval:
 SELECT add_columnstore_policy('conditions', after => INTERVAL '7 days');
 ```
 
-Once a {C.CHUNK} is in the {C.COLUMNSTORE}, it still supports inserts and
-updates — [hypercore](/learn/columnar-storage/understand-hypercore), the
+Once a {C.CHUNK} is in the {C.COLUMNSTORE}, it still supports inserts, updates,
+deletes, and upserts. [{C.HYPERCORE_CAP}](/learn/columnar-storage/understand-hypercore), the
 underlying storage engine, handles this transparently.
 
 ### Tier to low-cost storage
@@ -246,7 +253,7 @@ Because {C.TIMESCALE_DB} drops entire {C.CHUNK}s rather than deleting rows one
 by one, retention is nearly instantaneous and avoids the performance overhead
 of `DELETE` + `VACUUM`.
 
-<Callout variant="important">
+<Callout variant="warning">
 If you use {C.CAGG}s, make sure your retention policy interval is longer
 than the {C.CAGG} refresh window. Otherwise, the refresh sees the deleted
 raw data and removes the aggregate too. For details, see

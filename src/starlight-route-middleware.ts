@@ -10,8 +10,17 @@ export const onRequest = defineRouteMiddleware(async (context, next) => {
   // so the sidebar has its final entries before we flatten single-child groups.
   await next();
 
-  const route = context.locals.starlightRoute;
-  if (route?.sidebar?.length) {
-    route.sidebar = flattenSidebarSingleChildGroups(route.sidebar);
+  try {
+    const route = context.locals.starlightRoute;
+    if (route) {
+      // Set siteTitleHref to point the logo at the main Tiger Data website
+      route.siteTitleHref = "https://www.tigerdata.com";
+      // Flatten single-child sidebar groups
+      if (route.sidebar?.length) {
+        route.sidebar = flattenSidebarSingleChildGroups(route.sidebar);
+      }
+    }
+  } catch {
+    // starlightRoute may not be available during prerender of non-Starlight pages (e.g., 404)
   }
 });

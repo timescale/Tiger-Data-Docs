@@ -1,0 +1,86 @@
+[
+  {
+    "checklistItem": "A2",
+    "category": "product-tag-truthfulness",
+    "severity": "high",
+    "pages": ["/integrate/code/connect-your-app"],
+    "evidence": "Frontmatter: `products: [cloud, self_hosted]` but `description: \"Integrate your app with self-hosted TimescaleDB using your preferred programming language\"` and body: `Easily integrate your app with {C.SELF_LONG}.` The page's Prerequisites for every language tab (Ruby, Python, Node.js, Go, Java) import `IntegrationPrereqsSelfOnly from './_prereqs-self-instance.mdx'`, whose only content is `* A [{C.SELF_LONG}](/get-started/choose-your-path/install-timescaledb) instance.`",
+    "why": "A Cloud user following this page is told their prerequisite is installing a self-hosted TimescaleDB instance, which is wrong for their product and contradicts the page's own product tag.",
+    "suggestedFix": "Either narrow `products` to `[self_hosted]` to match the actual content, or swap the self-only prerequisite partial for one that covers both a Tiger Cloud service and a self-hosted instance (e.g. `_prereqs-cloud-and-self.mdx`, used by nearly every other integration guide) and adjust the description/intro sentence to mention both products.",
+    "deferCheck": "This is a factual contradiction between the frontmatter product tag and the page's own prerequisites/description, not a style, prose, or link-target issue, so it is not covered by Vale or the links validator."
+  },
+  {
+    "checklistItem": "L1",
+    "category": "example-naming-consistency",
+    "severity": "high",
+    "pages": ["/integrate/data-engineering-etl/amazon-sagemaker"],
+    "evidence": "The page creates `CREATE TABLE model_predictions (time TIMESTAMPTZ NOT NULL, model_name TEXT NOT NULL, prediction DOUBLE PRECISION NOT NULL) ...`. In the final verification step: \"Verify that the data is in your {C.SERVICE_SHORT}. Open an [SQL editor] ... and check the `sensor_data` table:\" followed by `SELECT * FROM model_predictions;`.",
+    "why": "The prose tells the reader to check a table called `sensor_data`, which is never created anywhere on this page; the actual table (and the query shown) is `model_predictions`. A reader searching for `sensor_data` will not find it and may think the integration failed.",
+    "suggestedFix": "Change \"check the `sensor_data` table\" to \"check the `model_predictions` table\" to match the table created earlier on the page and the query actually shown.",
+    "deferCheck": "This is an internal naming contradiction on a single page (prose vs. the adjacent SQL), not a broken link, prose-style, or unverified-SQL issue, so it is not handled by the linter, Vale, or the doc testing tool."
+  },
+  {
+    "checklistItem": "L1",
+    "category": "example-naming-consistency",
+    "severity": "high",
+    "pages": ["/integrate/data-engineering-etl/apache-airflow"],
+    "evidence": "Intro: \"This example DAG uses the `company` table you create in [Optimize time-series data in hypertables](...)\". The DAG code executes `cursor.execute(\"INSERT INTO crypto_assets (symbol, name) VALUES (%s, %s)\", ('NEW/Asset','New Asset Name'))`, followed immediately by \"This DAG uses the `company` table created in [Create regular {C.PG} tables for relational data](...)\". The final verification step says: \"Run a query to view your data. For example: `SELECT symbol, name FROM company;`\".",
+    "why": "The DAG inserts into `crypto_assets` (the table actually created by the referenced tiger-cloud-essentials tutorial), but the surrounding prose and the final verification query both reference a table called `company`, which is never created by this page or the page it links to. Following the verification step exactly as written queries the wrong (likely nonexistent) table.",
+    "suggestedFix": "Replace both prose mentions of the `company` table and the final `SELECT symbol, name FROM company;` with `crypto_assets`, matching the table actually created in /learn/tiger-cloud/tiger-cloud-essentials and the one the DAG's INSERT statement targets.",
+    "deferCheck": "This is an internal object-naming contradiction between the SQL shown and the surrounding prose/verification step on one page, not a broken link or unverified-SQL execution question, so it is not covered by the links validator, Vale, or the doc testing tool."
+  },
+  {
+    "checklistItem": "K2",
+    "category": "prose-code-agreement",
+    "severity": "high",
+    "pages": ["/integrate/configuration-deployment/terraform"],
+    "evidence": "\"Create a `terraform.tfvars` file in the same directory as your `main.tf` to pass in the variable values:\" followed by a code block containing `export TF_VAR_ts_project_id=\"<your-timescale-project-id>\"` / `export TF_VAR_ts_access_key=\"...\"` / `export TF_VAR_ts_secret_key=\"...\"`.",
+    "why": "A `.tfvars` file uses plain `key = \"value\"` assignments; `export TF_VAR_x=...` is shell syntax for setting environment variables in a terminal session, not valid content for a `.tfvars` file. A reader who pastes this into `terraform.tfvars` as instructed gets a Terraform parse error.",
+    "suggestedFix": "Either change the code block to valid tfvars syntax (`ts_project_id = \"<your-timescale-project-id>\"`, etc.) or change the instruction to say \"export these as shell environment variables\" instead of \"create a terraform.tfvars file\", matching whichever form the code block actually shows.",
+    "deferCheck": "This is a mismatch between what the prose promises (a config file format) and the syntax actually shown in the adjacent code block, not a build/lint failure or an execution-correctness question the doc testing tool would catch (the snippet isn't run at build time)."
+  },
+  {
+    "checklistItem": "F1",
+    "category": "code-identifiers",
+    "severity": "medium",
+    "pages": ["/integrate/query-administration/psql"],
+    "evidence": "In the \"Useful psql commands\" table, every row shows a backslash meta-command (`\\c`, `\\d`, `\\df`, `\\di`, `\\dn`, `\\dt`, `\\du`, `\\dv`, `\\dx`, `\\h`, `\\l`, `\\password`, `\\q`, `\\set`, `\\timing`, `\\x`, `\\?`) except one row: `|ef <FUNCTION_NAME>|Edit a function|`.",
+    "why": "`ef` without the leading backslash is not a valid psql meta-command (the real command is `\\ef`); a reader who types `ef <FUNCTION_NAME>` literally, as shown, gets an error instead of opening the function editor.",
+    "suggestedFix": "Change `ef <FUNCTION_NAME>` to `\\ef <FUNCTION_NAME>` to match the real psql command and the formatting of every other row in the table.",
+    "deferCheck": "This is a spelling/identifier error in a reference table, not a prose-style nit or a broken link, and the doc testing tool's SQL-execution checks would not exercise a psql meta-command listed only in a markdown table."
+  },
+  {
+    "checklistItem": "F6",
+    "category": "code-identifiers",
+    "severity": "low",
+    "pages": [
+      "/integrate/data-ingestion-streaming/litmus-edge",
+      "/integrate/data-ingestion-streaming/kepware-kepserverex",
+      "/integrate/data-ingestion-streaming/node-red"
+    ],
+    "evidence": "These three pages create hypertables with `WITH (timescaledb.hypertable, timescaledb.chunk_interval = '7 days', ...)` (Litmus Edge also sets `timescaledb.segmentby = '...'`). Sibling integration guides created around the same time (`/integrate/data-ingestion-streaming/emqx`, `/integrate/data-ingestion-streaming/hivemq`, `/integrate/data-engineering-etl/apache-kafka`, `/integrate/data-engineering-etl/aws-lambda`, `/integrate/data-engineering-etl/amazon-sagemaker`, `/integrate/data-engineering-etl/supabase`, `/integrate/observability-alerting/telegraf`) all use `WITH (tsdb.hypertable = true, tsdb.partition_column = '...', tsdb.chunk_interval = '...')` instead, matching the reference page `/reference/timescaledb/hypertables/create_table` and the `tsdb.*` example in AGENTS.md/CLAUDE.md.",
+    "why": "Both `timescaledb.*` and `tsdb.*` are real, working WITH-clause option names, so this is not a broken example, but it is an inconsistent choice of the current recommended syntax across near-identical sibling integration guides, which can read as contradictory to someone comparing two of these pages.",
+    "suggestedFix": "Update these three pages to use the `tsdb.hypertable` / `tsdb.partition_column` / `tsdb.chunk_interval` / `tsdb.segmentby` naming used by the reference docs and the majority of sibling integration guides, for consistency.",
+    "deferCheck": "Both forms are real, currently-supported syntax (this is not the deprecated compress_chunk-style rename Vale's TigerData.CompressionAPIs owns), so this is a cross-page current-syntax consistency judgment call, not a compile error or a Vale-covered literal-vs-constant issue."
+  },
+  {
+    "checklistItem": "B1",
+    "category": "version-and-availability",
+    "severity": "low",
+    "pages": ["/integrate/connectors/destination/tigerlake"],
+    "evidence": "Limitations section: \"Service requires {C.PG} 17.6 and above is supported.\"",
+    "why": "Feature availability in this docs set is otherwise always expressed as a major PostgreSQL/TimescaleDB version (for example \"PostgreSQL 17\" or \"TimescaleDB 2.13+\"); requiring a specific minor/patch release (17.6) is unusual and is not corroborated anywhere else in the corpus, so it reads as a possible transcription error (for example, meant to say \"PostgreSQL 17\" or a specific Tiger Cloud platform version) rather than a genuine patch-level dependency.",
+    "suggestedFix": "Verify with the TigerLake/product team whether the real requirement is PostgreSQL major version 17 (as used elsewhere in the docs) or a specific patch release, and correct the wording accordingly.",
+    "deferCheck": "This flags a suspected-inaccurate version claim for verification against the product, per the B1 mechanical-probe pattern; it does not assert the claim is wrong, and no other page states this requirement to check for the mechanical C1/C2 cross-page contradiction pattern."
+  },
+  {
+    "checklistItem": "O1",
+    "category": "destructive-operation-cautions",
+    "severity": "medium",
+    "pages": ["/migrate/troubleshooting"],
+    "evidence": "Under \"Source and target databases have different TimescaleDB versions\" → **Downgrade**: \"reinstall an older version of {C.TIMESCALE_DB} on your {C.SERVICE_LONG} that matches the source database\" followed by a numbered step showing `DROP EXTENSION timescaledb;` `CREATE EXTENSION timescaledb VERSION '<version>';` with only a `<Callout variant=\"tip\">` about needing `psql -X` to reconnect — no warning about the effects of dropping the extension.",
+    "why": "`DROP EXTENSION timescaledb` on a service that may already hold hypertables and continuous aggregates is a destructive, service-affecting action (it removes TimescaleDB functionality until recreated), shown here as a plain numbered step with no caution about impact or the need for a backup before running it.",
+    "suggestedFix": "Add a caution callout before the `DROP EXTENSION timescaledb` step noting that this removes TimescaleDB functionality from the service until the extension is recreated, and recommending a backup or a non-production test first.",
+    "deferCheck": "This is about the presence of a caution next to a destructive SQL statement, not whether the statement executes correctly, so it isn't covered by the doc testing tool's execution checks or by Vale."
+  }
+]

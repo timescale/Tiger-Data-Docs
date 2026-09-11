@@ -5,29 +5,25 @@ products: [cloud]
 keywords: [tiered storage]
 ---
 
-import { Image } from "astro:assets";
+import ThemeImage from "@components/ThemeImage.astro";
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
 import TieredStorageBilling from "../../../../../partials/_tiered-storage-billing.mdx";
 
-import imgTieredStorageArchitecture from "../../../../../assets/images/learn/fundamentals/timescale-tiered-storage-architecture.png";
+import imgTieredStorageArchitectureLight from "../../../../../assets/images/learn/fundamentals/timescale-tiered-storage-architecture.png";
+import imgTieredStorageArchitectureDark from "../../../../../assets/images/learn/fundamentals/timescale-tiered-storage-architecture-dark.png";
 
 The tiered storage architecture in {C.CLOUD_LONG} includes a high-performance storage tier and a low-cost object storage tier. You use the high-performance tier for data that requires quick access, and the object tier for rarely used historical data. Tiering policies move older data asynchronously and periodically from high-performance to low-cost storage, sparing you the need to do it manually. {C.CHUNK_CAP}s from a single {C.HYPERTABLE}, including compressed {C.CHUNK}s, can stretch across these two storage tiers.
 
-<Image src={imgTieredStorageArchitecture} alt="Tiger Cloud tiered storage architecture with high-performance and object storage" />
+<ThemeImage light={imgTieredStorageArchitectureLight} dark={imgTieredStorageArchitectureDark} alt="Tiger Cloud tiered storage architecture with high-performance and object storage" />
 
 ## High-performance storage
 
-High-performance storage is where your data is stored by default, until you [enable tiered storage](/build/data-management/storage/manage-storage#low-cost-object-storage-tier) and [move older data to the low-cost tier](/build/data-management/storage/manage-storage#automate-tiering-with-policies). In the high-performance storage, your data is stored on a block device that is optimized for frequent querying. The [{C.HYPERCORE} row-columnar storage engine](/learn/columnar-storage/understand-hypercore) enables you to compress the data in the high-performance storage by up to 98%, while improving performance. Coupled with other optimizations, {C.CLOUD_LONG} high-performance storage makes sure your data is durable and available, and your queries run as quickly as they can.
+High-performance storage is where your data is stored by default, until you [enable tiered storage](/build/data-management/storage/manage-storage#low-cost-object-storage-tier) and [move older data to the low-cost tier](/build/data-management/storage/manage-storage#automate-tiering-with-policies). It provides you with up to 64 TB of storage and 80,000 IOPS (depending on your {C.PRICING_PLAN} and the use of the {C.IO_BOOST} feature).
 
-{C.CLOUD_LONG} high-performance storage comes in the following types:
-
-- **Standard** (default): designed for general workloads. Provides up to 16 TB of storage and 16,000 IOPS.
-- **Enhanced**: designed for high-scale, high-throughput workloads. Provides up to 64 TB of storage and 32,000 IOPS.
-
-You [enable enhanced storage](/build/data-management/storage/manage-storage#high-performance-storage-tier) as needed in {C.CONSOLE}.
+In the high-performance storage, your data is stored on a block device that is optimized for frequent querying. The [{C.HYPERCORE} row-columnar storage engine](/learn/columnar-storage/understand-hypercore) enables you to compress the data in the high-performance storage by up to 98%, while improving performance. Coupled with other optimizations, {C.CLOUD_LONG} high-performance storage makes sure your data is durable and available, and your queries run as quickly as they can.
 
 ## Low-cost storage
 
@@ -87,7 +83,7 @@ The object storage tier is more than an archiving solution. It is also:
 - **Scalable:** scale past the restrictions of even the enhanced high-performance storage tier.
 - **Online:** your data is always there and can be [queried when needed](/build/data-management/storage/query-tiered-data).
 
-By default, tiered data is not included when you query from a {C.SERVICE_LONG}. To access tiered data, you [enable tiered reads](/build/data-management/storage/query-tiered-data) for a query, a session, or even for all sessions. After you enable tiered reads, when you run regular SQL queries, a behind-the-scenes process transparently pulls data from wherever it's located: the standard high-performance storage tier, the object storage tier, or both. You can `JOIN` against tiered data, build views, and even define {C.CAGG}s on it. In fact, because the implementation of {C.CAGG}s also uses {C.HYPERTABLE}s, they can be tiered to low-cost storage as well.
+By default, tiered data is not included when you query from a {C.SERVICE_LONG}. To access tiered data, you [enable tiered reads](/build/data-management/storage/query-tiered-data) for a query, a session, or even for all sessions. After you enable tiered reads, when you run regular SQL queries, a behind-the-scenes process transparently pulls data from wherever it's located: the high-performance storage tier, the object storage tier, or both. You can `JOIN` against tiered data, build views, and even define {C.CAGG}s on it. In fact, because the implementation of {C.CAGG}s also uses {C.HYPERTABLE}s, they can be tiered to low-cost storage as well.
 
 The low-cost storage tier comes with the following limitations:
 
@@ -147,23 +143,14 @@ Choose how to [move data to the low-cost tier](/build/data-management/storage/ma
 
 <NumberedItem title="Query your data">
 
-<ol type="a">
-<li>
+1. To access data stored in the object tier, set `timescaledb.enable_tiered_reads = true` for your session, query, or
+   all future sessions. Without this setting, queries only access data in the high-performance tier.
+   For more information, see [querying tiered data](/build/data-management/storage/query-tiered-data).
 
-To access data stored in the object tier, set `timescaledb.enable_tiered_reads = true` for your session, query, or
-all future sessions. Without this setting, queries only access data in the high-performance tier.
-For more information, see [querying tiered data](/build/data-management/storage/query-tiered-data).
-
-</li>
-<li>
-
-Run standard SQL queries against your {C.HYPERTABLE}s.
-The query planner automatically determines which {C.CHUNK}s to access across both storage
-tiers based on your query filters. {C.CHUNK_CAP} pruning, row group pruning,
-and column pruning optimize query performance.
-
-</li>
-</ol>
+1. Run standard SQL queries against your {C.HYPERTABLE}s.
+   The query planner automatically determines which {C.CHUNK}s to access across both storage
+   tiers based on your query filters. {C.CHUNK_CAP} pruning, row group pruning,
+   and column pruning optimize query performance.
 </NumberedItem>
 
 <NumberedItem title="Monitor and manage">
@@ -195,6 +182,7 @@ view. Modify or remove tiering policies as needed using [`alter_job`](/reference
 
 ## Learn more
 
+- [Data tiering API](/reference/tiger-cloud/data-tiering): Tiering policy and {C.CHUNK} management functions.
 - [Understand data retention](/learn/data-lifecycle/data-retention/about-data-retention): Drop
   old data instead of tiering it.
 - [Data retention API](/reference/timescaledb/data-retention): Retention policy functions.

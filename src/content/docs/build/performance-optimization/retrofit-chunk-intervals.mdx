@@ -1,7 +1,7 @@
 ---
 title: Retrofit chunk intervals on a production hypertable
 description: Increase the chunk_interval of an existing hypertable without blocking ingestion, using a table-swap migration and batched backfill.
-products: [cloud, mst, self_hosted]
+products: [cloud, self_hosted]
 keywords: [hypertables, chunks, chunk_interval, performance, migration]
 ---
 
@@ -143,7 +143,7 @@ ALTER TABLE temperature_readings_new RENAME TO temperature_readings;
 COMMIT;
 ```
 
-<Callout variant="note">
+<Callout variant="warning">
 The moment this transaction commits, the active `temperature_readings` table is empty. Live
 ingestion continues uninterrupted, but historical queries return no data until the backfill
 completes. If downstream dependencies rely on strict historical read consistency, run this
@@ -210,7 +210,7 @@ SELECT compress_chunk(i) FROM show_chunks('temperature_readings', older_than => 
 ```
 
 See [`show_chunks()`](/reference/timescaledb/hypertables/show_chunks) and
-[`compress_chunk()`](/reference/timescaledb/hypercore/compress_chunk) for details.
+[`convert_to_columnstore()`](/reference/timescaledb/hypercore/convert_to_columnstore) for details.
 
 </NumberedItem>
 

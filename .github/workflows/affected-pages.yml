@@ -1,0 +1,135 @@
+name: Affected pages
+
+on:
+  deployment_status:
+
+permissions:
+  pull-requests: write
+  deployments: read
+  contents: read
+
+concurrency:
+  group: affected-pages-${{ github.event.deployment.sha }}
+  cancel-in-progress: true
+
+jobs:
+  affected-pages:
+    if: |
+      github.event.deployment_status.state == 'success' &&
+      startsWith(github.event.deployment.environment, 'Preview') &&
+      contains(github.event.deployment_status.target_url, 'vercel.app')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find PR for this deployment
+        id: pr
+        uses: actions/github-script@v8
+        env:
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+        with:
+          script: |
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: process.env.DEPLOY_SHA,
+            });
+            const pr = prs.find((p) => p.state === "open");
+            if (!pr) {
+              core.info("No open PR for this deployment; skipping.");
+              return;
+            }
+            core.setOutput("number", pr.number);
+
+      - name: Checkout repo at deploy SHA
+        if: steps.pr.outputs.number
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha }}
+
+      - name: Collect changed MDX files
+        id: changed
+        if: steps.pr.outputs.number
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        with:
+          script: |
+            const pull_number = parseInt(process.env.PR_NUMBER, 10);
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number,
+            });
+            const matching = files
+              .filter((f) => f.status !== "removed")
+              .map((f) => f.filename)
+              .filter(
+                (n) =>
+                  (n.startsWith("src/content/") || n.startsWith("src/partials/")) &&
+                  n.endsWith(".mdx"),
+              );
+            core.setOutput("any", matching.length > 0 ? "true" : "false");
+            core.setOutput("files", matching.join("\n"));
+
+      - name: Compute affected page URLs
+        if: steps.pr.outputs.number
+        env:
+          CHANGED_FILES: ${{ steps.changed.outputs.files }}
+          PREVIEW_URL: ${{ github.event.deployment_status.target_url }}
+          BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: node scripts/affected-pages.mjs
+
+      - name: Update PR description
+        if: steps.pr.outputs.number
+        uses: actions/github-script@v8
+        env:
+          BODY_PATH: pages-comment.md
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        with:
+          script: |
+            const fs = require("fs");
+            // Match any "## Affected pages" section: from the heading up to (but
+            // not including) the next `## ` heading or end of body. The `\r?`
+            // tolerates GitHub's CRLF line endings in PR bodies, and the `g`
+            // flag lets us strip duplicate sections left behind by earlier runs
+            // that hit the line-ending bug.
+            const sectionRe = /## Affected pages[ \t]*\r?\n[\s\S]*?(?=\r?\n## |$)/g;
+
+            const pull_number = parseInt(process.env.PR_NUMBER, 10);
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number,
+            });
+            const original = pr.body || "";
+            const content = fs.readFileSync(process.env.BODY_PATH, "utf8").trim();
+            const block = `## Affected pages\n\n${content}\n`;
+
+            // Strip every existing Affected pages section, then reinsert one
+            // fresh copy in the canonical spot. This is idempotent and also
+            // cleans up any duplicates accumulated by previous runs.
+            const stripped = original
+              .replace(sectionRe, "")
+              .replace(/(\r?\n){3,}/g, "$1$1");
+
+            let next;
+            const heading = "## Related Issues";
+            const idx = stripped.indexOf(heading);
+            if (idx >= 0) {
+              const before = stripped.slice(0, idx).trimEnd();
+              const after  = stripped.slice(idx);
+              next = `${before}\n\n${block}\n${after}`;
+            } else {
+              next = `${stripped.trim()}\n\n${block}`;
+            }
+
+            if (next !== original) {
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number,
+                body: next,
+              });
+              console.log("PR description updated.");
+            } else {
+              console.log("No change to PR description.");
+            }

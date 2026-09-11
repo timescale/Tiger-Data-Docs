@@ -1,0 +1,51 @@
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+
+## Background jobs failing with "out of shared memory"
+
+You might see this error when running compression, continuous aggregate refresh, or other background jobs that touch many chunks:
+
+```text
+FATAL:  out of shared memory
+HINT:  You might need to increase max_locks_per_transaction.
+```
+
+Despite the wording, this error is **not caused by insufficient RAM**. It means the PostgreSQL lock table is full. TimescaleDB acquires a lock on every chunk involved in a query or background job. When a hypertable has many chunks, these locks can exceed the default `max_locks_per_transaction` limit (usually 64).
+
+### Diagnose the issue
+
+1. **Check the current setting:**
+
+   ```sql
+   SELECT name, setting
+   FROM pg_settings
+   WHERE name = 'max_locks_per_transaction';
+   ```
+
+2. **Count chunks per hypertable:**
+
+   ```sql
+   SELECT hypertable_name, num_chunks
+   FROM timescaledb_information.hypertables
+   ORDER BY num_chunks DESC;
+   ```
+
+### Calculate the right value
+
+For most workloads, use this formula:
+
+```text
+max_locks_per_transaction = (2 × max_chunks_in_any_hypertable) / max_connections
+```
+
+The factor of 2 accounts for index locks. Round up and add headroom for future growth, because changing this parameter requires a database restart.
+
+### Apply the fix
+
+<Callout variant="tip">
+  **{C.CLOUD_LONG}:** Adjust `max_locks_per_transaction` from {C.CONSOLE} under **Database configuration → Advanced parameters**. Search for the parameter, edit the value, and click **Apply changes and restart**. See [Advanced parameters](/deploy/tiger-cloud/tiger-cloud-aws/configuration/advanced-parameters) for details.
+
+  **Self-hosted:** Set `max_locks_per_transaction` in the `postgresql.conf` configuration file, then restart {C.PG}.
+</Callout>
+
+For more information, see [Transaction lock settings](/reference/timescaledb/configuration/tiger-postgres#transaction-lock-settings) and the [{C.PG} lock management documentation](https://www.postgresql.org/docs/current/runtime-config-locks.html).

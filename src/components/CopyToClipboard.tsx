@@ -8,7 +8,7 @@
  * button in Starlight.
  *
  * @see https://www.stainless.com/docs/docs-platform
- * @see readme-component.md – Copy to clipboard section
+ * @see README-component.md – Copy to clipboard section
  */
 import { useState, useCallback, useRef, useEffect } from "react";
 

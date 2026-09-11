@@ -1,0 +1,172 @@
+[
+  {
+    "checklistItem": "F4",
+    "category": "code-identifiers",
+    "severity": "high",
+    "pages": [
+      "/reference/timescaledb/configuration",
+      "/reference/timescaledb/configuration/tiger-postgres",
+      "/reference/timescaledb/configuration/gucs"
+    ],
+    "evidence": "configuration/index.mdx: \"ALTER DATABASE your_database SET timescaledb.vectorized_aggregation = 'on';\" and tiger-postgres.mdx (via _configuration-parameters.mdx): heading \"##### `timescaledb.vectorized_aggregation (bool)`\" — versus the canonical GUC list rendered on configuration/gucs.mdx (_timescaledb-gucs.mdx): \"| `enable_vectorized_aggregation` | `BOOLEAN` | `true` | Enable vectorized aggregation for compressed data |\"",
+    "why": "Two reference pages in the same Configuration subsection tell a reader to SET a GUC named `timescaledb.vectorized_aggregation`, but the authoritative GUC list two clicks away names it `timescaledb.enable_vectorized_aggregation`; the neighboring examples for enable_chunkwise_aggregation and enable_merge_on_cagg_refresh correctly use the `enable_` prefix, so the missing prefix here is almost certainly a copy error, and running the documented command would fail with an unrecognized-parameter error.",
+    "suggestedFix": "Change `timescaledb.vectorized_aggregation` to `timescaledb.enable_vectorized_aggregation` in configuration/index.mdx and in src/partials/_configuration-parameters.mdx (and check src/partials/_timescaledb-config.mdx, which has the same wrong heading and is used by the self-hosted deploy config page outside this scope).",
+    "deferCheck": "Not a broken link or build error, and not the deprecated compression-API rename Vale already gates; this is a plain GUC-name spelling mismatch between two in-scope reference pages and the canonical GUC list, squarely inside F4."
+  },
+  {
+    "checklistItem": "B1",
+    "category": "version-claims",
+    "severity": "high",
+    "pages": [
+      "/reference/timescaledb/hypertables/create_hypertable",
+      "/reference/timescaledb/hypertables/add_dimension"
+    ],
+    "evidence": "create_hypertable.mdx: `<SinceRelease version=\"0.1.0\" product=\"tsdb\" />` at the top of the page, then later: \"This page describes the generalized {C.HYPERTABLE} API introduced in {C.TIMESCALE_DB} v2.13.\" add_dimension.mdx has the identical pattern: `<SinceRelease version=\"0.1.0\" product=\"tsdb\" />` followed by \"This page describes the generalized {C.HYPERTABLE} API introduced in {C.TIMESCALE_DB} v2.13.0.\"",
+    "why": "The badge at the top of each page tells the reader the documented syntax has been available since TimescaleDB 0.1.0, but the page's own prose says the by_range/by_hash syntax it documents was introduced in v2.13 — a reader on an older-but-supported TimescaleDB version would try this exact syntax based on the badge and get a syntax error.",
+    "suggestedFix": "Change the SinceRelease badge on both pages to version=\"2.13.0\" to match the prose (the 0.1.0 badge is accurate for the underlying create_hypertable/add_dimension function names, which is documented separately on the _old pages, but not for the by_range/by_hash signature shown here).",
+    "deferCheck": "This is a self-contradiction within a single page (badge vs. prose) discovered by reading the page, not a version claim that merely looks suspicious in isolation — it directly disagrees with itself, which is B1/E2 territory, not a build or Vale concern."
+  },
+  {
+    "checklistItem": "C4",
+    "category": "cross-page-consistency",
+    "severity": "high",
+    "pages": [
+      "/reference/timescaledb/continuous-aggregates/add_policies",
+      "/reference/timescaledb/continuous-aggregates/alter_policies",
+      "/reference/timescaledb/continuous-aggregates/show_policies",
+      "/reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy",
+      "/reference/timescaledb/informational-views/jobs"
+    ],
+    "evidence": "add_continuous_aggregate_policy.mdx: \"The `start_offset` should be greater than `end_offset`.\" (sample: start_offset => '1 month', end_offset => '1 hour'). add_policies.mdx / alter_policies.mdx: \"`refresh_end_offset` ... Must be greater than `refresh_start_offset`.\" (sample: refresh_start_offset => '1 day', refresh_end_offset => '2 day'). But show_policies.mdx's own example output shows the opposite relationship: `{\"refresh_end_offset\": 1, \"refresh_start_offset\": 10}`, and informational-views/jobs.mdx shows `{\"start_offset\": \"20 days\", \"end_offset\": \"10 days\"}` — both with start > end, matching the stable API's rule, not the experimental pages' stated rule.",
+    "why": "The stable and experimental continuous-aggregate refresh-window functions document opposite ordering rules for what is presented as the same start/end offset relationship, and the experimental pages' own rule is contradicted by real example output shown elsewhere in the same corpus (show_policies.mdx, jobs.mdx) — a reader following add_policies.mdx's example would set refresh_start_offset smaller than refresh_end_offset, the reverse of what every other example in the corpus shows for this relationship.",
+    "suggestedFix": "Verify against the TimescaleDB source (timescaledb_experimental.add_policies) which ordering is actually enforced, then correct whichever of add_policies.mdx/alter_policies.mdx or show_policies.mdx's rule/example is wrong so all pages agree.",
+    "deferCheck": "This is C4 (an ordering rule for the same parameter pair stated inconsistently across pages), not a SQL-execution question for the doc-testing tool — the contradiction is visible purely by comparing the stated rules and sample values across five reference pages."
+  },
+  {
+    "checklistItem": "K1",
+    "category": "prose-code-agreement",
+    "severity": "high",
+    "pages": [
+      "/reference/timescaledb/data-retention",
+      "/reference/timescaledb/data-retention/add_retention_policy"
+    ],
+    "evidence": "Both pages contain the identical passage: \"Create a data retention policy to discard chunks created before 6 months\" followed by `SELECT add_retention_policy('conditions', drop_created_before => INTERVAL '6 months');` and then \"When you call `drop_created_before`, {C.CHUNK}s created 3 months ago are selected.\"",
+    "why": "The code sets the interval to 6 months but the very next sentence says chunks created 3 months ago are selected — a direct, duplicated prose/code mismatch that would confuse a reader about what the example actually does.",
+    "suggestedFix": "Change \"3 months ago\" to \"6 months ago\" (or change the INTERVAL to '3 months') in both data-retention/index.mdx and add_retention_policy.mdx.",
+    "deferCheck": "This is not a broken-link or build issue and not about whether the SQL executes — it's a factual mismatch between the stated interval and the described result, K1's exact target, confirmed by direct quotation from both pages."
+  },
+  {
+    "checklistItem": "G1",
+    "category": "links-and-cross-references",
+    "severity": "high",
+    "pages": [
+      "/reference/timescaledb/hyperfunctions",
+      "/reference/timescaledb/hyperfunctions/time-series-utilities",
+      "/reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket"
+    ],
+    "evidence": "hyperfunctions/index.mdx, under \"### Deprecated hyperfunctions\": \"- [`time_bucket_ng()`](/reference/timescaledb/hyperfunctions/time-series-utilities/time_bucket): next generation time bucketing with additional features\". time-series-utilities/index.mdx lists the same link under \"### Time bucketing\" (not deprecated) with identical description. The target page, time_bucket.mdx, never mentions time_bucket_ng anywhere in its text.",
+    "why": "Two overview pages promise a function called time_bucket_ng() with its own description, but the link resolves to the time_bucket() page, which documents only time_bucket() and never discusses time_bucket_ng — a reader clicking the link to learn about the 'next generation' function finds no trace of it, and the two overview pages even disagree on whether it's deprecated.",
+    "suggestedFix": "Either add a section documenting time_bucket_ng() (or a redirect/callout on time_bucket.mdx explaining its relationship to time_bucket_ng), or remove the time_bucket_ng() entries from both overview pages if the function is fully retired; also reconcile the deprecated-vs-not framing between the two overview pages.",
+    "deferCheck": "The link is not broken (it resolves to a real page), so this passes the links-validator's scope; the defect is that the link's target does not deliver what the link text promises, which is G1, plus an N1 lifecycle-label disagreement between the two overview pages."
+  },
+  {
+    "checklistItem": "F5",
+    "category": "types-and-behavior",
+    "severity": "medium",
+    "pages": [
+      "/reference/timescaledb/hypertables/create_table",
+      "/reference/timescaledb/hypercore/alter_table"
+    ],
+    "evidence": "create_table.mdx, `tsdb.orderby` row: \"Setting `tsdb.orderby` automatically creates an implicit sparse index on the `orderby` column: a `firstlast` index since 2.28.0, `minmax` before.\" alter_table.mdx, `timescaledb.compress_orderby` row: \"Setting `timescaledb.compress_orderby` automatically creates an implicit min/max sparse index on the `orderby` column.\" (no mention of the 2.28.0 change to firstlast).",
+    "why": "CREATE TABLE ... WITH (tsdb.orderby) and ALTER TABLE ... SET (timescaledb.compress_orderby) configure the same underlying columnstore orderby setting, but only one of the two reference pages tells the reader that the automatically-created sparse index type changed from minmax to firstlast in 2.28.0 — a reader using ALTER TABLE would be told the index is always minmax, which is stale for 2.28.0+.",
+    "suggestedFix": "Add the same \"firstlast index since 2.28.0, minmax before\" clarification to the `timescaledb.compress_orderby` row in alter_table.mdx.",
+    "deferCheck": "This is a factual behavior/type description for a configuration option, not the compress_chunk-to-convert_to_columnstore naming rename Vale already gates, and not a build/link issue — it's F5's type/behavior-consistency check across two pages describing the same setting."
+  },
+  {
+    "checklistItem": "F6",
+    "category": "current-syntax",
+    "severity": "medium",
+    "pages": [
+      "/reference/timescaledb/hypertables/disable_chunk_skipping",
+      "/reference/timescaledb/hypertables/enable_chunk_skipping"
+    ],
+    "evidence": "disable_chunk_skipping.mdx sample: \"SELECT create_hypertable('conditions', 'time');\\nSELECT enable_chunk_skipping('conditions', 'device_id');\\nSELECT disable_chunk_skipping('conditions', 'device_id');\" — using the two-argument positional (old-interface) create_hypertable call. Its sibling page enable_chunk_skipping.mdx instead uses `CREATE TABLE conditions (...) WITH (tsdb.hypertable);` for the identical setup.",
+    "why": "The disable_chunk_skipping example teaches the superseded create_hypertable('table','column') form instead of the current CREATE TABLE ... WITH (tsdb.hypertable) syntax used one page over for the exact same setup, so a reader following only this page learns an outdated pattern.",
+    "suggestedFix": "Replace the create_hypertable('conditions', 'time') call in disable_chunk_skipping.mdx with the same CREATE TABLE ... WITH (tsdb.hypertable) pattern used in enable_chunk_skipping.mdx.",
+    "deferCheck": "This is not the compress_chunk/columnstore rename Vale already gates — it's the separate, still-current hypertable-creation API (CREATE TABLE vs. legacy create_hypertable), which is explicitly F6's concern (current recommended syntax vs. a superseded form)."
+  },
+  {
+    "checklistItem": "F5",
+    "category": "code-identifiers",
+    "severity": "medium",
+    "pages": [
+      "/reference/timescaledb/configuration/gucs"
+    ],
+    "evidence": "In the rendered GUC list (src/partials/_timescaledb-gucs.mdx): `| \\`stats_max_chunks\\` | \\`INTEGER\\` | \\`TS_STATS_MAX_CHUNKS_DEFAULT, /* default */0, /* min: 0 = disabled */TS_STATS_MAX_CHUNKS_MAX, /* max: 2^18 = 262144 chunks */PGC_SIGHUP\\` | ... max: \\`stats_max_chunks_check_hook\\` |` and `| \\`license\\` | \\`STRING\\` | \\`TS_LICENSE_DEFAULT\\` | ... |` and `| \\`telemetry_level\\` | \\`ENUM\\` | \\`TELEMETRY_DEFAULT\\` | ... |`",
+    "why": "Three rows in the GUC reference table show raw, unresolved C source identifiers (macro names and even a function name used as a 'max' value) instead of the actual default/limit values a reader needs, making these three settings' documented defaults unusable as written.",
+    "suggestedFix": "Fix the GUC-table generation for these three rows so the Default/min/max columns show resolved values (for example, telemetry_level's actual default is a string like 'basic', not the macro TELEMETRY_DEFAULT), matching the clean values shown for every neighboring row.",
+    "deferCheck": "This is a factual-value defect in the reference table itself (F5: types/values must be stated correctly), not a build failure or a Vale style rule — the table renders fine, it just contains wrong/unreadable data for three settings."
+  },
+  {
+    "checklistItem": "A1",
+    "category": "product-tags",
+    "severity": "medium",
+    "pages": [
+      "/reference/timescaledb/administration",
+      "/reference/timescaledb/administration/timescaledb_pre_restore",
+      "/reference/timescaledb/administration/timescaledb_post_restore"
+    ],
+    "evidence": "administration/index.mdx is tagged `products: [cloud, self_hosted]` and includes \"### Full backup and restore workflow ... Complete workflow for backing up and restoring a TimescaleDB database\" using `timescaledb_pre_restore()`, `pg_dump`/`pg_restore`, and `timescaledb_post_restore()` with no product caveat. Both timescaledb_pre_restore.mdx and timescaledb_post_restore.mdx are tagged `products: [self_hosted]` only.",
+    "why": "The overview page is tagged for both products and presents a pg_dump/pg_restore workflow as generally applicable, but the two functions at the center of that workflow are documented (on their own pages, one click away) as self-hosted only — a Tiger Cloud reader following the overview's workflow would attempt functions that don't apply to their deployment.",
+    "suggestedFix": "Add a note on administration/index.mdx's backup/restore workflow section stating it applies to self-hosted deployments only, or split the workflow sample so cloud readers are pointed to the Cloud-specific backup/restore documentation instead.",
+    "deferCheck": "This is A1 (cloud/self-hosted scope mismatch on a page's promised applicability), discovered by comparing the overview's product tag and content against its own linked child pages' narrower tags — not a broken link or formatting issue."
+  },
+  {
+    "checklistItem": "K1",
+    "category": "prose-code-agreement",
+    "severity": "low",
+    "pages": [
+      "/reference/timescaledb/hyperfunctions/time-series-utilities/days_in_month"
+    ],
+    "evidence": "\"Calculate how many days in the month of January 1, 2022:\" followed by `SELECT days_in_month('2021-01-01 00:00:00+03'::timestamptz)`",
+    "why": "The prose describes January 2022 but the code example uses a 2021 timestamp; the shown output (31) happens to be correct for January of any year, but the year mismatch between narration and code is still a factual inconsistency a careful reader would notice.",
+    "suggestedFix": "Change the code literal to '2022-01-01 00:00:00+03' to match the prose, or change the prose to say 2021.",
+    "deferCheck": "Not a SQL-execution correctness question (the output is right either way) — this is K1, prose stating a different date than the adjacent code block."
+  },
+  {
+    "checklistItem": null,
+    "category": "table-integrity",
+    "severity": "medium",
+    "pages": [
+      "/reference/timescaledb/hyperfunctions/time_bucket_gapfill/time_bucket_gapfill"
+    ],
+    "evidence": "Arguments table header is `| Name | Type | Default | Required | Description |` (5 columns) but the bucket_width and ts rows have extra cells: `| \\`bucket_width\\` | INTERVAL | INTEGER | - | ✔ | A ... |` and `| \\`ts\\` | TIMESTAMPTZ | TIMESTAMP | DATE | SMALLINT | INT | BIGINT | - | ✔ | The timestamp on which to base the bucket |`",
+    "why": "The two most important argument rows have more pipe-separated cells than the table has columns, which shifts Type/Default/Required values into the wrong columns when rendered — a reader checking whether bucket_width is required, or what its default is, would see misaligned data. Pure judgment finding: no single checklist item names malformed tables, but it undermines the same factual columns F3/F5 care about.",
+    "suggestedFix": "Rewrite the bucket_width and ts rows to fit the 5-column table, folding the multiple accepted types into a single Type cell (for example `INTERVAL or INTEGER`, `TIMESTAMPTZ, TIMESTAMP, DATE, SMALLINT, INT, or BIGINT`) as done correctly elsewhere in the same reference section.",
+    "deferCheck": "This is not a Vale/formatting-convention issue (callout variants, heading style) — the table still builds fine, but its columns misalign in the rendered output, corrupting the factual type/required/default data the table exists to convey."
+  },
+  {
+    "checklistItem": "I3",
+    "category": "placement-and-scope",
+    "severity": "low",
+    "pages": [
+      "/reference/configuration"
+    ],
+    "evidence": "The file contains an inline comment `{/* TODO: Flesh out full configuration reference with accurate GUC lists, defaults, and links to TimescaleDB/PostgreSQL docs. */}` and the body consists only of empty section headers (\"PostgreSQL settings\", \"TimescaleDB settings\", \"Tiger Cloud settings\", \"Query planning & execution\") with no content under any of them, while the page's own description promises \"PostgreSQL and TimescaleDB configuration settings.\"",
+    "why": "The page's title/description promise a complete configuration reference, but the body is an acknowledged placeholder with no actual settings, defaults, or links — a reader landing here (for example from a search result) gets nothing actionable, while the real GUC content lives at /reference/timescaledb/configuration/gucs.",
+    "suggestedFix": "Either flesh out this page per its own TODO, or replace it with a short redirect-style page pointing to /reference/timescaledb/configuration and /reference/timescaledb/configuration/gucs until the full content exists.",
+    "deferCheck": "This is agent-judged scope drift (I3: body doesn't deliver on title/description), not a build error — the page compiles fine, it's simply an acknowledged stub masquerading as a reference page."
+  },
+  {
+    "checklistItem": null,
+    "category": "coverage-gap",
+    "severity": "low",
+    "pages": [
+      "/reference/timescaledb/informational-views"
+    ],
+    "evidence": "The \"Stability\" section lists `timescaledb_information.stat_chunk_activity` as a stable, public-API view alongside ten other views that each have a linked, dedicated reference page — but stat_chunk_activity is listed as plain text with no link, and no page under informational-views/ documents it (confirmed: it is mentioned only in the changelog at get-started/news/new.mdx, never given its own reference page).",
+    "why": "The page tells readers this view is part of the stable public API they should build monitoring on, but unlike its ten siblings there is no reference page describing its columns or sample output, leaving a real documented feature without reference coverage in the one place a reader would look. Pure judgment finding: no checklist pattern names 'missing reference page for a shipped view.'",
+    "suggestedFix": "Add a reference page for timescaledb_information.stat_chunk_activity (and the chunk_statistics() function mentioned alongside it in the 2.28 changelog entry) under informational-views/, or link the changelog entry from the Stability section as a stand-in until one exists.",
+    "deferCheck": "Not a broken link (no link was made, so the validator has nothing to check) and not a build issue — this is a coverage gap the engine surfaces by cross-referencing the changelog against the reference section's own file listing."
+  }
+]

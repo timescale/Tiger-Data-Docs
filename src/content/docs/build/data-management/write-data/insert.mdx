@@ -1,18 +1,37 @@
 ---
 title: Insert data
 description: Insert single and multiple rows and bulk load data into TimescaleDB with SQL
-products: [cloud, mst, self_hosted]
+products: [cloud, self_hosted]
+learnMore:
+  relatedPostsHeading: Related resources
+  relatedPosts:
+    - label: "Write amplification in Postgres: the 3-4x tax on every insert"
+      href: https://www.tigerdata.com/blog/write-amplification-in-postgres-the-3-4x-tax-on-every-insert
+    - label: "When continuous ingestion breaks traditional Postgres"
+      href: https://www.tigerdata.com/blog/when-continuous-ingestion-breaks-traditional-postgres
+    - label: "The hidden cost of Postgres constraints at scale"
+      href: https://www.tigerdata.com/blog/hidden-cost-postgres-constraints-scale
+    - label: "Video: 5 ways to improve your PostgreSQL INSERT performance"
+      href: https://www.youtube.com/watch?v=4SLpMTH1RcU
 ---
 
 import * as C from "@constants";
-import EarlyAccess2230 from "../../../../../partials/_early_access_2_23_0.mdx";
+import { Callout } from "@stainless-api/docs/components";
+import HypercoreDirectCompress from "../../../../../partials/_hypercore-direct-compress.mdx";
+import DoWithAi from "@components/DoWithAi.astro";
 
 Inserts into a {C.HYPERTABLE} are normal {C.PG} writes. Use the usual commands, and lean on batching when you can:
 
 - `INSERT`: single rows or small batches
 - `COPY`: bulk data loading
 
+This works the same whether the target {C.CHUNK} is in the {C.ROWSTORE} or the {C.COLUMNSTORE}. You don't need
+to decompress a {C.CHUNK} before inserting into it: {C.TIMESCALE_DB} decompresses only the data your statement
+touches, not the whole {C.CHUNK}.
+
 To improve performance, insert time series data directly to the {C.COLUMNSTORE} using [direct compress](#improve-performance-with-direct-compress).
+
+<DoWithAi />
 
 ## Insert a single row
 
@@ -106,38 +125,35 @@ bulk data loading, `COPY` can be 2-3x faster or more than `INSERT`, especially w
 If you `COPY` unsorted data, call [`convert_to_columnstore('<chunk_name>', recompress => true)`](/reference/timescaledb/hypercore/convert_to_columnstore)
 on the {C.CHUNK} to reorder and optimize your data.
 
+### Skip {C.CAGG} invalidation during bulk loads
+
+Available in {C.TIMESCALE_DB} 2.28.0 and later.
+
+Every write to a {C.HYPERTABLE} that has {C.CAGG}s records an invalidation entry, so the next
+refresh knows which time ranges changed. During a large bulk load, this tracking adds overhead. To
+skip it for the current session or transaction, set `timescaledb.skip_cagg_invalidation`. Use
+`SET LOCAL` inside a transaction so the setting reverts automatically when the transaction ends:
+
+```sql
+BEGIN;
+SET LOCAL timescaledb.skip_cagg_invalidation = on;
+COPY conditions FROM '/path/to/data.csv' WITH (FORMAT CSV, HEADER);
+COMMIT;
+```
+
+Because no invalidations are recorded, a normal refresh treats the loaded buckets as up-to-date. After
+the load, refresh the time ranges you touched with `force => true` to bring each {C.CAGG} back in sync:
+
+```sql
+CALL refresh_continuous_aggregate('conditions_daily', '<load_start>', '<load_end>', force => true);
+```
+
+<Callout variant="warning">
+If you skip the forced refresh, the {C.CAGG} is left out of sync with the {C.HYPERTABLE}: queries return
+stale results for the time ranges you loaded. Only use `timescaledb.skip_cagg_invalidation` for bulk or
+migration workloads where you control the follow-up refresh.
+</Callout>
+
 ## Improve performance with direct compress
 
-<EarlyAccess2230 />
-
-The columnar format in the {C.COLUMNSTORE} enables fast scanning and aggregation, optimizing performance for
-analytical workloads while also saving significant storage space. In the {C.COLUMNSTORE} conversion, {C.HYPERTABLE} {C.CHUNK}s are
-compressed by up to 98%, and organized for efficient, large-scale queries.
-
-To improve performance, compress data during the `INSERT` and `COPY` operations so that it is injected
-directly into {C.CHUNK}s in the {C.COLUMNSTORE} rather than waiting for the policy. Direct compress writes data in the
-compressed format in memory, significantly reducing I/O and improving ingestion performance.
-
-When you enable direct compress, ensure that your data is already sorted by the table's compression `order_by` columns.
-Incorrectly sorted data results in poor compression and query performance.
-
-- **Enable direct compress on `INSERT`**
-
-   Set the following [GUC parameters](/reference/timescaledb/configuration/gucs):
-   ```sql
-   SET timescaledb.enable_direct_compress_insert = true;
-   ```
-
-- **Enable direct compress on `COPY`**
-
-    Set the following [GUC parameter](/reference/timescaledb/configuration/gucs):
-
-    ```sql
-    SET timescaledb.enable_direct_compress_copy = true;
-    ```
-
-    - **Optimal batch size**: best results with batches of 1,000 to 10,000 records
-    - **Cardinality**: high cardinality datasets do not compress well and may degrade query performance
-    - **Batch format**: the {C.COLUMNSTORE} is optimized for 1,000 records per batch per segment
-    - **WAL efficiency**: compressed batches are written to WAL rather than individual tuples
-    - **Unique constraints**: tables with unique constraints cannot use direct compress
+<HypercoreDirectCompress />

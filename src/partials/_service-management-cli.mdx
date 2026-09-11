@@ -1,0 +1,94 @@
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+
+Use [`tiger service list`](/reference/tiger-cloud/tiger-cli#tiger-service-list) to find the ID of the {C.SERVICE_SHORT} you want to manage, then run the relevant command. All commands require you to be [logged in](/get-started/quickstart/tiger-cli).
+
+## Reset your {C.SERVICE_SHORT} password
+
+To reset the password used to connect to your {C.SERVICE_SHORT}:
+
+```bash
+# Prompt for a new password interactively
+tiger service update-password <service-id>
+
+# Auto-generate a secure password
+tiger service update-password <service-id> --auto-generate
+```
+
+With `--auto-generate`, you see something like:
+
+```txt
+Successfully generated a new password.
+Password saved to system keyring for automatic authentication
+To view your new password, run:
+	 tiger service get <service-id> --with-password
+✅ Master password for 'tsdbadmin' user updated successfully
+```
+
+This updates the password for the `tsdbadmin` database user, not your {C.CONSOLE_SHORT} account. To switch the authentication type between SCRAM and MD5, see the [{C.CONSOLE} tab](#tab=tiger-console).
+
+<Callout variant="warning">
+
+Resetting the password immediately invalidates the old one. Any application, automation, or integration that connects with the previous credentials loses access until you update its connection details.
+
+</Callout>
+
+## Change the {C.SERVICE_SHORT} environment
+
+{C.CLI_LONG} sets the environment tag only when it creates a {C.SERVICE_SHORT}, using `tiger service create --environment` or `tiger service fork --environment`. To change the tag on an existing {C.SERVICE_SHORT}, see the [{C.CONSOLE} tab](#tab=tiger-console).
+
+## Convert a free {C.SERVICE_SHORT} to a standard one
+
+Converting a free {C.SERVICE_SHORT} to a standard one is only available from {C.CONSOLE}. See the [{C.CONSOLE} tab](#tab=tiger-console).
+
+## Pause a {C.SERVICE_SHORT}
+
+To stop a {C.SERVICE_SHORT} temporarily without deleting it:
+
+```bash
+tiger service stop <service-id>
+```
+
+You see something like:
+
+```txt
+⏹️  Stop request accepted for service '<service-id>'.
+⏳ Waiting for service to stop (timeout: 10m0s)...
+✅ Service has been successfully stopped!
+```
+
+You are no longer billed for compute, but storage billing continues. To start the {C.SERVICE_SHORT} again:
+
+```bash
+tiger service start <service-id>
+```
+
+You see something like:
+
+```txt
+▶️  Start request accepted for service '<service-id>'.
+⏳ Waiting for service to start (wait timeout: 10m0s)...
+✅ Service has been successfully started!
+```
+
+## Delete a {C.SERVICE_SHORT}
+
+Deleting a {C.SERVICE_SHORT} is irreversible and permanently removes it and all its data. {C.CLI_SHORT} prompts you to type the service ID to confirm:
+
+```bash
+tiger service delete <service-id>
+```
+
+You see something like:
+
+```txt
+🗑️  Delete request accepted for service '<service-id>'.
+Waiting for service '<service-id>' to be deleted
+✅ Service '<service-id>' has been successfully deleted.
+```
+
+<Callout variant="warning">
+
+{C.CLI_SHORT} doesn't enforce the delete protection {C.CONSOLE} applies to production {C.SERVICE_SHORT}s. `tiger service delete` deletes a production {C.SERVICE_SHORT} the same way it deletes a development one, with no extra check.
+
+</Callout>

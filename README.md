@@ -4,7 +4,7 @@ Documentation site for Tiger Data, built on Astro + Starlight using the Stainles
 
 ## Prerequisites
 
-- **Node.js** (v18 or later): [nodejs.org](https://nodejs.org/)
+- **Node.js** (v22.12.0 or later, as required by `package.json`): [nodejs.org](https://nodejs.org/)
 - **pnpm** (package manager): install with `npm install -g pnpm` or see [pnpm.io/installation](https://pnpm.io/installation)
 - **Stainless API key**: required only if you need the generated **Tiger Cloud REST API** reference locally. To run without any Stainless credentials, use **`pnpm dev:local`** (see below).
   1. Sign in at [app.stainless.com](https://app.stainless.com)
@@ -15,7 +15,7 @@ Documentation site for Tiger Data, built on Astro + Starlight using the Stainles
      ```
 - **Stainless CLI** (optional but recommended): [CLI quickstart](https://www.stainless.com/docs/getting-started/quickstart-cli)
 
-## Development Quickstart
+## Development quickstart
 
 1. Clone the repo and `cd` into it
 2. Copy the env file: `cp .env.example .env` and add your Stainless API key
@@ -37,22 +37,21 @@ pnpm dev:local
 
 For a production build without Stainless (for example, CI that cannot reach the API), use `pnpm build:local`. To restore the full REST reference, unset `DOCS_LOCAL_WITHOUT_STAINLESS`, add a key or CLI auth, and run `pnpm dev` or `pnpm build` again.
 
-### Other Commands
+### Other commands
 
 ```bash
 pnpm build         # Build for production
 pnpm build:local   # Build with DOCS_LOCAL_WITHOUT_STAINLESS (no Stainless API for REST reference)
 pnpm dev:local     # Dev server without Stainless API (same as DOCS_LOCAL_WITHOUT_STAINLESS=1)
 pnpm preview       # Preview production build
-pnpm sync          # Sync docs from source repos (timescaledb, pgai, pgvectorscale)
 pnpm format        # Format code
 ```
 
-## Site Structure
+## Site structure
 
 All documentation content lives under `src/content/docs/`. The structure follows the new Information Architecture with categorical sections, each containing subcategories and individual pages.
 
-### Main Sections
+### Main sections
 
 | Folder | Description |
 |--------|-------------|
@@ -64,7 +63,7 @@ All documentation content lives under `src/content/docs/`. The structure follows
 | `reference/` | API reference, SQL functions, and configuration |
 | `deploy/` | Deployment options (cloud, self-hosted) |
 
-### Folder Hierarchy
+### Folder hierarchy
 
 Each main section follows a three-level hierarchy:
 
@@ -77,28 +76,23 @@ src/content/docs/
         └── {page}.mdx      # Individual pages (alphabetically ordered)
 ```
 
-**Example:** The `build/` section:
+**Example:** the `build/` section:
 
 ``` md
 build/
 ├── index.mdx                      # Build section landing page
 ├── columnar-storage/
-│   ├── about-compression.mdx
-│   ├── compression-design.mdx
-│   ├── compression-methods.mdx
-│   └── ...
+│   └── setup-hypercore.mdx
 ├── continuous-aggregates/
 ├── cost-optimization/
-├── migration/
-├── operations/
+├── data-management/
+├── examples/
+├── how-to/
 ├── performance-optimization/
-├── tiered-storage/
-├── time-series/
-├── tips-and-tricks/
-└── troubleshooting/
+└── tips-and-tricks/
 ```
 
-### Key Points
+### Key points
 
 - The `index.mdx` in each folder serves as the "home" or "landing page" for that section/category
 - Pages within category folders are ordered **alphabetically**
@@ -121,9 +115,9 @@ This only removes the page from the **card grid** (and from the overview’s fil
 
 The **Technology** dropdown on `/integrate` tags each card with one or more technology labels so readers can filter (for example AWS, Kafka, PostgreSQL). Labels must be declared in the content schema or Astro strips them:
 
-1. **`keywords`** (optional array of strings) — Used for search and, when `integrationTechnologies` is omitted, to **infer** technologies by matching substrings (see `src/lib/integration-technologies.ts`). Example: a keyword containing `kafka` maps to the **Kafka** filter.
+1. **`keywords`** (optional array of strings): used for search and, when `integrationTechnologies` is omitted, to **infer** technologies by matching substrings (see `src/lib/integration-technologies.ts`). Example: a keyword containing `kafka` maps to the **Kafka** filter.
 
-2. **`integrationTechnologies`** (optional array) — **Explicit** tags. Use when inference is wrong or too broad. Allowed values are exactly: `PostgreSQL`, `Python`, `SQL`, `Kafka`, `AWS`, `Azure`, `GCP`, `Terraform`, `Kubernetes`, `Grafana`, `Prometheus`, `REST API`.
+2. **`integrationTechnologies`** (optional array): **explicit** tags. Use when inference is wrong or too broad. Allowed values are exactly: `PostgreSQL`, `Python`, `Ruby`, `Node.js`, `Go`, `Java`, `SQL`, `Kafka`, `MQTT`, `OPC UA`, `Apache Iceberg`, `AWS`, `Azure`, `GCP`, `Terraform`, `Kubernetes`, `Grafana`, `Prometheus` (the source of truth is `INTEGRATION_TECHNOLOGY_KEYS` in `src/lib/integration-technologies.ts`).
 
 Example:
 
@@ -134,16 +128,16 @@ integrationTechnologies: ["Kafka", "AWS"]
 
 If you set `integrationTechnologies`, it **replaces** inference from `keywords` for that page (the explicit list wins).
 
-## About Stainless Docs
+## About Stainless docs
 
 The Stainless Docs Platform is built on top of [Astro](https://astro.build) and [Starlight](https://starlight.astro.build). Starlight is a powerful documentation framework designed for speed, accessibility, and customizability.
 
 This project uses the `@stainless-api/docs` integration which provides:
 - Automatic API reference generation from the `tiger-cloud` Stainless project
-- MDX components (`Callout`, `Tabs`, `TabItem`, `Cards`, etc.)
+- MDX components (`Callout`, `Tabs`, `TabItem`, `Cards`, and so on)
 - Theme customization via `theme.css`
 
-**→ [Component usage guide (readme-component.md)](./readme-component.md)**: How to use callouts (Tip, Note, Important, Warning, Callout with button) and other custom components. Instructions are in collapsible sections so you can expand only what you need.
+**→ [Component usage guide (README-component.md)](./README-component.md)**: how to use callouts (Tip, Note, Important, Warning, Callout with button) and other custom components. Instructions are in collapsible sections so you can expand only what you need.
 
 ## Environment
 
@@ -157,15 +151,15 @@ The site uses [`@sentry/astro`](https://docs.sentry.io/platforms/javascript/guid
 SENTRY_DSN=https://<key>@o<org>.ingest.us.sentry.io/<project>
 ```
 
-Omitting the variable disables Sentry silently — no errors, no events captured.
+Omitting the variable disables Sentry silently: no errors, no events captured.
 
 #### Sentry MCP for AI assistants
 
 The repo includes pre-configured [Sentry MCP](https://docs.sentry.io/organization/integrations/integration-platform/internal-integrations/mcp-server/) configs so AI coding assistants can query Sentry issues, stack traces, and alerts directly:
 
-- `.mcp.json` — Claude Code (project-level config)
-- `.cursor/mcp.json` — Cursor
-- `.vscode/mcp.json` — VS Code / GitHub Copilot
+- `.mcp.json`: Claude Code (project-level config)
+- `.cursor/mcp.json`: Cursor
+- `.vscode/mcp.json`: VS Code / GitHub Copilot
 
 No extra setup is needed; your assistant discovers the config automatically when you open the repo.
 
@@ -200,7 +194,7 @@ The repo uses shared constants so product and database names can be changed in o
 **In MDX (docs and partials):**
 
 1. At the top of the file, add: `import * as C from "@constants";` (if not already present).
-2. Use the constants in **prose** and **headings** with curly braces, e.g. `{C.PG}`, `{C.CLOUD_LONG}`, `{C.TIMESCALE_DB}`.
+2. Use the constants in **prose** and **headings** with curly braces, for example `{C.PG}`, `{C.CLOUD_LONG}`, `{C.TIMESCALE_DB}`.
 
 Examples:
 
@@ -208,13 +202,28 @@ Examples:
 - Headings: `## Using {C.PG} with time-series data`
 - In component props (JS expressions): `` title={`Install ${C.PG}`} ``
 
-The database name is intentionally centralized: use `{C.PG}` or `{C.POSTGRESQL}` instead of literal "PostgreSQL" or "Postgres" in prose and headings. The lint script `pnpm run lint:postgresql-variable` (and the CI workflow) enforce this. **Exceptions:** literal "PostgreSQL"/"Postgres" is allowed inside URLs (e.g. `https://postgresql.org`) and inside backticks (UI elements, code, file paths, commands).
+The database name is intentionally centralized: use `{C.PG}` or `{C.POSTGRESQL}` instead of literal "PostgreSQL" or "Postgres" in prose and headings. This is nudged by the `TigerData.ProductConstants` Vale rule; run `pnpm lint:prose` to check changed files (see the `vale.yml` CI workflow). **Exceptions:** literal "PostgreSQL"/"Postgres" is allowed inside URLs (for example, `https://postgresql.org`) and inside backticks (UI elements, code, file paths, commands).
 
 ## Right-rail Learn more card
 
-Any page can surface a "Learn more" card in the right rail (tutorials, related blog posts, and an optional CTA button) by adding a `learnMore` block to its frontmatter. No imports or per-page wiring required — the card renders automatically when the key is present and hides itself when it isn't.
+Any page can surface a "Learn more" card in the right rail (tutorials, related blog posts, and an optional CTA button) by adding a `learnMore` block to its frontmatter. No imports or per-page wiring required: the card renders automatically when the key is present and hides itself when it isn't.
 
-See **[`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md)** for the full frontmatter schema, field reference, architecture, and theming notes.
+**Minimal example (drop this into any page's frontmatter):**
+
+```yaml
+learnMore:
+  tutorials:
+    - label: Your first hypertable
+      href: /build/how-to/your-first-hypertable/
+  relatedPosts:
+    - label: Why use hypertables
+      href: https://www.timescale.com/blog/why-hypertables/
+  cta:
+    label: Try for free
+    href: https://console.cloud.tigerdata.com/signup
+```
+
+**→ See [`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md)** for the full authoring guide: 8 copy-paste recipes (tutorial pages, concept pages, quickstarts, reference pages, custom headings, external links, CTA-only, and so on), field reference, troubleshooting, architecture, and theming notes.
 
 ## Want to learn more?
 

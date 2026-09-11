@@ -1,6 +1,7 @@
 ---
 title: Primary keys, time columns, and uniqueness for hypertables
 description: Choose a time partition column, primary keys, and unique constraints so your hypertable matches TimescaleDB rules and your query patterns
+products: [cloud, self_hosted]
 ---
 
 import * as C from "@constants";
@@ -22,7 +23,7 @@ The partition column defines how rows are grouped into **{C.CHUNK}s**. It is alm
   Prefer this for most applications.
 - **Integer epoch**: Useful when upstream systems already emit epoch integers. If you use
   background jobs like retention or {C.COLUMNSTORE} policies, set
-  [`integer_now_func`](/reference/timescaledb/hypertables/set_integer_now_func/) so those jobs
+  [`integer_now_func`](/reference/timescaledb/hypertables/set_integer_now_func) so those jobs
   know what "current" means.
 
 Pick a type you can keep **stable** — changing the partition column later requires a migration.
@@ -78,10 +79,10 @@ CREATE TABLE bad_example (
 ### Unique constraints and {C.COLUMNSTORE}
 
 When you insert into a {C.COLUMNSTORE} {C.CHUNK} that has a unique constraint or primary key,
-{C.TIMESCALE_DB} decompresses data in memory to check for constraint violations. {C.HYPERTABLE_CAP}s
-**without** unique constraints skip this check, so inserts into {C.COLUMNSTORE} {C.CHUNK}s are
-faster. If your workload is append-only with no duplicates, consider whether you truly need a
-unique constraint.
+{C.TIMESCALE_DB} decompresses only the batches that could contain a conflicting key to check for
+constraint violations. {C.HYPERTABLE_CAP}s **without** unique constraints skip this check, so
+inserts into {C.COLUMNSTORE} {C.CHUNK}s are faster. If your workload is append-only with no
+duplicates, consider whether you truly need a unique constraint.
 
 ### Indexes
 

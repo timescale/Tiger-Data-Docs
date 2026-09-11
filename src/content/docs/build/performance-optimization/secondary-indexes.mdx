@@ -1,15 +1,16 @@
 ---
 title: Improve query and upsert performance
 description: Use segmenting and ordering data in the columnstore to make lookup queries and upserts faster
-products: [cloud, mst, self_hosted]
+products: [cloud, self_hosted]
 ---
 
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import CreateHypertablePolicyNote from "../../../../partials/_create-hypertable-columnstore-policy-note.mdx";
 
-import { Image } from "astro:assets";
-import imgColumnstoreSegmentby from "../../../../assets/images/learn/deep-dive/columnstore-segmentby.png";
+import ThemeImage from "@components/ThemeImage.astro";
+import imgColumnstoreSegmentbyLight from "../../../../assets/images/learn/deep-dive/columnstore-segmentby-light.png";
+import imgColumnstoreSegmentbyDark from "../../../../assets/images/learn/deep-dive/columnstore-segmentby-dark.png";
 
 Wide analytical scans are only half the story; many workloads still need fast point lookups, uniqueness checks, and upserts on compressed data. Segmenting and ordering {C.COLUMNSTORE} data is how you tune those paths without giving up analytics performance.
 
@@ -22,7 +23,7 @@ in the {C.COLUMNSTORE}. By structuring data effectively, queries can minimize di
 vectorized execution for parallel batch processing where possible.
 
 <center>
-<Image src={imgColumnstoreSegmentby} alt="Columnstore data organized with SEGMENTBY for query optimization" />
+<ThemeImage light={imgColumnstoreSegmentbyLight} dark={imgColumnstoreSegmentbyDark} alt="Columnstore chunk organized with SEGMENTBY and ORDERBY: rows grouped into batches per segment key and ordered by time within each batch" />
 </center>
 
 * **Group related data together to improve scan efficiency**: organizing rows into logical segments ensures that queries
@@ -103,18 +104,25 @@ Time: 29.216 ms
 
 <NumberedItem title={`Execute a query on the same data segmented and ordered in the ${C.COLUMNSTORE}`}>
 
-<ol type="a">
-<li>Control the way your data is ordered and segmented in the {C.COLUMNSTORE}: <pre><code>{`ALTER TABLE metrics SET (
-  timescaledb.orderby = 'time',
-  timescaledb.segmentby = 'device_id'
-);`}</code></pre></li>
-<li>Query your data: <pre><code>{`SELECT device_id, AVG(cpu) AS avg_cpu, AVG(disk_io) AS avg_disk_io
-FROM metrics
-WHERE time >= '2024-03-01 00:00:00+01'
-  AND time < '2024-03-02 00:00:00+01'
-  AND device_id = 5
-GROUP BY device_id;`}</code></pre></li>
-</ol>
+1. Control the way your data is ordered and segmented in the {C.COLUMNSTORE}:
+
+   ```sql
+   ALTER TABLE metrics SET (
+     timescaledb.orderby = 'time',
+     timescaledb.segmentby = 'device_id'
+   );
+   ```
+
+1. Query your data:
+
+   ```sql
+   SELECT device_id, AVG(cpu) AS avg_cpu, AVG(disk_io) AS avg_disk_io
+   FROM metrics
+   WHERE time >= '2024-03-01 00:00:00+01'
+     AND time < '2024-03-02 00:00:00+01'
+     AND device_id = 5
+   GROUP BY device_id;
+   ```
 
 Gives the following result:
 

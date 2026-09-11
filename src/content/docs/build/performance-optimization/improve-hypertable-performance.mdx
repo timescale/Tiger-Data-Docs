@@ -1,18 +1,21 @@
 ---
 title: Improve hypertable and query performance
 description: Use chunk skipping to optimize hypertable performance and make sure your analytical queries are as fast as they can be
+products: [cloud, self_hosted]
 ---
 
-import { Image } from "astro:assets";
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 import ChunkInterval from "../../../../partials/_chunk-interval.mdx";
 import SinceRelease from "@components/SinceRelease.astro";
+import ThemeImage from "@components/ThemeImage.astro";
 
-import imgAutomatedChunkTuning from "../../../../assets/images/learn/performance-optimization/automated-chunk-tuning.png";
-import imgChunkSkipping from "../../../../assets/images/learn/performance-optimization/hypertable-with-chunk-skipping.png";
+import imgAutomatedChunkTuningLight from "../../../../assets/images/learn/performance-optimization/automated-chunk-tuning.png";
+import imgAutomatedChunkTuningDark from "../../../../assets/images/learn/performance-optimization/automated-chunk-tuning-dark.png";
+import imgChunkSkippingLight from "../../../../assets/images/learn/performance-optimization/hypertable-with-chunk-skipping.png";
+import imgChunkSkippingDark from "../../../../assets/images/learn/performance-optimization/hypertable-with-chunk-skipping-dark.png";
 
 {C.HYPERTABLE_CAP}s are {C.PG} tables that help you improve insert and query performance by automatically partitioning
 your data by time. Each {C.HYPERTABLE} is made up of child tables called {C.CHUNK}s. Each {C.CHUNK} is assigned a range of time,
@@ -21,7 +24,7 @@ the query on it, instead of going through the entire table. This page shows you 
 performance even more.
 
 - [Optimize {C.HYPERTABLE} {C.CHUNK} intervals](#optimize-hypertable-chunk-intervals): choose the optimum {C.CHUNK} size for your data - manually or automatically
-- [Enable {C.CHUNK_SKIPPING}](#enable-chunk-skipping): skip {C.CHUNK}s on non-partitioning columns in {C.HYPERTABLE}s when you query your data
+- [Enable {C.CHUNK_SKIPPING}](#enable-chunk-skipping): skip {C.CHUNK}s on non-partitioning columns in {C.HYPERTABLE}s when you query your data 
 - [Analyze your {C.HYPERTABLE}s](#analyze-your-hypertables): use {C.PG} `ANALYZE` to create the best query plan
 
 ## Optimize {C.HYPERTABLE} {C.CHUNK} intervals
@@ -111,10 +114,6 @@ care to check the total size of the {C.CHUNK} and its index using
 
 Automated {C.CHUNK} tuning manages {C.CHUNK} intervals for you. {C.CLOUD_LONG} continuously evaluates your {C.HYPERTABLE} and adjusts the interval when it detects the current setting is no longer optimal. Updated {C.CHUNK} intervals apply to **new {C.CHUNK}s only**; existing historical {C.CHUNK}s are not affected.
 
-<Callout variant="note">
-Automated {C.CHUNK} tuning is currently in beta.
-</Callout>
-
 When you enable automated {C.CHUNK} tuning on a {C.HYPERTABLE}, the interval is evaluated and updated within 5 minutes if necessary. The interval is changed incrementally rather than jumping directly to the target interval:
 
 - **Large increase**: if the recommended interval is more than double the current one, the interval is only doubled each evaluation cycle rather than jumping directly to the target. For example, if the current interval is 1 day and the recommended interval is 8 days, the interval increases to 2 days first, then 4 days, then 8 days over successive evaluations.
@@ -136,19 +135,13 @@ To enable automated {C.CHUNK} tuning:
   <NumberedItem title={`In ${C.CONSOLE_LONG}, select your ${C.SERVICE_SHORT}`}>
   </NumberedItem>
 
-  <NumberedItem title={`Click Explorer and select your ${C.HYPERTABLE}`}>
+  <NumberedItem title={`Click \`Explorer\` and select your ${C.HYPERTABLE}`}>
 
-    <Image src={imgAutomatedChunkTuning} alt="Chunk auto-tuning in Tiger Console" />
+    <ThemeImage light={imgAutomatedChunkTuningLight} dark={imgAutomatedChunkTuningDark} alt="Chunk auto-tuning in Tiger Console" />
 
   </NumberedItem>
 
-  <NumberedItem title="Toggle on Automated chunk tuning">
-  </NumberedItem>
-
-  <NumberedItem title={`For a #prod-tagged ${C.SERVICE_SHORT}, click Request beta access`}>
-
-    Our team will manually review your {C.HYPERTABLE} and the recommended intervals before enabling.
-
+  <NumberedItem title={`Toggle on \`Automated chunk tuning\``}>
   </NumberedItem>
 
 </NumberedList>
@@ -162,13 +155,13 @@ To disable automated {C.CHUNK} tuning:
   <NumberedItem title={`In ${C.CONSOLE_LONG}, select your ${C.SERVICE_SHORT}`}>
   </NumberedItem>
 
-  <NumberedItem title={`Click Explorer and select your ${C.HYPERTABLE}`}>
+  <NumberedItem title={`Click \`Explorer\` and select your ${C.HYPERTABLE}`}>
   </NumberedItem>
 
-  <NumberedItem title="Toggle off Automated chunk tuning">
+  <NumberedItem title={`Toggle off \`Automated chunk tuning\``}>
   </NumberedItem>
 
-  <NumberedItem title="Optionally set your preferred interval by clicking Change under the interval size">
+  <NumberedItem title={`Optionally set your preferred interval by clicking \`Change\` under the interval size`}>
 
     The next new {C.CHUNK} will use the interval you specify.
 
@@ -185,7 +178,7 @@ Automated {C.CHUNK} tuning is not supported for:
 
 ## Enable {C.CHUNK_SKIPPING}
 
-<SinceRelease version="2.17.1" product="tsdb" mode="early_access" />
+<SinceRelease version="2.17.1" product="tsdb" mode="tech_preview" />
 
 One of the key purposes of {C.HYPERTABLE}s is to make your analytical queries run with the lowest latency possible.
 When you execute a query on a {C.HYPERTABLE}, you do not parse the whole table; you only access the {C.CHUNK}s necessary
@@ -200,7 +193,7 @@ slows the performance.
 
 To improve query performance, {C.TIMESCALE_DB} enables you to skip {C.CHUNK}s on non-partitioning columns in {C.HYPERTABLE}s.
 
-<Callout variant="warning">
+<Callout variant="important">
 {C.CHUNK_SKIPPING_CAP} only works on {C.CHUNK}s converted to the {C.COLUMNSTORE} **after** you `enable_chunk_skipping`.
 </Callout>
 
@@ -211,7 +204,7 @@ column in each {C.CHUNK}. These ranges are stored in the start (inclusive) and e
 catalog table. {C.TIMESCALE_DB} uses these ranges for dynamic {C.CHUNK} exclusion when the `WHERE` clause of an SQL query
 specifies ranges on the column.
 
-<Image src={imgChunkSkipping} alt="How chunk skipping narrows query execution to relevant chunks" />
+<ThemeImage light={imgChunkSkippingLight} dark={imgChunkSkippingDark} alt="How chunk skipping narrows query execution to relevant chunks" />
 
 You can enable {C.CHUNK_SKIPPING} on {C.HYPERTABLE}s compressed into the {C.COLUMNSTORE} for `smallint`, `int`, `bigint`, `serial`,
 `bigserial`, `date`, `timestamp`, or `timestamptz` type columns.

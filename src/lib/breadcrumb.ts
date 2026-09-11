@@ -1,7 +1,7 @@
 /**
  * Breadcrumb trail with group-level links.
  * Same logic as @stainless-api/docs ContentBreadcrumbs findBreadcrumbTrail,
- * but group entries get href = first link in that group so every segment can link (e.g. "pgai" → /reference/pgai/).
+ * but group entries get href = first link in that group so every segment can link (e.g. "hypertables" → /reference/timescaledb/hypertables/).
  */
 import type { StarlightRouteData } from "@astrojs/starlight/route-data";
 

@@ -1,0 +1,60 @@
+name: Vale prose lint
+
+# Lints docs against the Google developer documentation style guide plus the
+# custom TigerData rules.
+#
+# Scope: only the Markdown/MDX files changed in the PR are linted, and within
+# those files only the lines the PR actually added or modified are considered.
+# This keeps the gate from failing on pre-existing violations the PR never
+# touched. The filtering and pass/fail decision live in
+# `.github/scripts/vale_pr_lint.py` (see the header there for why we don't rely
+# on reviewdog's filter_mode, which still failed the build on untouched lines).
+#
+# Only error-severity findings fail the check; warnings and suggestions are
+# advisory. The step summary explains each finding (rule, location, message,
+# and how to fix it), and inline annotations mark the offending lines.
+
+on:
+  pull_request:
+    paths:
+      - "**/*.md"
+      - "**/*.mdx"
+      - ".vale.ini"
+      - ".github/styles/**"
+      - ".github/workflows/vale.yml"
+      - ".github/scripts/vale_pr_lint.py"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  VALE_VERSION: "3.14.2"
+
+jobs:
+  vale:
+    name: Vale
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install Vale
+        run: |
+          curl -sfL \
+            "https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz" \
+            -o /tmp/vale.tar.gz
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf /tmp/vale.tar.gz -C "$HOME/.local/bin" vale
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Sync Vale styles
+        # Downloads the Google package into StylesPath, per .vale.ini.
+        run: vale sync
+
+      - name: Lint changed lines
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: python3 .github/scripts/vale_pr_lint.py

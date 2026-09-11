@@ -49,135 +49,103 @@ INSERT INTO conditions (day, city, temperature) VALUES
 
 <NumberedItem title={`Create a ${C.CAGG} with no materialized data`}>
 
-<ol type="a">
-<li>
+1. Create the {C.CAGG}:
 
-Create the {C.CAGG}:
+   ```sql
+   CREATE MATERIALIZED VIEW conditions_summary
+   WITH (timescaledb.continuous, timescaledb.materialized_only=false) AS
+   SELECT city,
+      time_bucket('7 days', day) AS bucket,
+      MIN(temperature),
+      MAX(temperature)
+   FROM conditions
+   GROUP BY city, bucket
+   WITH NO DATA;
+   ```
 
-```sql
-CREATE MATERIALIZED VIEW conditions_summary
-WITH (timescaledb.continuous, timescaledb.materialized_only=false) AS
-SELECT city,
-   time_bucket('7 days', day) AS bucket,
-   MIN(temperature),
-   MAX(temperature)
-FROM conditions
-GROUP BY city, bucket
-WITH NO DATA;
-```
+1. Check your data:
 
-</li>
-<li>
+   ```sql
+   SELECT * FROM conditions_summary ORDER BY bucket;
+   ```
 
-Check your data:
+   The query fetches data directly from the {C.HYPERTABLE}:
 
-```sql
-SELECT * FROM conditions_summary ORDER BY bucket;
-```
+   | city | bucket | min | max |
+   |------|--------|-----|-----|
+   | Moscow | 2021-06-14 | 22 | 30 |
+   | Moscow | 2021-06-21 | 31 | 34 |
 
-The query fetches data directly from the {C.HYPERTABLE}:
-
-| city | bucket | min | max |
-|------|--------|-----|-----|
-| Moscow | 2021-06-14 | 22 | 30 |
-| Moscow | 2021-06-21 | 31 | 34 |
-
-</li>
-</ol>
 </NumberedItem>
 
 <NumberedItem title="Materialize the data">
 
-<ol type="a">
-<li>
+1. Refresh the {C.CAGG}:
 
-Refresh the {C.CAGG}:
+   ```sql
+   CALL refresh_continuous_aggregate('conditions_summary', '2021-06-14', '2021-06-21');
+   ```
 
-```sql
-CALL refresh_continuous_aggregate('conditions_summary', '2021-06-14', '2021-06-21');
-```
+1. Check your data:
 
-</li>
-<li>
+   ```sql
+   SELECT * FROM conditions_summary ORDER BY bucket;
+   ```
 
-Check your data:
+   The same data is returned, but this time from the underlying materialized table:
 
-```sql
-SELECT * FROM conditions_summary ORDER BY bucket;
-```
+   | city | bucket | min | max |
+   |------|--------|-----|-----|
+   | Moscow | 2021-06-14 | 22 | 30 |
+   | Moscow | 2021-06-21 | 31 | 34 |
 
-The same data is returned, but this time from the underlying materialized table:
-
-| city | bucket | min | max |
-|------|--------|-----|-----|
-| Moscow | 2021-06-14 | 22 | 30 |
-| Moscow | 2021-06-21 | 31 | 34 |
-
-</li>
-</ol>
 </NumberedItem>
 
 <NumberedItem title="Update data in a previously materialized bucket">
 
-<ol type="a">
-<li>
+1. Update the data in your {C.HYPERTABLE}:
 
-Update the data in your {C.HYPERTABLE}:
+   ```sql
+   UPDATE conditions
+   SET temperature = 35
+   WHERE day = '2021-06-14' and city = 'Moscow';
+   ```
 
-```sql
-UPDATE conditions
-SET temperature = 35
-WHERE day = '2021-06-14' and city = 'Moscow';
-```
+1. Check your data:
 
-</li>
-<li>
+   ```sql
+   SELECT * FROM conditions_summary ORDER BY bucket;
+   ```
 
-Check your data:
+   The updated data is not yet visible. This is because the changes have not been materialized:
 
-```sql
-SELECT * FROM conditions_summary ORDER BY bucket;
-```
+   | city | bucket | min | max |
+   |------|--------|-----|-----|
+   | Moscow | 2021-06-14 | 22 | 30 |
+   | Moscow | 2021-06-21 | 31 | 34 |
 
-The updated data is not yet visible. This is because the changes have not been materialized:
-
-| city | bucket | min | max |
-|------|--------|-----|-----|
-| Moscow | 2021-06-14 | 22 | 30 |
-| Moscow | 2021-06-21 | 31 | 34 |
-
-</li>
-</ol>
 </NumberedItem>
 
 <NumberedItem title="Refresh to update the materialized region">
 
-<ol type="a">
-<li>
+1. Refresh the data:
 
-Refresh the data:
+   ```sql
+   CALL refresh_continuous_aggregate('conditions_summary', '2021-06-14', '2021-06-21');
+   ```
 
-```sql
-CALL refresh_continuous_aggregate('conditions_summary', '2021-06-14', '2021-06-21');
-```
+1. Check your data:
 
-</li>
-<li>
+   ```sql
+   SELECT * FROM conditions_summary ORDER BY bucket;
+   ```
 
-Check your data:
+   The update is now visible:
 
-```sql
-SELECT * FROM conditions_summary ORDER BY bucket;
-```
+   | city | bucket | min | max |
+   |------|--------|-----|-----|
+   | Moscow | 2021-06-14 | 22 | 35 |
+   | Moscow | 2021-06-21 | 31 | 34 |
 
-The update is now visible:
-
-| city | bucket | min | max |
-|------|--------|-----|-----|
-| Moscow | 2021-06-14 | 22 | 35 |
-| Moscow | 2021-06-21 | 31 | 34 |
-
-</li>
-</ol>
 </NumberedItem>
 </NumberedList>

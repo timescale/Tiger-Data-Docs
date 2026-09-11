@@ -1,0 +1,47 @@
+<script is:inline>
+  /**
+   * Open off-site http(s) links in a new tab (no rehype plugin; same-origin stays same tab).
+   * Runs after DOM is available. Covers prose links and React-rendered anchors (for example Card).
+   * Opt out: data-same-tab on the anchor, or target="_self".
+   */
+  (function () {
+    function hostnameKey(host) {
+      return host.replace(/^www\./, "").toLowerCase();
+    }
+    function externalizeAnchors() {
+      var origin = window.location.origin;
+      var siteHost = hostnameKey(window.location.hostname);
+      document.querySelectorAll("a[href]").forEach(function (a) {
+        if (a.hasAttribute("data-same-tab")) return;
+        if (a.getAttribute("target") === "_self") return;
+        var href = a.getAttribute("href");
+        if (!href || href.startsWith("#")) return;
+        if (/^(mailto:|tel:|javascript:)/i.test(href)) return;
+        if (href.startsWith("/") && !href.startsWith("//")) return;
+        try {
+          var u = new URL(href, origin);
+          if (u.protocol !== "http:" && u.protocol !== "https:") return;
+          if (hostnameKey(u.hostname) === siteHost) return;
+          if (a.getAttribute("target") !== "_blank") {
+            a.setAttribute("target", "_blank");
+            a.setAttribute("rel", "noopener noreferrer");
+          }
+        } catch (_) {}
+      });
+    }
+    function run() {
+      externalizeAnchors();
+      setTimeout(externalizeAnchors, 0);
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run);
+    } else {
+      run();
+    }
+    document.addEventListener("astro:page-load", run);
+    window.addEventListener("load", function once() {
+      externalizeAnchors();
+      window.removeEventListener("load", once);
+    });
+  })();
+</script>

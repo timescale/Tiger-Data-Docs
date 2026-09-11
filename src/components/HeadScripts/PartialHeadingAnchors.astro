@@ -1,0 +1,64 @@
+<script is:inline>
+  /**
+   * Wrap any heading rendered from an imported `_partial.mdx` file with the `.sl-heading-wrapper`
+   * + `.sl-anchor-link` markup that Starlight's `rehype-autolink-headings` plugin produces. That
+   * plugin only runs on files inside the docs collection path, so headings inside partials
+   * (which are compiled as separate MDX modules outside that path) come out bare — no hover
+   * link icon, no shareable anchor. We mirror the plugin's HTML at runtime so partial headings
+   * are indistinguishable from authored-in-page ones.
+   *
+   * Like the TOC augmentation below, this works for conditionally-rendered headings too — React
+   * resolves the conditional before this runs, so we only wrap what's actually on the page.
+   */
+  (function () {
+    var ANCHOR_PATH =
+      "m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z";
+    function wrapHeading(h) {
+      if (!h.id) return;
+      if (h.id === "_top" || h.id.indexOf("starlight__") === 0) return;
+      // Already wrapped (own-page heading processed by Starlight's rehype plugin)?
+      if (h.parentElement && h.parentElement.classList.contains("sl-heading-wrapper")) return;
+
+      var level = h.tagName.toLowerCase();
+      var wrapper = document.createElement("div");
+      wrapper.className = "sl-heading-wrapper level-" + level;
+
+      var anchor = document.createElement("a");
+      anchor.className = "sl-anchor-link";
+      anchor.href = "#" + h.id;
+
+      var iconSpan = document.createElement("span");
+      iconSpan.setAttribute("aria-hidden", "true");
+      iconSpan.className = "sl-anchor-icon";
+      iconSpan.innerHTML =
+        '<svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="' +
+        ANCHOR_PATH +
+        '"></path></svg>';
+
+      var srSpan = document.createElement("span");
+      srSpan.className = "sr-only";
+      srSpan.setAttribute("data-pagefind-ignore", "true");
+      // Match Starlight's `heading.anchorLabel` translation so screen-reader output is
+      // identical to own-page headings (curly quotes, same phrasing).
+      srSpan.textContent = "Section titled “" + (h.textContent || "").trim() + "”";
+
+      anchor.appendChild(iconSpan);
+      anchor.appendChild(srSpan);
+
+      // Insert wrapper before the heading, then move heading + anchor inside it.
+      h.parentNode.insertBefore(wrapper, h);
+      wrapper.appendChild(h);
+      wrapper.appendChild(anchor);
+    }
+    function run() {
+      var headings = document.querySelectorAll("main h2[id], main h3[id]");
+      for (var i = 0; i < headings.length; i++) wrapHeading(headings[i]);
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run);
+    } else {
+      run();
+    }
+    document.addEventListener("astro:page-load", run);
+  })();
+</script>

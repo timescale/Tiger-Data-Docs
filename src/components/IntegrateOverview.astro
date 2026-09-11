@@ -1,7 +1,7 @@
 ---
 /**
  * Integrate overview: search bar + dropdown filters + flat card grid.
- * Filter dimensions: Type of Tool, Industry, Platform, First Party/Third Party, Technology.
+ * Filter dimensions: Type of tool, Industry, Platform, First-party/third-party, Technology.
  * Relies on frontmatter: integrationCategory, integrationIndustry[], integrationPlatforms[], connectorType, keywords[],
  * integrationHideFromOverviewCards (omit from card grid only; sidebar unchanged).
  */
@@ -81,7 +81,7 @@ const allSlugs = Object.keys(pathMap)
 const PLATFORM_LABELS: Record<string, string> = {
   aws: "Tiger Cloud on AWS",
   azure: "Tiger Cloud on Azure",
-  "self-hosted": "Self-Hosted"
+  "self-hosted": "Self-hosted"
 };
 const PLATFORM_ORDER = ["aws", "azure", "self-hosted"] as const;
 type PlatformSlug = (typeof PLATFORM_ORDER)[number];
@@ -108,33 +108,32 @@ function cardInitials(data: DocData, displayTitle: string): string {
   if (data.integrationCardInitials?.trim()) {
     return data.integrationCardInitials.trim().slice(0, 4);
   }
-  const stripped = displayTitle.replace(/\s+and Tiger Data\s*$/i, "").trim();
-  const words = stripped.split(/[\s/&]+/).filter(Boolean);
+  const words = displayTitle.trim().split(/[\s/&]+/).filter(Boolean);
   if (words.length >= 2) {
     return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
   }
   if (words.length === 1 && words[0].length >= 2) {
     return words[0].slice(0, 2).toUpperCase();
   }
-  return (stripped.slice(0, 2) || "?").toUpperCase();
+  return (displayTitle.trim().slice(0, 2) || "?").toUpperCase();
 }
 
 function cardTitle(data: DocData): string {
   if (data.integrationCardTitle) {
-    return `${data.integrationCardTitle} and Tiger Data`;
+    return data.integrationCardTitle;
   }
   const t = data.title ?? "";
   const withMatch = t.match(
     /^Integrate (.+?) (?:with|and) Tiger (?:Cloud|Data)$/i
   );
-  if (withMatch) return `${withMatch[1]} and Tiger Data`;
+  if (withMatch) return withMatch[1];
   const connectMatch = t.match(/^Connect (.+?) to Tiger (?:Cloud|Data)$/i);
-  if (connectMatch) return `${connectMatch[1]} and Tiger Data`;
+  if (connectMatch) return connectMatch[1];
   const connectWithMatch = t.match(
     /^Connect to Tiger (?:Cloud|Data) with (.+)$/i
   );
-  if (connectWithMatch) return `${connectWithMatch[1]} and Tiger Data`;
-  if (t && !/Tiger (?:Cloud|Data)/i.test(t)) return `${t} and Tiger Data`;
+  if (connectWithMatch) return connectWithMatch[1];
+  if (t && !/Tiger (?:Cloud|Data)/i.test(t)) return t;
   return (t || "Integration").replace(/Tiger Cloud/gi, "Tiger Data");
 }
 
@@ -185,17 +184,17 @@ const cardEntries = entries.filter(
     !SLUGS_HIDDEN_FROM_INTEGRATE_CARDS.has(e.slug) && !e.data.integrationHideFromOverviewCards
 );
 
-// --- Filter: Type of Tool (integrationCategory) ---
+// --- Filter: Type of tool (integrationCategory) ---
 const CATEGORY_LABELS: Record<string, string> = {
-  "data-engineering-etl": "Data Engineering & ETL",
-  "bi-vizualization": "BI & Visualization",
-  "data-ingestion-streaming": "Data Ingestion & Streaming",
+  "data-engineering-etl": "Data engineering & ETL",
+  "bi-vizualization": "BI & visualization",
+  "data-ingestion-streaming": "Data ingestion & streaming",
   connectors: "Connectors",
-  code: "Code & Libraries",
-  "query-administration": "Query & Administration",
-  "secure-connectivity": "Secure Connectivity",
-  "observability-alerting": "Observability & Alerting",
-  "configuration-deployment": "Configuration & Deployment"
+  code: "Code & libraries",
+  "query-administration": "Query & administration",
+  "secure-connectivity": "Secure connectivity",
+  "observability-alerting": "Observability & alerting",
+  "configuration-deployment": "Configuration & deployment"
 };
 const CATEGORY_ORDER = [
   "data-engineering-etl",
@@ -223,7 +222,7 @@ const uniqueCategories = CATEGORY_ORDER.filter((cat) =>
 
 // --- Filter: Industry ---
 const INDUSTRY_LABELS: Record<string, string> = {
-  "oil-and-gas": "Oil and Gas",
+  "oil-and-gas": "Oil and gas",
   iot: "IoT",
   energy: "Energy",
   crypto: "Crypto",
@@ -255,7 +254,7 @@ function getPlatforms(data: DocData): PlatformSlug[] {
   return PLATFORM_ORDER.filter((key) => p.includes(key));
 }
 
-// --- Filter: First Party / Third Party ---
+// --- Filter: First-party/third-party ---
 function getPartyType(data: DocData): string {
   if (data.integrationCategory === "connectors") return "first-party";
   return "third-party";
@@ -322,10 +321,10 @@ const headerDescription = routeEntry?.data?.description;
 
   <!-- Filter dropdowns -->
   <div class="integrate-filters" id="integrate-filters">
-    <!-- Type of Tool -->
+    <!-- Type of tool -->
     <div class="integrate-filter-group" data-filter-key="category">
       <button type="button" class="integrate-filter-btn" aria-expanded="false">
-        <span>Type of Tool</span>
+        <span>Type of tool</span>
         <svg
           class="integrate-filter-chevron"
           width="12"
@@ -418,10 +417,10 @@ const headerDescription = routeEntry?.data?.description;
       </div>
     </div>
 
-    <!-- First Party / Third Party -->
+    <!-- First-party/third-party -->
     <div class="integrate-filter-group" data-filter-key="party">
       <button type="button" class="integrate-filter-btn" aria-expanded="false">
-        <span>First Party/Third Party</span>
+        <span>First-party/third-party</span>
         <svg
           class="integrate-filter-chevron"
           width="12"
@@ -445,7 +444,7 @@ const headerDescription = routeEntry?.data?.description;
             value="first-party"
             data-filter-check="party"
           />
-          <span>First Party</span>
+          <span>First-party</span>
         </label>
         <label class="integrate-filter-option">
           <input
@@ -453,7 +452,7 @@ const headerDescription = routeEntry?.data?.description;
             value="third-party"
             data-filter-check="party"
           />
-          <span>Third Party</span>
+          <span>Third-party</span>
         </label>
       </div>
     </div>
@@ -538,9 +537,7 @@ const headerDescription = routeEntry?.data?.description;
         const hasLogo = !!logoLight;
         const hasDualLogo = !!logoLight && !!logoDark;
         const logoAlt =
-          data.integrationCardLogoAlt?.trim() ||
-          title.replace(/\s+and Tiger Data\s*$/i, "").trim() ||
-          title;
+          data.integrationCardLogoAlt?.trim() || title;
         return (
           <a
             href={slugToHref(slug)}

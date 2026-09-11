@@ -5,16 +5,22 @@
 export const INTEGRATION_TECHNOLOGY_KEYS = [
   "PostgreSQL",
   "Python",
+  "Ruby",
+  "Node.js",
+  "Go",
+  "Java",
   "SQL",
   "Kafka",
+  "MQTT",
+  "OPC UA",
+  "Apache Iceberg",
   "AWS",
   "Azure",
   "GCP",
   "Terraform",
   "Kubernetes",
   "Grafana",
-  "Prometheus",
-  "REST API"
+  "Prometheus"
 ] as const;
 
 export type IntegrationTechnologyKey = (typeof INTEGRATION_TECHNOLOGY_KEYS)[number];
@@ -33,16 +39,22 @@ export const TECHNOLOGY_KEYWORD_PATTERNS: Record<
     "postgresql"
   ],
   Python: ["python", "psycopg2", "sdk"],
+  Ruby: ["ruby"],
+  "Node.js": ["node.js", "nodejs"],
+  Go: ["golang"],
+  Java: ["java"],
   SQL: ["sql editor", "sql shell", "query tool", "interactive queries"],
   Kafka: ["kafka", "confluent", "event streaming"],
+  MQTT: ["mqtt"],
+  "OPC UA": ["opc ua"],
+  "Apache Iceberg": ["iceberg"],
   AWS: ["aws", "lambda", "sagemaker", "cloudwatch", "s3"],
   Azure: ["azure"],
   GCP: ["google cloud", "gcp"],
   Terraform: ["terraform", "iac", "infrastructure as code"],
   Kubernetes: ["kubernetes", "k8s", "container orchestration"],
   Grafana: ["grafana"],
-  Prometheus: ["prometheus"],
-  "REST API": ["api integration", "rest"]
+  Prometheus: ["prometheus"]
 };
 
 export function technologiesFromKeywords(

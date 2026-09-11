@@ -39,6 +39,16 @@ const pageLabelsSchema = z.object({
 });
 
 /**
+ * Which Tiger Data products this page applies to. Drives Pagefind search weighting
+ * (see `src/plugins/rehype-pagefind-weight.ts`): cloud-only pages boost, self-hosted /
+ * MST pages demote — so `{C.CLOUD_LONG}` content ranks above TimescaleDB content for
+ * cross-cutting queries.
+ */
+const productsSchema = z.object({
+  products: z.array(z.enum(["cloud", "mst", "self_hosted"])).optional(),
+});
+
+/**
  * Right-rail "Learn more" card (Figma 3588-7875, -7948, -7974, -8047).
  * All fields optional — card is hidden if nothing is set. Href accepts relative
  * (`/build/foo/`) or absolute URLs; absolute ones open in a new tab.
@@ -121,6 +131,15 @@ const integrationSchema = z.object({
   integrationHideFromOverviewCards: z.boolean().optional(),
 });
 
+/**
+ * When true, emit `<meta name="robots" content="noindex">` via `src/components/Head.astro`
+ * so search engines skip the page. Use for internal or test pages (for example, the component
+ * kitchen sink) that should stay out of search results.
+ */
+const noindexSchema = z.object({
+  noindex: z.boolean().optional(),
+});
+
 export const collections = {
   docs: defineCollection({
     loader: docsLoader(),
@@ -129,7 +148,9 @@ export const collections = {
         .merge(seoDescriptionSchema)
         .merge(integrationSchema)
         .merge(pageLabelsSchema)
-        .merge(learnMoreSchema),
+        .merge(productsSchema)
+        .merge(learnMoreSchema)
+        .merge(noindexSchema),
     }),
   }),
 };
