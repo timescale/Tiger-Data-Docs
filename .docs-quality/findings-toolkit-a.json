@@ -1,0 +1,86 @@
+[
+  {
+    "checklistItem": "F3",
+    "category": "code-identifiers",
+    "severity": "high",
+    "pages": [
+      "/reference/toolkit/counters-and-gauges/gauge_agg/gauge_agg",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/index",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/corr",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/delta",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/extrapolated_delta",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/extrapolated_rate",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/gauge_zero_time",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/idelta_left",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/idelta_right",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/intercept",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/interpolated_delta",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/interpolated_rate",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/irate_left",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/irate_right",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/num_changes",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/num_elements",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/rate",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/rollup",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/slope",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/time_delta",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/with_bounds"
+    ],
+    "evidence": "gauge_agg/gauge_agg.mdx Samples: \"SELECT time_bucket('1 day'::interval, ts) as dt, gauge_agg(ts, val) AS cs FROM foo...\"; gauge_agg/delta.mdx: \"SELECT id, delta(summary) FROM (SELECT id, gauge_agg(ts, val) AS summary FROM foo GROUP BY id) t\" — every gauge_agg accessor page repeats this unprefixed pattern. Counter-example from counters-and-gauges/index.mdx shows correct prefixing: \"toolkit_experimental.gauge_agg(ts, memory_usage)\", \"toolkit_experimental.delta(gauge_summary)\".",
+    "why": "Every gauge_agg function lives in the `toolkit_experimental` schema per the product source (extension/src/gauge_agg.rs: `#[pg_extern(..., schema = \"toolkit_experimental\")]`), yet all 21 gauge_agg-specific pages omit the required prefix in their examples, contradicting both the parent overview and established docs convention (saturating-math, downsampling, state-tracking all prefix toolkit_experimental functions correctly), so readers copying these examples will hit 'function does not exist' errors.",
+    "suggestedFix": "Add `toolkit_experimental.` prefix to every gauge_agg-family function call across all 21 pages in Samples and Arguments blocks, matching the pattern used correctly in counters-and-gauges/index.mdx and all other toolkit_experimental families in this reference section.",
+    "deferCheck": "This is a cross-page and cross-family consistency check: the schema attribute is a fixed fact from the product source, not a runtime-execution question owned by the doc testing tool."
+  },
+  {
+    "checklistItem": "F3",
+    "category": "code-identifiers",
+    "severity": "high",
+    "pages": [
+      "/reference/toolkit/counters-and-gauges/index",
+      "/reference/toolkit/counters-and-gauges/counter_agg/extrapolated_delta",
+      "/reference/toolkit/counters-and-gauges/counter_agg/extrapolated_rate"
+    ],
+    "evidence": "counters-and-gauges/index.mdx, \"Roll up and extrapolate counter values\" sample: \"extrapolated_delta(daily_cs, '1 day'::interval) AS estimated_total_bytes, extrapolated_rate(daily_cs, '1 day'::interval)\" — vs. counter_agg/extrapolated_delta.mdx Arguments table: \"method TEXT ... The only allowed value is `prometheus`.\"",
+    "why": "The family overview example passes an INTERVAL literal as the second argument, but the dedicated reference pages (and the product source, extension/src/counter_agg.rs: `fn counter_agg_extrapolated_delta(summary: CounterSummary, method: &str)`) document that the second argument must be the TEXT string 'prometheus'. A reader copying the top-level example gets a 'function does not exist' error because no `extrapolated_delta(countersummary, interval)` overload exists.",
+    "suggestedFix": "Change counters-and-gauges/index.mdx's example to: `extrapolated_delta(daily_cs, 'prometheus') AS estimated_total_bytes, extrapolated_rate(daily_cs, 'prometheus') AS estimated_avg_bytes_per_sec`",
+    "deferCheck": "This is a signature/argument-type mismatch between reference pages and the family overview, confirmed against the accessor pages' documented signatures and the product source — not a runtime-execution verification."
+  },
+  {
+    "checklistItem": "F6",
+    "category": "code-identifiers",
+    "severity": "high",
+    "pages": [
+      "/reference/toolkit/minimum-and-maximum/min_n/into_values"
+    ],
+    "evidence": "min_n/into_values.mdx Samples section: \"SELECT toolkit_experimental.into_values(\\n    toolkit_experimental.min_n(sub.val, 5))\\nFROM (...)\" — vs. every sibling page in the same family: min_n/into_array.mdx: \"SELECT into_array(\\n    min_n(sub.val, 5))\"; max_n/into_values.mdx: \"SELECT into_values(\\n    max_n(sub.val, 5))\"",
+    "evidence_continued": "The page's own <SinceRelease version=\"1.16.0\" product=\"toolkit\" /> badge (no mode=early_access) and the product's stabilization_info.rs (lists into_values(minfloats), into_values(minints), into_values(mintimes) in STABLE_FUNCTIONS) confirm min_n and its into_values accessor are genuinely stable.",
+    "why": "min_n/into_values is stable in the real product, yet its only worked example still uses the old toolkit_experimental schema prefix, contradicting every sibling accessor page in the min_n/max_n family and risking a 'function does not exist' error for a reader who copies it.",
+    "suggestedFix": "Remove the toolkit_experimental. prefix from both function calls in min_n/into_values.mdx's Samples section to match into_array.mdx and all other stabilized accessors in this family.",
+    "deferCheck": "This is a cross-family consistency check (comparing stable accessors across families) and a product-source verification, not a broken-link or build-failure check."
+  },
+  {
+    "checklistItem": "F3",
+    "category": "code-identifiers",
+    "severity": "medium",
+    "pages": [
+      "/reference/toolkit/counters-and-gauges/counter_agg/with_bounds",
+      "/reference/toolkit/counters-and-gauges/gauge_agg/with_bounds"
+    ],
+    "evidence": "counter_agg/with_bounds.mdx Samples: \"extrapolated_rate(with_bounds(summary, time_bucket_range('15 min'::interval, bucket)), 'prometheus')\" — vs. counter_agg/extrapolated_rate.mdx Samples: \"extrapolated_rate(with_bounds(summary, toolkit_experimental.time_bucket_range('15 min'::interval, bucket)),'prometheus')\". Same unprefixed pattern in gauge_agg/with_bounds.mdx.",
+    "why": "`time_bucket_range` is an experimental helper (not in STABLE_FUNCTIONS), so it requires the toolkit_experimental prefix as extrapolated_delta.mdx and extrapolated_rate.mdx correctly show in both families. with_bounds.mdx calls the same helper unprefixed, one page over from where it's prefixed correctly, creating reader confusion.",
+    "suggestedFix": "Add the `toolkit_experimental.` prefix to `time_bucket_range(...)` in the Samples block of both counter_agg/with_bounds.mdx and gauge_agg/with_bounds.mdx.",
+    "deferCheck": "This is a same-corpus naming/prefix consistency check for the same helper function between reference pages, not a doc-testing-tool execution check."
+  },
+  {
+    "checklistItem": "B1",
+    "category": "version-claims",
+    "severity": "medium",
+    "pages": [
+      "/reference/toolkit/candlestick_agg/rollup"
+    ],
+    "evidence": "candlestick_agg/rollup.mdx: '<SinceRelease version=\"1.12.0\" product=\"toolkit\" />' — vs. all 12 sibling pages in the same family (candlestick_agg.mdx, candlestick.mdx, open.mdx, open_time.mdx, high.mdx, high_time.mdx, low.mdx, low_time.mdx, close.mdx, close_time.mdx, volume.mdx, vwap.mdx): '<SinceRelease version=\"1.14.0\" product=\"toolkit\" />'",
+    "why": "Per timescaledb-toolkit's Changelog.md, the entire Candlestick feature (including rollup) was introduced together in 1.12.0 and stabilized together in 1.14.0 ('Stabilize candlestick', PR #701). Twelve sibling pages correctly show 1.14.0, but rollup.mdx alone shows 1.12.0, creating a factual disagreement about when this function stabilized.",
+    "suggestedFix": "Change rollup.mdx's <SinceRelease> version from \"1.12.0\" to \"1.14.0\" to match the other 12 pages in the candlestick_agg family.",
+    "deferCheck": "Verified against the actual project changelog; this is a cross-page version/factual consistency issue (B1), not a broken link or build failure."
+  }
+]

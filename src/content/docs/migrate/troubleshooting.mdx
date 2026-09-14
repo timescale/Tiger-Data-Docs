@@ -5,109 +5,7 @@ products: [cloud]
 ---
 
 import * as C from "@constants";
-import { Callout } from "@stainless-api/docs/components";
-import { NumberedList, NumberedItem } from "@components/NumberedList";
 import OpenSupportRequest from "../../../partials/_migrate_open_support_request.mdx";
-
-## Unsupported in live migration
-
-Live migration tooling is currently experimental. You may run into the following shortcomings:
-
-- Live migration does not yet support mutable {C.COLUMNSTORE} compression (`INSERT`, `UPDATE`,
-  `DELETE` on data in the {C.COLUMNSTORE}).
-- By default, numeric fields containing `NaN`/`+Inf`/`-Inf` values are not
-  correctly replicated, and will be converted to `NULL`. A workaround is available, but is not enabled by default.
-
-Should you run into any problems, please open a support request before losing
-any time debugging issues.
-
-<OpenSupportRequest />
-
-## Where can I find logs for processes running during live migration?
-
-Live migration involves several background processes to manage different stages of
-the migration. The logs of these processes can be helpful for troubleshooting
-unexpected behavior. You can find these logs in the `<volume_mount>/logs` directory.
-
-## Source and target databases have different {C.TIMESCALE_DB} versions
-
-When you migrate a {C.SELF_SHORT} or {C.MST_LONG} ({C.MST_SHORT})
-database to {C.CLOUD_LONG}, the source database and the destination
-{C.SERVICE_LONG} must run the same version of {C.TIMESCALE_DB}.
-
-Before you start [live migration](/migrate/live-migration):
-
-<NumberedList>
-<NumberedItem title={`Check the version of ${C.TIMESCALE_DB} running on both databases`}>
-
-```sql
-select extversion from pg_extension where extname = 'timescaledb';
-```
-</NumberedItem>
-
-<NumberedItem title={`If the version on the source is lower than your ${C.SERVICE_LONG}, either downgrade or upgrade`}>
-
-- **Downgrade**: reinstall an older version of {C.TIMESCALE_DB} on your {C.SERVICE_LONG} that matches the source database:
-
-    1. Connect to your {C.SERVICE_LONG} and check the versions of {C.TIMESCALE_DB} available:
-
-       ```sql
-       SELECT version FROM pg_available_extension_versions WHERE name = 'timescaledb' ORDER BY 1 DESC;
-       ```
-
-    1. If an available {C.TIMESCALE_DB} release matches your source database, uninstall and reinstall:
-
-       ```sql
-       DROP EXTENSION timescaledb;
-       CREATE EXTENSION timescaledb VERSION '<version>';
-       ```
-
-       <Callout variant="tip">
-       You may need to reconnect to your {C.SERVICE_LONG} using `psql -X` when you're creating the {C.TIMESCALE_DB} extension.
-       </Callout>
-
-- **Upgrade**: for {C.SELF_SHORT} databases, [upgrade {C.TIMESCALE_DB}](/deploy/self-hosted/upgrades) to match your {C.SERVICE_LONG}.
-</NumberedItem>
-</NumberedList>
-
-## Why does live migration log "no tuple identifier" warning?
-
-Live migration logs a warning `WARNING: no tuple identifier for UPDATE in table`
-when it cannot determine which specific rows should be updated after receiving an
-`UPDATE` statement from the source database during replication. This occurs when tables
-in the source database that receive `UPDATE` statements lack either a `PRIMARY KEY` or
-a `REPLICA IDENTITY` setting. For live migration to successfully replicate `UPDATE` and
-`DELETE` statements, tables must have either a `PRIMARY KEY` or `REPLICA IDENTITY` set
-as a prerequisite.
-
-## Set REPLICA IDENTITY on {C.PG} partitioned tables
-
-If your {C.PG} tables use native partitioning, setting `REPLICA IDENTITY` on the
-root (parent) table will not automatically apply it to the partitioned child tables.
-You must manually set `REPLICA IDENTITY` on each partitioned child table.
-
-## Can I use read/failover replicas as source database for live migration?
-
-Live migration does not support replication from read or failover replicas. You must
-provide a connection string that points directly to your source database for
-live migration.
-
-## Can I use live migration with a {C.PG} connection pooler like PgBouncer?
-
-Live migration does not support connection poolers. You must provide a
-connection string that points directly to your source and target databases
-for live migration to work smoothly.
-
-## Can I use {C.CLOUD_LONG} instance as source for live migration?
-
-Yes, but logical replication must be enabled first. [Contact us](mailto:support@tigerdata.com) to enable.
-
-## How can I exclude a schema/table from being replicated in live migration?
-
-At present, live migration does not allow for excluding schemas or tables from
-replication, but this feature is expected to be added in future releases.
-However, a workaround is available for skipping table data using the `--skip-table-data` flag.
-For more information, please refer to the help text under the `migrate` subcommand.
 
 ## Large migrations blocked
 
@@ -328,7 +226,7 @@ To test your database for partial {C.CAGG}s, run the following query:
 SELECT exists (SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE NOT finalized);
 ```
 
-If you have partial {C.CAGG}s in your database, [migrate them](/migrate/live-migration)
+If you have partial {C.CAGG}s in your database, [upgrade them](/deploy/self-hosted/upgrades)
 from partial to finalized before you migrate your database.
 
 If you accidentally migrate partial {C.CAGG}s across {C.PG}

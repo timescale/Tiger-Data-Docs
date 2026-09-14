@@ -30,8 +30,10 @@ export const FREE = 'Free';
 // Products
 
 export const CLOUD_LONG = `${PRODUCT_PREFIX} Cloud`;
-export const LAKE_LONG = `${CLOUD_LONG} Iceberg connector`;
-export const LAKE_SHORT = 'Iceberg connector';
+/** The lakehouse product. For the connector that syncs to Iceberg, use ICEBERG_CONNECTOR_LONG/SHORT. */
+export const LAKE = 'Tiger Lake';
+export const ICEBERG_CONNECTOR_LONG = `${CLOUD_LONG} Iceberg connector`;
+export const ICEBERG_CONNECTOR_SHORT = 'Iceberg connector';
 export const TIMESCALE_DB = 'TimescaleDB';
 export const PRODUCTS_ALL = `${COMPANY} products`;
 export const PRODUCTS_CL_DB = `${CLOUD_LONG} and ${TIMESCALE_DB}`;
@@ -50,6 +52,7 @@ export const REST_LONG = `${PRODUCT_PREFIX} REST API`;
 export const REST_SHORT = 'REST API';
 export const MCP_LONG = `${PRODUCT_PREFIX} MCP`;
 export const MCP_SHORT = `${PRODUCT_PREFIX} MCP`;
+export const CLI_REPO_URL = 'https://github.com/timescale/tiger-cli';
 export const AGENTS_LONG = `${PRODUCT_PREFIX} Agents for Work`;
 export const AGENTS_SHORT = `${PRODUCT_PREFIX} Agent`;
 export const AGENTS_CLI = `${AGENTS_SHORT} CLI`;

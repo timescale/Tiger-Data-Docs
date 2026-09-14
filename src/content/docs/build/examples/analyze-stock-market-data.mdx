@@ -1,0 +1,350 @@
+---
+title: Analyze stock market data
+description: Analyze financial tick and candlestick data with TimescaleDB using S&P 500 stock prices
+products: [self_hosted]
+keywords: [stocks, S&P 500, OHLCV, candlestick, moving average, volatility, columnstore, time-series, finance, Docker]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+This example demonstrates financial tick and candlestick data analysis with {C.TIMESCALE_DB}. The dataset corresponds to the stocks listed in the [S&P 500 index](https://en.wikipedia.org/wiki/List_of_S%26P_500_companies), with fictional prices and movements. The tick cadence is per second, over three business days, containing approximately 35 million records in total and 503 tickers.
+
+If you would rather build candlestick charts on a live dashboard, see [Visualize financial tick data with Grafana](/build/examples/analyze-financial-tick-data), which uses a crypto dataset.
+
+## Use cases
+
+Trading platforms, market data analysis, portfolio analytics, algorithmic trading.
+
+## What you learn
+
+- OHLCV (open, high, low, close, volume) data modeling.
+- Candlestick aggregations at multiple intervals.
+- {C.CAGG}s for different timeframes (1 minute, 5 minutes, 1 hour).
+- Real-time market analysis queries.
+
+## Dataset preview
+
+The dataset contains the following columns:
+
+- timestamp
+- ticker
+- price
+- price delta
+- change percentage
+- volume
+
+```csv
+2025-11-12 14:30:00+00:00,NVDA,38.25,0.25,0.65359,5095712
+2025-11-12 14:30:00+00:00,AAPL,152.03,0.03,0.01973,6466554
+2025-11-12 14:30:00+00:00,MSFT,129.23,0.23,0.17798,4417848
+2025-11-12 14:30:00+00:00,GOOG,174.93,-0.07,-0.04002,19602229
+2025-11-12 14:30:00+00:00,GOOGL,71.21,0.21,0.2949,3149482
+2025-11-12 14:30:00+00:00,AMZN,95.95,-0.05,-0.05211,12150474
+2025-11-12 14:30:00+00:00,AVGO,196.15,0.15,0.07647,6166047
+2025-11-12 14:30:00+00:00,META,133.22,0.22,0.16514,12230004
+2025-11-12 14:30:00+00:00,TSLA,82.0,0.0,0.0,10298937
+2025-11-12 14:30:00+00:00,BRK.B,56.84,-0.16,-0.28149,10980047
+```
+
+<Prerequisites context="tutorial">
+
+- Docker installed
+- The `psql` {C.PG} client
+
+</Prerequisites>
+
+## Set up and query the data
+
+First, download the dataset:
+
+```sh
+curl -L https://assets.timescale.com/timescaledb-datasets/sp500_stock_prices_3d_1s.tar.gz | tar -xzf - 
+```
+
+<NumberedList>
+<NumberedItem title={`Start ${C.TIMESCALE_DB}`}>
+
+Start {C.TIMESCALE_DB} using one of these options.
+
+<Tabs>
+<TabItem label="One-line install (recommended)">
+
+The easiest way to get started:
+
+<Callout variant="important">
+This script is intended for local development and testing only. Do not use it for production deployments. For production-ready installation options, see the [{C.TIMESCALE_DB} installation guide](/get-started/choose-your-path/install-timescaledb).
+</Callout>
+
+On Linux or Mac:
+
+```sh
+curl -sL https://tsdb.co/start-local | sh
+```
+
+This command:
+
+- Downloads and starts {C.TIMESCALE_DB}, if not already downloaded.
+- Exposes {C.PG} on port `6543`, a non-standard port that avoids conflicts with other {C.PG} instances on port 5432.
+- Automatically tunes settings for your environment using timescaledb-tune.
+- Sets up a persistent data volume.
+
+</TabItem>
+<TabItem label="Manual Docker command">
+
+Run {C.TIMESCALE_DB} directly with Docker. This option also works on Windows:
+
+```bash
+docker run -d --name timescaledb \
+    -p 6543:5432 \
+    -e POSTGRES_PASSWORD=password \
+    timescale/timescaledb-ha:pg18
+```
+
+This example uses port `6543`, mapped to container port 5432, to avoid conflicts if you have other {C.PG} instances running on the standard port 5432.
+
+</TabItem>
+</Tabs>
+
+Wait about 1 to 2 minutes for {C.TIMESCALE_DB} to download and initialize.
+
+</NumberedItem>
+<NumberedItem title={`Connect to ${C.TIMESCALE_DB}`}>
+
+Connect using `psql`:
+
+```sh
+psql "postgres://postgres:password@localhost:6543/postgres"
+```
+
+You should see the {C.PG} prompt. Verify {C.TIMESCALE_DB} is installed:
+
+```sql
+SELECT extname, extversion FROM pg_extension WHERE extname = 'timescaledb';
+```
+
+Expected output:
+
+```
+   extname   | extversion
+-------------+------------
+ timescaledb | 2.x.x
+```
+
+<Callout variant="tip">
+Prefer a GUI? If you would rather use a graphical tool instead of the command line, you can download [pgAdmin](https://www.pgadmin.org/download/) and connect to {C.TIMESCALE_DB} using the same connection details (host: `localhost`, port: `6543`, user: `postgres`, password: `password`).
+</Callout>
+
+</NumberedItem>
+<NumberedItem title="Create the schema">
+
+Create the optimized {C.HYPERTABLE} by running this SQL in your `psql` session:
+
+```sql
+-- Create the stock_prices table with the column ts as partitioning
+-- Note: for optimized query performance grouping on ticker, we select this column to segment by
+CREATE TABLE stock_prices (
+  ts                TIMESTAMPTZ         NOT NULL,
+  ticker            TEXT                NOT NULL,
+  price             DOUBLE PRECISION    NOT NULL,
+  change_delta      DOUBLE PRECISION    NOT NULL,
+  change_percentage DOUBLE PRECISION    NOT NULL,
+  volume            BIGINT NOT NULL CHECK (volume >= 0)
+)
+WITH (
+  timescaledb.hypertable,
+  timescaledb.segmentby='ticker'
+);
+```
+
+This creates a `stock_prices` table with:
+
+- Partitioning by timestamp on column `ts`.
+- Segmentation by `ticker` for optimal compression and query performance.
+
+</NumberedItem>
+<NumberedItem title="Load the sample data">
+
+This approach writes data directly to the {C.COLUMNSTORE}, bypassing the {C.ROWSTORE} entirely. You get instant analytical performance.
+
+From `psql`:
+
+```sql
+-- Enable direct to columnstore for this session
+SET timescaledb.enable_direct_compress_copy = on;
+
+-- Load data directly into columnstore
+\COPY stock_prices FROM 'sp500_stock_prices_3d_1s.csv' WITH (FORMAT csv, HEADER true);
+
+-- Verify data loaded
+SELECT COUNT(*) FROM stock_prices;
+```
+
+</NumberedItem>
+<NumberedItem title="Run sample queries">
+
+Now explore the data with some analytical queries. Run these in your `psql` session.
+
+Activate time measuring:
+
+```sql
+\timing on
+```
+
+Query 1: OHLCV per hour of AAPL.
+
+Aggregate raw 1-second tick data into hourly candlesticks (open, high, low, close, volume) of the ticker `AAPL`.
+
+```sql
+SELECT
+    time_bucket('1 hour', ts) AS hour_bucket,
+    ticker,
+    FIRST(price, ts) AS open_price,
+    MAX(price) AS high_price,
+    MIN(price) AS low_price,
+    LAST(price, ts) AS close_price,
+    AVG(price) AS avg_price,
+    SUM(volume) AS sum_volume
+FROM
+    stock_prices
+WHERE 
+    ticker = 'AAPL'
+GROUP BY
+    hour_bucket,
+    ticker
+ORDER BY
+    hour_bucket DESC;
+```
+
+Query 2: trend analysis with a simple moving average (SMA) of MSFT.
+
+Calculate a smoothing line to see trends over noise for the ticker `MSFT` over 4 hours.
+
+```sql
+WITH candles AS (
+  SELECT
+    time_bucket('1 hour', ts) AS bucket,
+    ticker,
+    LAST(price, ts) AS close_price
+  FROM stock_prices
+  WHERE ticker = 'MSFT'
+  GROUP BY bucket, ticker
+)
+SELECT
+  bucket,
+  ticker,
+  close_price,
+  AVG(close_price) OVER (
+    PARTITION BY ticker 
+    ORDER BY bucket 
+    ROWS BETWEEN 3 PRECEDING AND CURRENT ROW
+  ) AS sma_4hours
+FROM candles
+ORDER BY bucket DESC;
+```
+
+Query 3: hour-over-hour return.
+
+Compare the current price to the price exactly one hour ago to calculate percentage growth.
+
+```sql
+WITH hourly_close AS (
+  SELECT
+    time_bucket('1 hour', ts) AS bucket,
+    ticker,
+    LAST(price, ts) AS closing_price
+  FROM stock_prices
+  GROUP BY bucket, ticker
+)
+SELECT
+  bucket,
+  ticker,
+  closing_price,
+  LAG(closing_price, 1) OVER (PARTITION BY ticker ORDER BY bucket) AS prev_close,
+  ((closing_price - LAG(closing_price, 1) OVER (PARTITION BY ticker ORDER BY bucket)) 
+   / LAG(closing_price, 1) OVER (PARTITION BY ticker ORDER BY bucket)) * 100 AS hourly_return_pct
+FROM hourly_close;
+```
+
+Query 4: price volatility.
+
+```sql
+SELECT
+  ticker,
+  AVG(price) AS avg_price,
+  STDDEV(price) AS price_volatility,
+  MAX(price) - MIN(price) AS price_spread
+FROM stock_prices
+WHERE ts > NOW() - INTERVAL '7 days'
+GROUP BY ticker
+HAVING count(*) > 10
+ORDER BY price_volatility DESC;
+```
+
+</NumberedItem>
+</NumberedList>
+
+## What's happening behind the scenes?
+
+### {C.COLUMNSTORE_CAP} compression
+
+With `tsdb.enable_columnstore=true`:
+
+- Data is stored in a hybrid row-columnar format.
+- Analytical queries only scan the columns they need, for a large speedup.
+- Typical compression ratios: 90% or more for time-series data.
+- Compression happens transparently, with no changes to your queries.
+
+### Direct to {C.COLUMNSTORE}
+
+When you use `SET timescaledb.enable_direct_compress_copy = on`:
+
+- Data loads directly into compressed {C.COLUMNSTORE} format.
+- Bypasses the {C.ROWSTORE} entirely.
+- Provides instant analytical performance, with no waiting for background compression.
+
+### Segmentation
+
+The `tsdb.segmentby='ticker'` setting:
+
+- Groups data by ticker within each {C.CHUNK}.
+- Improves compression ratios by keeping similar data together.
+- Speeds up queries that filter by ticker.
+- Is better for ticker-based analytics.
+
+## Continuous aggregates (Advanced)
+
+For real-time dashboards, you can create {C.CAGG}s that automatically update:
+
+```sql
+-- Create a continuous aggregate for hourly candlesticks
+CREATE MATERIALIZED VIEW candlesticks_hourly
+WITH (timescaledb.continuous) AS
+SELECT
+    time_bucket('1 hour', ts) AS hour,
+    ticker,
+    FIRST(price, ts) AS open_price,
+    MAX(price) AS high_price,
+    MIN(price) AS low_price,
+    LAST(price, ts) AS close_price,
+    AVG(price) AS avg_price,
+    SUM(volume) AS sum_volume
+FROM stock_prices
+GROUP BY hour, ticker
+ORDER BY hour DESC, ticker ASC;
+
+-- Add a refresh policy to keep it updated
+SELECT add_continuous_aggregate_policy('candlesticks_hourly',
+    start_offset => INTERVAL '2 hours',
+    end_offset => INTERVAL '1 hour',
+    schedule_interval => INTERVAL '1 hour');
+```
+
+Now you can query `candlesticks_hourly` for instant results on pre-aggregated data:
+
+```sql
+SELECT * from candlesticks_hourly WHERE ticker = 'NFLX';
+```

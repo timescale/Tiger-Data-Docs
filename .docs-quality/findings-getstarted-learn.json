@@ -1,0 +1,119 @@
+[
+  {
+    "checklistItem": "F2",
+    "category": "code-identifiers",
+    "severity": "high",
+    "pages": [
+      "/learn/hypertables/creating-and-configuring-hypertables",
+      "/learn/hypertables/partitioning-hypertables",
+      "/learn/hypertables/sizing-hypertable-chunks",
+      "/learn/hypertables/hypertable-indexes",
+      "/learn/data-model/primary-keys-time-and-uniqueness"
+    ],
+    "evidence": "creating-and-configuring-hypertables.mdx: \"CREATE TABLE order_events (...) WITH (timescaledb.hypertable, timescaledb.partition_column = 'created_at');\" and a table listing `timescaledb.hypertable`, `timescaledb.partition_column`, `timescaledb.chunk_interval`, `timescaledb.create_default_indexes` as the WITH-clause option names. partitioning-hypertables.mdx: \"WITH (timescaledb.hypertable, timescaledb.chunk_interval = '1 day')\". sizing-hypertable-chunks.mdx: \"WITH (timescaledb.hypertable, timescaledb.chunk_interval = '1 day')\". hypertable-indexes.mdx: \"You can disable this with `timescaledb.create_default_indexes = false`\". primary-keys-time-and-uniqueness.mdx: \"WITH (timescaledb.hypertable)\" (three times). The reference page src/content/docs/reference/timescaledb/hypertables/create_table.mdx documents the current option namespace as `tsdb.hypertable`, `tsdb.partition_column`, `tsdb.chunk_interval`, `tsdb.create_default_indexes`, and sibling page /learn/hypertables/optimize-data-in-hypertables and /learn/continuous-aggregates and /learn/continuous-aggregates/time-and-continuous-aggregates correctly use `tsdb.hypertable` / `tsdb.partition_column` / `tsdb.chunk_interval`.",
+    "why": "Five pages in the core hypertables/data-model learn cluster teach a WITH-clause option namespace (`timescaledb.*`) that does not match the current reference documentation (`tsdb.*`), so a reader who copies these examples is using option names that are not the documented current syntax and may not work as described.",
+    "suggestedFix": "Replace `timescaledb.hypertable`, `timescaledb.partition_column`, `timescaledb.chunk_interval`, and `timescaledb.create_default_indexes` with `tsdb.hypertable`, `tsdb.partition_column`, `tsdb.chunk_interval`, and `tsdb.create_default_indexes` in all five pages, matching /reference/timescaledb/hypertables/create_table and the sibling page optimize-data-in-hypertables.mdx.",
+    "deferCheck": "This is not a compression/columnstore API rename (the Vale TigerData.CompressionAPIs deferral covers compress_chunk/enable_columnstore-style renames only); it is a hypertable-creation WITH-clause option namespace mismatch against the reference page, which F2 explicitly covers."
+  },
+  {
+    "checklistItem": "C2",
+    "category": "cross-page-consistency",
+    "severity": "high",
+    "pages": [
+      "/get-started",
+      "/learn/tiger-cloud/tiger-cloud-essentials"
+    ],
+    "evidence": "get-started/index.mdx: \"Hypercore storage engine combines row and columnar storage, queries run up to 350x faster, ingestion is 44% faster, and storage shrinks by up to 98%.\" learn/tiger-cloud/tiger-cloud-essentials.mdx: \"The Hypercore row-columnar engine in TimescaleDB makes queries up to 350x faster, ingests 44% faster, and reduces storage by 90%.\"",
+    "why": "The two pages repeat what reads as the same specific benchmark triple (350x query speedup, 44% faster ingest) but give two different storage-reduction numbers (98% vs 90%) for the identical claim, so a reader comparing the two pages sees a direct contradiction about Hypercore's storage savings.",
+    "suggestedFix": "Pick one storage-reduction figure for this specific 350x/44% benchmark claim and use it in both places (the corpus-wide majority figure is \"up to 98%\", used in understand-hypercore.mdx, data-lifecycle pages, basic-compression.mdx, and setup-hypercore.mdx).",
+    "deferCheck": "This is not the 'up to N%' marketing-voice deferral (a single hedged superlative) but a same-claim numeric mismatch between two pages presenting what is otherwise an identical statistic, which C2 explicitly asks the agent to adjudicate as a real contradiction rather than intentional variation."
+  },
+  {
+    "checklistItem": "C2",
+    "category": "cross-page-consistency",
+    "severity": "medium",
+    "pages": [
+      "/learn/capabilities-and-comparison/understand-capabilities",
+      "/get-started",
+      "/learn/tiger-cloud/tiger-cloud-essentials"
+    ],
+    "evidence": "understand-capabilities.mdx: \"delivering 100x to 1000x performance improvements for analytical queries\" (Hypercore, Typical workflow section). get-started/index.mdx and learn/tiger-cloud/tiger-cloud-essentials.mdx both state Hypercore \"makes queries up to 350x faster.\"",
+    "why": "The maximum query-speedup figure attributed to Hypercore differs by roughly 3x between understand-capabilities.mdx (up to 1000x) and the two other pages describing the same feature (up to 350x), which could give a reader materially different performance expectations depending which page they land on.",
+    "suggestedFix": "Align understand-capabilities.mdx's performance-improvement figure with the \"up to 350x\" figure used in get-started/index.mdx and tiger-cloud-essentials.mdx, or cite a specific benchmark source if the higher figure is a different, disclosed measurement.",
+    "deferCheck": "Distinguishable from the accepted 'up to N%'-style marketing-voice deferral because it is a specific multiplier range (100x-1000x) that conflicts with a specific multiplier (350x) stated elsewhere for the same feature, not a single hedged superlative in isolation."
+  },
+  {
+    "checklistItem": "C2",
+    "category": "cross-page-consistency",
+    "severity": "low",
+    "pages": [
+      "/learn/capabilities-and-comparison/understand-capabilities"
+    ],
+    "evidence": "understand-capabilities.mdx states Hypercore delivers \"90-95% storage reduction\" (twice) and, in the IoT use-case section, \"95%+ storage reduction\", while the corpus-wide consensus figure for the same claim (understand-hypercore.mdx, data-lifecycle pages, basic-compression.mdx, setup-hypercore.mdx, get-started/index.mdx) is \"up to 98%\".",
+    "why": "Presenting a narrower, lower range (90-95%/95%+) for the same Hypercore storage-reduction claim than the figure used almost everywhere else in the corpus (up to 98%) could read as a different, more conservative number rather than the same fact.",
+    "suggestedFix": "Align the two Hypercore bullet points and the IoT use-case bullet in understand-capabilities.mdx to the corpus-standard \"up to 98%\" storage-reduction figure, or note explicitly that 90-95% is a typical (not maximum) range if that is the intent.",
+    "deferCheck": "Not the accepted single-superlative marketing voice; this is a specific range repeated three times that is lower than the near-universal figure used elsewhere for the identical fact, which C2 asks the agent to adjudicate rather than accept as intentional variation."
+  },
+  {
+    "checklistItem": "C2",
+    "category": "cross-page-consistency",
+    "severity": "low",
+    "pages": [
+      "/learn/deep-dive/whitepaper"
+    ],
+    "evidence": "whitepaper.mdx: \"a hybrid row-columnar storage engine designed to deliver high-performance queries and efficient compression (up to 95%) within PostgreSQL\" and \"significantly reduce storage footprint (by up to 95%) and improve I/O performance,\" versus the corpus-standard \"up to 98%\" used in understand-hypercore.mdx, data-lifecycle pages, get-started/index.mdx, basic-compression.mdx, and setup-hypercore.mdx.",
+    "why": "The whitepaper's compression figure (up to 95%) is stale relative to the \"up to 98%\" figure used almost everywhere else in the current corpus for the same Hypercore/columnstore compression claim, suggesting the whitepaper wasn't updated when the rest of the docs moved to the higher number.",
+    "suggestedFix": "Update both instances of \"up to 95%\" in whitepaper.mdx to \"up to 98%\" to match the current corpus-wide figure, or confirm with product whether 95% remains the whitepaper's intentionally distinct (e.g., more conservative) figure.",
+    "deferCheck": "Flagged as suspected/low per the N-category deferral (the engine flags suspected staleness, it does not certify current product behavior) combined with C2's cross-page numeric-divergence check."
+  },
+  {
+    "checklistItem": "D1",
+    "category": "duplicated-content",
+    "severity": "high",
+    "pages": [
+      "/learn/data-lifecycle",
+      "/learn/data-management/data-lifecycle"
+    ],
+    "evidence": "learn/data-management/data-lifecycle.mdx is a near-verbatim duplicate of learn/data-lifecycle/index.mdx (same title \"Understand the data lifecycle\", same description, same five-phase table and body text), except it lacks the ThemeImage diagrams the other page has and instead contains a leftover placeholder comment: \"{/* TODO: Insert lifecycle diagram here */}\". astro.config.ts already contains the redirect entry `\"/learn/data-management/data-lifecycle\": \"/learn/data-lifecycle\"`, and the sidebar only lists `/learn/data-lifecycle`.",
+    "why": "The redirect entry shows the page was already migrated to /learn/data-lifecycle, but the old source file at learn/data-management/data-lifecycle.mdx was never deleted, so an orphaned, image-less, TODO-laden duplicate of the page still exists in the content tree.",
+    "suggestedFix": "Delete src/content/docs/learn/data-management/data-lifecycle.mdx now that the redirect to /learn/data-lifecycle is in place and the sidebar only references the new location.",
+    "deferCheck": "This is content-duplication drift (D1), not a broken-link or build issue; the existence of a working redirect plus a still-present source file is a content-authoring leftover, not something the link validator or build would flag as an error."
+  },
+  {
+    "checklistItem": "I2",
+    "category": "placement",
+    "severity": "low",
+    "pages": [
+      "/get-started/cloud-exclusive-features",
+      "/learn/tiger-cloud/cloud-exclusive-features"
+    ],
+    "evidence": "Both pages share the exact title (\"Cloud-exclusive features\") and description (\"Learn about the features and capabilities available exclusively in Tiger Cloud\"). get-started/cloud-exclusive-features.mdx imports only `CloudExclusiveFeatureDetails`, while learn/tiger-cloud/cloud-exclusive-features.mdx imports both `CloudExclusiveComparison` (a 38-line comparison table) and `CloudExclusiveFeatureDetails`.",
+    "why": "Two pages with identical titles and descriptions about the same topic present different amounts of content (one is missing the comparison table the other has), so a reader who reaches the get-started variant gets a materially thinner version of the same nominal page without any indication a fuller version exists elsewhere.",
+    "suggestedFix": "Either add the `CloudExclusiveComparison` partial to get-started/cloud-exclusive-features.mdx so both pages are consistent, or differentiate the two pages' descriptions to signal that the get-started version is intentionally a lighter summary.",
+    "deferCheck": "Placement/duplicate-purpose findings are agent-judged per the I section deferral note and kept at low/medium severity; this is a low-severity content-completeness gap between two same-purpose pages in different tabs, not a broken link or formatting issue."
+  },
+  {
+    "checklistItem": "G3",
+    "category": "links",
+    "severity": "medium",
+    "pages": [
+      "/get-started/news/release-notes"
+    ],
+    "evidence": "release-notes.mdx links pgvectorscale to a hardcoded old tag: \"[pgvectorscale](https://github.com/timescale/pgvectorscale/releases/tag/0.2.0) - higher performance embedding search...\" while every other product link on the same page (TimescaleDB, Toolkit, pgai, pg_spot) points to the general `/releases` page. The current latest pgvectorscale release is 0.9.0 (confirmed via the GitHub releases page).",
+    "why": "A reader visiting the Release notes page to check for pgvectorscale updates is sent to the 0.2.0 tag specifically, several major versions behind the actual latest release (0.9.0), which misleads them about what's current instead of showing the full release history like the other links on the same page.",
+    "suggestedFix": "Change the pgvectorscale link to the general releases page (https://github.com/timescale/pgvectorscale/releases), matching the pattern used for every other product link on this page.",
+    "deferCheck": "The link is not broken (it resolves), so this isn't the link-validator's job; it is a link that points at a stale, misleading target relative to its purpose and the surrounding pattern on the same page, which G3 covers."
+  },
+  {
+    "checklistItem": "F3",
+    "category": "code-identifiers",
+    "severity": "medium",
+    "pages": [
+      "/learn/data-lifecycle/data-retention/data-retention-with-continuous-aggregates"
+    ],
+    "evidence": "data-retention-with-continuous-aggregates.mdx: \"SELECT add_continuous_aggregate_policy('conditions_summary_daily', '7 days', '1 day', '1 day');\" using positional arguments, versus the reference page (/reference/timescaledb/continuous-aggregates/add_continuous_aggregate_policy) and every other page in the corpus that calls this function using named arguments: \"SELECT add_continuous_aggregate_policy('conditions_summary', start_offset => INTERVAL '1 month', end_offset => INTERVAL '1 hour', schedule_interval => INTERVAL '1 hour');\"",
+    "why": "This is the only page in the corpus that calls add_continuous_aggregate_policy with bare positional string arguments instead of the named-argument form the reference page and every sibling page (data-lifecycle/index.mdx, get-started tutorials) use, so a reader following this example learns a call style that is inconsistent with the documented convention and easier to get wrong if argument order is ever misremembered.",
+    "suggestedFix": "Rewrite the call using named arguments: `add_continuous_aggregate_policy('conditions_summary_daily', start_offset => INTERVAL '7 days', end_offset => INTERVAL '1 day', schedule_interval => INTERVAL '1 day')`, matching the reference page's sample.",
+    "deferCheck": "This is a call-syntax/style mismatch against the documented signature (F3), not a claim that the function fails to run, which is the doc-testing tool's job to certify."
+  }
+]

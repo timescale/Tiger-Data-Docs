@@ -1,0 +1,226 @@
+---
+title: Component kitchen sink
+description: Internal test page rendering every component and content element used in the docs, for visual and regression checks.
+noindex: true
+products: [cloud, self_hosted]
+---
+
+{/*
+  Internal test page: not linked in the sidebar, hidden from search engines
+  (noindex) and from on-site search (the data-pagefind-ignore wrapper below).
+
+  Purpose: render every component and content element the docs use, on one URL,
+  so a preview build surfaces visual and interactivity regressions (for example,
+  a dependency bump that breaks tabs or tables).
+
+  To maintain: when you add a new component to the docs, add an example of it
+  here under the matching section so it stays covered. Keep one example per
+  variant or prop combination worth eyeballing.
+*/}
+
+import * as C from "@constants";
+import { Callout, Button } from "@stainless-api/docs/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+import { Tabs as SyncTabs, Tab as SyncTab } from "@stainless-api/docs/stainless-docs/mintlify-compat";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { Prerequisites } from "@components/Prerequisites";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+import SecondaryButton from "@components/SecondaryButton.astro";
+import CopyToClipboard from "@components/CopyToClipboard";
+import AuthorByline from "@components/AuthorByline.astro";
+import IntegrationPrereqs from "@partials/_prereqs-cloud-or-self.mdx";
+import ConnectionDetails from "@partials/_prereqs-connection-details.mdx";
+import { Image } from "astro:assets";
+import imgHypertable from "../../assets/images/learn/deep-dive/hypertable-light.png";
+
+<div data-pagefind-ignore="all">
+
+This page renders every component and content element used across the docs so that visual and interactivity regressions show up on one preview URL. It is hidden from search engines and from on-site search, and is not in the sidebar.
+
+## Text and inline formatting
+
+Body text with **bold**, _italic_, and `inline code`. A link to [the connection details page](/integrate/find-connection-details) and an external link to [{C.COMPANY}](https://www.tigerdata.com/). Product names resolve from constants: {C.PG}, {C.CLOUD_LONG}, {C.SELF_LONG}, {C.TIMESCALE_DB}.
+
+> A blockquote. Use it for quoted text or asides.
+
+### Unordered list
+
+- First item
+- Second item with `code`
+- Third item
+  - Nested item
+  - Another nested item
+
+### Ordered list
+
+1. First step
+1. Second step
+1. Third step
+
+## Table
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `time` | `timestamptz` | Sample timestamp |
+| `device_id` | `text` | Device identifier |
+| `value` | `double precision` | Measured value |
+
+## Code blocks
+
+```sql
+SELECT time_bucket('1 hour', time) AS bucket, avg(value)
+FROM metrics
+GROUP BY bucket
+ORDER BY bucket;
+```
+
+```bash
+psql "postgres://user:pass@host:5432/dbname"
+```
+
+```javascript
+import { Pool } from "pg";
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+```
+
+```typescript
+const greet = (name: string): string => `Hello, ${name}`;
+```
+
+```json
+{ "host": "example.tsdb.cloud", "port": 5432 }
+```
+
+```yaml
+service:
+  host: example.tsdb.cloud
+  port: 5432
+```
+
+```text
+Plain text block with no syntax highlighting.
+```
+
+## Callouts
+
+<Callout variant="tip">
+A tip callout for hints and best practices.
+</Callout>
+
+<Callout variant="note">
+A note callout for supplementary context.
+</Callout>
+
+<Callout variant="note" title="Custom title">
+A note callout with an overridden title.
+</Callout>
+
+<Callout variant="important">
+An important callout for information that should not be skipped.
+</Callout>
+
+<Callout variant="warning">
+A warning callout for cautions and limitations.
+</Callout>
+
+<Callout variant="callout" title="Callout with button" buttonLabel="Try for free" buttonHref="/">
+A call-to-action callout with a button.
+</Callout>
+
+## Buttons
+
+<Button label="Button enabled" icon="down" />
+<Button label="Download" href="/" variant="outline" icon="down" />
+<Button label="Primary CTA" variant="accent" href="/" />
+
+<SecondaryButton variant="default" label="Secondary default" />
+<SecondaryButton variant="subtle" label="Secondary subtle" />
+
+## Copy to clipboard
+
+<CopyToClipboard client:load text="postgres://user:pass@host:5432/dbname" />
+<CopyToClipboard client:load text="SELECT 1;" label="Copy query" copiedLabel="Copied!" variant="subtle" />
+
+## Starlight tabs
+
+<Tabs>
+  <TabItem label="Tiger Cloud">
+    Content for the {C.CLOUD_LONG} tab.
+  </TabItem>
+  <TabItem label="Self-hosted TimescaleDB">
+    Content for the {C.SELF_LONG} tab.
+  </TabItem>
+</Tabs>
+
+## Stainless sync tabs
+
+<SyncTabs>
+  <SyncTab title="First tab">
+    Content for the first tab.
+  </SyncTab>
+  <SyncTab title="Second tab">
+    Content for the second tab.
+  </SyncTab>
+</SyncTabs>
+
+## Numbered list
+
+<NumberedList>
+  <NumberedItem title="A step with a sub-sequence">
+
+    Do the first thing, which has lettered sub-steps:
+
+    1. Sub-step one.
+    1. Sub-step two.
+    1. Sub-step three.
+
+  </NumberedItem>
+  <NumberedItem title="A step with a code block">
+
+    Run the following:
+
+    ```sql
+    SELECT now();
+    ```
+
+    Confirm it returns the current time.
+
+  </NumberedItem>
+</NumberedList>
+
+## Prerequisites
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+- Any additional tooling the page requires.
+</Prerequisites>
+
+## Image
+
+<Image src={imgHypertable} alt="Diagram of a hypertable" />
+
+## Author byline
+
+<AuthorByline
+  name="Jane Doe"
+  role="Developer advocate"
+  githubUsername="octocat"
+/>
+
+## Related content cards
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Find your connection details"
+    description="Locate the host, port, database, user, and password for your service or database."
+    href="/integrate/find-connection-details"
+  />
+  <RelatedContentCard
+    title="Connect your app"
+    description="Connect to your database from your preferred programming language."
+    href="/integrate/code/connect-your-app"
+  />
+</RelatedContentCards>
+
+</div>

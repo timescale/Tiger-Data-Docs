@@ -1,6 +1,7 @@
 ---
 title: Understand chunks
 description: What chunks are, why they matter for real-time analytics, and how to use them effectively
+products: [cloud, self_hosted]
 ---
 
 import * as C from "@constants";
@@ -29,15 +30,15 @@ In practice, a {C.HYPERTABLE} is the logical table you see; {C.CHUNK}s are the p
 
 {C.CHUNK_CAP}s are not just an implementation detail — they are why {C.HYPERTABLE}s can deliver efficient data management, better query performance, and scalable maintenance without you changing how you write SQL.
 
-### Query performance and chunk skipping
+### Query performance
 
-Time-series queries usually filter by time (for example, "last 24 hours" or "September 2024"). Because each {C.CHUNK} covers a known time range, the query planner can skip {C.CHUNK}s that don’t contain any data for that range. So instead of scanning the entire table, {C.TIMESCALE_DB} only touches the {C.CHUNK}s that might contain matching rows. {C.CHUNK_SKIPPING_CAP} dramatically reduces work and speeds up queries. On {C.CLOUD_LONG}, you can also [enable {C.CHUNK_SKIPPING} on non-partitioning columns](/build/performance-optimization/improve-hypertable-performance#enable-chunk-skipping) (for example, a "received at" timestamp when the {C.HYPERTABLE} is partitioned by "event time"), so even more {C.CHUNK}s can be skipped when they’re irrelevant to the query.
+Time-series queries usually filter by time (for example, "last 24 hours" or "September 2024"). Because each {C.CHUNK} covers a known time range, the query planner can skip {C.CHUNK}s that don’t contain any data for that range. So instead of scanning the entire table, {C.TIMESCALE_DB} only touches the {C.CHUNK}s that might contain matching rows. 
 
 ### Maintenance and lifecycle
 
 Many operations in a time-series database are easier when data is partitioned by time:
 
-- **{C.COLUMNSTORE_CAP}**: Policies can convert older {C.CHUNK}s to [{C.COLUMNSTORE}](/build/columnar-storage/setup-hypercore) while keeping recent {C.CHUNK}s in {C.ROWSTORE} for fast inserts and updates. Conversion is applied per {C.CHUNK}.
+- **{C.COLUMNSTORE_CAP}**: Policies can convert older {C.CHUNK}s to [{C.COLUMNSTORE}](/build/columnar-storage/setup-hypercore) while keeping recent {C.CHUNK}s in {C.ROWSTORE}. {C.COLUMNSTORE_CAP} {C.CHUNK}s still support inserts, updates, and deletes directly, without needing to decompress first. Conversion is applied per {C.CHUNK}.
 - **Data retention**: You can drop old data by dropping entire {C.CHUNK}s (e.g. with [`drop_chunks()`](/reference/timescaledb/hypertables/drop_chunks)) instead of running row-by-row `DELETE`, which avoids bloat and is much faster.
 - **Tiered storage**: On [{C.CLOUD_LONG}](/get-started/quickstart/create-service), you can move {C.CHUNK}s to different storage tiers based on age or access patterns.
 
@@ -71,7 +72,7 @@ Set the {C.CHUNK} interval when you [create the {C.HYPERTABLE}](/learn/hypertabl
 </NumberedItem>
 
 <NumberedItem title="Use time-based filters in queries">
-Queries that filter on the partitioning (time) column allow the planner to skip irrelevant {C.CHUNK}s. If you often filter by another column (e.g. "ingested at"), consider [enabling {C.CHUNK_SKIPPING}](/build/performance-optimization/improve-hypertable-performance#enable-chunk-skipping) on that column (where supported) so more {C.CHUNK}s can be skipped.
+Queries that filter on the partitioning (time) column allow the planner to skip irrelevant {C.CHUNK}s.
 </NumberedItem>
 
 <NumberedItem title="Inspect chunks when tuning or debugging">
@@ -97,5 +98,4 @@ If you’re just getting started, [Create and configure a {C.HYPERTABLE}](/learn
   Optimize {C.CHUNK} intervals and enable {C.CHUNK_SKIPPING}.
 - [{C.HYPERTABLE_CAP}s and {C.CHUNK}s API](/reference/timescaledb/hypertables): `show_chunks`,
   `drop_chunks`, `move_chunk`, and more.
-- [Glossary](/learn/glossary): Short definitions for {C.CHUNK}, {C.CHUNK} interval, and
-  {C.CHUNK_SKIPPING}.
+- [Glossary](/learn/glossary): Short definitions for {C.CHUNK}, and {C.CHUNK} interval.

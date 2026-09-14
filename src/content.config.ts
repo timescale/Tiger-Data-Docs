@@ -131,6 +131,15 @@ const integrationSchema = z.object({
   integrationHideFromOverviewCards: z.boolean().optional(),
 });
 
+/**
+ * When true, emit `<meta name="robots" content="noindex">` via `src/components/Head.astro`
+ * so search engines skip the page. Use for internal or test pages (for example, the component
+ * kitchen sink) that should stay out of search results.
+ */
+const noindexSchema = z.object({
+  noindex: z.boolean().optional(),
+});
+
 export const collections = {
   docs: defineCollection({
     loader: docsLoader(),
@@ -140,7 +149,8 @@ export const collections = {
         .merge(integrationSchema)
         .merge(pageLabelsSchema)
         .merge(productsSchema)
-        .merge(learnMoreSchema),
+        .merge(learnMoreSchema)
+        .merge(noindexSchema),
     }),
   }),
 };

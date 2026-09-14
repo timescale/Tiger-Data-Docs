@@ -108,25 +108,6 @@ Times vary significantly based on network bandwidth, table complexity, and index
 
 For step-by-step instructions, see [Migrate with downtime](/migrate/migrate-with-downtime).
 
-### Live migration
-
-<Callout variant="warning">
-Live migration is deprecated in favor of [Livesync replication](/migrate/livesync-replication). It is not recommended for new migrations.
-</Callout>
-
-**Capabilities:**
-
-- Migrates both schema and data in a single operation.
-- Low downtime with continuous sync.
-- Can copy chunks in the columnstore directly, without converting them back to the rowstore.
-
-**Limitations:**
-
-- Strict version matching is required: the {C.TIMESCALE_DB} version must match between source and target.
-- Only supports 1:1 migrations, with no multi-tenant consolidation or splitting.
-
-If you are continuing an existing migration with this tool, see [Live migration](/migrate/live-migration) and its [FAQ and troubleshooting](/migrate/troubleshooting).
-
 ### Dual writes and backfill
 
 Use when the source is a non-{C.PG} database (for example, MySQL, DynamoDB, or InfluxDB) and low or near-zero downtime is required.
@@ -192,7 +173,7 @@ Monitor replication lag. If lag grows persistently, check for long-running trans
 
 ### What is the rollback strategy?
 
-- **Livesync replication and live migration:** the source database remains untouched throughout. If the migration fails, the application continues using the source and no data is lost.
+- **Livesync replication:** the source database remains untouched throughout. If the migration fails, the application continues using the source and no data is lost.
 - **`pg_dump`:** the source is read-only during the dump. If the restore fails on the target, the source is still intact. Retry the dump and restore cycle.
 - **Dual writes:** disable the dual-write code path and revert to writing to the old database only. Because the application is already writing to both, rolling back is a configuration change.
 

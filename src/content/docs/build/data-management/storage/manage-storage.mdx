@@ -13,9 +13,11 @@ import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import TieredStorageBilling from "../../../../../partials/_tiered-storage-billing.mdx";
 
-import { Image } from "astro:assets";
-import imgHighPerformanceStorageTigerConsole from "../../../../../assets/images/build/data-management/high-performance-storage-tiger-console.png";
-import imgEnableTieredStorageTigerConsole from "../../../../../assets/images/build/data-management/enable-tiered-storage-tiger-console.png";
+import ThemeImage from "@components/ThemeImage.astro";
+import imgHighPerformanceStorageTigerConsoleLight from "../../../../../assets/images/build/data-management/high-performance-storage-tiger-console.png";
+import imgHighPerformanceStorageTigerConsoleDark from "../../../../../assets/images/build/data-management/high-performance-storage-tiger-console-dark.png";
+import imgEnableTieredStorageTigerConsoleLight from "../../../../../assets/images/build/data-management/enable-tiered-storage-tiger-console.png";
+import imgEnableTieredStorageTigerConsoleDark from "../../../../../assets/images/build/data-management/enable-tiered-storage-tiger-console-dark.png";
 
 Tiering splits hot data on fast local volumes from cold data in cheaper object storage. {C.CLOUD_LONG} implements that as a high-performance tier plus a low-cost object storage tier:
 
@@ -29,18 +31,18 @@ You can query the data on the object storage tier, but you cannot modify it. Mak
 
 ## High-performance storage tier
 
-By default, {C.CLOUD_LONG} stores your {C.SERVICE_SHORT} data in the standard high-performance storage. This gives you up to 64 TB of storage and a configurable IOPS value to better suit your needs:
+By default, {C.CLOUD_LONG} stores your {C.SERVICE_SHORT} data in the high-performance storage. This gives you up to 64 TB of storage and a configurable IOPS value to better suit your needs:
 
 <NumberedList>
 <NumberedItem title={`Select your ${C.SERVICE_SHORT}`}>
 In <a href={C.CONSOLE_URL}>{C.CONSOLE}</a>, select your {C.SERVICE_SHORT}, then click `Operations` > `Compute and storage`.
 
-<Image src={imgHighPerformanceStorageTigerConsole} alt="Default high-performance storage in Tiger Console" />
-
 </NumberedItem>
 
 <NumberedItem title="Select the IOPS value">
 Select the IOPS value in the `I/O boost` dropdown:
+
+<ThemeImage light={imgHighPerformanceStorageTigerConsoleLight} dark={imgHighPerformanceStorageTigerConsoleDark} alt="Default high-performance storage in Tiger Console" />
 
 - Under the [{C.PERFORMANCE} {C.PRICING_PLAN}](/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management), IOPS is set to 3,000 - 5,000 autoscale and cannot be changed.
 - Under the [{C.SCALE} {C.PRICING_PLAN}](/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management), IOPS is set to 5,000 - 8,000 autoscale and can be upgraded to 40,000 IOPS subject to your service's CPU configuration.
@@ -81,7 +83,7 @@ The available IOPS and the corresponding throughput depend on your service's CPU
 Low-cost tiered storage is available on {C.SCALE} and {C.ENTERPRISE} {C.PRICING_PLAN}s.
 </Callout>
 
-You enable the low-cost object storage tier in {C.CONSOLE} and then tier the data with policies or manually.
+You enable the low-cost object storage tier in {C.CONSOLE} and then tier the data with policies or manually. Tiering is handled by the internal `timescaledb_osm` extension, also called Object Storage Manager, or OSM. {C.CLOUD_LONG} installs OSM when you enable the tier and [upgrades it automatically](/deploy/tiger-cloud/tiger-cloud-aws/upgrades).
 
 ### Enable tiered storage
 
@@ -95,7 +97,7 @@ In <a href={C.CONSOLE_URL}>{C.CONSOLE}</a>, select the {C.SERVICE_SHORT} to modi
 <NumberedItem title="Enable tiered storage">
 In `Explorer`, click `Data Tiering` > then click `Enable tiered storage`.
 
-<Image src={imgEnableTieredStorageTigerConsole} alt="Enabling tiered storage in Tiger Console" />
+<ThemeImage light={imgEnableTieredStorageTigerConsoleLight} dark={imgEnableTieredStorageTigerConsoleDark} alt="Enabling tiered storage in Tiger Console" />
 
 Once enabled, you can proceed to [tier data manually](#manually-tier-and-untier-chunks) or [set up tiering policies](#automate-tiering-with-policies). When tiered storage is enabled, you see the amount of data in the tiered object storage.
 </NumberedItem>
@@ -172,7 +174,7 @@ _timescaledb_internal._hyper_1_2_chunk
 SELECT tier_chunk('_timescaledb_internal._hyper_1_1_chunk');
 ```
 
-Repeat for all {C.CHUNK}s you want to tier. Tiering a {C.CHUNK} schedules it for migration to the object storage tier, but the migration won't happen immediately. {C.CHUNK_CAP}s are tiered one at a time to minimize database resource consumption. A {C.CHUNK} is marked as migrated and deleted from the standard storage only after it has been durably stored in the object storage tier. You can continue to query a {C.CHUNK} during migration.
+Repeat for all {C.CHUNK}s you want to tier. Tiering a {C.CHUNK} schedules it for migration to the object storage tier, but the migration won't happen immediately. {C.CHUNK_CAP}s are tiered one at a time to minimize database resource consumption. A {C.CHUNK} is marked as migrated and deleted from the high-performance storage only after it has been durably stored in the object storage tier. You can continue to query a {C.CHUNK} during migration.
 </NumberedItem>
 
 <NumberedItem title={`View tiered ${C.CHUNK}s`}>
@@ -190,7 +192,7 @@ SELECT * FROM timescaledb_osm.chunks_queued_for_tiering;
 
 #### Untier {C.CHUNK}s
 
-To update data in a tiered {C.CHUNK}, move it back to the standard high-performance storage tier in {C.CLOUD_LONG}. Untiering {C.CHUNK}s is a synchronous process. {C.CHUNK_CAP}s are renamed when the data is untiered.
+To update data in a tiered {C.CHUNK}, move it back to the high-performance storage tier in {C.CLOUD_LONG}. Untiering {C.CHUNK}s is a synchronous process. {C.CHUNK_CAP}s are renamed when the data is untiered.
 
 <NumberedList>
 <NumberedItem title={`Check which ${C.CHUNK}s are tiered`}>

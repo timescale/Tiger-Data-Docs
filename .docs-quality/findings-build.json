@@ -1,0 +1,119 @@
+[
+  {
+    "checklistItem": "B1",
+    "category": "version-availability",
+    "severity": "high",
+    "pages": [
+      "/build/performance-optimization/improve-hypertable-performance",
+      "/reference/timescaledb/hypertables/enable_chunk_skipping"
+    ],
+    "evidence": "build page: `<SinceRelease version=\"2.17.1\" product=\"tsdb\" mode=\"early_access\" />` immediately above `## Enable Chunk skipping`, which goes on to describe calling `enable_chunk_skipping()`. reference page for that same function: `<SinceRelease version=\"2.16.0\" product=\"tsdb\" mode=\"early_access\" />`. TimescaleDB's own 2.16.0 release notes: \"Add the ability to define chunk skipping indexes on non-partitioning columns of compressed hypertables ... After you call `enable_chunk_skipping` on a column, TimescaleDB tracks the min and max values…\" 2.17.1's only related change is \"Add chunk skipping GUC\" (a smaller, separate addition).",
+    "why": "The build guide and the reference page for the exact same function disagree about which TimescaleDB version introduced chunk skipping, and the build page's claim (2.17.1) is verifiably wrong per the actual GitHub release notes; the feature shipped in 2.16.0.",
+    "suggestedFix": "Change the `SinceRelease` version on /build/performance-optimization/improve-hypertable-performance from 2.17.1 to 2.16.0 to match the reference page and the changelog.",
+    "deferCheck": "This is a substantive cross-page factual contradiction about product availability, verified against the actual timescale/timescaledb GitHub release notes per B1's specified verification method — not a Vale/build/testing-tool concern."
+  },
+  {
+    "checklistItem": "J2",
+    "category": "procedural-integrity",
+    "severity": "high",
+    "pages": [
+      "/build/tips-and-tricks/troubleshoot-import-ingest"
+    ],
+    "evidence": "\"Check the version of {C.TIMESCALE_DB} running on the source database and the target {C.SERVICE_LONG}:\" / \"Connect to your {C.SERVICE_LONG} and check the versions of {C.TIMESCALE_DB} available:\" / \"Uninstall {C.TIMESCALE_DB} from your {C.SERVICE_LONG}:\" / \"Reinstall the correct version of {C.TIMESCALE_DB}:\" / \"To turn off the jobs: To turn on the jobs:\" / \"To test your database for partial continuous aggregates, run the following query:\" — every one of these lines ends with a colon promising a command or query, and in every case nothing follows anywhere on the page.",
+    "why": "Six separate steps in this troubleshooting/migration page promise a specific command, query, or detail via a trailing colon, and none of those commands ever actually appear on the page, so a reader cannot follow the procedure as written.",
+    "suggestedFix": "Restore the missing SQL commands/queries for each dangling colon (they were likely dropped during a content migration/reformat), or remove the colons and rewrite as prose if no command was ever intended.",
+    "deferCheck": "This is about internal logical completeness of the page as written — content that is flatly missing, not whether the steps execute on a live system — and it is not a broken link or compile error."
+  },
+  {
+    "checklistItem": "O1",
+    "category": "destructive-operations",
+    "severity": "medium",
+    "pages": [
+      "/build/data-management/storage/manage-storage"
+    ],
+    "evidence": "\"### Drop tiered data\\n\\nTo drop tiered data, call [`DROP TABLE`](/build/data-management) on the corresponding {C.HYPERTABLE}. This removes the {C.HYPERTABLE} and all its associated data from the high-performance and low-cost storage.\" — no Callout accompanies this section, while the very next section, \"Disable tiering\", does carry `<Callout variant=\"important\">Contact {C.COMPANY} support if you are disabling tiering...</Callout>`.",
+    "why": "DROP TABLE here permanently destroys the hypertable's data on both the high-performance and low-cost (tiered) storage with no caution note, even though the page demonstrably uses warning callouts for less destructive nearby actions.",
+    "suggestedFix": "Add a warning callout noting the action is irreversible and removes data from both storage tiers, matching the caution style already used elsewhere on this same page.",
+    "deferCheck": "Flags a specific irreversible DROP TABLE shown with zero consequence warning (O1's exact pattern) on a page that otherwise uses warnings for similar actions — not a general formatting nit."
+  },
+  {
+    "checklistItem": "O1",
+    "category": "destructive-operations",
+    "severity": "medium",
+    "pages": [
+      "/build/data-management/example-downsample-and-compress"
+    ],
+    "evidence": "```sql\n-- clear original chunk\nEXECUTE format('TRUNCATE %s;', chunk);\n\n-- copy downsampled data back into chunk\nEXECUTE format('INSERT INTO %s(time, device_id, value) SELECT * FROM %I;', chunk, tmp_name);\n...\nCOMMIT;\n```",
+    "why": "The custom job TRUNCATEs a live production chunk and repopulates it from a temp table, committing per chunk with no surrounding safeguard; if the job fails between the TRUNCATE and the INSERT, that chunk's data is permanently and irrecoverably lost, and the page never mentions this failure mode.",
+    "suggestedFix": "Add a note about the crash/failure risk between TRUNCATE and INSERT and recommend a backup or staging step, similar to the caution already given for `skip_cagg_invalidation` on the insert-data page.",
+    "deferCheck": "Flags a TRUNCATE statement shown without any consequence note, per O1, distinct from whether the PL/pgSQL actually runs correctly."
+  },
+  {
+    "checklistItem": null,
+    "category": "lifecycle-staleness",
+    "severity": "medium",
+    "pages": [
+      "/build/data-management/run-queries-from-tiger-console"
+    ],
+    "evidence": "\"SQL Assistant supports a large number of LLMs, including: ... Claude 3.5 Haiku, Claud 3.7 Sonnet, Claud 3.7 Sonnet (extended thinking) ... Sonnet 4, Sonnet 4 (extended thinking), Opus 4, Opus 4 (extended thinking) ... Gemini 2.0 Flash\"",
+    "why": "A hardcoded roster of specific LLM model names rots every time a newer model ships (this very review is being run by a model newer than any listed here), so the enumerated list is already an inaccurate picture of what SQL Assistant actually supports.",
+    "suggestedFix": "Replace the static model enumeration with a pointer to a live, product-owned source of truth (the in-app model picker, or a changelog) instead of a list hardcoded into the doc.",
+    "deferCheck": "No checklistItem because there is no fixed pattern for \"enumerated model roster\"; flagged as suspected staleness (N2-style), not a certified defect — pure agentic judgment, stated as suspected per SKILL.md guidance."
+  },
+  {
+    "checklistItem": "K3",
+    "category": "prose-code-agreement",
+    "severity": "low",
+    "pages": [
+      "/build/examples/simulate-iot-sensor-data"
+    ],
+    "evidence": "Sample output for `SELECT * FROM sensor_data ORDER BY time;`:\n```\n 2020-03-31 15:56:40.244287+00 |         2 |    26.589260622859 |   0.229583469685167\n 2030-03-31 15:56:45.653115+00 |         3 |   79.9925176426768 |   0.457779890391976\n 2020-03-31 15:56:53.560205+00 |         4 |   24.3201029952615 |   0.641885648947209\n```",
+    "why": "One row's year is 2030 instead of 2020, which is internally inconsistent with the surrounding rows and would violate the query's own `ORDER BY time` if the timestamp were taken literally.",
+    "suggestedFix": "Fix the typo so the row reads 2020-03-31 to match the surrounding sample output.",
+    "deferCheck": "This is a factual internal-consistency defect in the displayed sample output (narrated output vs. shown data), not a prose/style nit, broken link, or a claim about whether the SQL executes."
+  },
+  {
+    "checklistItem": "A4",
+    "category": "product-tag",
+    "severity": "low",
+    "pages": [
+      "/build/cost-optimization",
+      "/build/data-management/hyperfunctions",
+      "/build/data-management/hyperfunctions/gapfilling-interpolation",
+      "/build/data-management/hyperfunctions/percentile-approx",
+      "/build/data-management",
+      "/build/examples",
+      "/build",
+      "/build/performance-optimization",
+      "/build/tips-and-tricks"
+    ],
+    "evidence": "Each page's frontmatter has only `title`/`description` (plus optionally `keywords`/`learnMore`) and no `products` field at all, e.g. /build/cost-optimization: `---\\ntitle: Cost optimization\\ndescription: Reduce storage and compute costs\\n---`",
+    "why": "The repo's own contributor guide states `products` is required on every content page, but every section-landing/hub page in this shard omits it, which either violates the stated policy or means the policy has an undocumented exception for hub pages.",
+    "suggestedFix": "Either add an appropriate `products` tag to these hub pages, or update the written policy to explicitly exempt overview/index pages (this same pattern repeats on ~35 hub pages across all seven tabs sitewide, so it reads as a deliberate convention rather than an isolated defect).",
+    "deferCheck": "A4 is the mechanical catalog check for a missing tag; reported once as a batched low-severity finding (not per-page high severity) because the consistent sitewide pattern indicates intentional convention, but it still contradicts the written contributor policy."
+  },
+  {
+    "checklistItem": null,
+    "category": "content-completeness",
+    "severity": "low",
+    "pages": [
+      "/build/cost-optimization"
+    ],
+    "evidence": "\"## I want to reduce…\\n\\n- Reduce storage costs with compression\\n- Use [tiered storage](/learn/data-lifecycle/storage/about-storage-tiers) for cold data\\n- Configure appropriate retention policies\\n\\n## Compute costs\\n\\n- Right-size your instance\\n- Monitor resource usage\"",
+    "why": "Four of the five action bullets on this hub page (\"Reduce storage costs with compression\", \"Configure appropriate retention policies\", \"Right-size your instance\", \"Monitor resource usage\") are plain unlinked text with no destination, unlike every sibling hub page in this shard (for example /build/data-management or /build/performance-optimization), which routes every listed item through a link or a RelatedContentCard.",
+    "suggestedFix": "Link each bullet to its corresponding guide (for example, compression to /build/how-to/basic-compression, retention to /build/data-management/data-retention/create-a-retention-policy) or convert the section to RelatedContentCards like comparable hub pages.",
+    "deferCheck": "Not a broken-link issue (there is no href to check) and not a prose nit; this is a hub page failing at its stated navigational purpose, which is pure agentic judgment with no fixed checklist pattern."
+  },
+  {
+    "checklistItem": null,
+    "category": "content-completeness",
+    "severity": "low",
+    "pages": [
+      "/build/examples/aggregate-organizational-data-with-ai"
+    ],
+    "evidence": "\"(Optional) You can also watch a walkthrough [on the Tiger Data YouTube channel](https://www.youtube.com/@tigerdata) (insert video link when available).\"",
+    "why": "This reads as an internal editorial placeholder left in published content: it implies a specific walkthrough video exists, but the link only points at the general YouTube channel and the parenthetical admits the real video isn't linked yet.",
+    "suggestedFix": "Add the real video link once available, or remove the \"(insert video link when available)\" placeholder text before publishing.",
+    "deferCheck": "Not a broken link or prose-style issue; it's a factual claim (a specific video exists) undercut by its own placeholder text — agentic judgment, no fixed pattern for a leftover editorial TODO."
+  }
+]

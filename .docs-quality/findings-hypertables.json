@@ -1,0 +1,117 @@
+{
+  "scope": {
+    "section": "learn/hypertables",
+    "pages": [
+      "understand-hypertables",
+      "creating-and-configuring-hypertables",
+      "partitioning-hypertables",
+      "sizing-hypertable-chunks",
+      "hypertable-indexes",
+      "optimize-data-in-hypertables"
+    ],
+    "totalPages": 6,
+    "checklistItems": 14
+  },
+  "findings": [
+    {
+      "checklistItem": "F4",
+      "category": "code-identifiers",
+      "severity": "medium",
+      "pages": [
+        "optimize-data-in-hypertables",
+        "creating-and-configuring-hypertables",
+        "partitioning-hypertables",
+        "sizing-hypertable-chunks",
+        "hypertable-indexes"
+      ],
+      "evidence": "optimize-data-in-hypertables.mdx uses `tsdb.hypertable`, `tsdb.segmentby`, `tsdb.orderby` (lines 37-39); all other pages in the section use `timescaledb.hypertable`, `timescaledb.partition_column`, `timescaledb.chunk_interval`, `timescaledb.create_default_indexes`",
+      "issue": "Inconsistent GUC/parameter prefix within the hypertables section. While both `tsdb.` and `timescaledb.` are valid PostgreSQL schema aliases and work identically, the section uses `timescaledb.` consistently in 5 pages but `tsdb.` in 1 page, breaking internal consistency.",
+      "suggestedFix": "Either (1) Change optimize-data-in-hypertables.mdx lines 37-39 to use `timescaledb.` prefix for consistency with the rest of the section, or (2) Add a note explaining that `tsdb.` and `timescaledb.` are equivalent aliases and the choice is arbitrary. Option 1 is preferred for section-internal consistency.",
+      "deferCheck": false
+    },
+    {
+      "checklistItem": "O1",
+      "category": "destructive-operations",
+      "severity": "low",
+      "pages": [
+        "optimize-data-in-hypertables"
+      ],
+      "evidence": "Line 145: `DROP TABLE conditions;` appears without a preceding warning callout. Lines 122 and 148-149 reference `drop_chunks()` and destructive operations but don't use explicit Callout warnings.",
+      "issue": "Destructive SQL operations (DROP TABLE, DELETE data) are shown without adjacent Callout warnings about data loss. The prose mentions 'All CHUNKs belonging to the HYPERTABLE are deleted' but this could be more prominent.",
+      "suggestedFix": "Add a `<Callout variant=\"warning\">` before the DROP TABLE example: 'This operation permanently deletes the hypertable and all its data. Ensure you have backups before running this command.'",
+      "deferCheck": false
+    },
+    {
+      "checklistItem": "C1",
+      "category": "numeric-defaults",
+      "severity": "info",
+      "pages": [
+        "creating-and-configuring-hypertables",
+        "partitioning-hypertables",
+        "sizing-hypertable-chunks",
+        "partials/_chunk-interval"
+      ],
+      "evidence": "All pages consistently state: 'Default: 7 days' (creating: line 113, 118; partitioning: line 31, 73; sizing: line 18; partial: line 8). No divergence found.",
+      "issue": "Cross-page consistency verified: the 7-day default is repeated across multiple pages but with identical values. No contradictions detected.",
+      "suggestedFix": "No action needed. Default is consistent and well-documented.",
+      "deferCheck": true
+    },
+    {
+      "checklistItem": "C2",
+      "category": "numeric-variation",
+      "severity": "info",
+      "pages": [
+        "sizing-hypertable-chunks",
+        "partials/_chunk-interval"
+      ],
+      "evidence": "sizing-hypertable-chunks.mdx lines 36-39: 'If index growth is approximately 2 GB per day, a 7-day interval is appropriate (2 GB x 7 = 14 GB, fits in 16 GB). If index growth is around 10 GB per day, use a 1-day interval (10 GB, fits in 16 GB).' _chunk-interval.mdx lines 8-11: 'default chunk interval is 7 days... 2 GB per day, a 1-week chunk interval is appropriate... 10 GB per day, use a 1-day interval.'",
+      "issue": "Numeric values for chunk intervals vary intentionally based on workload characteristics (2 GB/day → 7 days; 10 GB/day → 1 day). This is documented as tuning guidance, not contradictory defaults. Verified as intentional variation, not C2 violation.",
+      "suggestedFix": "No action needed. Variation is intentional and explicitly presented as examples of tuning guidance.",
+      "deferCheck": true
+    },
+    {
+      "checklistItem": "B1",
+      "category": "version-claims",
+      "severity": "info",
+      "pages": [
+        "all hypertables pages",
+        "reference/create_hypertable"
+      ],
+      "evidence": "No explicit 'since X.Y' claims found in learn/hypertables pages. Reference page (reference/timescaledb/hypertables/create_hypertable.mdx line 34) states: 'This page describes the generalized HYPERTABLE API introduced in TimescaleDB v2.13.'",
+      "issue": "The learn pages do not mention version requirements for the CREATE TABLE ... WITH (timescaledb.hypertable) syntax they teach. The reference page documents that the generalized API dates to v2.13, but the learn pages are version-agnostic and teach the modern way without version context.",
+      "suggestedFix": "Optional: Add a note to understand-hypertables.mdx or creating-and-configuring-hypertables.mdx stating 'The CREATE TABLE ... WITH syntax shown here requires TimescaleDB 2.13+. For earlier versions, use create_hypertable() function.' This is not urgent since the reference page covers it.",
+      "deferCheck": true
+    },
+    {
+      "checklistItem": "A",
+      "category": "product-tags",
+      "severity": "info",
+      "pages": [
+        "creating-and-configuring-hypertables"
+      ],
+      "evidence": "Page is tagged [cloud, self_hosted]. Sections present: 'Create a HYPERTABLE from scratch in CONSOLE_LONG or with SQL.' (line 23). Console tab is Cloud-specific; SQL tab works for both products.",
+      "issue": "The page correctly uses tabs to handle both Cloud (Console) and self-hosted (SQL) workflows. Product tag is appropriate because both flows are documented. No over-tagging detected.",
+      "suggestedFix": "No action needed. Tag is correct; page structure appropriately separates product-specific guidance.",
+      "deferCheck": true
+    }
+  ],
+  "summary": {
+    "totalFindings": 6,
+    "bySeverity": {
+      "high": 0,
+      "medium": 1,
+      "low": 1,
+      "info": 4
+    },
+    "byCategory": {
+      "code-identifiers": 1,
+      "destructive-operations": 1,
+      "numeric-defaults": 1,
+      "numeric-variation": 1,
+      "version-claims": 1,
+      "product-tags": 1
+    },
+    "actionable": 2,
+    "informational": 4
+  }
+}

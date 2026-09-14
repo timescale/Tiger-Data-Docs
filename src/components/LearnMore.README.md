@@ -232,8 +232,8 @@ title: Migrate from PostgreSQL
 learnMore:
   tutorialsHeading: Next steps
   tutorials:
-    - label: Live migration walkthrough
-      href: /migrate/live-migration/
+    - label: Livesync replication
+      href: /migrate/livesync-replication/
     - label: Validate after migration
       href: /migrate/validate/
   relatedPostsHeading: Customer stories

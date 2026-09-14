@@ -25,6 +25,36 @@
       return h + 24;
     }
 
+    /** The nearest scrollable ancestor of a TOC link (the rail column). */
+    function scrollContainerOf(el) {
+      var node = el.parentElement;
+      while (node) {
+        var oy = getComputedStyle(node).overflowY;
+        if ((oy === "auto" || oy === "scroll") && node.scrollHeight > node.clientHeight + 1)
+          return node;
+        node = node.parentElement;
+      }
+      return null;
+    }
+
+    /**
+     * Keep the active TOC link visible by scrolling ONLY the rail's own scroll
+     * container — never the window (so following the highlight can't move the
+     * page). No-ops when the TOC fits without scrolling.
+     */
+    function keepActiveVisible(link) {
+      var c = scrollContainerOf(link);
+      if (!c) return;
+      var cr = c.getBoundingClientRect();
+      var lr = link.getBoundingClientRect();
+      var margin = 16;
+      if (lr.top < cr.top + margin) {
+        c.scrollTop -= cr.top + margin - lr.top;
+      } else if (lr.bottom > cr.bottom - margin) {
+        c.scrollTop += lr.bottom - (cr.bottom - margin);
+      }
+    }
+
     /** Resolve the heading element a TOC hash points at. */
     function headingFor(hash) {
       var id = decodeURIComponent(hash.slice(1));
@@ -46,6 +76,7 @@
       return out;
     }
 
+    var lastActive = null;
     function update() {
       var entries = collect();
       if (!entries.length) return;
@@ -66,6 +97,12 @@
         } else if (link.getAttribute("aria-current") === "true") {
           link.removeAttribute("aria-current");
         }
+      }
+      // When the active section changes, scroll the rail so its highlight stays
+      // visible even once it passes the bottom of the TOC's own scroll area.
+      if (active !== lastActive) {
+        lastActive = active;
+        keepActiveVisible(active);
       }
     }
 
