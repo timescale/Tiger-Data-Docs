@@ -10,7 +10,7 @@ Parameter names, types, and required or optional fields can change with new {C.M
 ## Service tools
 
 <Callout variant="note">
-The following tools are disabled when using read-only mode: `service_create`, `service_fork`, `service_start`, `service_stop`, `service_resize`, `service_update_password`.
+Read-only mode restricts the mutating tools: `service_create`, `service_fork`, `service_start`, `service_stop`, `service_resize`, `service_update_password`. With `read_only=all` they are not registered at all; with `read_only=prod` they stay available but refuse calls against {C.SERVICE_SHORT}s tagged `PROD`. See [Restrict {C.MCP_LONG} to read-only](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only).
 </Callout>
 
 ### `service_list`
@@ -136,23 +136,24 @@ Fetch {C.SERVICE_SHORT} logs.
 
 ## Database tools
 
-### `db_execute_query`
+### `db_query`
 
-Run a single SQL statement against a {C.SERVICE_SHORT}.
+Run SQL against a {C.SERVICE_SHORT}. The {C.CLI_SHORT} equivalent is [`tiger db query`](/reference/tiger-cloud/tiger-cli#tiger-db-query). Before {C.CLI_LONG} 0.24, this tool was named `db_execute_query`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `service_id` | string | Yes | The target {C.SERVICE_SHORT} (or a read replica set ID, to query the replica instead of the primary). |
-| `query` | string | Yes | The SQL statement to run. |
+| `query` | string | Exactly one of `query` or `file` | The SQL to run. |
+| `file` | string | Exactly one of `query` or `file` | Path to a SQL file on disk to run, instead of passing its contents as `query`. |
 | `parameters` | array of strings | No | Values substituted for `$1`, `$2`, and so on. Not supported with multi-statement queries. |
 | `timeout_seconds` | integer | No | Query timeout. Default: `30`. |
 | `role` | string | No | Database role to connect as. Default: `tsdbadmin`. |
 | `pooled` | boolean | No | Use connection pooling. Default: `false`. |
 
-**Returns**: column information, row data, and execution metadata for each statement.
+**Returns**: column information, row data, and execution metadata for each statement. Values come back exactly as {C.PG}'s text format renders them, the same text `psql` shows, with SQL `NULL` as `null`. To limit the data sent to the agent, a result set is truncated when it exceeds the `mcp_max_rows` [configuration option](/reference/tiger-cloud/tiger-cli#configuration-options) (default: `100`) or an overall response-size cap; the response then flags the truncation and the agent is told to refine the query in SQL instead.
 
 <Callout variant="warning" title="Can run destructive SQL">
-`db_execute_query` can run `INSERT`, `UPDATE`, `DELETE`, and DDL. Multi-statement queries (semicolon-separated) are supported when no `parameters` are provided. In read-only mode, writes and DDL are rejected by the server.
+`db_query` can run `INSERT`, `UPDATE`, `DELETE`, and DDL. Multi-statement queries (semicolon-separated) are supported when no `parameters` are provided. In read-only mode, writes and DDL are rejected by the server.
 </Callout>
 
 ### `db_schema`
