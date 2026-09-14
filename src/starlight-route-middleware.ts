@@ -13,8 +13,8 @@ export const onRequest = defineRouteMiddleware(async (context, next) => {
   try {
     const route = context.locals.starlightRoute;
     if (route) {
-      // Leave `siteTitleHref` alone: Starlight derives it from `base`, so the logo
-      // stays inside whichever deployment is being viewed (production, preview, or dev).
+      // Set siteTitleHref to point the logo at the main Tiger Data website
+      route.siteTitleHref = "https://www.tigerdata.com";
       // Flatten single-child sidebar groups
       if (route.sidebar?.length) {
         route.sidebar = flattenSidebarSingleChildGroups(route.sidebar);
