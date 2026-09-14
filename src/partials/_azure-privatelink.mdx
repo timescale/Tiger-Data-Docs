@@ -13,8 +13,10 @@ import imgManagePrivateEndpointsLight from "../assets/images/deploy/tiger-cloud/
 import imgManagePrivateEndpointsDark from "../assets/images/deploy/tiger-cloud/manage-private-endpoints-tiger-console-dark.png";
 import imgClaimPrivateEndpointLight from "../assets/images/deploy/tiger-cloud/claim-private-endpoint-tiger-console-azure.png";
 import imgClaimPrivateEndpointDark from "../assets/images/deploy/tiger-cloud/claim-private-endpoint-tiger-console-azure-dark.png";
-import imgPrivateEndpointAttachedLight from "../assets/images/deploy/tiger-cloud/private-endpoint-attached-tiger-console-azure.png";
-import imgPrivateEndpointAttachedDark from "../assets/images/deploy/tiger-cloud/private-endpoint-attached-tiger-console-azure-dark.png";
+import imgAzurePrivateEndpointDnsZoneLight from "../assets/images/deploy/tiger-cloud/azure-private-endpoint-dns-zone.png";
+import imgAzurePrivateEndpointDnsZoneDark from "../assets/images/deploy/tiger-cloud/azure-private-endpoint-dns-zone-dark.png";
+import imgAzurePrivateEndpointDnsRecordLight from "../assets/images/deploy/tiger-cloud/azure-private-endpoint-dns-record.png";
+import imgAzurePrivateEndpointDnsRecordDark from "../assets/images/deploy/tiger-cloud/azure-private-endpoint-dns-record-dark.png";
 
 <Prerequisites context="procedure">
 <PrereqsCloud />
@@ -23,6 +25,15 @@ import imgPrivateEndpointAttachedDark from "../assets/images/deploy/tiger-cloud/
 * [Permissions](https://learn.microsoft.com/en-us/azure/private-link/rbac-permissions) configured to create private endpoints.
 * An [Azure Virtual Network](https://learn.microsoft.com/en-us/azure/virtual-network/quickstart-create-virtual-network?tabs=portal) with a subnet for the resources you will connect to {C.CLOUD_LONG}.
 </Prerequisites>
+
+## Limits
+
+| Limit | Value |
+| --- | --- |
+| {C.SERVICE_SHORT}s per private endpoint | Unlimited |
+| Private endpoints per {C.SERVICE_SHORT} | 2 |
+
+One private endpoint serves as many {C.SERVICE_SHORT}s as you attach to it, each on its own port. Each {C.SERVICE_SHORT} accepts up to two endpoints, which lets you reach it from two Virtual Networks.
 
 ## Set up a private endpoint connection
 
@@ -84,14 +95,132 @@ Take the following steps to connect your {C.SERVICE_LONG} to a Private Link endp
 
 </NumberedItem>
 
-<NumberedItem title="Configure and attach">
+<NumberedItem title="Attach a service">
 
-1. Under `IP Address` click `Add IP` and paste the private endpoint IP address you have copied from Azure Portal.
-1. Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the dropdown and click `Attach`. You can attach a {C.SERVICE_SHORT} to one private endpoint.
+Under `Services` click `Attach service`. Select your {C.SERVICE_SHORT} from the dropdown and click `Attach`.
 
-   <ThemeImage light={imgPrivateEndpointAttachedLight} dark={imgPrivateEndpointAttachedDark} alt="A private endpoint connection with an IP address and an attached service" />
+To reach this {C.SERVICE_SHORT} from a second virtual network, attach it to a second private endpoint as well. See [Reach a service from a second virtual network](#reach-a-service-from-a-second-virtual-network).
 
-1. From a VM inside your Azure VNet, connect to your {C.SERVICE_SHORT} using a connection string with your [connection details](/integrate/find-connection-details). You should be able to connect successfully.
+</NumberedItem>
+
+<NumberedItem title="Publish the service hostname in your private DNS">
+
+You resolve your {C.SERVICE_SHORT} hostname to your private endpoint in a private DNS zone that you control.
+
+1. In [Azure Portal](https://azure.microsoft.com/en-us/get-started/azure-portal), create a [private DNS zone](https://learn.microsoft.com/en-us/azure/dns/private-dns-getstarted-portal) named `<project-id>.db.az.tigerdata.com`, then add a [virtual network link](https://learn.microsoft.com/en-us/azure/dns/private-dns-virtual-network-links) to the Virtual Network that contains your resources. If you already have a private DNS zone for this domain, use it.
+
+   <ThemeImage light={imgAzurePrivateEndpointDnsZoneLight} dark={imgAzurePrivateEndpointDnsZoneDark} alt="Creating a private DNS zone for the project domain" />
+
+1. In that zone, create an `A` record for your {C.SERVICE_SHORT} hostname, `<service-id>.<project-id>.db.az.tigerdata.com`, that resolves to the private endpoint IP you copied from Azure Portal. An Azure private endpoint has a single IP address, so an `A` record is correct here.
+
+   <ThemeImage light={imgAzurePrivateEndpointDnsRecordLight} dark={imgAzurePrivateEndpointDnsRecordDark} alt="Adding an A record for the service hostname pointing at the private endpoint IP" />
+
+1. If your {C.SERVICE_SHORT} has a read endpoint, add a second `A` record for `<service-id>-repl.<project-id>.db.az.tigerdata.com` pointing at the same IP. This is the address of your {C.SERVICE_SHORT}'s replicas, shown as `Read endpoint` in your [connection details](/integrate/find-connection-details).
+1. If you use the connection pooler, it is reached at the primary hostname on its own port, so it needs no record of its own. Add the pooler port to your connection string instead.
+
+   Find your {C.SERVICE_SHORT} ID and {C.PROJECT_SHORT} ID in your [connection details](/integrate/find-connection-details).
+
+<Callout variant="note">
+
+Your private DNS zone overrides public DNS for everything under it, in every VNet you link it to. A zone for `<project-id>.db.az.tigerdata.com` takes over resolution for **all** {C.SERVICE_SHORT}s in that {C.PROJECT_SHORT}, not only the ones you add records for. A hostname in that zone with no record fails to resolve instead of falling back to the public address, so clients in those VNets can no longer reach that {C.SERVICE_SHORT} over the internet. Add a record for every {C.SERVICE_SHORT} those clients connect to.
+
+</Callout>
+
+</NumberedItem>
+
+<NumberedItem title="Test the connection">
+
+Run these from a VM inside the VNet you linked to the private DNS zone. They fail from anywhere else, including your laptop, because the hostname resolves to a private address.
+
+1. Check that your zone resolves the hostname to your private endpoint:
+
+   ```bash
+   dig +short <service-id>.<project-id>.db.az.tigerdata.com
+   ```
+
+   You get the private IP of your private endpoint, the same address you copied from Azure Portal.
+
+   No answer at all means the zone is not resolving. Check that the private DNS zone has a virtual network link to this VNet, and that the record name matches the hostname exactly.
+
+1. Check that the endpoint accepts connections on the port for this endpoint:
+
+   ```bash
+   nc -zv <service-id>.<project-id>.db.az.tigerdata.com <port>
+   ```
+
+1. Connect, verifying the certificate:
+
+   ```bash
+   psql "postgres://tsdbadmin@<service-id>.<project-id>.db.az.tigerdata.com:<port>/tsdb?sslmode=verify-full"
+   ```
+
+   `sslmode=verify-full` is the point of publishing our hostname rather than connecting to the endpoint IP directly: it proves you reached your {C.SERVICE_SHORT} privately and that the certificate matches. If this succeeds, your setup is correct. For how to supply the certificate and make this mode your default, see [Connect with a stricter SSL mode](/deploy/tiger-cloud/tiger-cloud-azure/security/strict-ssl).
+
+1. If you added a record for the read endpoint, repeat the check against it, using its own port:
+
+   ```bash
+   psql "postgres://tsdbadmin@<service-id>-repl.<project-id>.db.az.tigerdata.com:<port>/tsdb?sslmode=verify-full"
+   ```
+
+<Callout variant="warning">
+
+Ports are specific to each endpoint. {C.CLOUD_LONG} uses the standard `5432` where it can, but this is not guaranteed, and your primary, your read endpoint, and your pooler each listen on their own port. Never assume a port: always use the one shown for that endpoint in your [connection details](/integrate/find-connection-details).
+
+</Callout>
+
+</NumberedItem>
+
+</NumberedList>
+
+## Reach a service from a second virtual network
+
+An Azure private endpoint lives in a single Virtual Network. To reach the same {C.SERVICE_SHORT} from a second Virtual Network, create a second private endpoint there and attach the same {C.SERVICE_SHORT} to it. A {C.SERVICE_SHORT} accepts up to two private endpoints.
+
+Repeat [Set up a private endpoint connection](#set-up-a-private-endpoint-connection) from the second Virtual Network, with two differences:
+
+- Claim the second connection with its own endpoint identifier. Each endpoint has a distinct ID, and {C.CONSOLE_LONG} lists each claimed connection separately.
+- Create the DNS records in a private DNS zone linked to the second Virtual Network, resolving to the second endpoint's own private IP. Both zones carry the same name, so create the second one in its own resource group. Azure rejects two resources with the same name and type in a single resource group.
+
+Each Virtual Network resolves the {C.SERVICE_SHORT} hostname through the zone linked to it, so both Virtual Networks use the same hostname and each reaches its own endpoint:
+
+| Virtual Network | Private DNS zone linked to it | `A` record resolves to |
+| --- | --- | --- |
+| VNet A | Zone for `<project-id>.db.az.tigerdata.com` | Private IP of the endpoint in VNet A |
+| VNet B | Zone for `<project-id>.db.az.tigerdata.com` | Private IP of the endpoint in VNet B |
+
+You need one zone per Virtual Network. A single zone linked to both Virtual Networks cannot do this, because it holds one record for the hostname and so returns the same IP to both.
+
+<Callout variant="note">
+
+Ports are per endpoint, so your second endpoint may listen on different ports than your first. Check the [connection details](/integrate/find-connection-details) for each connection rather than reusing the first endpoint's ports.
+
+</Callout>
+
+## Migrate from a configured IP address
+
+If you set up Private Link before {C.CLOUD_LONG} supported private DNS that you control, you configured your connection by adding the endpoint IP address in {C.CONSOLE_LONG}, and {C.CLOUD_LONG} published the DNS records for you. That flow is retired.
+
+To see whether this applies to you, open `Security` > `Private Endpoints` in {C.CONSOLE_LONG} and look at the `IP Address` column for your connection. If it is empty, you are already resolving through your own zone and you can skip this section. If it shows an address, follow the steps below to move to your own private DNS.
+
+<NumberedList>
+
+<NumberedItem title="Publish the hostname in your own zone">
+
+Create the records described in [Publish the service hostname in your private DNS](#set-up-a-private-endpoint-connection), then run the checks in [Test the connection](#set-up-a-private-endpoint-connection) before you continue.
+
+Your zone and the records {C.CLOUD_LONG} publishes point at the same address, so a successful `dig` does not on its own prove your zone is answering. Confirm your record exists in the Azure Portal, in your private DNS zone's record set.
+
+</NumberedItem>
+
+<NumberedItem title={`Remove the IP address in ${C.CONSOLE_LONG}`}>
+
+In `Security` > `Private Endpoints`, remove the IP address from your connection. This deletes the DNS records that {C.CLOUD_LONG} published and hands resolution to your zone.
+
+<Callout variant="warning">
+
+Your own zone must already resolve the {C.SERVICE_SHORT} hostname before you remove the IP address, otherwise connections fail until your DNS is in place. If that happens, add the IP address back in {C.CONSOLE_LONG} to restore the records {C.CLOUD_LONG} publishes, then try again once your zone resolves the hostname.
+
+</Callout>
 
 </NumberedItem>
 

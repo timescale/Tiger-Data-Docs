@@ -13,6 +13,15 @@ CREATE PUBLICATION <publication_name> FOR TABLE <table_name>, <table_name>;
 EOF
 ```
 
+Add a {C.HYPERTABLE} with tiered chunks as `ONLY <hypertable_name>`. Tiered chunks are foreign tables, so without `ONLY` the statement fails:
+
+```text
+ERROR:  cannot add relation "osm_chunk_43" to publication
+DETAIL:  This operation is not supported for foreign tables.
+```
+
+Livesync adds the other chunks of that {C.HYPERTABLE} to the publication. Tiered chunks stay out of the publication because they are immutable. Livesync still copies their data once, during the initial copy.
+
 To sync every table across one or more user schemas ({C.PG} 15 or later only), list the schemas explicitly and exclude the {C.TIMESCALE_DB} ones:
 
 ```sql
@@ -27,6 +36,28 @@ To add or remove tables after creating the publication:
 ```sql
 ALTER PUBLICATION <publication_name> ADD TABLE <table_name>;
 ALTER PUBLICATION <publication_name> DROP TABLE <table_name>;
+```
+
+A {C.HYPERTABLE} that you added with `ONLY` needs two steps to remove: drop the {C.HYPERTABLE}, then drop the chunks that Livesync added:
+
+```sql
+DO $$
+DECLARE
+  pub   text := '<publication_name>';
+  ht    text := '<hypertable_name>';
+  chunk record;
+BEGIN
+  EXECUTE format('ALTER PUBLICATION %I DROP TABLE ONLY %I', pub, ht);
+  FOR chunk IN
+    SELECT t.schemaname, t.tablename
+    FROM pg_publication_tables t
+    JOIN timescaledb_information.chunks c
+      ON c.chunk_schema = t.schemaname AND c.chunk_name = t.tablename
+    WHERE t.pubname = pub AND c.hypertable_name = ht
+  LOOP
+    EXECUTE format('ALTER PUBLICATION %I DROP TABLE %I.%I', pub, chunk.schemaname, chunk.tablename);
+  END LOOP;
+END $$;
 ```
 
 Publication changes are picked up only after a Livesync stop/start, or by running the `refresh-publication` command:

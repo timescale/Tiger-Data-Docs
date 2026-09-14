@@ -1,6 +1,6 @@
 ---
-title: Query TigerLake S3 Tables with AWS Glue and Athena
-description: "Expose Iceberg tables written by TigerLake to the AWS Glue Data Catalog and query them with Amazon Athena, with no ETL or data duplication."
+title: Query Tiger Lake S3 Tables with AWS Glue and Athena
+description: "Expose Iceberg tables written by Tiger Lake to the AWS Glue Data Catalog and query them with Amazon Athena, with no ETL or data duplication."
 products: [cloud]
 integrationCategory: connectors
 integrationPlatforms: [aws]
@@ -20,11 +20,11 @@ import * as C from "@constants";
 import { Prerequisites } from "@components/Prerequisites";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 
-After {C.LAKE_LONG} syncs your {C.SERVICE_LONG} data to Iceberg tables in Amazon S3 Tables, this guide shows you how to make those tables discoverable through the AWS Glue Data Catalog and query them with Amazon Athena.
+After {C.ICEBERG_CONNECTOR_LONG} syncs your {C.SERVICE_LONG} data to Iceberg tables in Amazon S3 Tables, this guide shows you how to make those tables discoverable through the AWS Glue Data Catalog and query them with Amazon Athena.
 
-This integration does not change the {C.LAKE_SHORT}'s write path and does not use the {C.LAKE_SHORT} generic REST catalog configuration. The {C.LAKE_SHORT} continues to write directly to the Amazon S3 Tables Iceberg REST endpoint using AWS SigV4. AWS Glue federation makes those existing S3 Tables resources discoverable to Athena.
+This integration does not change the {C.ICEBERG_CONNECTOR_SHORT}'s write path and does not use the {C.ICEBERG_CONNECTOR_SHORT} generic REST catalog configuration. The {C.ICEBERG_CONNECTOR_SHORT} continues to write directly to the Amazon S3 Tables Iceberg REST endpoint using AWS SigV4. AWS Glue federation makes those existing S3 Tables resources discoverable to Athena.
 
-AWS documents each service separately. This guide provides the {C.LAKE_SHORT}-specific resource mapping and the minimum sequence needed to expose a namespace and tables created by the {C.LAKE_SHORT} through the federated catalog.
+AWS documents each service separately. This guide provides the {C.ICEBERG_CONNECTOR_SHORT}-specific resource mapping and the minimum sequence needed to expose a namespace and tables created by the {C.ICEBERG_CONNECTOR_SHORT} through the federated catalog.
 
 AWS documentation:
 
@@ -34,7 +34,7 @@ AWS documentation:
 
 ## Responsibilities
 
-The S3 table bucket owner performs the steps in this guide in the AWS account and Region that contain the table bucket. Enabling Glue federation is an account-and-Region-level operation, not an {C.LAKE_SHORT} operation.
+The S3 table bucket owner performs the steps in this guide in the AWS account and Region that contain the table bucket. Enabling Glue federation is an account-and-Region-level operation, not an {C.ICEBERG_CONNECTOR_SHORT} operation.
 
 The setup involves two separate AWS principals:
 
@@ -45,7 +45,7 @@ Do not assume that granting permissions to one principal grants them to the othe
 
 <Prerequisites context="integration">
 
-- [{C.LAKE_LONG}](/integrate/connectors/destination/tigerlake) set up and active in your {C.SERVICE_LONG}, writing to an AWS S3 Tables destination.
+- [{C.ICEBERG_CONNECTOR_LONG}](/integrate/connectors/destination/tigerlake) set up and active in your {C.SERVICE_LONG}, writing to an AWS S3 Tables destination.
 - AWS CLI v2 authenticated to the table bucket's AWS account.
 - Permission to inspect the S3 table bucket and Glue Data Catalog.
 - A Lake Formation data lake administrator for granting query access.
@@ -66,7 +66,7 @@ export TIGERLAKE_NAMESPACE='timescaledb'
 ```
 
 <NumberedList>
-  <NumberedItem title={`Verify that the ${C.LAKE_SHORT} created the S3 Tables resources`}>
+  <NumberedItem title={`Verify that the ${C.ICEBERG_CONNECTOR_SHORT} created the S3 Tables resources`}>
 
     List namespaces:
 
@@ -76,7 +76,7 @@ export TIGERLAKE_NAMESPACE='timescaledb'
       --table-bucket-arn "$TABLE_BUCKET_ARN"
     ```
 
-    The {C.LAKE_SHORT} normally creates the `timescaledb` namespace. List its tables:
+    The {C.ICEBERG_CONNECTOR_SHORT} normally creates the `timescaledb` namespace. List its tables:
 
     ```bash
     aws s3tables list-tables \
@@ -85,7 +85,7 @@ export TIGERLAKE_NAMESPACE='timescaledb'
       --namespace "$TIGERLAKE_NAMESPACE"
     ```
 
-    Do not continue until the expected tables created by the {C.LAKE_SHORT} appear here. Glue and Athena cannot expose a table that the {C.LAKE_SHORT} has not yet created.
+    Do not continue until the expected tables created by the {C.ICEBERG_CONNECTOR_SHORT} appear here. Glue and Athena cannot expose a table that the {C.ICEBERG_CONNECTOR_SHORT} has not yet created.
 
   </NumberedItem>
   <NumberedItem title="Enable or verify Glue federation">
@@ -274,7 +274,7 @@ export TIGERLAKE_NAMESPACE='timescaledb'
     export ATHENA_PRINCIPAL_ARN='<query-user-or-role-arn>'
     ```
 
-    Grant visibility on the {C.LAKE_SHORT} namespace:
+    Grant visibility on the {C.ICEBERG_CONNECTOR_SHORT} namespace:
 
     ```bash
     aws lakeformation grant-permissions \
@@ -327,7 +327,7 @@ export TIGERLAKE_NAMESPACE='timescaledb'
     SHOW TABLES;
     ```
 
-    Then query a table created by the {C.LAKE_SHORT}:
+    Then query a table created by the {C.ICEBERG_CONNECTOR_SHORT}:
 
     ```sql
     SELECT *
@@ -391,7 +391,7 @@ export TIGERLAKE_NAMESPACE='timescaledb'
 
 ## Validate ongoing replication
 
-Run a count query, insert additional rows into the source TimescaleDB table, wait for the {C.LAKE_SHORT} to commit a new Iceberg snapshot, and run the count query again. An increased count confirms the complete path:
+Run a count query, insert additional rows into the source TimescaleDB table, wait for the {C.ICEBERG_CONNECTOR_SHORT} to commit a new Iceberg snapshot, and run the count query again. An increased count confirms the complete path:
 
 ```text
 TimescaleDB -> Iceberg connector -> S3 Tables -> Glue -> Lake Formation -> Athena
@@ -419,7 +419,7 @@ aws configure list
 This is a Lake Formation authorization failure. Confirm all three items:
 
 - The query principal has IAM permission for `lakeformation:GetDataAccess`.
-- It has `DESCRIBE` on the {C.LAKE_SHORT} database.
+- It has `DESCRIBE` on the {C.ICEBERG_CONNECTOR_SHORT} database.
 - It has `SELECT` and `DESCRIBE` on the queried table.
 
 ### The Athena query has no output location
@@ -437,7 +437,7 @@ Athena query executions are immutable. Submit a new query after changing IAM or 
 ## Production recommendations
 
 - Use a read-only IAM role or IAM Identity Center permission set for Athena consumers.
-- Grant `SELECT` and `DESCRIBE`; avoid Athena write or DDL permissions on tables managed by the {C.LAKE_SHORT}.
+- Grant `SELECT` and `DESCRIBE`; avoid Athena write or DDL permissions on tables managed by the {C.ICEBERG_CONNECTOR_SHORT}.
 - Use a dedicated Athena workgroup with an enforced, encrypted result location, scan limits, CloudWatch metrics, and cost allocation tags.
 - Apply an expiration lifecycle policy to customer-managed Athena result files.
 - Manage IAM and Lake Formation grants through infrastructure as code.

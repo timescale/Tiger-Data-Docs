@@ -60,6 +60,8 @@ The component takes **props** and **two slots** (heading + body).
 **Allowed `tags` values:**  
 `new-feature` | `improvement` | `performance` | `security` | `integration` | `region` | `deprecation` | `bug-fix` | `breaking-change` | `beta` | `ga` | `cli-mcp`
 
+Tag Tiger CLI and Tiger MCP release entries with `cli-mcp` (shown as "Tiger CLI/MCP"), and group CLI changes into one entry per release, dated to that release.
+
 Example:
 
 ```mdx
