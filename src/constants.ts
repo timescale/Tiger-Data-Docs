@@ -39,6 +39,7 @@ export const PRODUCTS_ALL = `${COMPANY} products`;
 export const PRODUCTS_CL_DB = `${CLOUD_LONG} and ${TIMESCALE_DB}`;
 export const TDB_APACHE = `${TIMESCALE_DB} Apache 2 Edition`;
 export const TDB_COMMUNITY = `${TIMESCALE_DB} Community Edition`;
+export const TDB_ENTERPRISE = `${TIMESCALE_DB} Enterprise`;
 export const SELF_SHORT_CAP = 'Self-hosted';
 export const SELF_SHORT = 'self-hosted';
 export const SELF_LONG_CAP = `${SELF_SHORT_CAP} ${TIMESCALE_DB}`;

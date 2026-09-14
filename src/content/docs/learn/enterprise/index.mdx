@@ -1,122 +1,135 @@
 ---
 title: Meet TimescaleDB Enterprise
-description: Run production TimescaleDB clusters on your own Linux servers with high availability, backups, and monitoring built in
+description: Run production TimescaleDB clusters on your own servers with high availability, backups, and monitoring built in
 keywords: [timescaledb enterprise, on-premises, self-managed, air-gap, edge]
 # products: [enterprise] — add once the "enterprise" product tag is added to content.config.ts
 ---
 
 import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
 import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
 
-{C.TIMESCALE_DB} Enterprise is a commercially licensed distribution of {C.TIMESCALE_DB} that
-arrives with its operational layer already built. Automatic failover, backups, point-in-time
-recovery, and monitoring are driven from a console you run yourself, and the database
-underneath is the same {C.TIMESCALE_DB} you would install by hand.
+{C.TDB_ENTERPRISE} is a commercially licensed distribution of {C.TIMESCALE_DB} that arrives with
+its operational layer already built. Automatic failover, backups, point-in-time recovery, and
+monitoring are driven from a console you run yourself, and underneath it is the same {C.PG} and
+{C.TIMESCALE_DB} you would install by hand.
 
-It exists for the places a managed database cannot go. At the edge, on a factory floor or a
-remote site in energy or manufacturing, a cluster has to keep working when the network does
-not. In regulated and air-gapped data centers the requirement is stricter still, because the
-database can never reach outward at all. And for teams who could build high availability and
-recovery themselves but would rather not, the console is the shorter path.
+{C.TDB_ENTERPRISE} exists for the places a managed database cannot go. At the edge, on a factory
+floor or a remote site in energy or manufacturing, a cluster has to keep working when the
+network does not. In regulated and air-gapped data centers the requirement is stricter still,
+because a running database can never reach outward at all.
 
-Nothing about a running cluster depends on {C.COMPANY}. There is no hosted control plane in the
-path, so queries, failover, and backups never wait on anything outside your own network, and an
-air-gapped install uses license files rather than online activation.
+{C.TDB_ENTERPRISE} meets that requirement. Once a cluster is running, nothing about it depends
+on {C.COMPANY} infrastructure: there is no hosted control plane in the path, so queries,
+failover, and backups never wait on anything outside your own network, and an air-gapped install
+uses license files rather than online activation.
+
+<Callout variant="important">
+
+{C.TDB_ENTERPRISE} is in public preview.
+
+</Callout>
 
 ## Architecture
 
-An installation has two tiers. The **console** is a Docker container, and the only piece you
-deploy centrally. It serves the browser interface and the API, runs the automation that
-configures your servers, collects and stores metrics, and coordinates the private network the
-installation runs over. Access is by token or through your own identity provider over OIDC.
+An installation has two tiers: a console, and the servers it manages. The **console** is a
+Docker container, and the only piece you deploy centrally. It holds the web console, the HTTP
+API, a metrics engine that keeps 30 days of history, and the coordinator for the private mesh
+your servers join. Access is by token or through your own identity provider over OIDC.
 
-The **data plane** is your own Linux servers, whether those are bare metal, virtual machines
-under VMware or KVM, or instances in your own cloud account. You enroll them with the console,
-and it installs and configures what runs on them: {C.PG} 17 with {C.TIMESCALE_DB}, Patroni and
-etcd for leader election and failover, HAProxy and PgBouncer for routing and pooled
-connections, and pgBackRest for backups. A service is either a single node or a highly
-available group of nodes, and it can use a separate enrolled machine as a dedicated backup
-server.
+The **data plane** is your own Linux servers, bare metal or virtual machines, running Debian,
+Ubuntu, or a RHEL-family distribution. You enroll them with the console, and it installs and
+configures what runs on them: {C.PG} with {C.TIMESCALE_DB}, Patroni and etcd for leader
+election and failover, HAProxy and PgBouncer for routing and pooled connections, and pgBackRest
+for backups. A service is either a single node or a highly available group of nodes, and it can
+use a separate enrolled machine as a dedicated backup server.
 
-<svg viewBox="0 0 920 400" role="img" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; margin: 1.5rem 0;">
-  <title>{C.TIMESCALE_DB} Enterprise architecture</title>
+Every service is a new one. The console cannot adopt a {C.PG} or {C.TIMESCALE_DB} database you
+already run, so bringing an existing database under it means migrating the data into a service
+the console created.
+
+<svg viewBox="0 0 960 520" role="img" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; margin: 1.5rem 0;">
+  <title>{C.TDB_ENTERPRISE} system overview</title>
   <desc>
-    The console host runs the control plane and reaches three database servers over an
-    outbound encrypted mesh. The application connects to the database service directly, not
-    through the console. The primary sends backups to a separate backup server.
+    One console host runs the control plane. Your database servers join its private mesh, and the
+    console reaches them over that mesh to deploy, monitor, and collect logs. Your applications
+    connect to the database servers directly, not through the console.
   </desc>
   <defs>
-    <marker id="tse-arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M0 0 L10 5 L0 10 z" fill="var(--sl-color-gray-3, #71717a)" />
-    </marker>
-    <marker id="tse-arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M0 0 L10 5 L0 10 z" fill="var(--sl-color-text-accent, #0e7c5a)" />
+    <pattern id="tse-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="var(--sl-color-gray-4, #a1a1aa)" opacity="0.55" />
+    </pattern>
+    <marker id="tse-tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="var(--sl-color-text, #18181b)" />
     </marker>
   </defs>
 
-  <rect x="20" y="30" width="200" height="140" rx="8" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-5, #d4d4d8)" stroke-width="1.5" />
-  <text x="36" y="56" font-size="14" font-weight="600" fill="var(--sl-color-text, #18181b)">Console host</text>
-  <text x="36" y="82" font-size="11.5" fill="var(--sl-color-gray-3, #71717a)">Browser UI and API</text>
-  <text x="36" y="102" font-size="11.5" fill="var(--sl-color-gray-3, #71717a)">Automation</text>
-  <text x="36" y="122" font-size="11.5" fill="var(--sl-color-gray-3, #71717a)">Metrics engine</text>
-  <text x="36" y="142" font-size="11.5" fill="var(--sl-color-gray-3, #71717a)">Mesh coordinator</text>
-  <text x="20" y="192" font-size="11" fill="var(--sl-color-gray-3, #71717a)">Control plane only.</text>
-  <text x="20" y="208" font-size="11" fill="var(--sl-color-gray-3, #71717a)">Not in the data path.</text>
+  <rect width="960" height="520" fill="var(--sl-color-gray-6, #f4f4f4)" />
+  <rect width="960" height="520" fill="url(#tse-grid)" />
+  <rect x="30" y="30" width="900" height="460" rx="14" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-text, #18181b)" stroke-width="2.5" />
+  <text x="480" y="72" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="16" font-weight="700" letter-spacing="1" fill="var(--sl-color-text, #18181b)">TIMESCALEDB ENTERPRISE</text>
 
-  <line x1="220" y1="100" x2="352" y2="100" stroke="var(--sl-color-gray-3, #71717a)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#tse-arrow-muted)" />
-  <text x="228" y="88" font-size="10.5" fill="var(--sl-color-gray-3, #71717a)">operations + metrics</text>
-  <text x="228" y="118" font-size="10.5" fill="var(--sl-color-gray-3, #71717a)">outbound only</text>
+  <rect x="200" y="110" width="300" height="120" rx="14" fill="var(--sl-color-gray-6, #f4f4f5)" />
+  <text x="350" y="136" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="13" fill="var(--sl-color-gray-3, #71717a)">Your applications</text>
+  <rect x="230" y="150" width="240" height="60" rx="10" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-4, #a1a1aa)" stroke-width="1.75" />
+  <text x="350" y="187" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="14" font-weight="700" fill="var(--sl-color-text, #18181b)">APP / PSQL</text>
 
-  <rect x="360" y="20" width="300" height="270" rx="10" fill="none" stroke="var(--sl-color-gray-5, #d4d4d8)" stroke-width="1.5" stroke-dasharray="6 5" />
-  <text x="376" y="44" font-size="12" font-weight="600" fill="var(--sl-color-gray-3, #71717a)">Database service, Standard HA</text>
+  <rect x="60" y="345" width="120" height="56" rx="10" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-4, #a1a1aa)" stroke-width="1.75" />
+  <text x="120" y="379" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="13" font-weight="700" fill="var(--sl-color-text, #18181b)">BROWSER</text>
 
-  <rect x="380" y="56" width="260" height="58" rx="6" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-text-accent, #0e7c5a)" stroke-width="1.5" />
-  <text x="396" y="80" font-size="13" font-weight="600" fill="var(--sl-color-text, #18181b)">Primary</text>
-  <text x="396" y="100" font-size="11" fill="var(--sl-color-gray-3, #71717a)">{C.PG} 17 and {C.TIMESCALE_DB}</text>
+  <rect x="200" y="300" width="300" height="146" rx="14" fill="var(--sl-color-gray-6, #f4f4f5)" />
+  <text x="350" y="326" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="13" fill="var(--sl-color-gray-3, #71717a)">Console host</text>
+  <rect x="230" y="340" width="240" height="80" rx="10" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-4, #a1a1aa)" stroke-width="1.75" />
+  <text x="350" y="371" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="14" font-weight="700" fill="var(--sl-color-text, #18181b)">CONSOLE CONTAINER</text>
+  <text x="350" y="395" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="12" fill="var(--sl-color-gray-3, #71717a)">UI + API + metrics + mesh</text>
 
-  <rect x="380" y="130" width="260" height="58" rx="6" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-5, #d4d4d8)" stroke-width="1.5" />
-  <text x="396" y="154" font-size="13" font-weight="600" fill="var(--sl-color-text, #18181b)">Replica</text>
-  <text x="396" y="174" font-size="11" fill="var(--sl-color-gray-3, #71717a)">asynchronous replication</text>
+  <rect x="600" y="110" width="270" height="336" rx="14" fill="var(--sl-color-gray-6, #f4f4f5)" />
+  <text x="735" y="136" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="13" fill="var(--sl-color-gray-3, #71717a)">Your database servers</text>
+  <rect x="630" y="150" width="210" height="60" rx="10" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-4, #a1a1aa)" stroke-width="1.75" />
+  <text x="735" y="187" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="14" font-weight="700" fill="var(--sl-color-text, #18181b)">SERVER 1</text>
+  <rect x="630" y="245" width="210" height="60" rx="10" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-4, #a1a1aa)" stroke-width="1.75" />
+  <text x="735" y="282" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="14" font-weight="700" fill="var(--sl-color-text, #18181b)">SERVER 2</text>
+  <rect x="630" y="340" width="210" height="60" rx="10" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-4, #a1a1aa)" stroke-width="1.75" />
+  <text x="735" y="377" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="14" font-weight="700" fill="var(--sl-color-text, #18181b)">SERVER 3</text>
 
-  <rect x="380" y="204" width="260" height="58" rx="6" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-5, #d4d4d8)" stroke-width="1.5" />
-  <text x="396" y="228" font-size="13" font-weight="600" fill="var(--sl-color-text, #18181b)">Replica</text>
-  <text x="396" y="248" font-size="11" fill="var(--sl-color-gray-3, #71717a)">asynchronous replication</text>
+  <line x1="474" y1="165" x2="624" y2="165" stroke="var(--sl-color-text, #18181b)" stroke-width="1.75" marker-end="url(#tse-tip)" />
+  <text x="549" y="154" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="12" fill="var(--sl-color-gray-3, #71717a)">{C.PG}</text>
 
-  <text x="380" y="282" font-size="10.5" fill="var(--sl-color-gray-3, #71717a)">Each node also runs PgBouncer, HAProxy, and etcd.</text>
+  <polyline points="474,370 550,370 550,190 624,190" fill="none" stroke="var(--sl-color-text, #18181b)" stroke-width="1.5" stroke-dasharray="4 5" marker-end="url(#tse-tip)" />
+  <polyline points="550,275 624,275" fill="none" stroke="var(--sl-color-text, #18181b)" stroke-width="1.5" stroke-dasharray="4 5" marker-end="url(#tse-tip)" />
+  <polyline points="550,370 624,370" fill="none" stroke="var(--sl-color-text, #18181b)" stroke-width="1.5" stroke-dasharray="4 5" marker-end="url(#tse-tip)" />
+  <text x="544" y="290" text-anchor="end" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="12" fill="var(--sl-color-gray-3, #71717a)">mesh: deploy, monitor, logs</text>
 
-  <polyline points="640,85 680,85 680,168 712,168" fill="none" stroke="var(--sl-color-gray-3, #71717a)" stroke-width="1.5" marker-end="url(#tse-arrow-muted)" />
-  <text x="648" y="76" font-size="10.5" fill="var(--sl-color-gray-3, #71717a)">backups</text>
-
-  <rect x="720" y="130" width="180" height="76" rx="8" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-gray-5, #d4d4d8)" stroke-width="1.5" />
-  <text x="736" y="158" font-size="13" font-weight="600" fill="var(--sl-color-text, #18181b)">Backup server</text>
-  <text x="736" y="180" font-size="11" fill="var(--sl-color-gray-3, #71717a)">pgBackRest repository</text>
-  <text x="720" y="228" font-size="11" fill="var(--sl-color-gray-3, #71717a)">Separate failure domain.</text>
-
-  <rect x="20" y="300" width="200" height="64" rx="8" fill="var(--sl-color-bg, #ffffff)" stroke="var(--sl-color-text-accent, #0e7c5a)" stroke-width="1.5" />
-  <text x="36" y="326" font-size="13" font-weight="600" fill="var(--sl-color-text, #18181b)">Your application</text>
-  <text x="36" y="346" font-size="11" fill="var(--sl-color-gray-3, #71717a)">connects directly</text>
-
-  <polyline points="220,332 500,332 500,296" fill="none" stroke="var(--sl-color-text-accent, #0e7c5a)" stroke-width="1.75" marker-end="url(#tse-arrow-accent)" />
-  <text x="232" y="384" font-size="11" fill="var(--sl-color-gray-3, #71717a)">Port 5000 through HAProxy, which follows the current primary.</text>
+  <line x1="184" y1="373" x2="222" y2="373" stroke="var(--sl-color-text, #18181b)" stroke-width="1.75" marker-end="url(#tse-tip)" />
+  <text x="203" y="362" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="12" fill="var(--sl-color-gray-3, #71717a)">HTTPS</text>
+  <text x="480" y="470" text-anchor="middle" font-family="var(--stl-typography-font-mono), ui-monospace, SFMono-Regular, monospace" font-size="12" fill="var(--sl-color-gray-3, #71717a)">The console is not in the data path. Clusters keep running if it is down.</text>
 </svg>
 
-Only two channels connect your servers to the console: one for operations, which installs,
-configures, and upgrades components, and one for scraping metrics. Nothing drives your
-database on a schedule from the server side. The console connects when it has work to do and
-disconnects afterwards, and the only permanent additions to a server are the mesh agent that
-keeps it on the private network and the exporters the metrics channel reads. Both channels
-travel over an encrypted WireGuard mesh that each server joins by running a single command,
-and both are outbound only, so there are no inbound ports to open and your servers do not need
-to sit on the same network.
+The console reaches your servers over the mesh, and only over the mesh: it deploys them,
+scrapes their metrics, and fetches logs when you ask for them. Each server joins by running a
+single enrollment command, which installs the console's certificate authority and its mesh
+agent. The server is the side that reaches out, so it needs no inbound access from outside.
 
-The console is never in the data path. Your application connects to the database servers
-directly, and a cluster keeps serving queries and failing over even while the console is down.
-
-Day to day, the console is where you set backup schedules and retention, restore to a point in
-time, fork a service from its backups, and read per-node metrics and component logs. Failover is
-the exception: you do not drive it at all. See the
-[{C.TIMESCALE_DB} Enterprise documentation](https://tsdbe-docs.vercel.app/) for setup,
+Day to day, the console is where you set backup schedules, restore to a point in time, fork a
+service from its backups, and read per-node metrics and logs. A failed primary is replaced
+without you; switchover and forced failover are there when you want to drive it yourself. See the
+[{C.TDB_ENTERPRISE} documentation](https://tsdbe-docs.vercel.app/) for setup,
 configuration, and step-by-step guides to each of these tasks.
+
+## Licensing
+
+{C.TDB_ENTERPRISE} is commercially licensed: you need a license for each database service you
+run. Licenses are signed files that the console verifies locally, and the console itself runs
+without one. A license is what lets you create a database service and bring its servers up.
+
+Licenses are sized by each server's CPU and memory, and one covers a single service across up to
+three servers, so a primary and its replicas are covered together. Enrolled infrastructure is
+not licensed: backup servers and dedicated consensus clusters do not consume one.
+
+An expired license never interrupts a running service. Backups, restores in place, failover,
+switchover, and restarts all continue; what it blocks is new deployments, forks, and scaling. To
+get a license, start a 30-day trial that caps nothing, activate a key online, or install a
+license file on a console with no internet access at all.
 
 <RelatedContentCards>
   <RelatedContentCard

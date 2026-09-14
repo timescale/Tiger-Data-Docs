@@ -7,83 +7,67 @@ keywords: [timescaledb enterprise, high availability, backups, monitoring, on-pr
 
 import * as C from "@constants";
 
-{C.TDB_COMMUNITY} is free and open source, and gives you the complete database on whatever
-infrastructure you choose, with your own {C.PG} version, operating system, and tooling.
-Replication, backups, and upgrades are all yours to build and run.
+{C.TDB_COMMUNITY} is free and open source: the full extension, on whatever {C.PG} and
+infrastructure you choose, with your own operating system and tooling. You build and run
+replication, backups, and upgrades yourself.
 
-But if you need failover that happens without anyone being paged, backups on a schedule with a
-restore you can trust, and one place to operate every cluster you own, that is what
-{C.TIMESCALE_DB} Enterprise adds. It is a commercially licensed distribution of
-{C.TIMESCALE_DB} that ships with a browser-driven console for provisioning and operating
-clusters across your own Linux servers.
+{C.TDB_ENTERPRISE} is a commercially licensed distribution that ships those pieces already
+built, driven from a browser console you install and run on your own network. The sections below
+cover what it adds on top of {C.TDB_COMMUNITY}.
 
 ## Guided cluster provisioning
 
-Bringing up a production cluster is a workflow in the console rather than a sequence of
-manual installs. You enroll your servers, choose between a single-node service and a highly
-available one, and the console deploys {C.PG} 17 with {C.TIMESCALE_DB}, PgBouncer for
-connection pooling, and monitoring across every node. A three-node highly available cluster
-takes roughly five to ten minutes. Before it starts, an advisory preflight can check each
-target server for CPU, memory, free disk, a supported operating system, and leftover {C.PG}
-data.
+Bringing up a production cluster is a workflow in the console. You enroll your servers, choose
+between a single-node service and a highly available one, and the console deploys {C.PG} with
+{C.TIMESCALE_DB}, connection pooling, and monitoring across every node. An advisory preflight
+checks each target first, for resources, a supported operating system, and leftovers from an
+earlier install. Extensions come from a supported set and are chosen at deploy time.
 
 ## Automatic failover
 
-{C.PG} has no built-in automatic failover, so
-[self-hosting it](/deploy/self-hosted/replication-and-ha/about-ha) means wiring up Patroni
-yourself. In {C.TIMESCALE_DB} Enterprise, a highly available service runs three nodes with a
-colocated etcd consensus store, or two nodes against a dedicated consensus cluster, and
-promotes a replica on its own when the primary fails. HAProxy and PgBouncer keep client traffic
-on a pooled, load-balanced endpoint that follows the primary, and an optional virtual IP always
-reaches whichever node currently holds that role.
-Planned maintenance uses a switchover instead, which is a controlled promotion with minimal
-downtime. Replication is asynchronous, so a forced failover can lose recent transactions.
+{C.PG} has no built-in automatic failover, so self-hosting it means wiring up Patroni yourself.
+A highly available {C.TDB_ENTERPRISE} service has it built in: several nodes behind an etcd
+consensus store, a replica promoted the moment the primary fails, and client traffic on a pooled
+endpoint that follows the primary, so applications carry on without knowing anything happened.
+For planned maintenance you trigger a switchover instead, a controlled promotion with minimal
+downtime.
 
 ## Backups and point-in-time recovery
 
-Backups run on pgBackRest, with the scheduling, retention, and restore workflows built around
-it. Each service keeps a local copy of its backups on its own node and can add a remote copy on
-a dedicated backup server, which is what lets it recover when a machine is lost. Full and
-differential backups run on schedules you set, with retention counted in days or in backups.
-Restores run from the console, either to the latest backup, to a specific backup, or to any
-validated moment inside the recovery window, and you can fork a new service from another
-service's backups without touching the original.
-
-Backup schedules are off by default, so configuring them is part of setting up a service you
-intend to rely on.
+Backups run on pgBackRest. Each service keeps a copy on its own node and can add a second on a
+dedicated backup server, which is what lets it recover when a machine is lost. Full and
+differential backups run on schedules you set, and restores run from the console, to the latest
+backup or to any validated moment inside the recovery window. You can also build a new service
+from backups without touching the original. Schedules are off by default, so a new service is
+not backing itself up until you set them.
 
 ## Networking without inbound ports
 
-The console reaches your servers over an encrypted WireGuard mesh that each server joins by
-running a single enrollment command. Connections are outbound only, so there are no inbound
-ports to open, and your servers do not need to sit on the same network. In an operational
-technology or plant network, where inbound access is not something you can negotiate, this is
-often the difference between a deployment that is possible and one that is not.
+The console reaches your servers over an encrypted mesh that each server joins with a single
+enrollment command. The server is the side that dials out, so there are no inbound ports to
+open. In a plant or operational technology network, where inbound access is not something you
+can negotiate, that is often what makes a deployment possible at all. Outbound is another matter
+while you build: provisioning pulls packages from the internet, so a database server needs
+outbound access until its service is up, though the console host itself needs none.
 
 ## Built-in monitoring
 
-The console scrapes every database server and keeps 30 days of history, without you standing
-up a monitoring stack first. Each service charts CPU, memory, storage, transactions per
-second, disk IOPS and bandwidth, and connections, per node. You can also run ad-hoc PromQL
-against the metrics engine, or federate the whole set into a Prometheus you already run, and
-starter dashboards are available if you keep your own Grafana on top.
+The console scrapes every database server and charts per-node CPU, memory, storage,
+transactions, disk, and connections, without you standing up a monitoring stack first. You can
+query the metrics engine directly, or federate the whole set into a Prometheus you already run,
+with starter dashboards if you keep your own Grafana on top.
 
-## Licensing and support
+## Support
 
-The console itself runs without a license. A license is what lets you create a database
-service and bring its servers up, and licenses are sized per server by CPU and memory. One
-license covers a single service across up to three servers, so a highly available primary and
-its replicas are covered together, and enrolled infrastructure such as backup servers and
-dedicated consensus clusters does not consume one. Read replicas are
-licensed separately. An expired license never interrupts a running service: it blocks new
-deployments until you renew. Air-gapped installs use license files rather than online
-activation. Support is a commercial arrangement with direct access to the engineering team,
-in place of the community support that {C.TDB_COMMUNITY} relies on.
+{C.TDB_COMMUNITY} leans on community support. {C.TDB_ENTERPRISE} adds a commercial arrangement.
+The console also gives you the evidence to open a ticket with: a diagnostic bundle covering
+service health, backup configuration, recent operations with their logs, and per-server
+hardware.
 
 ## Where to go next
 
 - To install the console and deploy your first cluster, see the
-  [{C.TIMESCALE_DB} Enterprise documentation](https://tsdbe-docs.vercel.app/).
+  [{C.TDB_ENTERPRISE} documentation](https://tsdbe-docs.vercel.app/).
 - To run {C.TDB_COMMUNITY} yourself, start with [{C.SELF_LONG_CAP}](/deploy/self-hosted).
 - If a fully managed database is also on the table, compare all the options in the
   [feature comparison](/learn/capabilities-and-comparison/feature-comparison).
