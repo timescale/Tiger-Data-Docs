@@ -1,0 +1,55 @@
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
+
+<Callout variant="important">
+Livesync does not replicate sequence values. Skipping this step causes serial or identity columns to reuse already-existing values after cutover, resulting in primary key or unique constraint violations.
+</Callout>
+
+<Tabs>
+<TabItem label="copy-sequences command">
+
+```bash
+docker run -it --rm --name livesync-copy-sequences \
+  timescale/live-sync:latest copy-sequences \
+  --subscription <subscription_name> \
+  --source "$SOURCE" \
+  --target "$TARGET"
+```
+
+</TabItem>
+<TabItem label="Manual SQL">
+
+```sql
+psql "$TARGET" <<'EOF'
+DO $$
+DECLARE
+  rec RECORD;
+BEGIN
+  FOR rec IN (
+    SELECT
+      sr.target_schema AS table_schema,
+      sr.target_table AS table_name,
+      col.column_name,
+      pg_get_serial_sequence(
+        format('%I.%I', sr.target_schema, sr.target_table),
+        col.column_name
+      ) AS seqname
+    FROM _ts_live_sync.subscription_rel AS sr
+    JOIN information_schema.columns AS col
+      ON col.table_schema = sr.target_schema
+     AND col.table_name = sr.target_table
+    WHERE col.column_default LIKE 'nextval(%'
+  ) LOOP
+    EXECUTE format(
+      'SELECT setval(%L, COALESCE((SELECT MAX(%I) FROM %I.%I), 0) + 1, false);',
+      rec.seqname, rec.column_name, rec.table_schema, rec.table_name
+    );
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+EOF
+```
+
+</TabItem>
+</Tabs>

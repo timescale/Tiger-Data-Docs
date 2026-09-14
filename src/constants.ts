@@ -30,8 +30,10 @@ export const FREE = 'Free';
 // Products
 
 export const CLOUD_LONG = `${PRODUCT_PREFIX} Cloud`;
-export const LAKE_LONG = `${CLOUD_LONG} Iceberg connector`;
-export const LAKE_SHORT = 'Iceberg connector';
+/** The lakehouse product. For the connector that syncs to Iceberg, use ICEBERG_CONNECTOR_LONG/SHORT. */
+export const LAKE = 'Tiger Lake';
+export const ICEBERG_CONNECTOR_LONG = `${CLOUD_LONG} Iceberg connector`;
+export const ICEBERG_CONNECTOR_SHORT = 'Iceberg connector';
 export const TIMESCALE_DB = 'TimescaleDB';
 export const PRODUCTS_ALL = `${COMPANY} products`;
 export const PRODUCTS_CL_DB = `${CLOUD_LONG} and ${TIMESCALE_DB}`;
