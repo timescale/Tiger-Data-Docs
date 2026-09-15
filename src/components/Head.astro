@@ -20,6 +20,7 @@ type DocsEntryData = {
   description?: string;
   seoDescription?: string;
   noindex?: boolean;
+  widePage?: boolean;
 };
 
 const data = Astro.locals.starlightRoute?.entry?.data as DocsEntryData | undefined;
@@ -27,12 +28,26 @@ const seo = data?.seoDescription?.trim();
 const hasDescription = Boolean(data?.description?.trim());
 const showSeoMeta = Boolean(seo) && !hasDescription;
 const noindex = Boolean(data?.noindex);
+const widePage = Boolean(data?.widePage);
 ---
 
 <DefaultHead />
 {noindex && <meta name="robots" content="noindex, nofollow" />}
 {showSeoMeta && <meta name="description" content={seo} />}
 {showSeoMeta && <meta property="og:description" content={seo} />}
+{widePage && (
+  <script is:inline>
+    function applyWidePage() {
+      document.querySelector(".page")?.classList.add("wide-page");
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", applyWidePage);
+    } else {
+      applyWidePage();
+    }
+    document.addEventListener("astro:page-load", applyWidePage);
+  </script>
+)}
 
 <ImageZoom />
 
