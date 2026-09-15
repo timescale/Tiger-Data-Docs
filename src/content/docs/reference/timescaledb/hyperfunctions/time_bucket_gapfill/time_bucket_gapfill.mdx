@@ -7,6 +7,7 @@ keywords: [hyperfunctions, time bucket gapfill, time_bucket_gapfill, timescaledb
 
 import * as C from "@constants";
 
+import { Callout } from "@stainless-api/docs/components";
 import SinceRelease from '@components/SinceRelease.astro';
 
 <SinceRelease version="1.2.0" product="tsdb" />
@@ -99,6 +100,37 @@ data.
    ) sq ON true
    ORDER BY s.sensor_id, bucket;
    ```
+
+5. **Filter gapfilled results**
+
+   To filter the gapfilled rows, wrap the gapfill query in a common table expression and filter its results. For example, to return only the hours with no readings:
+
+   ```sql
+   WITH gapfilled AS (
+     SELECT
+       time_bucket_gapfill('1 hour', time) AS hour,
+       sensor_id,
+       count(*) AS reading_count
+     FROM sensor_data
+     WHERE time >= '2025-12-10 09:00:00+00'
+       AND time < '2025-12-10 14:00:00+00'
+     GROUP BY hour, sensor_id
+   )
+   SELECT * FROM gapfilled
+   WHERE reading_count IS NULL
+   ORDER BY hour;
+   ```
+
+   Returns something like:
+
+   | hour | sensor\_id | reading\_count |
+   | --- | --- | --- |
+   | 2025-12-10 10:00:00+00 | 1 | |
+   | 2025-12-10 12:00:00+00 | 1 | |
+
+   <Callout variant="warning">
+     Do not use `HAVING` or a subquery to filter gapfilled rows. Both are applied before gapfilling runs, so they filter the aggregation results instead.
+   </Callout>
 
 ## Arguments
 
