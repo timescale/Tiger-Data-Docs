@@ -111,7 +111,9 @@ The following table shows you the compatible versions of {C.PG} and {C.TIMESCALE
 
 For a smooth upgrade experience, make sure you:
 
-*  **Plan ahead**: upgrades cause downtime, so ideally perform an upgrade during a low traffic time.
+*  **Plan ahead**: upgrades cause downtime, so ideally perform an upgrade during a low traffic time. If your
+   {C.SERVICE_SHORT} has replicas, allow extra time: rebuilding them can take several hours, depending on the size of
+   your {C.SERVICE_SHORT} and your ingest rate.
 *  **Run a test upgrade**: [fork your {C.SERVICE_SHORT}](service-management/fork-services), then try out the upgrade on the fork before
    running it on your production system. This gives you a good idea of what happens during the upgrade, and how long it
    might take.
@@ -120,12 +122,7 @@ For a smooth upgrade experience, make sure you:
    To reduce cost, you can immediately pause this fork and only pay for storage until you are comfortable deleting it
    after the upgrade is complete.
 
-<Callout variant="important">
-
-{C.SERVICE_LONG}s with replicas cannot be upgraded. To upgrade a {C.SERVICE_SHORT}
-with a replica, you must first delete the replica and then upgrade the {C.SERVICE_SHORT}.
-
-</Callout>
+If your {C.SERVICE_SHORT} has [{C.HA_REPLICA}s](high-availability/high-availability) or [{C.READ_REPLICA}s](high-availability/read-scaling), they are removed during the upgrade and rebuilt from the upgraded primary.
 
 <Callout variant="warning">
 
@@ -144,19 +141,6 @@ In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select
 
 </NumberedItem>
 
-<NumberedItem title={`Disable ${C.HA_REPLICA}s`}>
-
-1. Click `Operations` > `High Availability`, then click `Change configuaration`.
-1. Select `Non-production  (No replica)`, then click `Change configuration`.
-
-</NumberedItem>
-
-<NumberedItem title={`Disable ${C.READ_REPLICA}s`}>
-
-Click <code>Operations</code> &gt; <code>Read scaling</code>, then click the trash icon next to all {C.READ_REPLICA} sets.
-
-</NumberedItem>
-
 <NumberedItem title={`Upgrade ${C.PG}`}>
 
 1. Click `Operations` > `Service Upgrades`.
@@ -170,9 +154,6 @@ When the upgrade is finished, your {C.SERVICE_SHORT} automatically resumes norma
 operations. If the upgrade is unsuccessful, the {C.SERVICE_SHORT} returns to the state
 it was in before you started the upgrade.
 
-</NumberedItem>
-
-<NumberedItem title={`Enable ${C.HA_REPLICA}s and replace your ${C.READ_REPLICA}s`}>
 </NumberedItem>
 
 </NumberedList>
