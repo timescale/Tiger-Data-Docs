@@ -326,7 +326,7 @@ export default defineConfig({
             MobileMenuToggle: "./src/components/MobileMenuToggle.astro",
             PageTitle: "./src/components/PageTitle.astro",
             PageSidebar: "./src/components/PageSidebar.astro",
-            Pagination: "./src/components/PageNavigation.astro",
+            Pagination: "./src/components/AcademyPageNavigation.astro",
             Callout: "./src/components/Callout.astro",
             Footer: "./src/components/Footer.astro",
           } as Record<string, string>,
@@ -414,6 +414,87 @@ export default defineConfig({
               items: [
                 { label: "What is Tiger Data", link: "/learn" },
                 { label: "Tiger Data architecture for real-time analytics", link: "/learn/deep-dive/whitepaper" },
+              ],
+            },
+            {
+              label: "Tiger Data Academy",
+              collapsed: true,
+              items: [
+                { label: "All Courses", link: "/learn/tiger-data-academy" },
+                {
+                  label: "Tiger Data 101",
+                  collapsed: true,
+                  items: [
+                    { label: "Overview", link: "/learn/tiger-data-academy/tiger-data-101" },
+                    {
+                      label: "What is TimescaleDB?",
+                      collapsed: true,
+                      items: [
+                        { label: "The Problem and the Solution", link: "/learn/tiger-data-academy/tiger-data-101/what-is-timescaledb/the-problem-and-the-solution" },
+                        { label: "Core Architecture", link: "/learn/tiger-data-academy/tiger-data-101/what-is-timescaledb/core-architecture" },
+                        { label: "Features and Comparison", link: "/learn/tiger-data-academy/tiger-data-101/what-is-timescaledb/features-and-comparison" },
+                        { label: "Real-World Applications", link: "/learn/tiger-data-academy/tiger-data-101/what-is-timescaledb/real-world-applications" },
+                      ],
+                    },
+                    {
+                      label: "Working with Time-Series Data",
+                      collapsed: true,
+                      items: [
+                        { label: "What Makes Data \"Time-Series\"?", link: "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/what-makes-data-time-series" },
+                        { label: "Characteristics of Time-Series Data", link: "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/characteristics-of-time-series-data" },
+                        { label: "Time-Series vs. Relational Data Models", link: "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/time-series-vs-relational-data-models" },
+                        { label: "Common Time-Series Patterns", link: "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/common-time-series-patterns" },
+                        { label: "Choosing the Right Storage Solution", link: "/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/choosing-the-right-storage-solution" },
+                      ],
+                    },
+                    {
+                      label: "Hypertables",
+                      collapsed: true,
+                      items: [
+                        { label: "What is a Hypertable?", link: "/learn/tiger-data-academy/tiger-data-101/hypertables/what-is-a-hypertable" },
+                        { label: "Creating Your First Hypertable", link: "/learn/tiger-data-academy/tiger-data-101/hypertables/creating-your-first-hypertable" },
+                        { label: "Partitioning, Indexing & Optimization", link: "/learn/tiger-data-academy/tiger-data-101/hypertables/partitioning-indexing-and-optimization" },
+                      ],
+                    },
+                    {
+                      label: "Hypercore",
+                      collapsed: true,
+                      items: [
+                        { label: "Row-Based vs. Columnar Storage", link: "/learn/tiger-data-academy/tiger-data-101/hypercore/row-based-vs-columnar-storage" },
+                        { label: "Compression Methods", link: "/learn/tiger-data-academy/tiger-data-101/hypercore/compression-methods" },
+                        { label: "Enabling Hypercore & Best Practices", link: "/learn/tiger-data-academy/tiger-data-101/hypercore/enabling-and-best-practices" },
+                      ],
+                    },
+                    {
+                      label: "Continuous Aggregates",
+                      collapsed: true,
+                      items: [
+                        { label: "The Problem and Solution", link: "/learn/tiger-data-academy/tiger-data-101/continuous-aggregates/the-problem-and-solution" },
+                        { label: "Refresh Policies & Hierarchies", link: "/learn/tiger-data-academy/tiger-data-101/continuous-aggregates/refresh-policies-and-hierarchies" },
+                        { label: "Knowledge Check", link: "/learn/tiger-data-academy/tiger-data-101/continuous-aggregates/knowledge-check" },
+                      ],
+                    },
+                    {
+                      label: "Putting TimescaleDB Into Action",
+                      collapsed: true,
+                      items: [
+                        { label: "From Development to Production", link: "/learn/tiger-data-academy/tiger-data-101/putting-timescaledb-into-action/from-development-to-production" },
+                        { label: "Data Lifecycle & Design for Scale", link: "/learn/tiger-data-academy/tiger-data-101/putting-timescaledb-into-action/data-lifecycle-and-design-for-scale" },
+                        { label: "Case Studies & Knowledge Check", link: "/learn/tiger-data-academy/tiger-data-101/putting-timescaledb-into-action/case-studies-and-knowledge-check" },
+                      ],
+                    },
+                    {
+                      label: "Core Use Cases",
+                      collapsed: true,
+                      items: [
+                        { label: "IoT, Financial & Analytics", link: "/learn/tiger-data-academy/tiger-data-101/core-use-cases/iot-financial-and-analytics" },
+                        { label: "Industrial, APM & Infrastructure", link: "/learn/tiger-data-academy/tiger-data-101/core-use-cases/industrial-apm-and-infrastructure" },
+                        { label: "Knowledge Check", link: "/learn/tiger-data-academy/tiger-data-101/core-use-cases/knowledge-check" },
+                      ],
+                    },
+                    { label: "Resources", link: "/learn/tiger-data-academy/tiger-data-101/resources" },
+                  ],
+                },
               ],
             },
             {

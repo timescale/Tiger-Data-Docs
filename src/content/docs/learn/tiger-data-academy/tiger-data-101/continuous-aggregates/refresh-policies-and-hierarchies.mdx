@@ -1,0 +1,105 @@
+---
+title: Refresh Policies & Hierarchies
+description: Master automatic refresh and layered aggregates
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+
+**Module:** Tiger Data 101 → An Introduction to TimescaleDB  
+**Section:** Continuous Aggregates  
+**Estimated time:** 10–12 minutes total (this page: ~3 minutes)
+
+---
+
+## Refresh mechanisms
+
+### Invalidation tracking
+
+TimescaleDB tracks which time buckets have been modified:
+
+```
+When new data arrives for bucket 2025-01-15 10:00:
+  → Invalidation log records: bucket "2025-01-15 10:00" needs refresh
+On next policy refresh:
+  → Only recompute that bucket, not all historical buckets
+```
+
+### Lookback window
+
+The refresh policy includes a lookback to handle late-arriving data:
+
+```sql
+add_continuous_aggregate_policy('hourly_temp_summary',
+  start_offset   => INTERVAL '3 hours',   -- How far back to look
+  end_offset     => INTERVAL '1 hour',    -- How far into future
+  schedule_interval => INTERVAL '1 hour'  -- How often to refresh
+);
+```
+
+---
+
+## Hierarchical Continuous Aggregates
+
+Build layers: hourly → daily → monthly. Each level reads from the next finer level, avoiding redundant raw data scans:
+
+```sql
+-- Layer 1: Hourly (reads raw sensor_readings)
+CREATE MATERIALIZED VIEW hourly_summary WITH (timescaledb.continuous) AS
+SELECT time_bucket('1 hour', time) AS bucket, device_id, avg(temp) AS avg_temp
+FROM sensor_readings GROUP BY bucket, device_id;
+
+-- Layer 2: Daily (reads hourly_summary, not raw data)
+CREATE MATERIALIZED VIEW daily_summary WITH (timescaledb.continuous) AS
+SELECT time_bucket('1 day', bucket) AS day, device_id, avg(avg_temp) AS avg_temp
+FROM hourly_summary GROUP BY day, device_id;
+
+-- Layer 3: Monthly (reads daily_summary)
+CREATE MATERIALIZED VIEW monthly_summary WITH (timescaledb.continuous) AS
+SELECT time_bucket('1 month', day) AS month, device_id, avg(avg_temp) AS avg_temp
+FROM daily_summary GROUP BY month, device_id;
+```
+
+**Query performance:**
+- Hourly dashboard: instant (materialized hourly data)
+- Daily dashboard: instant (materialized daily data)
+- Monthly dashboard: instant (materialized monthly data)
+- No raw data scans—every query hits pre-computed results!
+
+---
+
+## Real-Time Aggregates
+
+For combine real-time uncomputed data with pre-computed aggregates:
+
+```sql
+-- Real-time aggregate (data not yet in CAGG)
+SELECT 
+  bucket,
+  avg(avg_temp) AS combined_avg
+FROM hourly_summary
+WHERE bucket > NOW() - INTERVAL '7 days'
+UNION ALL
+SELECT 
+  time_bucket('1 hour', time) AS bucket,
+  avg(temp)
+FROM sensor_readings
+WHERE time > (SELECT MAX(bucket) FROM hourly_summary)
+GROUP BY bucket;
+```
+
+---
+
+<div style="display: flex; justify-content: flex-end; margin-top: 40px;">
+  <a href="/learn/tiger-data-academy/tiger-data-101/continuous-aggregates/knowledge-check" style="text-decoration: none; display: block; max-width: 500px;">
+    <div style="background: linear-gradient(135deg, #4f6bed 0%, #667eea 100%); border-radius: 8px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(79, 107, 237, 0.15); cursor: pointer; transition: all 0.2s ease; text-align: right;">
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: 12px;">
+        <span style="font-weight: 700; font-size: 16px;">NEXT PAGE</span>
+        <span style="font-size: 20px;">→</span>
+      </div>
+      <div style="color: #e0e7ff; font-weight: 500; font-size: 15px; margin-bottom: 8px; margin-top: 0;">Knowledge Check</div>
+      <div style="color: #e0e7ff; font-size: 14px; line-height: 1.5; margin: 0;">Test your understanding of Continuous Aggregates concepts and refresh policies.</div>
+    </div>
+  </a>
+</div>
+
