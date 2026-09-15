@@ -848,7 +848,9 @@ export default defineConfig({
                   items: [
                     { label: "Overview", link: "/integrate/bi-vizualization" },
                     { label: "Cube", link: "/integrate/bi-vizualization/cube" },
+                    { label: "Mode Analytics", link: "/integrate/bi-vizualization/mode" },
                     { label: "Power BI", link: "/integrate/bi-vizualization/power-bi" },
+                    { label: "Streamlit", link: "/integrate/bi-vizualization/streamlit" },
                     { label: "Tableau", link: "/integrate/bi-vizualization/tableau" },
                   ],
                 },
