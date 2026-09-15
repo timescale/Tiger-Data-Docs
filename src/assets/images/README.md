@@ -6,7 +6,7 @@ Store documentation-owned images here so Astro can **bundle, fingerprint, and op
 
 | Path | Purpose |
 |------|---------|
-| `hero-cloud/`, `hero-local/` | Welcome / get-started hero card illustrations (`HeroGetStartedCard.astro`) |
+| `hero-cloud/`, `hero-enterprise/`, `hero-local/` | Welcome / get-started hero card illustrations, one light and one dark per card (`HeroGetStartedCard.astro`) |
 | `learn/` | Learn tab diagrams and figures (optional subfolders: `fundamentals/`, `deep-dive/`, `examples/`, `production-patterns/`) |
 | `migrate/` | Migration guides (RDS, S3 connector screenshots, etc.) |
 | `integrate/` | Integration guide screenshots, in a subfolder named for the tool (for example `integrate/grafana/`) |
