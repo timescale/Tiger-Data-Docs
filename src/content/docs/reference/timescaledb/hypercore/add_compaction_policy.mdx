@@ -19,17 +19,31 @@ to restore order.
 
 <Callout variant="note">
 
-You usually don't need to add this policy yourself. [Direct compress](/build/data-management/write-data/insert#improve-performance-with-direct-compress)
-creates it for you, and it is the main reason {C.CHUNK}s end up unordered. Use `add_compaction_policy` when you want to
-tune the schedule or bound how much work each run does. Direct compress is a tech preview, so this policy is too.
+You usually don't need to add this policy yourself. Setting the {C.HYPERTABLE} option [`timescaledb.direct_compress`] to true, in the `CREATE TABLE` or `ALTER TABLE` will generate the policy immediately. 
+[Direct compress](/build/data-management/write-data/insert#improve-performance-with-direct-compress) is a tech preview, so this policy is too.
 
 </Callout>
 
 The policy only processes {C.CHUNK}s that are fully in the {C.COLUMNSTORE} and marked as unordered. It skips partial
 {C.CHUNK}s, which the [{C.COLUMNSTORE} policy](/reference/timescaledb/hypercore/add_columnstore_policy) handles, and frozen {C.CHUNK}s. If your {C.HYPERTABLE}
-doesn't use direct compress, it is unlikely to have unordered {C.CHUNK}s and this policy has nothing to do.
+doesn't use [direct compress](/build/data-management/write-data/insert#improve-performance-with-direct-compress), it is unlikely to have unordered {C.CHUNK}s and this policy has nothing to do.
 
 To view the policies that you set or the policies that already exist, see [informational views](/reference/timescaledb/informational-views/jobs).
+
+## Why compaction suits append-only workloads
+
+Append-only workloads, like IoT telemetry or observability metrics, only ever add new rows. They don't update or delete existing ones. This is exactly the pattern [direct compress](/build/data-management/write-data/insert#improve-performance-with-direct-compress) targets, and it's also why this policy tends to matter most for that kind of workload for the current **tech preview** maturity.
+
+As rows get ingested, direct compress builds batches per `segmentby` and writes the batches immediately to the {C.COLUMNSTORE}. 
+Transactions should have at least 10 tuples to batch, below that, a batch isn't worth the overhead of compressing: it adds batch-level bookkeeping without enough rows to benefit from, which hurts both query performance and the compression ratio. 
+Even at 50 rows, though, a batch is still well short of the roughly 1000 rows per `segmentby` value that the {C.COLUMNSTORE} is optimized for, so freshly written batches are usually smaller than ideal.
+
+For example, a low-cardinality `segmentby`, like a handful of regions, or couple of tousand sites, lets each `INSERT` or `COPY` contribute many rows to the same batch. 
+A high-cardinality `segmentby`, like a `device_id` with millions of distinct values, spreads the same `INSERT` or `COPY` across many segment values instead.
+
+In an append-only workload, that pattern repeats with every incoming batch of writes: each one leaves behind another small, unordered batch for the same `segmentby` value in the same {C.CHUNK}, overlapping the batches already written by previous inserts. 
+Because nothing updates those older rows, it's safe to merge these overlapping batches together as soon as a {C.CHUNK} stops receiving new writes. There's no concurrent write to conflict with. 
+That's what this policy automates: it finds unordered {C.CHUNK}s and consolidates their overlapping batches into fewer, larger ones, closer to that 1000-row target, which restores {C.CHUNK} order for queries and improves the compression ratio.
 
 ## Samples
 
@@ -48,6 +62,24 @@ To view the policies that you set or the policies that already exist, see [infor
      max_batches => 500,
      inactive_for => INTERVAL '30 minutes');
   ```
+
+- **Tune the policy for an append-only, high-cardinality workload**:
+
+  A {C.HYPERTABLE} ingesting per-device metrics, segmented by a high-cardinality `device_id`, accumulates many small, overlapping batches as direct compress writes each incoming batch straight to the {C.COLUMNSTORE}. Since the workload never modifies existing rows, a short `inactive_for` is enough to safely compact each {C.CHUNK} as soon as it stops receiving new writes:
+
+  ```sql
+  CREATE TABLE metrics (
+     time      TIMESTAMPTZ NOT NULL,
+     device_id TEXT,
+     value     DOUBLE PRECISION
+  ) WITH (
+     tsdb.hypertable,
+     tsdb.partition_column = 'time',
+     tsdb.segmentby = 'device_id',
+     tsdb.direct_compress
+  );
+  ```
+  The option `tsdb.direct_compress` creates the compaction policy automatically.
 
 ## Arguments
 
