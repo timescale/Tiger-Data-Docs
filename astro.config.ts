@@ -433,6 +433,14 @@ export default defineConfig({
               ],
             },
             {
+              label: "TimescaleDB Enterprise",
+              collapsed: true,
+              items: [
+                { label: "Meet TimescaleDB Enterprise", link: "/learn/enterprise" },
+                { label: "Key differentiators", link: "/learn/enterprise/enterprise-exclusive-features" },
+              ],
+            },
+            {
               label: "Capabilities and comparison",
               collapsed: true,
               items: [
