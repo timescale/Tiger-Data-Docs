@@ -847,9 +847,11 @@ export default defineConfig({
                   collapsed: true,
                   items: [
                     { label: "Overview", link: "/integrate/bi-vizualization" },
+                    { label: "Cube", link: "/integrate/bi-vizualization/cube" },
                     { label: "Looker", link: "/integrate/bi-vizualization/looker" },
                     { label: "Mode Analytics", link: "/integrate/bi-vizualization/mode" },
                     { label: "Power BI", link: "/integrate/bi-vizualization/power-bi" },
+                    { label: "Retool", link: "/integrate/bi-vizualization/retool" },
                     { label: "Streamlit", link: "/integrate/bi-vizualization/streamlit" },
                     { label: "Tableau", link: "/integrate/bi-vizualization/tableau" },
                   ],
@@ -895,6 +897,7 @@ export default defineConfig({
                   items: [
                     { label: "Overview", link: "/integrate/code" },
                     { label: "Connect your app", link: "/integrate/code/connect-your-app" },
+                    { label: "Prisma", link: "/integrate/code/prisma" },
                   ],
                 },
                 {
