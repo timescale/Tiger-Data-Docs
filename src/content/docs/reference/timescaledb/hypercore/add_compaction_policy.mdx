@@ -19,8 +19,9 @@ to restore order.
 
 <Callout variant="note">
 
-You usually don't need to add this policy yourself. Setting the {C.HYPERTABLE} option [`timescaledb.direct_compress`](/reference/timescaledb/hypertables/create_table#arguments) to true, in the `CREATE TABLE` or `ALTER TABLE` will generate the policy immediately. 
-[Direct compress](/build/data-management/write-data/insert#improve-performance-with-direct-compress) is a tech preview, so this policy is too.
+You usually don't need to add this policy yourself. Setting the {C.HYPERTABLE} [`timescaledb.direct_compress`](/reference/timescaledb/hypertables/create_table#arguments) option to `true` in `CREATE TABLE` or `ALTER TABLE` will generate the policy immediately.
+
+[Direct compress](/build/data-management/write-data/insert#improve-performance-with-direct-compress) is in tech preview, so this policy is too.
 
 </Callout>
 
@@ -32,18 +33,15 @@ To view the policies that you set or the policies that already exist, see [infor
 
 ## Why compaction suits append-only workloads
 
-Workloads, like IoT telemetry or observability metrics, primarily add new rows and almost never and almost never updates or deletes existing ones. This is exactly the pattern [direct compress](/build/data-management/write-data/insert#improve-performance-with-direct-compress) with compaction target.
+Append-only workloads, such as IoT telemetry or observability metrics, mostly add new rows and almost never update or delete existing ones. [Direct compress](/build/data-management/write-data/insert#improve-performance-with-direct-compress) with compaction is designed for exactly this pattern.
 
 As rows get ingested, direct compress builds batches per `segmentby` and writes the batches immediately to the {C.COLUMNSTORE}. 
-Transactions should have at least 10 tuples to batch, below that, a batch isn't worth the overhead of compressing: it adds batch-level bookkeeping without enough rows to benefit from, which hurts both query performance and the compression ratio. 
+Transactions should have at least 10 tuples to batch. Below that, a batch isn't worth the overhead of compressing: it adds batch-level bookkeeping without enough rows to benefit from, which hurts both query performance and the compression ratio.
 Even at 50 rows, though, a batch is still well short of the roughly 1000 rows per `segmentby` value that the {C.COLUMNSTORE} is optimized for, so freshly written batches are usually smaller than ideal.
 
-For example, a low-cardinality `segmentby`, like a handful of regions, or couple of tousand sites, lets each `INSERT` or `COPY` contribute many rows to the same batch. 
-A high-cardinality `segmentby`, like a `device_id` with millions of distinct values, spreads the same `INSERT` or `COPY` across many segment values instead.
+For example, a low-cardinality `segmentby`, like a handful of regions or a couple of thousands of sites, lets each `INSERT` or `COPY` contribute many rows to the same batch. A high-cardinality `segmentby`, like a `device_id` with millions of distinct values, spreads the same `INSERT` or `COPY` across many segment values instead.
 
-In an append-only workload, that pattern repeats with every incoming batch of writes: each one leaves behind another small, unordered batch for the same `segmentby` value in the same {C.CHUNK}, overlapping the batches already written by previous inserts. 
-Because nothing updates those older rows, it's safe to merge these overlapping batches together as soon as a {C.CHUNK} stops receiving new writes. There's no concurrent write to conflict with. 
-That's what this policy automates: it finds unordered {C.CHUNK}s and consolidates their overlapping batches into fewer, larger ones, closer to that 1000-row target, which restores {C.CHUNK} order for queries and improves the compression ratio.
+In an append-only workload, that pattern repeats with every incoming batch of writes: each one leaves behind another small, unordered batch for the same `segmentby` value in the same {C.CHUNK}, overlapping the batches already written by previous inserts. Because nothing updates those older rows, it's safe to merge these overlapping batches together as soon as a {C.CHUNK} stops receiving new writes. There's no concurrent write to conflict with. That's what this policy automates: it finds unordered {C.CHUNK}s and consolidates their overlapping batches into fewer, larger ones, closer to that 1000-row target, which restores {C.CHUNK} order for queries and improves the compression ratio.
 
 ## Samples
 
