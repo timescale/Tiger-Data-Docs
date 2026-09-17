@@ -12,12 +12,14 @@ import ChangelogEntry from "@components/ChangelogEntry.astro";
 import ChangelogFilter from "@components/ChangelogFilter.astro";
 
 import { Image } from "astro:assets";
+import ThemeImage from "@components/ThemeImage.astro";
 import imgServiceCreationFlowTigerCloud from "../../../../assets/images/get-started/news/service-creation-flow-tiger-cloud.png";
 import imgChunkTimelineTigerCloud from "../../../../assets/images/get-started/news/chunk-timeline-tiger-cloud.png";
 import imgQueriesPerSecondTigerCloud from "../../../../assets/images/get-started/news/queries-per-second-tiger-cloud.png";
 import imgResourceConsumptionMetricsTigerCloud from "../../../../assets/images/get-started/news/resource-consumption-metrics-tiger-cloud.png";
 import imgTigerCloudManageSupport from "../../../../assets/images/deploy/tiger-cloud/tiger-cloud-manage-support.png";
-import imgAutomatedChunkTuning from "../../../../assets/images/learn/performance-optimization/automated-chunk-tuning.png";
+import imgAutomatedChunkTuningLight from "../../../../assets/images/learn/performance-optimization/automated-chunk-tuning.png";
+import imgAutomatedChunkTuningDark from "../../../../assets/images/learn/performance-optimization/automated-chunk-tuning-dark.png";
 import imgCliMcpWalkthroughTigerConsole from "../../../../assets/images/get-started/news/cli-mcp-walkthrough-tiger-console.png";
 import imgTigerConsoleJobsTimelineView from "../../../../assets/images/get-started/news/tiger-console-jobs-timeline-view.png";
 import imgAzureMarketplaceAutomation1 from "../../../../assets/images/get-started/news/azure-marketplace-automation-1.png";
@@ -33,6 +35,7 @@ import imgKafkaSourceConnectorStreaming from "../../../../assets/images/get-star
 import imgTigerCloudCpuOptions from "../../../../assets/images/get-started/news/tiger-cloud-cpu-options.png";
 import imgBackupHistoryTigerCloud from "../../../../assets/images/get-started/news/backup-history-tiger-cloud.png";
 import imgDataImportWizardInTigerCloud from "../../../../assets/images/get-started/news/data-import-wizard-in-tiger-cloud.png";
+import imgTigerConsoleMembersAuthEnforcement from "../../../../assets/images/deploy/tiger-cloud/tiger-console-members-authentication-enforcement.png";
 import imgServiceDashboardTigerCloud from "../../../../assets/images/get-started/news/service-dashboard-tiger-cloud.png";
 import imgConnectorsNewUi from "../../../../assets/images/get-started/news/connectors-new-ui.png";
 import imgTableToHypertable1 from "../../../../assets/images/get-started/news/table_to_hypertable_1.png";
@@ -114,11 +117,318 @@ import imgTigerCloudDarkMode3 from "../../../../assets/images/get-started/news/t
 import imgTigerConsoleServiceLogs from "../../../../assets/images/deploy/tiger-cloud/tiger-console-service-logs.png";
 import imgTigerCloudDownloadLogs from "../../../../assets/images/get-started/news/tiger-cloud-download-logs.png";
 import imgCreateCrossRegionBackupInTigerConsole from "../../../../assets/images/deploy/tiger-cloud/create-cross-region-backup-in-tiger-console.png";
+import imgCreateCrossRegionBackupInTigerConsoleAzure from "../../../../assets/images/deploy/tiger-cloud/create-cross-region-backup-in-tiger-console-azure.png";
 import imgHighPerformanceStorageTigerConsole from "../../../../assets/images/build/data-management/high-performance-storage-tiger-console.png";
+import imgCmdKCommandPaletteTigerConsole from "../../../../assets/images/get-started/news/cmd-k-command-palette-tiger-console.png";
+import imgTigerlakeGenericRestCatalogSetup from "../../../../assets/images/get-started/news/tigerlake-generic-rest-catalog-setup.png";
+import imgBackupsExtendedRetention from "../../../../assets/images/get-started/news/backups-extended-retention.png";
 
-<ChangelogFilter />
+<ChangelogFilter />º
 
 <div class="changelog-page-toc">
+
+## Extended backup retention and point-in-time recovery
+
+<ChangelogEntry
+  title="Extended backup retention and point-in-time recovery"
+  date="2026-09-16"
+  tags={["new-feature"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Extended backup retention and point-in-time recovery</h2>
+
+Tiger Cloud now offers extended backup retention on the Enterprise plan, enabling longer compliance and audit windows.
+
+All services on the Enterprise plan include 14 days of backups and point-in-time recovery by default. You can extend the retention period up to 180 days to meet longer compliance requirements.
+
+Extended retention includes full backups and WAL files, which enable point-in-time recovery down to the second for any point within your retention window. The recovery window for [point-in-time recovery forks](/deploy/tiger-cloud/tiger-cloud-aws/high-availability/backup-restore#recover-to-a-point-in-time) matches your retention period: if you set retention to 90 days, backups will accumulate to cover that period, and you can fork your service to any point in the previous 90 days.
+
+When you extend the retention period, backups and WAL accumulate until they cover it in full. When you shorten it, backups outside the new period are deleted and are no longer available for recovery.
+
+Extended backup retention beyond the included 14 days is charged at $0.03 per GB per month based on the additional storage consumed.
+
+<Image src={imgBackupsExtendedRetention} alt="Backup and restore screen in Tiger Console, showing how backup retention window can be extended" />
+
+</ChangelogEntry>
+
+## Automatic replica management during major version upgrades
+
+<ChangelogEntry
+  title="Automatic replica management during major version upgrades"
+  date="2026-09-14"
+  tags={["improvement"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Automatic replica management during major version upgrades</h2>
+
+Tiger Cloud now automatically handles replicas during major Postgres version upgrades.
+
+When you upgrade your service, we automatically spin down any HA replicas or read replicas, perform the upgrade, and bring them back up with the new version. This eliminates the need to manually remove and recreate replicas, and keeps your replica connection strings unchanged throughout the upgrade process.
+
+</ChangelogEntry>
+
+## Revoke sessions from Tiger Console
+
+<ChangelogEntry
+  title="Revoke sessions from Tiger Console"
+  date="2026-09-09"
+  tags={["new-feature", "security"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Revoke sessions from Tiger Console</h2>
+
+You can now see and revoke your account's active sessions directly in Tiger Console. This is particularly useful for revoking Tiger CLI and Tiger MCP access: every `tiger auth login` appears as a session, so you can sign out a CLI or an AI agent on another machine without touching that machine.
+
+To review your sessions, click your name in the top right corner of Tiger Console and select `Account settings`. The `Active sessions` list shows every signed-in device, browser and CLI alike, with its location, sign-in time, and last activity. Revoke any session you don't recognize or no longer need, or click `Revoke all other sessions` to sign out everything except your current browser.
+
+See [Active sessions](/deploy/tiger-cloud/tiger-cloud-aws/security/overview#active-sessions) for details.
+
+</ChangelogEntry>
+
+## Tiger CLI 0.24: db query command, device code login, and GitHub Copilot support
+
+<ChangelogEntry
+  title="Tiger CLI 0.24: db query command, device code login, and GitHub Copilot support"
+  date="2026-09-09"
+  tags={["new-feature", "cli-mcp"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Tiger CLI 0.24: db query command, device code login, and GitHub Copilot support</h2>
+
+Tiger CLI 0.24 makes it easier to run SQL from the terminal and to log in from machines without a browser.
+
+- **`tiger db query`**: run SQL against a service directly from the terminal, with no local `psql` required. Pass the query with `--command`, point `--file` at a `.sql` file, or pipe it through stdin, and get results as a `psql`-style table, JSON, or YAML. The matching MCP tool is renamed from `db_execute_query` to `db_query`, gains the same `file` input, and now returns values exactly as PostgreSQL's text format renders them. See the [`tiger db query` reference](/reference/tiger-cloud/tiger-cli#tiger-db-query).
+- **Device code login**: `tiger auth login --headless` prints a short code and a URL, and you authorize from a browser on any machine. This makes logging in from SSH sessions, containers, and remote development environments work; the browser login only completes when the browser and the CLI are on the same machine. If the browser cannot be opened, `tiger auth login` falls back to the device code flow automatically.
+- **GitHub Copilot support**: `tiger mcp install copilot` configures Tiger MCP for the GitHub Copilot CLI, and the Copilot desktop app picks up the same configuration.
+- **`--version-check` flag**: the global `--skip-update-check` flag is renamed to `--version-check` to match the `version_check` configuration key; disabling the startup update check is now `--version-check=false`. The old flag still works as a hidden alias.
+
+To upgrade, run `tiger upgrade` or use your package manager. For all commands and flags, see the [Tiger CLI reference](/reference/tiger-cloud/tiger-cli).
+
+</ChangelogEntry>
+
+## Tiger CLI 0.23: protect production services from writes, list your projects
+
+<ChangelogEntry
+  title="Tiger CLI 0.23: protect production services from writes, list your projects"
+  date="2026-09-01"
+  tags={["new-feature", "cli-mcp"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Tiger CLI 0.23: protect production services from writes, list your projects</h2>
+
+Tiger CLI 0.23 makes read-only mode production-aware and adds a command to list your projects.
+
+- **Read-only modes**: the `read_only` configuration option now takes three modes instead of a boolean: `all` protects every service, `prod` protects only services tagged PROD, and `off` (the default) protects none. With `read_only=prod`, an AI agent can create and modify development services freely while production stays protected: mutating commands and MCP tools are refused for PROD-tagged services, and database sessions against them open in Tiger Cloud's immutable read-only mode. The old boolean values keep working (`true` means `all`, `false` means `off`), and your first interactive `tiger auth login` now asks which mode you want. See [Restrict Tiger MCP to read-only](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only).
+- **`tiger project list`**: list the projects you have access to, with the active one marked. See the [`tiger project list` reference](/reference/tiger-cloud/tiger-cli#tiger-project-list).
+
+To upgrade, run `tiger upgrade` or use your package manager.
+
+</ChangelogEntry>
+
+## Billing page now segments costs by service and adds a timeline view
+
+<ChangelogEntry
+  title="Billing page now segments costs by service and adds a timeline view"
+  date="2026-08-12"
+  tags={["improvement"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Billing page now segments costs by service and adds a timeline view</h2>
+
+The billing page in Tiger Console now gives you clearer visibility into what drives your costs.
+
+- **Cost segmentation by service:** Usage and charges are broken down per service, so you can see exactly which services contribute to your bill.
+- **Timeline view:** A new timeline shows how your usage and costs trend over the last 7 days, making it easier to spot changes and plan ahead.
+
+</ChangelogEntry>
+  
+## TimescaleDB v2.29 now on Tiger Cloud
+
+<ChangelogEntry
+  title="TimescaleDB v2.29 now on Tiger Cloud"
+  date="2026-08-10"
+  tags={["new-feature", "performance"]}
+>
+<h2 slot="heading" class="changelog-entry__title">TimescaleDB v2.29 now on Tiger Cloud</h2>
+
+TimescaleDB 2.29 focuses on the columnstore: faster analytical and last-point queries, and cheaper continuous aggregate refresh through incremental and concurrent execution. TimescaleDB 2.29.0 was released on GitHub on July 28, 2026, and is delivered to Tiger Cloud, along with the 2.29.1 stability and security patch, starting August 10, 2026. This release also removes support for PostgreSQL 15.
+
+### Highlighted features in TimescaleDB v2.29
+
+**Faster analytical queries on the columnstore**
+
+This release keeps more query patterns on the vectorized columnar execution engine and adds faster paths for point and last-value lookups.
+
+- **Common subexpression elimination in columnar aggregation:** When several aggregates reference the same expression — for example `SUM(price * quantity)` and `AVG(price * quantity)` — the executor now computes it once and reuses the result across aggregates.
+- **`first`/`last` in `ColumnarIndexScan`:** `first(value, time)` and `last(value, time)` can now read from sparse `min`/`max` metadata in the `ColumnarIndexScan` path, so common earliest/latest-value queries skip decompressing full batches.
+- **Faster last-point and point queries:** The planner can now choose a row-by-row decompression path for startup-cost-sensitive queries such as `ORDER BY time DESC LIMIT 1` and selective point lookups, making last-point queries several times faster.
+- **`MIN`/`MAX` correctness:** Corrects a case where `MIN` and `MAX` in the columnar aggregation pipeline could disagree with plain PostgreSQL results.
+
+**More flexible continuous aggregate refresh**
+
+Continuous aggregates gain incremental and concurrent refresh, lowering the cost and lock footprint of keeping aggregates current.
+
+- **Forced refreshes are now incremental by default:** Building on the batched manual refresh introduced in 2.28, forced runs of `refresh_continuous_aggregate()` now execute incrementally by default, and you gain finer control over batch size, per-execution limits, and iteration order through the JSONB options argument.
+
+    ```sql
+    CALL refresh_continuous_aggregate(
+      'my_cagg', '2023-01-01', '2024-01-01',
+      options => '{"buckets_per_batch": 20, "max_batches_per_execution": 5, "refresh_newest_first": true}'::jsonb
+    );
+    ```
+
+- **Concurrent refresh policies on hierarchical continuous aggregates:** You can now attach more than one refresh policy to a hierarchical continuous aggregate at a time, enabling tiered refresh strategies built from multiple non-overlapping policies.
+- **Hierarchical continuous aggregate fixes:** For a continuous aggregate built on top of another continuous aggregate, the planner now correctly prunes the real-time branch (the live overlay that unions not-yet-materialized recent data onto the stored results) at any level of nesting, so queries that don't need it avoid the extra scan. A separate fix keeps incremental refresh from leaving the final time bucket un-refreshed.
+
+**Smarter query planning**
+
+- **Self-join elimination for hypertables:** Useless-join removal and self-join elimination now work correctly on hypertables, removing redundant scans.
+- **Lower planning overhead on compressed data:** The planner skips classifying compressed relations and caches sort pathkeys per hypertable, reducing planning time on hypertables with many compressed chunks.
+
+**Quality of life and operability**
+
+- **`VACUUM` propagation:** Running `VACUUM` on a chunk now also propagates to its compressed relation.
+- **Merge job configuration:** `alter_job()` adds a `config_merge` parameter that merges JSONB into an existing job configuration instead of replacing it — for example, `SELECT alter_job(42, config_merge => '{"max_retries":3}'::jsonb)`.
+- **In-place sparse index maintenance:** `_timescaledb_functions.rebuild_sparse_index()` rebuilds sparse-index metadata on an already-compressed chunk, with a fix for stale entries left after a rebuild.
+- **New maintenance helpers:** Adds `decompress_batch()` and a `samplerate` argument on `estimate_uncompressed_size()`.
+- **Transactional extension update:** `ALTER EXTENSION timescaledb UPDATE` can now run inside a transaction.
+
+### Backward-incompatible changes
+
+- **PostgreSQL 15 support removed:** TimescaleDB 2.29 drops support for PostgreSQL 15, completing the previously announced EOL. Move to PostgreSQL 16 or 17 before upgrading.
+- **`job_errors` view removed:** Removed as part of the `bgw_job_stat_history` migration. Query `bgw_job_stat_history` for job error history instead.
+
+### Stability and security patch (2.29.1)
+
+2.29.1 addresses stability issues; adds missing permission checks for internal chunk functions; and adds an ordered-scan path for hypertable max-time lookups. It also addresses security vulnerabilities (advisory; PRs #10360, #10379, #10386); upgrade at your next opportunity.
+
+For complete details, refer to the [TimescaleDB 2.29.0 release notes](https://github.com/timescale/timescaledb/releases/tag/2.29.0) and [2.29.1 release notes](https://github.com/timescale/timescaledb/releases/tag/2.29.1).
+
+</ChangelogEntry>
+
+## Generic Iceberg REST catalog support in TigerLake
+
+<ChangelogEntry
+  title="Generic Iceberg REST catalog support in TigerLake"
+  date="2026-08-05"
+  tags={["new-feature", "integration"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Generic Iceberg REST catalog support in TigerLake</h2>
+
+TigerLake can now write to any Iceberg REST-compatible catalog, including Snowflake Open Catalog, Apache Polaris, and Snowflake Horizon Catalog. This is for customers who already run an external Iceberg catalog and want TigerLake to write into it directly, rather than migrating to a new destination.
+
+Amazon S3 Tables remains the recommended managed Iceberg destination and includes automatic compaction and table maintenance.
+
+<Image src={imgTigerlakeGenericRestCatalogSetup} alt="Connector setup in Tiger Console showing the Iceberg REST catalog configuration form with catalog URI, warehouse, client ID and secret, scope, and vended credentials fields" />
+
+- OAuth 2.0 client-credentials authentication
+- Configurable catalog URI, warehouse, and scope
+- Vended storage credential requests
+- Custom catalog headers
+- Secure client-secret handling
+- Catalog connectivity and permission validation before you sync
+
+REST catalogs use the same TigerLake snapshot and continuous CDC pipeline as S3 Tables. See the [TigerLake destination connector documentation](/integrate/connectors/destination/tigerlake) for setup details.
+
+</ChangelogEntry>
+
+## More reliable TigerLake replication slots with the Slot Keep Controller
+
+<ChangelogEntry
+  title="More reliable TigerLake replication slots with the Slot Keep Controller"
+  date="2026-08-05"
+  tags={["improvement"]}
+>
+<h2 slot="heading" class="changelog-entry__title">More reliable TigerLake replication slots with the Slot Keep Controller</h2>
+
+All TigerLake-enabled services now run with the Slot Keep Controller (SKC), which manages replication-slot retention automatically. New TigerLake connectors are enrolled at creation, so no setup is required.
+
+Previously, a fixed, instance-wide WAL retention limit could invalidate a replication slot without warning once WAL lag grew too large, forcing TigerLake's CDC pipeline to fully re-bootstrap. SKC replaces that fixed limit with retention that scales with each service's available disk space, and prioritizes dropping TigerData-owned slots (which recreate automatically) over customer slots if a service ever comes under disk pressure.
+
+Every SKC action is recorded in an audit log, so any slot change can be traced after the fact.
+
+</ChangelogEntry>
+
+## Cmd+K command palette in Tiger Console
+
+<ChangelogEntry
+  title="Cmd+K command palette in Tiger Console"
+  date="2026-07-27"
+  tags={["new-feature"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Cmd+K command palette in Tiger Console</h2>
+
+Press `Cmd`+`K` (`Ctrl`+`K` on Windows and Linux) anywhere in Tiger Console to open a command palette:
+
+<Image src={imgCmdKCommandPaletteTigerConsole} alt="Cmd+K command palette open in Tiger Console showing account, actions, and project pages" />
+
+- **Go anywhere**: jump to any page in the Console without clicking through menus.
+- **Switch instantly**: type a service or project name to jump straight to it.
+- **Run actions**: create a service, manage existing ones, and more, directly from the palette.
+
+Fully keyboard-navigable, end to end. No setup is needed.
+
+</ChangelogEntry>
+
+## Live migration has been removed
+
+<ChangelogEntry
+  title="Live migration has been removed"
+  date="2026-07-24"
+  tags={["deprecation"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Live migration has been removed</h2>
+
+The live-migration Docker image has been removed from Tiger Cloud and is no longer supported. It is replaced by [Livesync replication](/migrate/livesync-replication), which provides the same near-zero-downtime experience with better throughput and broader source-database support.
+
+Livesync replication is based on standard PostgreSQL logical replication.
+
+### What this means for you
+
+- **New migrations:** Use [Livesync replication](/migrate/livesync-replication). See [Choose a migration approach](/migrate/choose-your-approach) to pick the right path for your source database, size, and downtime budget.
+- **Existing migrations:** If you have an in-progress live migration, finish it and cut over, then use Livesync replication for any future migrations.
+- **Documentation:** The dedicated live-migration page has been removed. Any links to it now redirect to Livesync replication.
+
+### Why the change
+
+Livesync replication uses the same PostgreSQL logical replication protocol under the hood, but as a first-class managed integration and self-hosted image rather than a standalone Docker image built on `pgcopydb`. It matches every live-migration use case with fewer constraints, including no strict TimescaleDB version matching and support for multi-tenant consolidation and splitting.
+
+</ChangelogEntry>
+
+## Enforce MFA or SSO for all project members
+
+<ChangelogEntry
+  title="Enforce MFA or SSO for all project members"
+  date="2026-07-23"
+  tags={["new-feature", "security"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Enforce MFA or SSO for all project members</h2>
+
+### Now available
+
+Scale and Enterprise plan customers can now [enforce multi-factor authentication (MFA) or single sign-on (SSO)](/deploy/tiger-cloud/tiger-cloud-aws/security/members#enforce-mfa-or-sso-for-all-project-members) for every member of a project. This is table stakes for security-conscious teams running mission-critical applications, ensuring everyone who accesses a project meets your organization's authentication standard.
+
+- **Project-wide enforcement:** Turn on enforcement of either MFA or SSO for all members of a project.
+- **Access blocking:** When users log in or switch to a project, they are blocked if they don't use the required authentication method.
+- **Clear enforcement visibility:** The project selector dropdown shows which enforcement method is required for each project.
+- **Compliance at a glance:** The members page delineates who currently complies with the enforcement method, so project owners can contact members who need to update their authentication method.
+
+<Image src={imgTigerConsoleMembersAuthEnforcement} alt="Members page in Console, showing the authentication enforcement banner and members grouped by policy compliance" />
+
+</ChangelogEntry>
+
+## Cross-region backups on Azure
+
+<ChangelogEntry
+  title="Cross-region backups now available on Azure "
+  date="2026-07-17"
+  tags={["new-feature"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Cross-region backups now available on Azure</h2>
+
+Cross-region backups are now available for Tiger Cloud services running on Microsoft Azure, joining the existing support on AWS. Enterprise plan customers can store an additional copy of their services' backups (weekly full backups, daily incremental backups, and the WAL log) in a different region from where the service runs.
+
+Standard backups are already stored across multiple Availability Zones within a region, which protects against most infrastructure failures. Cross-region backups add protection against the rare case of a region-wide event that takes all Availability Zones at once, by keeping a copy far enough away to remain accessible. This is often required to meet disaster recovery or regulatory requirements.
+
+To learn more, see [cross-region backup and restore](/deploy/tiger-cloud/tiger-cloud-azure/high-availability/backup-restore).
+
+<Image src={imgCreateCrossRegionBackupInTigerConsoleAzure} alt="Enabling cross-region backup in Tiger Console on Azure" />
+
+</ChangelogEntry>
 
 ## TimescaleDB v2.28 now on Tiger Cloud
 
@@ -137,7 +447,7 @@ TimescaleDB 2.28.2 is the first release of the 2.28 line on Tiger Cloud, and it 
 
 Continuous aggregates now support in-place schema evolution, direct statistics maintenance, and incremental manual refresh, so you can build and maintain materialized data with the same familiar SQL you already use for ordinary tables.
 
-- **`ALTER MATERIALIZED VIEW ... ADD COLUMN`:** Continuous aggregates now support adding new aggregate columns in place, when the new column is a `GENERATED ALWAYS AS (<aggregate>) STORED` expression. Previously, evolving a CAgg's schema meant creating a versioned copy, waiting for it to materialize, and switching application reads over. Now the column is added directly — new refreshes populate it going forward, and you backfill historical rows.
+- **`ALTER MATERIALIZED VIEW ... ADD COLUMN`:** Add new aggregate columns directly to an existing continuous aggregate, in place, when the new column is a `GENERATED ALWAYS AS (<aggregate>) STORED` expression. New refreshes populate the column going forward, and you can backfill historical rows at your own pace.
 
     ```sql
     ALTER MATERIALIZED VIEW conditions_summary_hourly
@@ -145,7 +455,7 @@ Continuous aggregates now support in-place schema evolution, direct statistics m
       GENERATED ALWAYS AS (max(temperature)) STORED;
     ```
 
-- **`ANALYZE` and `VACUUM` work directly on continuous aggregates:** Both maintenance commands are now transparently redirected to the underlying materialization hypertable and all associated chunks, including columnstore chunks, so you no longer invoke them on internal table names.
+- **`ANALYZE` and `VACUUM` work directly on continuous aggregates:** Run either maintenance command against a continuous aggregate by its own name, just like any other table, and TimescaleDB transparently applies it to the underlying materialization hypertable and all associated chunks, including columnstore chunks.
 - **Incremental manual refresh:** `refresh_continuous_aggregate()` now supports batched, incremental refresh through a new JSONB options argument, bringing manual refresh in line with policy-driven refresh and reducing memory pressure and lock duration on large refreshes.
 
     ```sql
@@ -171,13 +481,13 @@ GROUP BY device_id;
 
 **Broader vectorized execution**
 
-- **Vectorized `CASE` in the columnar executor:** `CASE ... WHEN ... THEN ... ELSE ... END` expressions inside vectorized aggregation over compressed hypertables no longer force a row-by-row fallback — a meaningful speedup for conditional aggregation.
-- **Higher parallelism for `SELECT` on compressed hypertables:** Parallelism is now sized more closely to the uncompressed data size, speeding up large analytical scans that were previously under-parallelized.
+- **Vectorized `CASE` in the columnar executor:** `CASE ... WHEN ... THEN ... ELSE ... END` expressions inside vectorized aggregation over compressed hypertables now run natively on the vectorized path, a meaningful speedup for conditional aggregation.
+- **Higher parallelism for `SELECT` on compressed hypertables:** Parallelism is now sized to the uncompressed data size, so large analytical scans over compressed hypertables get proportionally more workers and finish faster.
 
 **Sparse-index maintenance**
 
 - **Retrofit sparse indexes on existing chunks:** A new internal utility `_timescaledb_functions.rebuild_sparse_index()` updates sparse-index metadata on already-compressed chunks without a full decompress and recompress cycle. It diffs current metadata against the active compression settings and applies only what changed — useful after changing `segmentby`, `orderby`, or index settings on a hypertable that already has compressed data.
-- **Automatic cleanup when dropping columns:** When a column is dropped from a hypertable on the columnstore, TimescaleDB now removes all associated sparse-index metadata columns from compressed chunks. Previously those columns were left behind.
+- **Automatic cleanup when dropping columns:** When a column is dropped from a hypertable on the columnstore, TimescaleDB now automatically removes all associated sparse-index metadata columns (minmax and bloom) from compressed chunks, keeping compressed storage clean.
 
 **In-memory observability for compressed chunks**
 
@@ -191,7 +501,7 @@ FROM timescaledb_information.stat_chunk_activity;
 **Gap-fill planning improvements**
 
 - **Better row-count estimates for `time_bucket_gapfill()`:** The planner now accounts for rows synthesized by gap-filling rather than relying solely on the subplan's row count. When `start`, `finish`, and `period` are known at plan time, estimates are materially closer to actual emitted rows, leading to better join and aggregation plans downstream.
-- **Subquery execution-parameter arguments to `time_bucket_gapfill()`:** Gap-fill arguments can now resolve from subquery execution parameters, removing a previous limitation for some dynamic-argument query shapes.
+- **Subquery execution-parameter arguments to `time_bucket_gapfill()`:** Gap-fill arguments can now resolve from subquery execution parameters, expanding support to more dynamic-argument query shapes.
 
 ### Correctness and upgrade hardening
 
@@ -242,6 +552,44 @@ It is now the default in Tiger Cloud, so check it out.
 <Image src={imgServiceCreationFlowTigerCloud} alt="Step 1 of the updated Tiger Cloud service creation flow, showing compute and region selection with a live cost estimate" />
 </ChangelogEntry>
 
+## Automated chunk tuning is now GA
+
+<ChangelogEntry 
+  title="Automated chunk tuning is now GA"
+  date="2026-06-26"
+  tags={["ga"]}
+>
+
+<h2 slot="heading" class="changelog-entry__title">Automated chunk tuning is now GA</h2>
+
+Automated chunk tuning is now GA for all services. Enable the feature for each hypertable through the Explorer without having to request access.
+
+When enabled, Tiger Cloud continuously evaluates your hypertable and adjusts the interval on your behalf when it detects it is no longer optimal. Note that updated chunk intervals apply to new chunks only.
+
+<ThemeImage light={imgAutomatedChunkTuningLight} dark={imgAutomatedChunkTuningDark} alt="Chunk auto-tuning in Tiger Console" />
+
+See the [docs](/build/performance-optimization/improve-hypertable-performance#automated-tuning) for details.
+
+</ChangelogEntry>
+
+## New Azure regions for Tiger Cloud services
+
+<ChangelogEntry
+  title="New Azure regions for Tiger Cloud services"
+  date="2026-06-24"
+  tags={["new-feature"]}
+>
+<h2 slot="heading" class="changelog-entry__title">New Azure regions for Tiger Cloud services</h2>
+
+You can now create Tiger Cloud services in two more Microsoft Azure regions:
+
+- `germanywestcentral` (Frankfurt)
+- `southeastasia` (Singapore)
+
+See all available regions in [Supported regions](/learn/tiger-cloud/regions).
+
+</ChangelogEntry>
+
 ## TimescaleDB v2.27.2 now on Tiger Cloud
 
 <ChangelogEntry
@@ -278,44 +626,6 @@ Three independent fixes in the jobs and policy subsystems close cases where user
 - **Upgrade compatibility:** The upgrade path now cleans up orphaned `compression_settings` rows before migrating the catalog, and ships migration scripts for installations carrying composite bloom filter metadata (complementing the format change in 2.27.0).
 
 For complete details, refer to the [TimescaleDB 2.27.1 release notes](https://github.com/timescale/timescaledb/releases/tag/2.27.1) and the [TimescaleDB 2.27.2 release notes](https://github.com/timescale/timescaledb/releases/tag/2.27.2).
-</ChangelogEntry>
-
-## Automated chunk tuning is now GA
-
-<ChangelogEntry 
-  title="Automated chunk tuning is now GA"
-  date="2026-06-26"
-  tags={["ga"]}
->
-
-<h2 slot="heading" class="changelog-entry__title">Automated chunk tuning is now GA</h2>
-
-Automated chunk tuning is now GA for all services. Enable the feature for each hypertable through the Explorer without having to request access.
-
-When enabled, Tiger Cloud continuously evaluates your hypertable and adjusts the interval on your behalf when it detects it is no longer optimal. Note that updated chunk intervals apply to new chunks only.
-
-<Image src={imgAutomatedChunkTuning} alt="Chunk auto-tuning in Tiger Console" />
-
-See the [docs](/build/performance-optimization/improve-hypertable-performance#automated-tuning) for details.
-
-</ChangelogEntry>
-
-## New Azure regions for Tiger Cloud services
-
-<ChangelogEntry
-  title="New Azure regions for Tiger Cloud services"
-  date="2026-06-24"
-  tags={["new-feature"]}
->
-<h2 slot="heading" class="changelog-entry__title">New Azure regions for Tiger Cloud services</h2>
-
-You can now create Tiger Cloud services in two more Microsoft Azure regions:
-
-- `germanywestcentral` (Frankfurt)
-- `southeastasia` (Singapore)
-
-See all available regions in [Supported regions](/learn/tiger-cloud/regions).
-
 </ChangelogEntry>
 
 ## Updates to the Goals flow in Tiger Console
@@ -805,7 +1115,7 @@ Tiger Cloud now offers automated chunk tuning in beta, taking the guesswork out 
 - **Activity log integration:** chunk interval changes are recorded in the Activity log for a full audit trail.
 - **No instance overhead:** all calculations run outside your service via Schemata.
 
-<Image src={imgAutomatedChunkTuning} alt="Chunk auto-tuning in Tiger Cloud" />
+<ThemeImage light={imgAutomatedChunkTuningLight} dark={imgAutomatedChunkTuningDark} alt="Chunk auto-tuning in Tiger Cloud" />
 
 If you experience any negative impact, you can opt out at any time and manually reset the interval via the UI or SQL. [Learn more](/build/performance-optimization/improve-hypertable-performance#optimize-hypertable-chunk-intervals) about automated chunk tuning.
 </ChangelogEntry>
@@ -869,7 +1179,7 @@ For complete details, refer to the [TimescaleDB 2.25 release notes](https://gith
 <ChangelogEntry
   title="CLI and MCP walkthrough in Tiger Console"
   date="2026-03-04"
-  tags={["new-feature"]}
+  tags={["new-feature", "cli-mcp"]}
 >
 <h2 slot="heading" class="changelog-entry__title">CLI and MCP walkthrough in Tiger Console</h2>
 
@@ -1154,7 +1464,7 @@ Major improvements to the S3 source connector with better observability includin
 <ChangelogEntry 
   title="AI and Tiger Cloud major changes!"
   date="2025-10-24"
-  tags={["new-feature"]}
+  tags={["new-feature", "cli-mcp"]}
 >
 <h2 slot="heading" class="changelog-entry__title">AI and Tiger Cloud major changes!</h2>
 ### Free pricing plan and free services
@@ -1534,6 +1844,8 @@ All new services use TimescaleDB v2.20 with significant performance improvements
 - Up to 6x faster point queries with new bloom filters
 - Up to 2500x faster DISTINCT operations with SkipScan
 - 8x more efficient Boolean column storage
+
+**Breaking change:** on continuous aggregates, `timescaledb.chunk_time_interval` is renamed to `timescaledb.chunk_interval`. The old name is rejected, not aliased, so statements using it fail after the upgrade.
 
 For details, see the [TimescaleDB v2.20 release notes](https://github.com/timescale/timescaledb/releases/tag/2.20.0).
 

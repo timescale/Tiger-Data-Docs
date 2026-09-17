@@ -1,40 +1,42 @@
 import * as C from "@constants";
 
-import EarlyAccess from "./_early_access_2_18_0.mdx";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
-1. **Stop the jobs that are automatically adding {C.CHUNK}s to the {C.COLUMNSTORE}**
+<NumberedList>
+<NumberedItem title="Stop the jobs that are automatically adding chunks to the columnstore">
+Retrieve the list of {C.JOB}s from the [timescaledb_information.jobs](/reference/timescaledb/informational-views/jobs) view
+to find the {C.JOB} you need to [alter_job](/reference/timescaledb/jobs-automation/alter_job).
 
-   Retrieve the list of {C.JOB}s from the [timescaledb_information.jobs](/reference/timescaledb/informational-views/jobs) view
-   to find the {C.JOB} you need to [alter_job](/reference/timescaledb/jobs-automation/alter_job).
+```sql
+SELECT alter_job(JOB_ID, scheduled => false);
+```
+</NumberedItem>
 
-   ``` sql
-   SELECT alter_job(JOB_ID, scheduled => false);
-   ```
+<NumberedItem title="Convert a chunk to update back to the rowstore">
+```sql
+CALL convert_to_rowstore('_timescaledb_internal._hyper_2_2_chunk');
+```
+</NumberedItem>
 
-1. **Convert a {C.CHUNK} to update back to the {C.ROWSTORE}**
+<NumberedItem title="Update the data in the chunk you added to the rowstore">
+Best practice is to structure your [INSERT](/build/data-management/write-data/insert) statement to include appropriate
+partition key values, such as the timestamp. {C.TIMESCALE_DB} adds the data to the correct {C.CHUNK}:
 
-      ``` sql
-      CALL convert_to_rowstore('_timescaledb_internal._hyper_2_2_chunk');
-      ```
+```sql
+INSERT INTO metrics (time, value)
+VALUES ('2025-01-01T00:00:00', 42);
+```
+</NumberedItem>
 
-1. **Update the data in the {C.CHUNK} you added to the {C.ROWSTORE}**
+<NumberedItem title="Convert the updated chunks back to the columnstore">
+```sql
+CALL convert_to_columnstore('_timescaledb_internal._hyper_1_2_chunk');
+```
+</NumberedItem>
 
-   Best practice is to structure your [INSERT](/build/data-management/write-data/insert) statement to include appropriate
-   partition key values, such as the timestamp. {C.TIMESCALE_DB} adds the data to the correct {C.CHUNK}:
-
-   ``` sql
-   INSERT INTO metrics (time, value)
-   VALUES ('2025-01-01T00:00:00', 42);
-   ``` 
-
-1. **Convert the updated {C.CHUNK}s back to the {C.COLUMNSTORE}**
-
-   ``` sql
-   CALL convert_to_columnstore('_timescaledb_internal._hyper_1_2_chunk');
-   ```
-
-1. **Restart the {C.JOB}s that are automatically converting {C.CHUNK}s to the {C.COLUMNSTORE}**
-
-   ``` sql
-   SELECT alter_job(JOB_ID, scheduled => true);
-   ```
+<NumberedItem title="Restart the jobs that are automatically converting chunks to the columnstore">
+```sql
+SELECT alter_job(JOB_ID, scheduled => true);
+```
+</NumberedItem>
+</NumberedList>

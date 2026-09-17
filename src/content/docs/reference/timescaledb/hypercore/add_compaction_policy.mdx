@@ -1,0 +1,126 @@
+---
+title: add_compaction_policy()
+description: Set a policy to automatically compact unordered chunks in the columnstore
+products: [cloud, self_hosted]
+keywords: [columnstore, hypercore, policies, compaction, direct compress]
+---
+
+import * as C from "@constants";
+
+import SinceRelease from '@components/SinceRelease.astro';
+
+import { Callout } from '@stainless-api/docs/components';
+
+<SinceRelease version="2.29.0" product="tsdb" mode="tech_preview" />
+
+Create a [job](/reference/timescaledb/jobs-automation/add_job) that automatically compacts unordered {C.CHUNK}s in the
+{C.COLUMNSTORE}. Compaction combines overlapping batches within a {C.CHUNK} so queries no longer need an extra sort step
+to restore order.
+
+<Callout variant="note">
+
+You usually don't need to add this policy yourself. Setting the {C.HYPERTABLE} [`timescaledb.direct_compress`](/reference/timescaledb/hypertables/create_table#arguments) option to `true` in `CREATE TABLE` or `ALTER TABLE` will generate the policy immediately.
+
+[Direct compress](/build/data-management/write-data/insert#improve-performance-with-direct-compress) is in tech preview, so this policy is too.
+
+</Callout>
+
+The policy only processes {C.CHUNK}s that are fully in the {C.COLUMNSTORE} and marked as unordered. It skips partial
+{C.CHUNK}s, which the [{C.COLUMNSTORE} policy](/reference/timescaledb/hypercore/add_columnstore_policy) handles, and frozen {C.CHUNK}s. If your {C.HYPERTABLE}
+doesn't use [direct compress](/build/data-management/write-data/insert#improve-performance-with-direct-compress), it is unlikely to have unordered {C.CHUNK}s and this policy has nothing to do.
+
+To view the policies that you set or the policies that already exist, see [informational views](/reference/timescaledb/informational-views/jobs).
+
+## Why compaction suits append-only workloads
+
+Append-only workloads, such as IoT telemetry or observability metrics, mostly add new rows and almost never update or delete existing ones. [Direct compress](/build/data-management/write-data/insert#improve-performance-with-direct-compress) with compaction is designed for exactly this pattern.
+
+As rows get ingested, direct compress builds batches per `segmentby` and writes the batches immediately to the {C.COLUMNSTORE}. 
+Transactions should have at least 10 tuples to batch. Below that, a batch isn't worth the overhead of compressing: it adds batch-level bookkeeping without enough rows to benefit from, which hurts both query performance and the compression ratio.
+Even at 50 rows, though, a batch is still well short of the roughly 1000 rows per `segmentby` value that the {C.COLUMNSTORE} is optimized for, so freshly written batches are usually smaller than ideal.
+
+For example, a low-cardinality `segmentby`, like a handful of regions or a couple of thousands of sites, lets each `INSERT` or `COPY` contribute many rows to the same batch. A high-cardinality `segmentby`, like a `device_id` with millions of distinct values, spreads the same `INSERT` or `COPY` across many segment values instead.
+
+In an append-only workload, that pattern repeats with every incoming batch of writes: each one leaves behind another small, unordered batch for the same `segmentby` value in the same {C.CHUNK}, overlapping the batches already written by previous inserts. Because nothing updates those older rows, it's safe to merge these overlapping batches together as soon as a {C.CHUNK} stops receiving new writes. There's no concurrent write to conflict with. That's what this policy automates: it finds unordered {C.CHUNK}s and consolidates their overlapping batches into fewer, larger ones, closer to that 1000-row target, which restores {C.CHUNK} order for queries and improves the compression ratio.
+
+## Samples
+
+- **Add a compaction policy with the default 5 minute schedule**:
+
+  ```sql
+  SELECT add_compaction_policy('metrics');
+  ```
+
+- **Run less often, bound the work per run, and skip {C.CHUNK}s still being written to**:
+
+  ```sql
+  SELECT add_compaction_policy('metrics',
+     schedule_interval => INTERVAL '15 minutes',
+     max_chunks => 10,
+     max_batches => 500,
+     inactive_for => INTERVAL '30 minutes');
+  ```
+
+- **Tune the policy for an append-only, high-cardinality workload**:
+
+  A {C.HYPERTABLE} ingesting per-device metrics, segmented by a high-cardinality `device_id`, accumulates many small, overlapping batches as direct compress writes each incoming batch straight to the {C.COLUMNSTORE}. Since the workload never modifies existing rows, a short `inactive_for` is enough to safely compact each {C.CHUNK} as soon as it stops receiving new writes.
+
+  `tsdb.direct_compress` creates the compaction policy automatically, so tune the {C.JOB} it created with [`alter_job`](/reference/timescaledb/jobs-automation/alter_job) rather than adding a second one:
+
+  ```sql
+  CREATE TABLE metrics (
+     time      TIMESTAMPTZ NOT NULL,
+     device_id TEXT,
+     value     DOUBLE PRECISION
+  ) WITH (
+     tsdb.hypertable,
+     tsdb.partition_column = 'time',
+     tsdb.segmentby = 'device_id',
+     tsdb.direct_compress
+  );
+
+  -- Find the job ID of the compaction policy direct compress created:
+  SELECT job_id FROM timescaledb_information.jobs
+  WHERE proc_name = 'policy_compaction' AND hypertable_name = 'metrics';
+
+  -- Run it more often, and only touch chunks that have gone quiet:
+  SELECT alter_job(job_id,
+     schedule_interval => INTERVAL '1 minute',
+     config_merge => '{"inactive_for": "5 minutes"}')
+  FROM timescaledb_information.jobs
+  WHERE proc_name = 'policy_compaction' AND hypertable_name = 'metrics';
+  ```
+
+## Arguments
+
+The syntax is:
+
+```sql
+SELECT add_compaction_policy(
+    hypertable = '<hypertable_name>',
+    if_not_exists = true | false,
+    schedule_interval = <interval>,
+    initial_start = <timestamptz>,
+    timezone = '<timezone>',
+    max_chunks = <integer>,
+    max_batches = <integer>,
+    inactive_for = <interval>
+);
+```
+
+| Name                | Type        | Default      | Required | Description                                                                                                                                                                                     |
+|---------------------|-------------|--------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `hypertable`        | REGCLASS    | -            | ✔        | Name of the {C.HYPERTABLE} to run this [job](/reference/timescaledb/jobs-automation/add_job) on.                                                                                                                                   |
+| `if_not_exists`     | BOOLEAN     | `false`      | ✖        | Set to `true` so this job fails with a warning rather than an error if a compaction policy already exists on `hypertable`.                                                                       |
+| `schedule_interval` | INTERVAL    | `5 minutes`  | ✖        | Set the interval between the finish time of the last execution of this policy and the next start. When direct compress creates this policy, it uses `1 minute` instead.                          |
+| `initial_start`     | TIMESTAMPTZ | `NULL`       | ✖        | Set the time this job is first run.                                                                                                                                                             |
+| `timezone`          | TEXT        | `NULL`       | ✖        | Set to a valid time zone to mitigate DST shifting. If `initial_start` is set, subsequent executions of this policy are aligned on `initial_start`.                                               |
+| `max_chunks`        | INTEGER     | `NULL`       | ✖        | Set the maximum number of {C.CHUNK}s to process in a single run, including {C.CHUNK}s that fail. Leave unset to process every eligible {C.CHUNK}.                                                            |
+| `max_batches`       | INTEGER     | `NULL`       | ✖        | Set the maximum number of batches to combine in each {C.CHUNK}. Leave unset for no limit.                                                                                                             |
+| `inactive_for`      | INTERVAL    | `NULL`       | ✖        | Only compact {C.CHUNK}s that have not been written to for this interval. Leave unset to compact every eligible {C.CHUNK} regardless of when it was last written to.                                        |
+
+## Returns
+
+|Column|Type|Description|
+|-|-|-|
+|`job_id`|INTEGER|{C.TIMESCALE_DB} background job ID created to implement this policy|
