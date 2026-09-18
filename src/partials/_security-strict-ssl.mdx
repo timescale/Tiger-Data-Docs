@@ -1,6 +1,7 @@
 import * as C from "@constants";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 
 The default connection string for {C.CLOUD_LONG} uses the Secure Sockets Layer (SSL) mode `require`.
 Users can choose not to use Transport Layer Security (TLS) while connecting to their databases, but connecting to
@@ -46,11 +47,11 @@ To set up a stricter SSL connection:
 
 Store the bundle in a file called `bundle.crt`.
 
-Replace `$SERVICE_URL_WITH_PORT` with your {C.CLOUD_LONG} connection URL:
+Replace `<HOST>` and `<PORT>` with the host and port of your {C.SERVICE_SHORT}:
 
 ```shell
 openssl s_client -showcerts -partial_chain -starttls postgres \
-             -connect $SERVICE_URL_WITH_PORT < /dev/null 2>/dev/null | \
+             -connect <HOST>:<PORT> < /dev/null 2>/dev/null | \
              awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/{ print }' > bundle.crt
 ```
 
@@ -110,7 +111,7 @@ Check `Include Root Certificate`. Click `Generate Chain`.
 For example, to connect to your database with `psql`, run:
 
 ```shell
-psql "postgres://tsdbadmin@$SERVICE_URL_WITH_PORT/tsdb?sslmode=verify-full"
+psql "postgres://tsdbadmin@<HOST>:<PORT>/tsdb?sslmode=verify-full"
 ```
 
 </NumberedItem>
@@ -127,3 +128,20 @@ a certificate issued by either of those CAs:
 ```shell
 openssl s_client -showcerts -partial_chain -starttls postgres -connect <HOST>:<PORT> < /dev/null 2>/dev/null  | grep "Google\|ZeroSSL"
 ```
+
+<TestPlan>
+
+1. select the service
+2. run command: `openssl s_client -showcerts -partial_chain -starttls postgres -connect <HOST>:<PORT> < /dev/null 2>/dev/null | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/{ print }' > bundle.crt`
+3. run command: `openssl x509 -in bundle.crt -noout -subject`
+4. run command: `openssl s_client -showcerts -partial_chain -starttls postgres -connect <HOST>:<PORT> < /dev/null 2>/dev/null | grep "Google\|ZeroSSL"`
+5. expect rows: `SELECT 1 FROM pg_stat_ssl WHERE pid = pg_backend_pid() AND ssl`
+
+Step 3 is the plan's own check that step 2 wrote a certificate and not an empty file. Step 4 fails
+when neither issuer appears, which is the page's claim about who signs the certificate. Step 5 checks
+the page's opening claim, that the default connection is already encrypted.
+
+Not scripted:
+- Connect to your database with a stricter SSL mode, from "Copy the bundle to your clipboard" onward: the chain comes from whatsmychaincert.com in a browser the walker does not drive, and the verify-full connection needs that chain in the home directory.
+
+</TestPlan>
