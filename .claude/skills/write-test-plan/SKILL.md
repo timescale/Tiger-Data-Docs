@@ -224,6 +224,19 @@ disabled until something changes. All three were found by running, not reading. 
      Filled placeholders and fixtures the plan invents are not flagged, by construction; what is
      flagged is a retyping slip, or a page that moved under its plan.
 
+   Three more look from the page's side, at what the plan LEAVES OUT (added 2026-09-18):
+   - **Procedure not covered.** A section with a `<NumberedList>` that no pressed control or run
+     statement touches, and that `Not scripted:` does not name. One control or one statement from
+     the section counts; this is a floor, not a step-for-step grade.
+   - **Statement not run.** A SQL or shell block the page prints that no `run SQL:` or
+     `run command:` executes, outside sections `Not scripted:` excuses. A `psql … -c "SHOW STATS;"`
+     counts as running `SHOW STATS;`.
+   - **Out of page order.** A statement whose section the plan has not yet touched, run after a
+     statement the page prints later. Re-entering a section for its second route is allowed.
+
+   So `Not scripted:` is now read by the tool, keyed on the heading text before the first colon,
+   and an entry that names no real heading excuses nothing.
+
    It also warns when a plan asserts nothing at all.
 
    For the detail behind a finding, or to see the compiled `DO … RAISE EXCEPTION` block an `expect`
@@ -299,9 +312,11 @@ Not scripted:
 - Change your current project: needs two projects, and this account has one.
 ```
 
-It is unnumbered prose, so the parser ignores it and nothing executes it. It exists for the person
+It is unnumbered prose, so the walker ignores it and nothing executes it. The linter does read it:
+each entry's text before the first colon must match a heading on the page, and a procedure or
+statement under a named heading is excused from the coverage checks. It exists for the person
 reading the plan, who otherwise cannot tell a procedure left out on purpose from one nobody
-remembered.
+remembered, and since 2026-09-18 for the linter, which reports the ones nobody declared.
 
 **Only PROCEDURES belong on it.** A `##` section of pure reference prose has nothing to press, so it
 is not a gap, and listing it buries the entries that are. When every procedure on a page is driven,
