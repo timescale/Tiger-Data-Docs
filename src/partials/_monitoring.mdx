@@ -1,6 +1,7 @@
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 
 import { Image } from "astro:assets";
 import ThemeImage from "@components/ThemeImage.astro";
@@ -263,7 +264,7 @@ ORDER BY mean_exec_time DESC
 LIMIT 5;
 ```
 
-Or the top five queries with the highest relative variability in the execution time, expressed as a percentage:
+Or the top five queries with the highest relative variability in the execution time, expressed as a percentage. Queries whose mean execution time rounds to zero are left out, because the ratio is undefined for them:
 
 ```sql
 SELECT calls,
@@ -271,8 +272,38 @@ SELECT calls,
     query
 FROM pg_stat_statements
 WHERE pg_get_userbyid(userid) = current_user
+  AND mean_exec_time > 0
 ORDER BY rel_std_dev DESC
 LIMIT 5;
 ```
 
 For more examples and detailed explanations, see the [blog post on identifying performance bottlenecks with `pg_stat_statements`](https://www.tigerdata.com/blog/using-pg-stat-statements-to-optimize-queries).
+<TestPlan>
+
+1. select the service
+2. click `Monitoring` > `Metrics`
+3. expect url /monitoring/metrics
+4. click `Monitoring` > `Logs`
+5. expect url /monitoring/logs
+6. click `Monitoring` > `Insights`
+7. expect url /monitoring/insights
+8. expect label `Current lock contention`
+9. click `Monitoring` > `Jobs`
+10. expect url /monitoring/jobs
+11. click `Timeline`
+12. expect label `Last 24 hours`
+13. click `Monitoring` > `Connections`
+14. expect url /monitoring/connections
+15. click `Monitoring` > `Recommendations`
+16. expect url /monitoring/recommendations
+17. run SQL: `SELECT * FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user;`
+18. expect rows: `SELECT 1 FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user`
+19. run SQL: `SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5;`
+20. expect rows: `SELECT 1 FROM (SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
+21. run SQL: `SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5;`
+22. expect rows: `SELECT 1 FROM (SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
+
+Not scripted:
+- Jobs, view job details and edit the job config: the page names no job to click, and the plan grammar has no verb for "any row in the list"; the pencil icon also carries no label.
+
+</TestPlan>
