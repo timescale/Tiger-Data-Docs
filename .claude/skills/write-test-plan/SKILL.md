@@ -367,9 +367,11 @@ The pattern, from the Azure Private Link and strict-SSL plans:
   private endpoint in Azure` onward: needs an Azure subscription, a virtual network and a private
   DNS zone."
 
-Two pages resist even this. SAML has no Console step at all, and MFA is absent from the automation
-account's Account page because that account signs in with Google SSO, which the page itself says
-rules 2FA out. Neither gets a plan, and the second is a requirement on the dedicated account (#32).
+Two pages resist even this. SAML has no Console step at all. MFA's `Add two-factor authentication`
+is absent from the automation account's Account page, in a password-login session like the tool's;
+the page shows `SSO authentication: SSO added` for that account, and the docs say 2FA is not offered
+with Google SSO, so the linked SSO is the likely reason, though the Console does not say. Neither
+gets a plan, and the second is a requirement on the dedicated account (#32): no SSO linked.
 
 **A project-level `create` needs no fork, and the walker knows it.** The destructive gate refuses a
 `create`, `delete`, `remove`, `apply` or `change` click off a fork, except a row pinned to the run's
