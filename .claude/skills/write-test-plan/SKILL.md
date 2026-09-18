@@ -274,6 +274,12 @@ disabled until something changes. All three were found by running, not reading. 
    yields two, and both pg_textsearch hybrid-search samples were from an older version with a
    different tie. Regenerate the block from the live output rather than editing the numbers by hand.
 
+   **A "no control labelled X" failure whose own screenshot shows X is a timing flake, not a docs
+   bug.** The walker gives a label two attempts and about 25 seconds in all; a slow fork can take
+   longer than that to paint a tab strip. The tell is a `step 2 screenshot exceeded 90s` warning a
+   few lines earlier. Rerun before changing anything; the passwordless-access plan failed this way on
+   a path the IP-allow-list plan walks green.
+
    **Hash them before theorising.** `md5 screenshots/<page>-p0-step*.png` answers what the log cannot:
    whether the page ever changed. Identical shots across consecutive passing steps mean the steps did
    nothing. Compare bytes, not eyes — shots that look alike in the visible region have misled before.
