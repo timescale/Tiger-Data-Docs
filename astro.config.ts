@@ -1055,6 +1055,7 @@ export default defineConfig({
                       collapsed: true,
                       items: [
                         { label: "Overview", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/overview" },
+                        { label: "Passwordless database access", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/passwordless-access" },
                         { label: "Client credentials", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/client-credentials" },
                         { label: "IP allow list", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/ip-allow-list" },
                         { label: "Control user access to projects", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/members" },
@@ -1126,6 +1127,7 @@ export default defineConfig({
                       collapsed: true,
                       items: [
                         { label: "Overview", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/overview" },
+                        { label: "Passwordless database access", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/passwordless-access" },
                         { label: "Client credentials", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/client-credentials" },
                         { label: "IP allow list", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/ip-allow-list" },
                         { label: "Control user access to projects", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/members" },
