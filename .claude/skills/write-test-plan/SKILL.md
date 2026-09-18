@@ -351,6 +351,32 @@ not re-derive them, not so you can leave a route off the list:
   with no resolver behind it is reported rather than run. Only reach for it when there is genuinely no
   label to name.
 
+## Partial coverage, when the page needs something the run does not have
+
+A page whose procedure needs an Azure subscription, an identity provider or a third-party website
+can still be covered up to that point, and should be: the Console half is where the labels drift.
+The pattern, from the Azure Private Link and strict-SSL plans:
+
+- Drive the documented clicks to the last screen the run can reach, `expect label` the headings and
+  fields that screen promises, then `dismiss`. Nothing is claimed, created or typed.
+- Run every documented command that needs only the service, and let a non-zero exit be the
+  assertion: `openssl … | grep "Google\|ZeroSSL"` fails when neither issuer signs the certificate.
+  `run command:` refuses programs off its allowlist (`psql`, `tiger`, `openssl`), so a new client is
+  a tool change first.
+- Name the rest under `Not scripted:` with the heading and where the plan stopped: "from `Create a
+  private endpoint in Azure` onward: needs an Azure subscription, a virtual network and a private
+  DNS zone."
+
+Two pages resist even this. SAML has no Console step at all, and MFA is absent from the automation
+account's Account page because that account signs in with Google SSO, which the page itself says
+rules 2FA out. Neither gets a plan, and the second is a requirement on the dedicated account (#32).
+
+**A project-level `create` needs no fork, and the walker knows it.** The destructive gate refuses a
+`create`, `delete`, `remove`, `apply` or `change` click off a fork, except a row pinned to the run's
+own value, `Create service`, and, since 2026-09-18, a `create` click on a page that is not a service
+page. `Create credentials` on Settings mutates no service, so a fork protected nothing and the plan
+stopped at step 3. What the plan creates there it must remove itself, pinned to its own name.
+
 ## What a plan is not
 
 - **Not the docs.** It may say things no page should tell a human (`confirm \`Let's go!\`` for an
