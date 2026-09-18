@@ -180,6 +180,11 @@ disabled until something changes. All three were found by running, not reading. 
    twelve steps, changes nothing, and passes. Assert the end state you created is gone, or that the
    thing you made is named on the page.
 
+   When the page promises no observable outcome at all, as change-resources does (a restart, and
+   nothing the Console prints), the smallest honest end is that the confirmation dialog closed:
+   `expect no label \`Apply changes?\``. It is a real state the documented clicks produced, it was on
+   screen one step earlier so it can fail, and it does not invent a claim the page never made.
+
 7. **Never write a credential, address or CIDR.** `type $INVITE_EMAIL into \`Email\`` reads
    `DOCTEST_INPUT_INVITE_EMAIL` from the environment. Never write a service or project id either:
    `select the service` means whichever service the run is about.
