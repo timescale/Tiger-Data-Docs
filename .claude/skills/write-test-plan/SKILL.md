@@ -23,7 +23,11 @@ disabled until something changes. All three were found by running, not reading. 
 
 1. **Read the whole page, following partials.** Steps often live in `src/partials/_*.mdx`; the tool
    inlines them, so the plan must cover them. `resolvePage` in the tool does the same resolution if
-   you want to see exactly what it sees.
+   you want to see exactly what it sees. **Run `lint-plan.mjs` on the page once before you write
+   anything**: "no `<TestPlan>` on this page" on a page whose partial you can see has one means the
+   tool is not inlining that partial. The security overview page imports its partials through the
+   `@partials/` alias, and until 2026-09-18 the resolver silently dropped every alias import, on 107
+   pages.
 
    **Then compare the version the page claims with the one the service runs**, before writing a single
    assertion: `SELECT extversion FROM pg_extension` after the install step, against the page's callout
@@ -59,7 +63,15 @@ disabled until something changes. All three were found by running, not reading. 
 4. **Fetch what the page tells the reader to download.** `download <url>` as a step. Archives are
    unzipped, the folder becomes psql's working directory and the source for `upload`.
 
-5. **Transcribe each route's steps into verbs, in the page's own order.** Use the page's own labels
+5. **Look at the screen before you transcribe it.** Open the Console on the standing service and
+   walk to each screen the page names, without pressing anything that changes state, and read the
+   controls' real labels and kinds. Ten minutes of looking found in one pass that the resource
+   picker is a react-select drop-down and not radios, that its label is `CPU/Memory` while the page
+   wrote `CPU / Memory`, and that the environment tags are two radios the page never names. Each of
+   those would otherwise have cost a ten-minute run to discover. The docs' own screenshots under
+   `src/assets/images` are a good first look, and the live screen is the authoritative one.
+
+   **Transcribe each route's steps into verbs, in the page's own order.** Use the page's own labels
    and its own statements, written out. Two rules with teeth:
    - **Name the kind of control when a label is ambiguous**: `click tab \`Hypertables\``. The Explorer
      has a `Hypertables` tab and a sidebar filter button of the same name, and the tool tries
@@ -134,6 +146,12 @@ disabled until something changes. All three were found by running, not reading. 
    them hides that completely: the later step overwrites its own field correctly, so the assertion on
    *it* still passes while the other value is quietly wrong. Verified: with `end_offset` regressed,
    the `schedule_interval` assertion still passed and only the `end_offset` one caught it.
+
+   **Before you write `expect label`, search the page you will be on for that text.** `#prod` is the
+   new state after switching a service's environment, and it is also printed in the radio's own
+   description on the very page where the switch happens, so an `expect label \`#prod\`` there passes
+   before the click as well as after. Assert on a screen where the text appears only in the new state
+   (the Overview chips), or pair it with `expect no label` for the old state.
 
    **`expect label` is the weakest assertion there is, and it passes on text you cannot see.** On
    create-service it reported `✓ \`Ready\` is on the page` where the screenshot shows no such word:
