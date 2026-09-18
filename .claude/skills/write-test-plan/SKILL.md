@@ -25,11 +25,25 @@ disabled until something changes. All three were found by running, not reading. 
    inlines them, so the plan must cover them. `resolvePage` in the tool does the same resolution if
    you want to see exactly what it sees.
 
+   **Then compare the version the page claims with the one the service runs**, before writing a single
+   assertion: `SELECT extversion FROM pg_extension` after the install step, against the page's callout
+   or `SinceRelease`. The pg_textsearch page said v1.1.0 and the service had 1.4.0; a monitoring
+   function the page recommended for Cloud no longer existed, and the settings table had four gaps.
+   A version mismatch is a finding in itself, and it tells you which of the page's claims to distrust.
+
 2. **List the page's routes.** A `<Tabs>` block is a set of alternatives for the same outcome (psql
    vs Console vs Data view). A plan is ONE linear script, so it walks each testable route in turn and
    **undoes what a route created before the next one runs** — two routes that build the same table
    will collide on "already exists" otherwise. That undo is ordinary steps, in order, where a reader
    of the plan can see them.
+
+   **SQL outside a `<NumberedList>` is still a claim.** A reference section that shows `CREATE INDEX`
+   statements against tables the page never creates (`events`, `docs`, `articles`) is where a version
+   bump drifts first, so script it with fixtures the plan owns: a short `CREATE TABLE` and a few rows.
+   Two rules for those fixtures. Drop one that shares its name with a table the page creates later,
+   before that step. And shape its DDL so it is not a near-copy of a page statement, or the drift
+   check reports your fixture: `articles (id, title, body)` was flagged against the page's
+   `articles (id, title, content, embedding)` until it gained a column the page's table lacks.
 
    **Then put the list of `##` procedures to the page's writer and ask which to leave out, and why.**
    Some procedures must not be completed by a run even though nothing on the page says so:
@@ -127,6 +141,12 @@ disabled until something changes. All three were found by running, not reading. 
    for `expect rows` or `expect url` first, and when only `expect label` will do, open the screenshot
    for that step before you believe it.
 
+   **`expect` runs inside a `DO` block, so whatever the page says does not work in PL/pgSQL does not
+   work in an assertion either.** pg_textsearch's implicit `content <@> 'query'` relies on planner
+   hooks that `DO` blocks skip; the page says so under its limitations. A `run SQL:` step can use the
+   page's implicit form, and the assertion two lines later must switch to the explicit
+   `to_bm25query('query', 'index_name')`, or it fails on a correct page.
+
    **Never assert a step that belongs to a procedure the plan declares unscripted.** The
    create-service plan ended on the `Ready` check, which is the opening step of "Connect to your
    {C.SERVICE_SHORT}" — the procedure listed under `Not scripted:` three lines below. A plan that
@@ -159,6 +179,13 @@ disabled until something changes. All three were found by running, not reading. 
    `CREATE ROLE readaccess` — the plan may be literal because everything it touches is a throwaway
    fork. Where the page's gap is a table or schema the reader already owns, **the plan creates its
    own** rather than guessing at what the standing service holds.
+
+   **Fill a placeholder exactly the way the page's prose tells the reader to, and check the result
+   against the sample output, before you fill it the way you know is right.** The postgis page said to
+   replace `<Interval_Time>` with a number of days, and `INTERVAL '1200'` is 1200 seconds: the
+   documented query returns nothing. The plan's `INTERVAL '3650 days'` passed, and would have gone
+   on passing over a broken page. The plan may name a value the page leaves open; it may not quietly
+   correct an instruction the page gets wrong.
 
 8. **Lint the draft, verify its SQL locally, then run.**
    ```bash
@@ -197,11 +224,18 @@ disabled until something changes. All three were found by running, not reading. 
    for **every** statement, not just the long ones: bare SQL in a plan trips Vale's
    `TigerData.Acronyms` on `ROLE`, `GRANT`, `USAGE` and `ALL`, which it reads as prose acronyms.
 
-   **A plan whose steps are SQL costs nothing to verify before you spend a fork.** Extract the
-   compiled statements from `parsePlan` and run them against a local PostgreSQL with TimescaleDB
-   (`pg_available_extensions`), in plan order, under `-v ON_ERROR_STOP=1`. Today that caught a
-   would-be assertion bug before a single cloud minute was spent. Never retype the SQL by hand for
-   this — extract it, or you are testing something the plan does not say.
+   **A plan whose steps are SQL costs nothing to verify before you spend a fork.**
+   ```bash
+   node scripts/plan-sql.mjs "<page url>" | tiger db connect $DOCTEST_SERVICE_AWS -- -q -f -
+   node scripts/plan-sql.mjs "<page url>" --drop '^INSERT INTO <table>' | tiger db connect $DOCTEST_SERVICE_AWS -- -q -f -
+   ```
+   The first line runs every statement and compiled assertion, in plan order, inside a transaction
+   that rolls back, against the STANDING service: a local PostgreSQL has none of the extensions a
+   page installs (postgis, pg_textsearch, vectorscale), and the Cloud build is the one the page is
+   about. The second line is the negative case, the same plan without the load. The assertion that
+   counts rows must fail there, or it was never checking anything. Never retype the SQL by hand for
+   this: the script extracts it from the same `parsePlan` the run uses, so you are testing what the
+   plan says. On postgis and pg_textsearch this found every doc bug of the day before a fork existed.
 
 9. **Fix what the run reports.** A fix lands in one of three places, and which one is not obvious
    from the failure: the docs, the plan, or the tool.
@@ -210,6 +244,12 @@ disabled until something changes. All three were found by running, not reading. 
    the screenshot says what was on screen. They prove things an assertion cannot — result ordering,
    or a value reaching the database verbatim — and they expose the opposite: a green step whose
    screenshot does not show the thing it claims to have found.
+
+   **Compare every "you see something like" block with what the run returned.** A `run SQL:` step
+   passes when the statement does not error, so a stale output block is invisible to the run and only
+   a person reading psql's echo catches it. The postgis SkipScan sample showed one row where the data
+   yields two, and both pg_textsearch hybrid-search samples were from an older version with a
+   different tie. Regenerate the block from the live output rather than editing the numbers by hand.
 
    **Hash them before theorising.** `md5 screenshots/<page>-p0-step*.png` answers what the log cannot:
    whether the page ever changed. Identical shots across consecutive passing steps mean the steps did
