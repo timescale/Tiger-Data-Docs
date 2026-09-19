@@ -140,6 +140,17 @@ const noindexSchema = z.object({
   noindex: z.boolean().optional(),
 });
 
+/**
+ * Sitewide banner field (optional, controlled by src/lib/banner-config.ts)
+ */
+const bannerSchema = z.object({
+  banner: z
+    .object({
+      content: z.string(),
+    })
+    .optional(),
+});
+
 /** When true, hide the right rail and let the page content use that space. */
 const layoutSchema = z.object({
   widePage: z.boolean().optional(),
@@ -156,6 +167,7 @@ export const collections = {
         .merge(productsSchema)
         .merge(learnMoreSchema)
         .merge(noindexSchema)
+        .merge(bannerSchema)
         .merge(layoutSchema),
     }),
   }),
