@@ -111,7 +111,7 @@ or degraded performance.
 
 ## Logs
 
-{C.CLOUD_LONG} shows you detailed logs for your {C.SERVICE_SHORT}, which you can filter by type, date, and time, and then export to CSV.
+{C.CLOUD_LONG} shows you detailed logs for your {C.SERVICE_SHORT}. Filter them with `Search logs`, the `From` and `To` date pickers, and `Severity type`; click `Reset filters` to clear the filters, and `Download logs` to export the filtered logs to CSV.
 
 To access logs, select your {C.SERVICE_SHORT} in {C.CONSOLE}, then click `Monitoring` > `Logs`:
 
@@ -121,7 +121,7 @@ To access logs, select your {C.SERVICE_SHORT} in {C.CONSOLE}, then click `Monito
 
 Insights help you get a comprehensive understanding of how your queries perform over time, and make the most efficient use of your resources.
 
-To view insights, select your {C.SERVICE_SHORT}, then click `Monitoring` > `Insights`. Search or filter queries by type, maximum execution time, and time frame.
+To view insights, select your {C.SERVICE_SHORT}, then click `Monitoring` > `Insights`. Narrow the queries shown with `Search by keyword`, `Show results from`, `Query type`, and `Max time >= (ms)`; click `Reset filters` to clear them.
 
 <ThemeImage light={imgInsightsOverviewTigerConsoleLight} dark={imgInsightsOverviewTigerConsoleDark} alt="Insights" />
 
@@ -131,7 +131,7 @@ Insights include `Metrics`, `Current lock contention`, and `Queries`.
 
 `Current lock contention` shows how many queries or transactions are currently waiting for locks held by other queries or transactions.
 
-`Queries` displays the top 50 queries matching your search. This includes a whole range of metrics:
+`Queries` displays the top 50 queries matching your search. Choose the columns with `Columns to show`, and whether the per-query metrics show the median or P95 with the selector next to it. This includes a whole range of metrics:
 
 <ThemeImage light={imgTigerConsoleQueryInsightsLight} dark={imgTigerConsoleQueryInsightsDark} alt="Queries" />
 
@@ -140,12 +140,12 @@ Insights include `Metrics`, `Current lock contention`, and `Queries`.
 | `Executions`          | Number of times the query ran during the selected period.                                       |
 | `Total rows`          | Total rows scanned, inserted, or updated by the query during the selected period.               |
 | `Total time`          | Combined execution time across all runs of the query.                                           |
-| `Time (P95)`          | Execution time in the worst typical case. 95th percentile.                                      |
-| `CPU User (P95)`      | CPU spent on the query's own work — calculations, sorting, filtering. 95th percentile, in millicores. |
-| `CPU System (P95)`    | CPU spent by the OS for the query — disk reads, memory management, network I/O. 95th percentile, in millicores. |
-| `Memory (P95)`        | Memory used during query execution. 95th percentile, in MiB. |
-| `Storage read (P95)`  | Disk read operations caused by the query. 95th percentile, in ops/sec. |
-| `Storage write (P95)` | Disk write operations caused by the query. 95th percentile, in ops/sec. |
+| `Time`                | Execution time, as the median or P95 depending on the selector.                                 |
+| `CPU User`            | CPU spent on the query's own work: calculations, sorting, filtering. In millicores.             |
+| `CPU System`          | CPU spent by the OS for the query: disk reads, memory management, network I/O. In millicores.   |
+| `Memory`              | Memory used during query execution. In MiB. |
+| `Storage read`        | Disk read operations caused by the query. In ops/sec. |
+| `Storage write`       | Disk write operations caused by the query. In ops/sec. |
 | `Hypertables`         | Whether the query ran on a {C.HYPERTABLE}.                                                    |
 | `Columnar tables`     | Whether the query read data from a {C.CHUNK} in the {C.COLUMNSTORE}.                              |
 | `User name`           | The database user who ran the query.                                                       |
@@ -204,7 +204,7 @@ Click a {C.JOB} ID in the list to view its config and run history:
 
 <NumberedItem title="Edit the job config">
 
-Click the pencil icon to edit the {C.JOB} config:
+Click `Edit job config`, the pencil icon, to edit the {C.JOB} config:
 
 <ThemeImage light={imgTigerConsoleEditJobLight} dark={imgTigerConsoleEditJobDark} alt="Update job config" />
 
@@ -216,11 +216,11 @@ Click the pencil icon to edit the {C.JOB} config:
 
 {C.CLOUD_LONG} lists current and past connections to your {C.SERVICE_SHORT}. This includes details like the corresponding query, connecting application, username, connection status, start time, and duration.
 
-To view connections, select your {C.SERVICE_SHORT} in {C.CONSOLE}, then click `Monitoring` > `Connections`. Expand the query underneath each connection to see the full SQL.
+To view connections, select your {C.SERVICE_SHORT} in {C.CONSOLE}, then click `Monitoring` > `Connections`. Turn `Show idle` off to hide idle connections. Expand the query underneath each connection to see the full SQL.
 
 <ThemeImage light={imgTigerConsoleServiceConnectionsLight} dark={imgTigerConsoleServiceConnectionsDark} alt="Connections" />
 
-Click the trash icon next to a connection in the list to terminate it. A lock icon means that a connection cannot be terminated; hover over the icon to see the reason.
+Click `Terminate connection`, the trash icon next to a connection in the list, to terminate it. A lock icon means that a connection cannot be terminated; hover over the icon to see the reason.
 
 ## Recommendations
 
@@ -280,37 +280,53 @@ LIMIT 5;
 For more examples and detailed explanations, see the [blog post on identifying performance bottlenecks with `pg_stat_statements`](https://www.tigerdata.com/blog/using-pg-stat-statements-to-optimize-queries).
 <TestPlan>
 
-1. select the service
-2. click `Monitoring` > `Metrics`
-3. expect url /monitoring/metrics
-4. click `Monitoring` > `Logs`
-5. expect url /monitoring/logs
-6. click `Monitoring` > `Insights`
-7. expect url /monitoring/insights
-8. expect label `Current lock contention`
-9. click `Monitoring` > `Jobs`
-10. expect url /monitoring/jobs
-11. click `Timeline`
-12. expect label `Last 24 hours`
-13. click `Monitoring` > `Connections`
-14. expect url /monitoring/connections
-15. click `Monitoring` > `Recommendations`
-16. expect url /monitoring/recommendations
-17. run SQL: `SELECT * FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user;`
-18. expect rows: `SELECT 1 FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user`
-19. run SQL: `SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5;`
-20. expect rows: `SELECT 1 FROM (SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
-21. run SQL: `SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5;`
-22. expect rows: `SELECT 1 FROM (SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
+1. fork the service
+2. select the service
+3. click `Monitoring` > `Metrics`
+4. expect url /monitoring/metrics
+5. click `Monitoring` > `Logs`
+6. expect url /monitoring/logs
+7. type `checkpoint` into `Search logs`
+8. click `Reset filters`
+9. click `Download logs`
+10. confirm `Download`
+11. click `Monitoring` > `Insights`
+12. expect url /monitoring/insights
+13. expect label `Current lock contention`
+14. type `SELECT` into `Search by keyword`
+15. click `Reset filters`
+16. click `Monitoring` > `Jobs`
+17. expect url /monitoring/jobs
+18. click `Timeline`
+19. expect label `Last 24 hours`
+20. open the first row in the list
+21. expect url /monitoring/jobs/
+22. expect label `Job run history`
+23. click `Edit job config`
+24. expect label `Change configuration`
+25. dismiss
+26. click `Monitoring` > `Connections`
+27. expect url /monitoring/connections
+28. toggle `Show idle` off
+29. toggle `Show idle` on
+30. click `Terminate connection`
+31. expect label `Are you sure`
+32. dismiss
+33. click `Monitoring` > `Recommendations`
+34. expect url /monitoring/recommendations
+35. run SQL: `SELECT * FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user;`
+36. expect rows: `SELECT 1 FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user`
+37. run SQL: `SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5;`
+38. expect rows: `SELECT 1 FROM (SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
+39. run SQL: `SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5;`
+40. expect rows: `SELECT 1 FROM (SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
 
 Not scripted:
 
 - Metrics, hovering the graph for a single time point and selecting an area to zoom: the grammar has no verb for either gesture.
-- Logs, filtering by type, date and time, and exporting to CSV: the page names none of those controls, so a plan pressing them would be inventing labels.
-- Insights, searching and filtering by type, maximum execution time and time frame: the same, no control is named.
-- Insights, the query drill-down: it opens by clicking a row in a list whose contents the page cannot name, and the grammar has no verb for "any row in the list".
-- Jobs, view job details and edit the job config: the page names no job to click, same "any row" problem; the pencil icon also carries no label.
-- Connections, expanding a connection's query and terminating it with the trash icon: both act on an arbitrary row, and the icon carries no label.
+- Insights, the query drill-down: the page itself says a query can take minutes to appear in the table, so a fresh fork has no row to open within the run.
+- Connections, completing the termination: the dialog asks for the connection's PID, a value that exists only at run time and that the grammar cannot read off the page, so the plan stops at the dialog.
+- Connections, expanding a connection's query: the chevron carries no label the page could name.
 - Connections, hovering the lock icon for the reason a connection cannot be terminated: no verb for hover, and the reason text is not in the page to assert against.
 
 </TestPlan>
