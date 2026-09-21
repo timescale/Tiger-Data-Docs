@@ -83,10 +83,12 @@ disabled until something changes. All three were found by running, not reading. 
      needs it, with nothing in between, and repeat it before every further row action — the members
      plan pins twice, once before each. Only the first click of the following step is scoped to
      the row, because a row's `⋮` menu and its confirm dialog render in portals outside the row.
-   - **Expect a confirm dialog after any row action, and write it as `confirm`.** Every destructive
-     row action in the Console opens one, and pages routinely stop before it — correctly, because a
-     reader is looking at the dialog and the button says what it does. The bot still needs the step:
-     without it the modal stays open and covers the table, so every later step acts on nothing.
+   - **Expect a confirm dialog after any row action or state-changing button, and write it as
+     `confirm`.** Every destructive row action in the Console opens one, and so does every button in
+     a service's Danger zone, `Resume service` included. Pages routinely stop before the dialog —
+     correctly, because a reader is looking at it and the button says what it does. The bot still
+     needs the step: without it the modal stays open and covers the page, so every later step acts
+     on nothing.
      `confirm` is not a style preference. A plain `click` on a dialog button reads as a plan that
      wandered off the documented path (see the control-naming rule below), and `confirm` additionally
      makes the walker check that a dialog is actually open, which a click never did.
@@ -94,6 +96,9 @@ disabled until something changes. All three were found by running, not reading. 
      match in DOM order. The screen shown after a {C.SERVICE_SHORT} is created has TWO buttons
      labelled `Download the config`, one per file, and the plan hit the right one by luck. Scope it:
      ``click `Download the config` in `Download your database config` ``.
+   - **In a dialog with one field, `type` lands in that field whatever the markup calls it.** Name
+     the field as the reader sees it. Outside a dialog there is no such fallback. The control check
+     still wants the field named on the page; a warning you keep is a choice, not an oversight.
 
    - **Press only the controls the page names, in the places the page names them.** A reader and the
      run must not diverge on this, or the run is not evidence about the page. A press whose label is
@@ -152,6 +157,13 @@ disabled until something changes. All three were found by running, not reading. 
    description on the very page where the switch happens, so an `expect label \`#prod\`` there passes
    before the click as well as after. Assert on a screen where the text appears only in the new state
    (the Overview chips), or pair it with `expect no label` for the old state.
+
+   The mirror mistake is asserting text from a different screen: `Ready` is an Overview badge, and on
+   Service management the running state is the `Pause service` row coming back.
+
+   **`expect label` and `expect no label` poll for up to three minutes**, so a state reached through a
+   transition (`Pausing` to `Paused`) is asserted directly. A wrong label holds the run for the whole
+   window before failing.
 
    **`expect label` is the weakest assertion there is, and it passes on text you cannot see.** On
    create-service it reported `✓ \`Ready\` is on the page` where the screenshot shows no such word:
@@ -273,6 +285,9 @@ disabled until something changes. All three were found by running, not reading. 
    this: the script extracts it from the same `parsePlan` the run uses, so you are testing what the
    plan says. On postgis and pg_textsearch this found every doc bug of the day before a fork existed.
 
+   **Exit 3 before the browser opens means another run holds the project.** The message names the
+   holder; wait for it rather than retrying. A dead run's lock expires after five minutes.
+
 9. **Fix what the run reports.** A fix lands in one of three places, and which one is not obvious
    from the failure: the docs, the plan, or the tool.
 
@@ -303,8 +318,9 @@ disabled until something changes. All three were found by running, not reading. 
 
 ## Routes not to script, and why
 
-Close every plan with a `Not scripted:` list naming each `##` procedure the plan does not drive and
-why, one line each, keyed to the heading verbatim:
+Close every plan with a `Not scripted:` list naming each documented interaction the plan does not
+drive and why, one line each, keyed to the heading it sits under. The header line is exactly
+`Not scripted:`; the linter finds the list by it.
 
 ```
 Not scripted:
@@ -318,12 +334,14 @@ statement under a named heading is excused from the coverage checks. It exists f
 reading the plan, who otherwise cannot tell a procedure left out on purpose from one nobody
 remembered, and since 2026-09-18 for the linter, which reports the ones nobody declared.
 
-**Only PROCEDURES belong on it.** A `##` section of pure reference prose has nothing to press, so it
-is not a gap, and listing it buries the entries that are. When every procedure on a page is driven,
-the block goes away entirely rather than listing what was never drivable.
+**Only things a reader is told to DO belong on it.** A `##` section of pure reference prose has
+nothing to press, so it is not a gap, and listing it buries the entries that are. When everything
+on a page is driven, the block goes away entirely rather than listing what was never drivable.
 
-Among procedures, name every one the plan does not drive, whatever the reason: a list filtered by
-reason leaves the reader doing the same guessing the list exists to stop.
+**"Things to do" is wider than `NumberedList` procedures.** Interactions written as prose count too
+(hover, filter, export, expand, click a row). Walk the page for those verbs and name every one the
+plan does not drive, whatever the reason: a list filtered by reason leaves the reader doing the same
+guessing the list exists to stop. Start each entry with its heading so the linter can key it.
 
 An earlier version of this was a `skip` verb, and knowing why it was dropped keeps this list honest.
 That marker was a plan's ONLY record of its own gaps, so three declared skips read as more complete
