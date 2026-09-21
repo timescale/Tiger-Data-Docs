@@ -11,6 +11,7 @@ import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import { Prerequisites } from "@components/Prerequisites";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
+import TestPlan from "@components/TestPlan.astro";
 
 On this page, you will create a {C.SERVICE_LONG}, connect to it, create your first {C.HYPERTABLE}, and run a query. By the end you'll have a working time-series table and see query results, all in under 5 minutes.
 
@@ -123,6 +124,31 @@ We'll create a small **{C.HYPERTABLE}** (a table optimized for time-series data)
   behind the scenes. You didn't have to manage {C.CHUNK}s; you just used the table.
   For the full picture, see [Your first {C.HYPERTABLE}](/build/how-to/your-first-hypertable).
 </Callout>
+
+<TestPlan>
+
+1. fork the service
+2. select the service
+3. click `SQL Editor`
+4. run SQL: `SELECT CURRENT_DATE;`
+5. run command: `psql "<your-service-url>"`
+6. run SQL: `SELECT CURRENT_DATE;`
+7. exit psql
+8. run SQL: `CREATE TABLE conditions (time TIMESTAMPTZ NOT NULL, location TEXT NOT NULL, device TEXT NOT NULL, temperature DOUBLE PRECISION NULL, humidity DOUBLE PRECISION NULL) WITH (tsdb.hypertable, tsdb.segmentby = 'device', tsdb.orderby = 'time DESC');`
+9. expect rows: `SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'conditions'`
+10. run SQL: `INSERT INTO conditions (time, location, device, temperature, humidity) VALUES (NOW() - INTERVAL '2 hours', 'office', 'sensor-1', 22.1, 45.0), (NOW() - INTERVAL '1 hour', 'office', 'sensor-1', 22.3, 44.8), (NOW(), 'office', 'sensor-1', 22.2, 45.1);`
+11. run SQL: `SELECT * FROM conditions ORDER BY time DESC;`
+12. expect rows: `SELECT 1 FROM conditions HAVING count(*) = 3`
+13. expect rows: `SELECT 1 FROM conditions WHERE location = 'office' AND device = 'sensor-1' HAVING count(*) = 3`
+14. expect rows: `SELECT 1 FROM conditions HAVING max(time) > now() - INTERVAL '5 minutes' AND min(time) < now() - INTERVAL '90 minutes'`
+
+Not scripted:
+- Step 1: Create a service: creating a service per run costs a real service and ten minutes of
+  provisioning, and the same three clicks are the whole subject of
+  /get-started/quickstart/create-service, which owns that coverage. This plan forks instead, so
+  steps 2 and 3 run against a service that exists.
+
+</TestPlan>
 
 ## Next steps
 
