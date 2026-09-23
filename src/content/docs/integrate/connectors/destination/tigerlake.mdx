@@ -428,6 +428,11 @@ ALTER TABLE my_hypertable SET (
 );
 ```
 
+In {C.CONSOLE}, the step where you pick the tables to sync has a `Changelog mode` toggle that applies to the tables
+you select. It is on by default when the connector uses a Snowflake Open Catalog, Snowflake Horizon, or Databricks
+catalog, because those engines cannot read equality deletes. The catalog step tells you this before you get there.
+For every other catalog the toggle is off by default.
+
 The following table compares the two modes:
 
 |  | Default | Changelog mode |
@@ -540,6 +545,24 @@ ALTER TABLE Mixed_CASE_TableNAME SET (
   tigerlake.iceberg_table = 'my_table_name'
 );
 ```
+
+## Monitor the sync
+
+To check how the sync is doing, select your {C.SERVICE_SHORT} in [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services),
+then click `Connectors` and open the {C.ICEBERG_CONNECTOR_SHORT}. The connector shows its current state, when it was
+created, and the following values:
+
+| Value | Description |
+| --- | --- |
+| `Catalog URI` | Base URL of the Iceberg REST catalog the connector writes to. Shown for REST catalogs. |
+| `Warehouse` | Warehouse, catalog, or external volume the connector writes to. Shown for REST catalogs. |
+| `S3 bucket ARN` | Table bucket the connector writes to. Shown for Amazon S3 Tables. |
+| `Throughput` | Events read from the source replication stream, in events per second. |
+| `Lag` | Time since the connector last committed a transaction to Iceberg. Because changes are committed in batches, this reads high right after a batch and drops again on the next commit. |
+| `Tables in sync` | Number of tables currently streaming to Iceberg. |
+| `Events seen` | Total number of rows the connector has written to the destination Iceberg tables. |
+
+The values refresh automatically while the page is open.
 
 ## Limitations
 
