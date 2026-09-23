@@ -92,6 +92,8 @@ disabled until something changes. All three were found by running, not reading. 
      `confirm` is not a style preference. A plain `click` on a dialog button reads as a plan that
      wandered off the documented path (see the control-naming rule below), and `confirm` additionally
      makes the walker check that a dialog is actually open, which a click never did.
+     A dialog that demands a value only it knows (`Type "607" to confirm`, the connection's PID) is
+     `type the value the dialog asks for`, then `confirm`.
    - **Check for a duplicate label before writing a bare `click`.** A bare click takes the first
      match in DOM order. The screen shown after a {C.SERVICE_SHORT} is created has TWO buttons
      labelled `Download the config`, one per file, and the plan hit the right one by luck. Scope it:
@@ -106,6 +108,8 @@ disabled until something changes. All three were found by running, not reading. 
      reported by `lint-plan.mjs` before you spend a walk, and again by the run. A finding means one of two things and both need you: the page is missing
      a step, or the plan invented a control. A plan once typed into `Email`, a field neither the page
      nor the Console has, and passed for weeks because the tool resolved it by placeholder.
+     A typed field and a named drop-down are graded the same way, so the page has to name the caption,
+     or the value the control shows when it has no caption (`Last 24 hours`).
 
 6. **Add assertions.** `run SQL:` only fails when a statement ERRORS, so a `SELECT` over an empty
    table passes: without assertions a plan can walk an entire ingest route, load nothing, and report
@@ -368,12 +372,19 @@ not re-derive them, not so you can leave a route off the list:
 - **Drag-and-drop targets and unlabelled icons.** `[resolve: <hint>]` is the escape hatch, and a hint
   with no resolver behind it is reported rather than run. Only reach for it when there is genuinely no
   label to name.
+- **Multi-select lists, date pickers, graph hover and zoom.** The drop-down verb changes one value,
+  so a checkbox list (`Severity type`, `Query type`) is out; no verb drives a calendar or a pointer
+  gesture. Declare them.
 
 ## Partial coverage, when the page needs something the run does not have
 
-A page whose procedure needs an Azure subscription, an identity provider or a third-party website
+A third-party website with a plain form is NOT a stopper: `open https://…`, `paste <file> into the
+box` and `save the download as <path>` drive it (strict-SSL does whatsmychaincert.com this way), and
+`select the service` brings the run back to the Console for whatever follows.
+
+A page whose procedure needs an Azure subscription or an identity provider
 can still be covered up to that point, and should be: the Console half is where the labels drift.
-The pattern, from the Azure Private Link and strict-SSL plans:
+The pattern, from the Azure Private Link plan and the openssl half of strict-SSL:
 
 - Drive the documented clicks to the last screen the run can reach, `expect label` the headings and
   fields that screen promises, then `dismiss`. Nothing is claimed, created or typed.
