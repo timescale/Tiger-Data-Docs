@@ -342,10 +342,14 @@ remembered, and since 2026-09-18 for the linter, which reports the ones nobody d
 nothing to press, so it is not a gap, and listing it buries the entries that are. When everything
 on a page is driven, the block goes away entirely rather than listing what was never drivable.
 
-**"Things to do" is wider than `NumberedList` procedures.** Interactions written as prose count too
-(hover, filter, export, expand, click a row). Walk the page for those verbs and name every one the
-plan does not drive, whatever the reason: a list filtered by reason leaves the reader doing the same
-guessing the list exists to stop. Start each entry with its heading so the linter can key it.
+**"Things to do" means the page's procedures and its statements, not its prose.** A plan drives
+every `NumberedList` procedure and every statement or command the page tells the reader to run. A
+navigation sentence ("click `Monitoring` > `Logs`") gets one click and one `expect url`, because a
+dead nav label is the commonest drift and costs one step. Prose that describes a screen's controls
+(filters, toggles, hovers, drop-downs) gets nothing unless a procedure tells the reader to use them:
+the monitoring page once had a 45-step plan for its one procedure, and every extra step was a flake
+to babysit. The `Not scripted:` list names procedures only, each entry starting with its heading so
+the linter can key it.
 
 An earlier version of this was a `skip` verb, and knowing why it was dropped keeps this list honest.
 That marker was a plan's ONLY record of its own gaps, so three declared skips read as more complete
