@@ -9,8 +9,9 @@ production databases without encryption is strongly discouraged. To
 achieve even stronger security, clients may select to verify the identity of the
 server. If you want your connection client to verify the server's identity, you
 can connect with an [SSL mode](https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS) of `verify-ca` or `verify-full`. To
-do so, you need to store a copy of the certificate chain where your connection
-tool can find it.
+do so, your connection tool needs a trusted copy of the certificate chain: either
+the operating system's trust store, or a file that you generate and store where
+the tool can find it.
 
 This section provides instructions for setting up a stricter SSL connection.
 
@@ -36,7 +37,18 @@ descriptions](https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-S
 
 ## Connect to your database with a stricter SSL mode
 
-To set up a stricter SSL connection:
+If your client uses libpq 16 or later, `psql` included, you don't need a certificate file. Set `sslrootcert` to
+`system` so that the client verifies the server against the operating system's trust store, which already holds
+the root certificates of both certificate authorities that {C.CLOUD_LONG} uses. Replace `<HOST>` and `<PORT>` with
+the host and port of your {C.SERVICE_SHORT}:
+
+```shell
+psql "postgres://tsdbadmin@<HOST>:<PORT>/tsdb?sslmode=verify-full&sslrootcert=system"
+```
+
+Other drivers have their own trust store settings; see the SSL documentation for your driver.
+
+For older clients, generate the certificate chain yourself and store it where your connection tool looks for it:
 
 1.  Generate a copy of your certificate chain and store it in the right location
 1.  Change your {C.CLOUD_LONG} connection string
@@ -132,16 +144,26 @@ openssl s_client -showcerts -partial_chain -starttls postgres -connect <HOST>:<P
 <TestPlan>
 
 1. select the service
-2. run command: `openssl s_client -showcerts -partial_chain -starttls postgres -connect <HOST>:<PORT> < /dev/null 2>/dev/null | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/{ print }' > bundle.crt`
-3. run command: `openssl x509 -in bundle.crt -noout -subject`
-4. run command: `openssl s_client -showcerts -partial_chain -starttls postgres -connect <HOST>:<PORT> < /dev/null 2>/dev/null | grep "Google\|ZeroSSL"`
-5. expect rows: `SELECT 1 FROM pg_stat_ssl WHERE pid = pg_backend_pid() AND ssl`
+2. run command: `psql "postgres://tsdbadmin@<HOST>:<PORT>/tsdb?sslmode=verify-full&sslrootcert=system"`
+3. run command: `openssl s_client -showcerts -partial_chain -starttls postgres -connect <HOST>:<PORT> < /dev/null 2>/dev/null | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/{ print }' > bundle.crt`
+4. run command: `openssl x509 -in bundle.crt -noout -subject`
+5. open https://whatsmychaincert.com/
+6. paste bundle.crt into the box
+7. click `Include Root Certificate`
+8. click `Generate Chain`
+9. save the download as ~/.postgresql/root.crt
+10. run command: `psql "postgres://tsdbadmin@<HOST>:<PORT>/tsdb?sslmode=verify-full"`
+11. run command: `openssl s_client -showcerts -partial_chain -starttls postgres -connect <HOST>:<PORT> < /dev/null 2>/dev/null | grep "Google\|ZeroSSL"`
+12. select the service
+13. expect rows: `SELECT 1 FROM pg_stat_ssl WHERE pid = pg_backend_pid() AND ssl`
 
-Step 3 is the plan's own check that step 2 wrote a certificate and not an empty file. Step 4 fails
-when neither issuer appears, which is the page's claim about who signs the certificate. Step 5 checks
+Step 4 is the plan's own check that step 3 wrote a certificate and not an empty file. Steps 2 and 10
+are the page's promise, a verified connection, once by each documented route; the home directory
+for step 10 is the run's own temporary one, so the saved chain never touches a real one. Step 11 fails
+when neither issuer appears, which is the page's claim about who signs the certificate. Step 13 checks
 the page's opening claim, that the default connection is already encrypted.
 
 Not scripted:
-- Connect to your database with a stricter SSL mode, from "Copy the bundle to your clipboard" onward: the chain comes from whatsmychaincert.com in a browser the run does not drive, and the verify-full connection needs that chain in the home directory.
+- Copy the bundle to your clipboard: the run pastes the file straight into the site, so there is no clipboard to fill.
 
 </TestPlan>
