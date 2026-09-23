@@ -456,7 +456,7 @@ Some applications partition data themselves: every period gets its own table wit
 
 To do this, point several source tables at the same target with a regular expression in `--table-map`. This section uses the {C.SELF_SHORT} Docker image. Many tables with the same shape suit the initial copy well: each source table is copied by its own worker, in parallel with the others.
 
-Complete the steps in this section before you [start Livesync](#data-migration). They replace the parts of [Schema migration](#schema-migration), [Publication](#publication), and [Replication identity](#replication-identity) that concern the tables you consolidate.
+Complete the steps in this section before you [start Livesync](#data-migration). They build on [Schema migration](#schema-migration), and replace the parts of [Publication](#publication) and [Replication identity](#replication-identity) that concern the tables you consolidate.
 
 ### How `--table-map` matches tables
 
@@ -541,39 +541,37 @@ Choose one of these options for every source table you merge:
 
 Livesync doesn't create target tables. Create the consolidated table on the target and make it a {C.HYPERTABLE} before you start Livesync. Converting a table to a {C.HYPERTABLE} after its sync has started is not supported: you have to remove the table from the sync, then add it back, which copies its data again.
 
-When you dump the schema, exclude the source tables you merge, so that they aren't created on the target:
-
-```bash
-pg_dump "$SOURCE" \
-  --schema-only \
-  --no-privileges \
-  --no-owner \
-  --no-publications \
-  --no-subscriptions \
-  --no-table-access-method \
-  --no-tablespaces \
-  --exclude-table='public.metrics-*' \
-  --file=schema_dump.sql
-
-psql "$TARGET" -f schema_dump.sql
-```
-
-Then create the {C.HYPERTABLE} with the same columns as the source tables:
+Run [Schema migration](#schema-migration) as usual. It creates the source tables you merge on the target as regular tables. Use one of them as the template for the {C.HYPERTABLE}:
 
 ```sql
 psql "$TARGET" <<'EOF'
-CREATE TABLE public.metrics (
-  id        bigint NOT NULL,
-  time      timestamptz NOT NULL,
-  device_id int NOT NULL,
-  value     double precision
-) WITH (
+CREATE TABLE public.metrics (LIKE public."metrics-001" INCLUDING DEFAULTS)
+WITH (
   tsdb.hypertable,
   tsdb.partition_column = 'time',
   tsdb.chunk_interval = '7 days'
 );
+
+ALTER TABLE public.metrics ALTER COLUMN id DROP DEFAULT;
 EOF
 ```
+
+`LIKE` copies the column names, types, `NOT NULL` constraints, and, with `INCLUDING DEFAULTS`, the column defaults. It doesn't copy the primary key, unique constraints, or indexes, so the per-table key on `id` stays behind. The `ALTER TABLE` statement removes the default that `INCLUDING DEFAULTS` copies from a `serial` or `bigserial` column: it points to the sequence of `metrics-001`, which means nothing for merged data and would stop you from dropping `metrics-001` in the next step. Run it for each such column.
+
+Livesync doesn't sync to the source tables you merge, so drop them from the target:
+
+```bash
+psql "$TARGET" -t -A <<'EOF' > drop_merged_tables.sql
+SELECT format('DROP TABLE %I.%I;', schemaname, tablename)
+FROM pg_tables
+WHERE schemaname = 'public' AND tablename ~ '^metrics-[0-9]+$';
+EOF
+
+cat drop_merged_tables.sql
+psql "$TARGET" -f drop_merged_tables.sql
+```
+
+If a view or foreign key on the target still references one of these tables, `DROP TABLE` fails. Point that object at `public.metrics` instead, then drop the table.
 
 Choose the target's keys with the merged data in mind:
 
