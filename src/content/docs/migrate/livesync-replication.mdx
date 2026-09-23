@@ -450,6 +450,250 @@ psql "$TARGET" -f privileges.sql
 
 <LivesyncReplicationIdentity />
 
+## Consolidate multiple source tables into one hypertable
+
+Some applications partition data themselves: every period gets its own table with the same columns, for example `metrics-001`, `metrics-002`, and so on, one per month. Livesync can merge these tables into a single {C.HYPERTABLE} on the target during the migration, so the target ends up with one `metrics` {C.HYPERTABLE} partitioned by time instead of many tables. Tables that you don't map, such as lookup tables, sync one-to-one alongside it.
+
+To do this, point several source tables at the same target with a regular expression in `--table-map`. This section uses the {C.SELF_SHORT} Docker image. Many tables with the same shape suit the initial copy well: each source table is copied by its own worker, in parallel with the others.
+
+Complete the steps in this section before you [start Livesync](#data-migration). They replace the parts of [Schema migration](#schema-migration), [Publication](#publication), and [Replication identity](#replication-identity) that concern the tables you consolidate.
+
+### How `--table-map` matches tables
+
+Each `--table-map` value is a JSON object with a `source` and a `target`, each with a `schema` and a `table`:
+
+- **Schema**: `source.schema` must match the source schema exactly.
+- **Table**: `source.table` is a [Go regular expression](https://pkg.go.dev/regexp/syntax). Livesync anchors it for you, so `metrics-[0-9]+` matches `metrics-001` but not `app_metrics-001` or `metrics-001_old`.
+- **Anchors**: Livesync adds `^` and `$` only when the pattern has neither. Write both anchors or none. `^metrics-[0-9]+` on its own also matches `metrics-001_old`.
+- **Order**: rules apply in the order you pass them, and the first match wins. Put specific rules before broad patterns.
+- **Whole schema**: omit `table` in both `source` and `target` to sync every table in a schema to another schema, keeping the table names.
+- **No match**: a table that matches no rule syncs to the table with the same schema and name on the target.
+
+Repeat `--table-map` once for each rule. Use double quotes inside the JSON. Single quotes fail with `failed to unmarshal TableMap`.
+
+The examples below consolidate `public."metrics-001"`, `public."metrics-002"`, and so on into `public.metrics`, and sync `public.devices` one-to-one. Table names that contain a hyphen need double quotes in SQL.
+
+<NumberedList>
+<NumberedItem title="Make the replica identity unique across the merged tables">
+
+Livesync applies `UPDATE` and `DELETE` on the target by matching the source table's [replica identity](#replication-identity) columns, by default the primary key. The target doesn't record which source table a row came from. If the replica identity is only unique within each source table, for example an `id` sequence that restarts at 1 in every monthly table, one `UPDATE` or `DELETE` on the source matches the rows with the same key from every merged table.
+
+<Callout variant="warning">
+With a replica identity that is not unique across the merged tables:
+
+- An `UPDATE` rewrites the matching row of every merged table. On a {C.HYPERTABLE}, this usually violates a chunk constraint: Livesync retries, then stops, and replication halts for every table in the subscription. On a regular table, the `UPDATE` succeeds and overwrites rows that came from other source tables, with no error.
+- A `DELETE` removes the matching row of every merged table, with no error.
+
+Changing the replica identity only affects changes made after the change. Set it before you create the publication and start Livesync.
+</Callout>
+
+Choose one of these options for every source table you merge:
+
+- **Append-only data**: publish inserts only, and skip the rest of this step. Livesync then never receives `UPDATE` or `DELETE` for these tables, so changes of that kind on the source are not replicated. Put the tables in their own publication, as shown in the publication step below.
+
+- **A key that is unique across all the tables**, such as `(device_id, time)` when the tables cover different time ranges: create a unique index on it in each source table, and use that index as the replica identity. The index columns must be `NOT NULL`. First, confirm the key has no duplicates across the tables. This query must return `0`:
+
+  ```bash
+  psql "$SOURCE" -t -A <<'EOF' > check_key.sql
+  SELECT 'SELECT count(*) FROM (SELECT device_id, time FROM ('
+    || string_agg(format('SELECT device_id, time FROM %I.%I', schemaname, tablename), ' UNION ALL ')
+    || ') u GROUP BY device_id, time HAVING count(*) > 1) d;'
+  FROM pg_tables
+  WHERE schemaname = 'public' AND tablename ~ '^metrics-[0-9]+$';
+  EOF
+
+  psql "$SOURCE" -f check_key.sql
+  ```
+
+  Then create the indexes and set the replica identity:
+
+  ```bash
+  psql "$SOURCE" -t -A <<'EOF' > replica_identity.sql
+  SELECT format(
+    E'CREATE UNIQUE INDEX CONCURRENTLY %I ON %I.%I (device_id, time);\nALTER TABLE %I.%I REPLICA IDENTITY USING INDEX %I;',
+    tablename || '_device_time', schemaname, tablename,
+    schemaname, tablename, tablename || '_device_time'
+  )
+  FROM pg_tables
+  WHERE schemaname = 'public' AND tablename ~ '^metrics-[0-9]+$';
+  EOF
+
+  cat replica_identity.sql
+  psql "$SOURCE" -f replica_identity.sql
+  ```
+
+- **Any other case**: use `REPLICA IDENTITY FULL`. Livesync then matches on every column of the row. This needs no new index on the source, but {C.PG} writes the whole old row to the write-ahead log (WAL) for every `UPDATE` and `DELETE`, which increases WAL volume on the source:
+
+  ```bash
+  psql "$SOURCE" -t -A <<'EOF' > replica_identity.sql
+  SELECT format('ALTER TABLE %I.%I REPLICA IDENTITY FULL;', schemaname, tablename)
+  FROM pg_tables
+  WHERE schemaname = 'public' AND tablename ~ '^metrics-[0-9]+$';
+  EOF
+
+  cat replica_identity.sql
+  psql "$SOURCE" -f replica_identity.sql
+  ```
+
+</NumberedItem>
+
+<NumberedItem title="Create the target hypertable">
+
+Livesync doesn't create target tables. Create the consolidated table on the target and make it a {C.HYPERTABLE} before you start Livesync. Converting a table to a {C.HYPERTABLE} after its sync has started is not supported: you have to remove the table from the sync, then add it back, which copies its data again.
+
+When you dump the schema, exclude the source tables you merge, so that they aren't created on the target:
+
+```bash
+pg_dump "$SOURCE" \
+  --schema-only \
+  --no-privileges \
+  --no-owner \
+  --no-publications \
+  --no-subscriptions \
+  --no-table-access-method \
+  --no-tablespaces \
+  --exclude-table='public.metrics-*' \
+  --file=schema_dump.sql
+
+psql "$TARGET" -f schema_dump.sql
+```
+
+Then create the {C.HYPERTABLE} with the same columns as the source tables:
+
+```sql
+psql "$TARGET" <<'EOF'
+CREATE TABLE public.metrics (
+  id        bigint NOT NULL,
+  time      timestamptz NOT NULL,
+  device_id int NOT NULL,
+  value     double precision
+) WITH (
+  tsdb.hypertable,
+  tsdb.partition_column = 'time',
+  tsdb.chunk_interval = '7 days'
+);
+EOF
+```
+
+Choose the target's keys with the merged data in mind:
+
+- Primary key and unique constraints on a {C.HYPERTABLE} must include the partition column.
+- Don't add a primary key or unique constraint on a column that is only unique within each source table, such as a per-table `id` sequence. The initial copy of the second source table then fails with `duplicate key value violates unique constraint`. A colliding `INSERT` during replication halts replication for the whole subscription.
+- If you need a unique constraint, use a key that you confirmed is unique across the tables, for example `UNIQUE (device_id, time)`.
+
+</NumberedItem>
+
+<NumberedItem title="Create the publication">
+
+List every source table explicitly. This query generates the statement for the tables that match the pattern:
+
+```bash
+psql "$SOURCE" -t -A <<'EOF' > publication.sql
+SELECT 'CREATE PUBLICATION metrics_pub FOR TABLE '
+  || string_agg(format('%I.%I', schemaname, tablename), ', ' ORDER BY tablename)
+  || ';'
+FROM pg_tables
+WHERE schemaname = 'public' AND tablename ~ '^metrics-[0-9]+$';
+EOF
+
+cat publication.sql
+psql "$SOURCE" -f publication.sql
+```
+
+For append-only data, append `WITH (publish = 'insert')` to the generated statement before you run it. Create a separate publication for the tables you sync one-to-one:
+
+```sql
+psql "$SOURCE" <<'EOF'
+CREATE PUBLICATION app_pub FOR TABLE public.devices;
+EOF
+```
+
+</NumberedItem>
+
+<NumberedItem title="Start Livesync with the table map">
+
+Pass one `--table-map` rule for each group of tables you merge. `public.devices` matches no rule, so it syncs to `public.devices`:
+
+```bash
+docker run -d --name livesync timescale/live-sync:latest run \
+  --publication metrics_pub \
+  --publication app_pub \
+  --subscription <subscription_name> \
+  --source "$SOURCE" \
+  --target "$TARGET" \
+  --table-map '{"source": {"schema": "public", "table": "metrics-[0-9]+"}, "target": {"schema": "public", "table": "metrics"}}'
+```
+
+While you validate the migration, run the container without `--rm`. If Livesync stops after repeated errors, for example because of a replica identity that is not unique across the merged tables, the process exits with status `0`. With `--rm`, Docker then removes the container and its logs. The error appears only in `docker logs livesync`, not in `_ts_live_sync.subscription`.
+
+</NumberedItem>
+
+<NumberedItem title="Check the mapping">
+
+Confirm that every source table maps to the intended target:
+
+```bash
+psql "$TARGET" -c "
+  SELECT schemaname, tablename, target_schema, target_table, state
+  FROM _ts_live_sync.subscription_rel
+  ORDER BY schemaname, tablename;
+"
+```
+
+After all tables reach state `r`, compare the row count of the {C.HYPERTABLE} on the target with the sum of the row counts of the source tables.
+
+</NumberedItem>
+</NumberedList>
+
+### Add source tables during the sync
+
+When your app creates a new table during the migration, for example at the start of a new month, the regular expression already matches its name, but Livesync picks it up only after you add it to the publication and refresh:
+
+<NumberedList>
+<NumberedItem title="Set the replica identity of the new table">
+
+Use the same option you chose for the other merged tables, for example:
+
+```sql
+psql "$SOURCE" <<'EOF'
+ALTER TABLE public."metrics-013" REPLICA IDENTITY FULL;
+EOF
+```
+
+</NumberedItem>
+
+<NumberedItem title="Add the table to the publication">
+
+```sql
+psql "$SOURCE" <<'EOF'
+ALTER PUBLICATION metrics_pub ADD TABLE public."metrics-013";
+EOF
+```
+
+</NumberedItem>
+
+<NumberedItem title="Refresh the publication with the same table map">
+
+Pass the same `--table-map` rules that the running Livesync uses:
+
+```bash
+docker run -it --rm --name livesync-refresh \
+  timescale/live-sync:latest refresh-publication \
+  --subscription <subscription_name> \
+  --source "$SOURCE" \
+  --target "$TARGET" \
+  --table-map '{"source": {"schema": "public", "table": "metrics-[0-9]+"}, "target": {"schema": "public", "table": "metrics"}}'
+```
+
+Livesync copies the rows the new table already contains, then replicates its changes. Rows written before you added the table to the publication are included in that copy.
+
+</NumberedItem>
+</NumberedList>
+
+<Callout variant="important">
+If you run `refresh-publication` without `--table-map`, Livesync maps the new table to a target table with the same name. The copy then fails with `relation "public.metrics-013" does not exist`, and running `refresh-publication` again with `--table-map` doesn't change the mapping of a table that is already registered. To fix it, remove the table from the publication, run `refresh-publication`, add the table back, and run `refresh-publication` with `--table-map`.
+</Callout>
+
 ## Data migration
 
 Choose one of the two approaches below.
