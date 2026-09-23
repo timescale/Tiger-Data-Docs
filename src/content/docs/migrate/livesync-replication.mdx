@@ -522,7 +522,7 @@ Choose one of these options for every source table you merge:
   psql "$SOURCE" -f replica_identity.sql
   ```
 
-- **Any other case**: use `REPLICA IDENTITY FULL`. Livesync then matches on every column of the row. This needs no new index on the source, but {C.PG} writes the whole old row to the write-ahead log (WAL) for every `UPDATE` and `DELETE`, which increases WAL volume on the source:
+- **Any other case**: use `REPLICA IDENTITY FULL`. Livesync then matches on every column of the row. This needs no new index on the source, but {C.PG} writes the whole old row to the write-ahead log for every `UPDATE` and `DELETE`, which increases the write-ahead log volume on the source:
 
   ```bash
   psql "$SOURCE" -t -A <<'EOF' > replica_identity.sql
@@ -624,7 +624,7 @@ docker run -d --name livesync timescale/live-sync:latest run \
   --table-map '{"source": {"schema": "public", "table": "metrics-[0-9]+"}, "target": {"schema": "public", "table": "metrics"}}'
 ```
 
-While you validate the migration, run the container without `--rm`. If Livesync stops after repeated errors, for example because of a replica identity that is not unique across the merged tables, the process exits with status `0`. With `--rm`, Docker then removes the container and its logs. The error appears only in `docker logs livesync`, not in `_ts_live_sync.subscription`.
+While you validate the migration, run the container without `--rm`. If Livesync stops after repeated errors, for example because of a replica identity that is not unique across the merged tables, the process exits with status `0`. Docker then removes the container and its logs if you started it with `--rm`. The error appears only in `docker logs livesync`, not in `_ts_live_sync.subscription`.
 
 </NumberedItem>
 
