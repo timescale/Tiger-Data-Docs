@@ -10,7 +10,7 @@ Parameter names, types, and required or optional fields can change with new {C.M
 ## Service tools
 
 <Callout variant="note">
-Read-only mode restricts the mutating tools: `service_create`, `service_fork`, `service_start`, `service_stop`, `service_resize`, `service_update_password`. With `read_only=all` they are not registered at all; with `read_only=prod` they stay available but refuse calls against {C.SERVICE_SHORT}s tagged `PROD`. See [Restrict {C.MCP_LONG} to read-only](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only).
+Read-only mode restricts the mutating tools: `service_create`, `service_fork`, `service_start`, `service_stop`, `service_resize`, `service_rename`, `service_update_password`, `service_delete`. With `read_only=all` they are not registered at all; with `read_only=prod` they stay available but refuse calls against {C.SERVICE_SHORT}s tagged `PROD` (for `service_create` and `service_fork`, a call that requests `environment: PROD`). See [Restrict {C.MCP_LONG} to read-only](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only).
 </Callout>
 
 ### `service_list`
@@ -41,6 +41,7 @@ Create a new {C.SERVICE_SHORT}. Addons: `time-series` ({C.TIMESCALE_DB}) and `ai
 | `region` | string | No | Cloud region, for example `us-east-1`. |
 | `cpu_memory` | string (enum) | No | CPU/memory allocation, for example `"4 CPU/16 GB"`. See [allowed configurations](/reference/tiger-cloud/tiger-cli#tiger-service-create). |
 | `replicas` | integer (0-5) | No | Number of high-availability replicas. Default: `0`. |
+| `environment` | string (enum: `DEV`, `PROD`) | No | Environment tag for the new {C.SERVICE_SHORT}. Default: `DEV`. Under `read_only=prod`, requesting `PROD` is refused. |
 | `wait` | boolean | No | Wait for the {C.SERVICE_SHORT} to be ready before returning. Default: `false`. |
 | `set_default` | boolean | No | Set the new {C.SERVICE_SHORT} as the default. Default: `true`. |
 | `with_password` | boolean | No | Include the password in the response. Default: `false`. |
@@ -62,6 +63,7 @@ Fork a {C.SERVICE_SHORT} into an independent copy.
 | `target_time` | string (RFC3339) | Only with `PITR` | Point in time to fork from. |
 | `name` | string | No | Fork name (auto-generated if omitted). |
 | `cpu_memory` | string (enum) | No | CPU/memory allocation for the fork. Inherits from the source if omitted. |
+| `environment` | string (enum: `DEV`, `PROD`) | No | Environment tag for the fork. Default: `DEV`. Under `read_only=prod`, requesting `PROD` is refused; forking a `PROD` source into a `DEV` fork is allowed. |
 | `wait` | boolean | No | Wait for the fork to be ready before returning. Default: `false`. |
 | `set_default` | boolean | No | Set the fork as the default {C.SERVICE_SHORT}. Default: `true`. |
 | `with_password` | boolean | No | Include the password in the response. Default: `false`. |
@@ -110,6 +112,17 @@ Stop a running {C.SERVICE_SHORT}.
 
 **Returns**: the {C.SERVICE_SHORT}'s updated status.
 
+### `service_rename`
+
+Rename a {C.SERVICE_SHORT}. Only the display name changes: the {C.SERVICE_SHORT} ID, endpoints, and stored credentials are untouched. The {C.CLI_SHORT} equivalent is [`tiger service rename`](/reference/tiger-cloud/tiger-cli#tiger-service-rename).
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The {C.SERVICE_SHORT} to rename. |
+| `name` | string | Yes | The new name for the {C.SERVICE_SHORT}. |
+
+**Returns**: the {C.SERVICE_SHORT} ID (unchanged) and the name as stored after the rename.
+
 ### `service_update_password`
 
 Update the `tsdbadmin` password. May disconnect existing sessions.
@@ -120,6 +133,20 @@ Update the `tsdbadmin` password. May disconnect existing sessions.
 | `password` | string | Yes | The new password for the `tsdbadmin` user. |
 
 **Returns**: confirmation that the password was updated.
+
+### `service_delete`
+
+Delete a {C.SERVICE_SHORT} permanently. The {C.CLI_SHORT} equivalent is [`tiger service delete`](/reference/tiger-cloud/tiger-cli#tiger-service-delete). Before {C.CLI_LONG} 0.25, there was no {C.MCP_SHORT} tool for delete.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The {C.SERVICE_SHORT} to delete. |
+
+**Returns**: the {C.SERVICE_SHORT} ID, whether it was deleted, and a human-readable outcome. `deleted` is `false` when you decline the confirmation prompt.
+
+<Callout variant="warning" title="Irreversible, with a human in the loop for production">
+Deleting a {C.SERVICE_SHORT} destroys it and all of its data. When the target is tagged `PROD`, the tool prompts you through the MCP client to type the {C.SERVICE_SHORT} ID back before it proceeds, matching the {C.CLI_SHORT}'s confirmation. If your MCP client doesn't support this prompt (MCP elicitation), the deletion is refused and you are pointed to `tiger service delete` instead, so a production {C.SERVICE_SHORT} is never deleted unconfirmed.
+</Callout>
 
 ### `service_logs`
 
