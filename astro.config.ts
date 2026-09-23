@@ -2006,5 +2006,11 @@ export default defineConfig({
             "/reference/tiger-cloud-rest": "/reference/tiger-cloud-rest-local-preview",
           }
         : {}),
+      "/deploy/tiger-cloud/pricing-and-account-management":
+        "/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management",
+      "/deploy/tiger-cloud/tiger-cloud-azure/security/vpc":
+        "/deploy/tiger-cloud/tiger-cloud-azure/security/azure-privatelink",
+      "/reference/timescaledb/install":
+        "/get-started/choose-your-path/install-timescaledb",
     }),
 });
