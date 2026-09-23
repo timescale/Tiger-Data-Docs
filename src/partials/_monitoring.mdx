@@ -190,7 +190,7 @@ To view {C.JOB}s, select your {C.SERVICE_SHORT} in {C.CONSOLE}, then click `Moni
 
 <ThemeImage light={imgTigerConsoleJobsTableLight} dark={imgTigerConsoleJobsTableDark} alt="Jobs" />
 
-Click `Timeline` at the top right to see the recent job runs with their statuses. Select the timeframe from 1 to 24 hours.
+Click `Timeline` at the top right to see the recent job runs with their statuses. Select the timeframe, from 1 to 24 hours, in the `Last 24 hours` drop-down.
 
 </NumberedItem>
 
@@ -204,7 +204,7 @@ Click a {C.JOB} ID in the list to view its config and run history:
 
 <NumberedItem title="Edit the job config">
 
-Click `Edit job config`, the pencil icon, to edit the {C.JOB} config:
+Click `Edit job config`, the pencil icon, and change the settings you need, `Max runtime` for example. The drawer shows the `alter_job` statement it is about to run; click `Run` to apply it:
 
 <ThemeImage light={imgTigerConsoleEditJobLight} dark={imgTigerConsoleEditJobDark} alt="Update job config" />
 
@@ -294,38 +294,44 @@ For more examples and detailed explanations, see the [blog post on identifying p
 12. expect url /monitoring/insights
 13. expect label `Current lock contention`
 14. type `SELECT` into `Search by keyword`
-15. click `Reset filters`
-16. click `Monitoring` > `Jobs`
-17. expect url /monitoring/jobs
-18. click `Timeline`
-19. expect label `Last 24 hours`
-20. open the first row in the list
-21. expect url /monitoring/jobs/
-22. expect label `Job run history`
-23. click `Edit job config`
-24. expect label `Change configuration`
-25. dismiss
-26. click `Monitoring` > `Connections`
-27. expect url /monitoring/connections
-28. toggle `Show idle` off
-29. toggle `Show idle` on
-30. click `Terminate connection`
-31. expect label `Are you sure`
-32. dismiss
-33. click `Monitoring` > `Recommendations`
-34. expect url /monitoring/recommendations
-35. run SQL: `SELECT * FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user;`
-36. expect rows: `SELECT 1 FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user`
-37. run SQL: `SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5;`
-38. expect rows: `SELECT 1 FROM (SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
-39. run SQL: `SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5;`
-40. expect rows: `SELECT 1 FROM (SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
+15. type `300` into `Max time >= (ms)`
+16. select another option in `Show results from`
+17. click `Reset filters`
+18. click `Monitoring` > `Jobs`
+19. expect url /monitoring/jobs
+20. click `Timeline`
+21. select another option in `Last 24 hours`
+22. open the first row in the list
+23. expect url /monitoring/jobs/
+24. expect label `Job run history`
+25. click `Edit job config`
+26. expect label `Change configuration`
+27. type `00:10:00` into `Max runtime`
+28. click `Run`
+29. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE max_runtime = INTERVAL '00:10:00'`
+30. click `Monitoring` > `Connections`
+31. expect url /monitoring/connections
+32. toggle `Show idle` off
+33. toggle `Show idle` on
+34. click `Terminate connection`
+35. expect label `Are you sure`
+36. type the value the dialog asks for
+37. confirm `Delete`
+38. click `Monitoring` > `Recommendations`
+39. expect url /monitoring/recommendations
+40. run SQL: `SELECT * FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user;`
+41. expect rows: `SELECT 1 FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user`
+42. run SQL: `SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5;`
+43. expect rows: `SELECT 1 FROM (SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
+44. run SQL: `SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5;`
+45. expect rows: `SELECT 1 FROM (SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
 
 Not scripted:
 
 - Metrics, hovering the graph for a single time point and selecting an area to zoom: the grammar has no verb for either gesture.
+- Logs, the `From` and `To` date pickers: no verb drives a calendar.
+- Logs `Severity type` and Insights `Query type` and `Columns to show`: multi-select lists, and the drop-down verb changes a single value. The median/P95 selector has no name the page could give it.
 - Insights, the query drill-down: the page itself says a query can take minutes to appear in the table, so a fresh fork has no row to open within the run.
-- Connections, completing the termination: the dialog asks for the connection's PID, a value that exists only at run time and that the grammar cannot read off the page, so the plan stops at the dialog.
 - Connections, expanding a connection's query: the chevron carries no label the page could name.
 - Connections, hovering the lock icon for the reason a connection cannot be terminated: no verb for hover, and the reason text is not in the page to assert against.
 
