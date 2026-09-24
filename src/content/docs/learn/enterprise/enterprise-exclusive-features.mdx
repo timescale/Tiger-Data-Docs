@@ -1,0 +1,74 @@
+---
+title: Key differentiators of TimescaleDB Enterprise
+description: How TimescaleDB Enterprise compares to self-hosted TimescaleDB Community Edition, and when to choose each
+keywords: [timescaledb enterprise, high availability, backups, monitoring, on-premises, air-gap]
+# products: [enterprise] — add once the "enterprise" product tag is added to content.config.ts
+---
+
+import * as C from "@constants";
+
+{C.TDB_COMMUNITY} is free and open source: the full extension, on whatever {C.PG} and
+infrastructure you choose, with your own operating system and tooling. You build and run
+replication, backups, and upgrades yourself.
+
+{C.TDB_ENTERPRISE} ships those pieces already built and operates them from a console on your
+own network. The sections below cover what it adds on top of {C.TDB_COMMUNITY}.
+
+## Guided service provisioning
+
+Bringing up a production service is a workflow in the console. You enroll your servers, choose
+between a single-node service and a highly available one, and the console deploys {C.PG} with
+{C.TIMESCALE_DB}, connection pooling, and monitoring across every node. An advisory preflight
+checks each target first, for resources, a supported operating system, and leftovers from an
+earlier install. Extensions come from a supported set and are chosen at deploy time.
+
+## Automatic failover
+
+{C.PG} has no built-in automatic failover, so self-hosting it means wiring up Patroni yourself.
+A highly available {C.TDB_ENTERPRISE} service has it built in: several nodes behind an etcd
+consensus store, a replica promoted the moment the primary fails, and client traffic on a pooled
+endpoint that follows the primary, so applications carry on without knowing anything happened.
+For planned maintenance you trigger a switchover instead, a controlled promotion with minimal
+downtime.
+
+## Backups and point-in-time recovery
+
+Backups run on pgBackRest. Each service keeps a copy on its own node and can add a second on a
+dedicated backup server, which is what lets it recover when a machine is lost. Full and
+differential backups run on schedules you set, and restores run from the console, to the latest
+backup or to any validated moment inside the recovery window. You can also build a new service
+from backups without touching the original. Schedules are off by default, so a new service is
+not backing itself up until you set them.
+
+## Networking without inbound ports
+
+The console reaches your servers over an encrypted mesh that each server joins with a single
+enrollment command. The server is the side that dials out, so there are no inbound ports to
+open. In a plant or operational technology network, where inbound access is not something you
+can negotiate, that is often what makes a deployment possible at all. Outbound is another matter
+while you build: provisioning pulls packages from the internet, so a database server needs
+outbound access until its service is up, though the console host itself needs none.
+
+## Built-in monitoring
+
+The console scrapes every database server and charts per-node CPU, memory, storage,
+transactions, disk, and connections, without you standing up a monitoring stack first. You can
+query the metrics engine directly, or federate the whole set into a Prometheus you already run,
+with starter dashboards if you keep your own Grafana on top.
+
+## Support
+
+{C.TDB_COMMUNITY} leans on community support. {C.TDB_ENTERPRISE} comes with commercial support
+from {C.COMPANY}.
+The console also gives you the evidence to open a ticket with: a diagnostic bundle covering
+service health, backup configuration, recent operations with their logs, and per-server
+hardware.
+
+## Where to go next
+
+- [Sign up](https://www.tigerdata.com/timescaledb-enterprise#form) to get access to {C.TDB_ENTERPRISE}.
+- To install the console and deploy your first service, see the
+  [{C.TDB_ENTERPRISE} documentation](https://tsdbe-docs.vercel.app/).
+- To run {C.TDB_COMMUNITY} yourself, start with [{C.SELF_LONG_CAP}](/deploy/self-hosted).
+- If a fully managed database is also on the table, compare all the options in the
+  [feature comparison](/learn/capabilities-and-comparison/feature-comparison).
