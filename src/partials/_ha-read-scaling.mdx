@@ -13,6 +13,7 @@ import imgReadReplicaSetConfigTigerConsoleLight from "../assets/images/deploy/ti
 import imgReadReplicaSetConfigTigerConsoleDark from "../assets/images/deploy/tiger-cloud/read-replica-set-config-tiger-console-dark.png";
 import imgConfiguredReplicaSetTigerConsoleLight from "../assets/images/deploy/tiger-cloud/configured-replica-set-tiger-console.png";
 import imgConfiguredReplicaSetTigerConsoleDark from "../assets/images/deploy/tiger-cloud/configured-replica-set-tiger-console-dark.png";
+import TestPlan from "@components/TestPlan.astro";
 
 When read-intensive workloads compete with high ingest rates, your primary data instance can become a bottleneck. Spiky query traffic, analytical dashboards, and business intelligence tools risk slowing down ingest performance and disrupting critical write operations.
 
@@ -153,3 +154,44 @@ Confirm the deletion when prompted.
 </NumberedItem>
 
 </NumberedList>
+
+<TestPlan>
+
+1. fork the service
+2. select the service
+3. run SQL: `CREATE ROLE readaccess;`
+4. run SQL: `GRANT USAGE ON SCHEMA public TO readaccess;`
+5. run SQL: `GRANT SELECT ON ALL TABLES IN SCHEMA public TO readaccess;`
+6. run SQL: `CREATE USER read_user WITH PASSWORD '$READ_USER_PASSWORD';`
+7. run SQL: `GRANT readaccess TO read_user;`
+8. expect rows: `SELECT 1 FROM pg_roles WHERE rolname = 'read_user' AND rolcanlogin`
+9. click `Operations` > `Read scaling`
+10. expect url /operations/read-replicas
+11. click `Add a read replica set`
+12. click `Create read replica set`
+13. expect label `Service created`
+14. select the service
+15. click `Operations` > `Read scaling`
+16. [resolve: link icon next to the replica set]
+17. expect label `Quick connect`
+18. dismiss
+19. select the service
+20. click `Operations` > `Read scaling`
+21. expect label `Lag`
+22. [resolve: the replica set in the list]
+23. click `Operations` > `Database parameters`
+24. edit `max_standby_streaming_delay`
+25. edit `max_standby_archive_delay`
+26. [resolve: expand the read replica set under the primary service]
+27. click `Operations` > `Compute and storage`
+28. choose an unselected option
+29. click `Apply`
+30. confirm `Confirm`
+31. select the service
+32. click `Operations` > `Read scaling`
+33. click `Delete`
+34. type the value the dialog asks for
+35. confirm `Delete replica set`
+
+</TestPlan>
+
