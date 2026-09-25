@@ -1,0 +1,127 @@
+---
+title: "Integrate LibreDB Studio with Tiger Cloud"
+description: "Query, browse, and administer your database from a web-based, multi-engine database editor"
+products: [cloud, self_hosted]
+integrationCategory: "query-administration"
+integrationPlatforms: ["aws", "azure", "self-hosted"]
+integrationIndustry: ["manufacturing", "software"]
+keywords: ["libredb studio integration","sql editor","database administration","query tool","web-based ide","database management","open-source"]
+sidebar:
+  label: "LibreDB Studio"
+---
+
+import * as C from "@constants";
+
+import IntegrationPrereqs from '@partials/_prereqs-cloud-and-self.mdx';
+import ConnectionDetails from '@partials/_prereqs-connection-details.mdx';
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+
+import { Image } from "astro:assets";
+import imgLibredbStudioObjectBrowser from "../../../../assets/images/integrate/query-administration/integrations-libredb-studio-object-browser.png";
+import imgLibredbStudioQueryResults from "../../../../assets/images/integrate/query-administration/integrations-libredb-studio-query-results.png";
+import imgLibredbStudioHypertableZeroRows from "../../../../assets/images/integrate/query-administration/integrations-libredb-studio-hypertable-zero-rows.png";
+import imgLibredbStudioProfileTableCorrectCount from "../../../../assets/images/integrate/query-administration/integrations-libredb-studio-profile-table-correct-count.png";
+
+[LibreDB Studio](https://github.com/libredb/libredb-studio) is an open source, web-based database editor that runs as a {C.SELF_SHORT} server or a local {C.CLI_SHORT} (`npx @libredb/studio`), with a query editor, an object browser, and a monitoring dashboard shared across {C.PG} and more than a dozen other database engines.
+
+This page explains how to integrate LibreDB Studio with your {C.SERVICE_LONG}.
+
+In this integration guide, you:
+
+- Connect LibreDB Studio to your {C.SERVICE_SHORT} over the standard {C.PG} wire protocol.
+- Browse your schema and run queries from the LibreDB Studio editor.
+- Review what LibreDB Studio's object browser and monitoring dashboard show for a hypertable, and where those views diverge from a plain table.
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+
+- LibreDB Studio installed. Run it locally with `npx @libredb/studio`, or deploy the [Docker image or Helm chart](https://github.com/libredb/libredb-studio#-quick-start) to a server you control.
+</Prerequisites>
+
+## Connect LibreDB Studio to your service
+
+To connect to {C.CLOUD_LONG}:
+
+<NumberedList>
+  <NumberedItem title="Start LibreDB Studio and sign in">
+
+    Open LibreDB Studio in your browser and sign in with the admin or user account configured for your instance.
+
+  </NumberedItem>
+  <NumberedItem title="Open the connection dialog">
+
+    Click the `+` button next to the LibreDB Studio logo in the sidebar to open the `New Connection` dialog.
+
+  </NumberedItem>
+  <NumberedItem title="Select PostgreSQL as the connection type">
+
+    LibreDB Studio has no separate {C.TIMESCALE_DB} connection type: {C.TIMESCALE_DB} is a {C.PG} extension, so the `PostgreSQL` driver is the correct choice and connects over the same wire protocol.
+
+  </NumberedItem>
+  <NumberedItem title="Configure the connection">
+
+    Fill in the connection name and use your [connection details](/integrate/find-connection-details) for the host, port, database name, username, and password. Enable `SSL / TLS` if your service requires it.
+
+  </NumberedItem>
+  <NumberedItem title="Click `Test Connection`, then `Establish Connection`">
+
+    A successful test reports the round-trip time, for example `Connected successfully (26ms)`. `Establish Connection` saves the connection and opens it in the editor, with the object browser populated on the left.
+
+    <Image src={imgLibredbStudioObjectBrowser} alt="LibreDB Studio after establishing the connection, with the query editor open and the object browser on the left populated with tables, including TimescaleDB's internal _timescaledb_catalog and _timescaledb_cache schemas" />
+
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated LibreDB Studio with {C.CLOUD_LONG}.
+
+## Verify the integration
+
+<NumberedList>
+  <NumberedItem title="Run a query against a hypertable">
+
+    In the query editor, run a `SELECT` against one of your hypertables, for example:
+
+    ```sql
+    SELECT sensor_id, count(*) AS readings
+    FROM sensor_readings
+    WHERE time > now() - interval '7 days'
+    GROUP BY sensor_id
+    ORDER BY sensor_id;
+    ```
+
+    The results grid renders the rows, with the row count and execution time shown above the grid.
+
+    <Image src={imgLibredbStudioQueryResults} alt="LibreDB Studio query editor with a grouped aggregate query against the sensor_readings hypertable, and an 11-row results grid below it showing a reading count per sensor" />
+
+  </NumberedItem>
+  <NumberedItem title="Browse the schema">
+
+    Search the object browser for your hypertable's name. It's listed with its columns, types, and indexes, the same way a regular table is. You see it, and can query it, exactly as you would in any other {C.PG} client.
+
+  </NumberedItem>
+</NumberedList>
+
+## Limitations
+
+{C.TIMESCALE_DB} stores a {C.HYPERTABLE}'s rows in per-interval child tables (chunks) and keeps the parent table itself empty. LibreDB Studio's object browser and monitoring dashboard read table size and row count from {C.PG}'s own catalog statistics, the same source a plain {C.PG} client would use, and that catalog describes the empty parent, not the chunks underneath it. Measured against a hypertable with 8,641 real rows across 31 chunks:
+
+- **The object browser's row count reads 0** for the hypertable, and its **Table Statistics view reads 0 rows and 0 bytes** for the same table (the index is not affected: it correctly reports a non-zero size). A `SELECT count(*)` run directly in the query editor returns the true row count, and the built-in `Profile Table` action, which runs its own scan rather than reading catalog statistics, also reports the correct row count.
+
+  <Image src={imgLibredbStudioHypertableZeroRows} alt="LibreDB Studio's Monitoring > Tables view for the sensor_readings hypertable, with Table Statistics showing 0 rows and 0 bytes while its index correctly shows a non-zero 8192 bytes" />
+
+  <Image src={imgLibredbStudioProfileTableCorrectCount} alt="LibreDB Studio's Data Profiler for the same sensor_readings table reporting the correct Total Rows count of 8,641, in contrast to the object browser's 0-row reading" />
+- **Every chunk appears as its own table and its own index** in the object browser and in the monitoring dashboard's table list, alongside the internal `_timescaledb_catalog` and `_timescaledb_cache` schemas. On the hypertable used to verify this page, that's 60 objects in the browser for one user table.
+- **The overview and monitoring pages show the {C.PG} version, not the {C.TIMESCALE_DB} extension version.** A service running `TimescaleDB 2.29.2 on PostgreSQL 17.11` shows only `PostgreSQL 17.11`.
+
+None of this blocks querying or browsing a hypertable, an ordinary `SELECT` returns real data and real row counts either way, but the passive statistics shown in the browser and dashboard undercount a hypertable specifically. Query directly (`count(*)`, `pg_total_relation_size()` against the chunks, or `Profile Table`) when you need an accurate number.
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard title="DBeaver" description="Manage and query your data with a cross-platform SQL editor and administration tool" href="/integrate/query-administration/dbeaver" />
+  <RelatedContentCard title="pgAdmin" description="Query, visualize, and manage your database with an open-source administration tool" href="/integrate/query-administration/pgadmin" />
+  <RelatedContentCard title="Understand hypertables" description="Learn how TimescaleDB partitions a hypertable into chunks" href="/learn/hypertables/understand-hypertables" />
+</RelatedContentCards>
