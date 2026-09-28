@@ -7,6 +7,7 @@ keywords: [configuration, settings]
 
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 
 If you prefer to tune settings yourself, or for settings not covered by
 `timescaledb-tune`, you can manually configure your installation using the
@@ -53,8 +54,18 @@ vi /home/postgres/pgdata/data/postgresql.conf
 </NumberedItem>
 <NumberedItem title="Save your updated configuration">
 When you have saved the changes you make to the configuration file, the new configuration is
-not applied immediately. The configuration file is automatically reloaded when the server
-receives a `SIGHUP` signal. To manually reload the file, use the `pg_ctl` command.
+not applied immediately. {C.PG} re-reads the file when the server receives a `SIGHUP` signal. To
+send it, connect with `psql` as a superuser and run:
+
+```sql
+SELECT pg_reload_conf();
+```
+
+You can also run `pg_ctl reload` from a shell. On Debian and Ubuntu package installs, `pg_ctl` is not on
+the path; use `pg_ctlcluster <VERSION> main reload` instead.
+
+Settings that require a restart are not applied by a reload. To see which settings are waiting for a
+restart, query `pg_settings` for rows where `pending_restart` is `true`.
 </NumberedItem>
 </NumberedList>
 
@@ -67,3 +78,17 @@ For example:
 ```sql
 postgres -c log_connections=yes -c log_destination='syslog'
 ```
+
+<TestPlan>
+
+1. fork the self-hosted service
+2. run SQL: `SHOW config_file;`
+3. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'config_file' AND setting LIKE '%/postgresql.conf'`
+4. run command: `echo "log_connections = on" | sudo -u postgres tee -a "$(sudo -u postgres psql -d postgres -tAc 'SHOW config_file;')"`
+5. run SQL: `SELECT pg_reload_conf();`
+6. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'log_connections' AND setting = 'on'`
+
+Not scripted:
+- Setting parameters at the command prompt: `postgres -c …` starts a second server process, and the target already runs one.
+
+</TestPlan>
