@@ -6,6 +6,7 @@ keywords: [configuration, settings, timescaledb-tune]
 ---
 
 import * as C from "@constants";
+import TestPlan from "@components/TestPlan.astro";
 
 To help make configuring {C.TIMESCALE_DB} a little easier, you can use the [`timescaledb-tune`](https://github.com/timescale/timescaledb-tune)
 tool. This tool handles setting the most common parameters to good values based
@@ -66,3 +67,18 @@ your `postgresql.conf` by using some additional flags when you run the tool:
 ```bash
 timescaledb-tune --quiet --yes --dry-run >> /path/to/postgresql.conf
 ```
+
+<TestPlan>
+
+1. fork the self-hosted service
+2. run command: `sed -i 's/^shared_buffers = .*/shared_buffers = 128MB/' "$(sudo -u postgres psql -d postgres -tAc 'SHOW config_file;')"`
+3. run command: `test "$(timescaledb-tune --quiet --yes --dry-run | grep -c '^shared_buffers')" -ge 1`
+4. run command: `timescaledb-tune --quiet --yes --dry-run >> "$(sudo -u postgres psql -d postgres -tAc 'SHOW config_file;')"`
+5. run command: `systemctl restart postgresql`
+6. run command: `systemctl is-active postgresql`
+7. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'shared_buffers' AND setting::bigint > 16384`
+
+Not scripted:
+- The interactive run of `timescaledb-tune` answers prompts, and `go install` needs a Go toolchain the target does not have; the packaged binary is what the page says a binary install already provides.
+
+</TestPlan>

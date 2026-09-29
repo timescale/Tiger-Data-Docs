@@ -9,6 +9,7 @@ import * as C from "@constants";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import { Prerequisites } from "@components/Prerequisites";
+import TestPlan from "@components/TestPlan.astro";
 
 You can migrate data into a {C.TIMESCALE_DB} {C.HYPERTABLE} from a regular {C.PG}
 table. This method assumes that you have {C.TIMESCALE_DB} set up in the same database
@@ -77,3 +78,27 @@ INSERT INTO new_table
 If you created your new table without indexes, recreate your indexes now.
 </NumberedItem>
 </NumberedList>
+
+<TestPlan>
+
+1. fork the self-hosted service
+2. run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+3. run SQL: `CREATE TABLE old_table (time timestamptz NOT NULL, device_id int NOT NULL, reading double precision DEFAULT 0, CONSTRAINT reading_nonneg CHECK (reading >= 0));`
+4. run SQL: `CREATE INDEX old_table_device_idx ON old_table (device_id, time DESC);`
+5. run SQL: `INSERT INTO old_table SELECT t, (i % 10)::int, random() * 100 FROM generate_series(now() - INTERVAL '10 days', now(), INTERVAL '10 minutes') WITH ORDINALITY AS g(t, i);`
+6. run SQL: `CREATE TABLE new_table (LIKE old_table INCLUDING DEFAULTS INCLUDING CONSTRAINTS INCLUDING INDEXES) WITH (tsdb.hypertable, tsdb.partition_column='time');`
+7. expect rows: `SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'new_table'`
+8. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'new_table' AND indexdef LIKE '%(device_id, "time" DESC)'`
+9. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression' AND hypertable_name = 'new_table'`
+10. run SQL: `INSERT INTO new_table SELECT * FROM old_table;`
+11. expect rows: `SELECT 1 WHERE (SELECT count(*) FROM new_table) = (SELECT count(*) FROM old_table)`
+12. run SQL: `DROP TABLE new_table;`
+13. expect no rows: `SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'new_table'`
+14. run SQL: `CREATE TABLE new_table (LIKE old_table INCLUDING DEFAULTS INCLUDING CONSTRAINTS EXCLUDING INDEXES) WITH (tsdb.hypertable, tsdb.partition_column='time');`
+15. expect no rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'new_table' AND indexdef LIKE '%(device_id, "time" DESC)'`
+16. run SQL: `INSERT INTO new_table SELECT * FROM old_table;`
+17. expect rows: `SELECT 1 WHERE (SELECT count(*) FROM new_table) = (SELECT count(*) FROM old_table)`
+18. run SQL: `CREATE INDEX new_table_device_idx ON new_table (device_id, time DESC);`
+19. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'new_table' AND indexdef LIKE '%(device_id, "time" DESC)'`
+
+</TestPlan>

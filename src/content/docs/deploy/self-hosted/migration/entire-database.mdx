@@ -9,6 +9,7 @@ import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import { Prerequisites } from "@components/Prerequisites";
+import TestPlan from "@components/TestPlan.astro";
 
 Migrate smaller databases by dumping and restoring the entire database at once.
 This method works best on databases smaller than 100 GB. For larger
@@ -102,3 +103,21 @@ ANALYZE;
 ```
 </NumberedItem>
 </NumberedList>
+
+<TestPlan>
+
+1. fork the self-hosted service
+2. run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+3. run SQL: `CREATE TABLE metrics (time timestamptz NOT NULL, device text, value double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+4. run SQL: `INSERT INTO metrics SELECT t, 'dev-' || (i % 4), random() FROM generate_series(now() - INTERVAL '14 days', now(), INTERVAL '30 minutes') WITH ORDINALITY AS g(t, i);`
+5. run SQL: `CREATE DATABASE target_db;`
+6. run command: `sudo -u postgres psql -d target_db -c "CREATE EXTENSION IF NOT EXISTS timescaledb;"`
+7. run command: `sudo -u postgres pg_dump -U postgres -W -h /var/run/postgresql -p 5432 -Fc -v -f dump.bak postgres`
+8. run command: `sudo -u postgres psql -d target_db -c "SELECT timescaledb_pre_restore();"`
+9. run command: `sudo -u postgres pg_restore -U postgres -W -h /var/run/postgresql -p 5432 --no-owner -Fc -v -d target_db dump.bak`
+10. run command: `sudo -u postgres psql -d target_db -c "SELECT timescaledb_post_restore();"`
+11. run command: `sudo -u postgres psql -d target_db -c "ANALYZE;"`
+12. run command: `test "$(sudo -u postgres psql -d target_db -tAc "SELECT count(*) FROM timescaledb_information.hypertables WHERE hypertable_name = 'metrics'")" = 1`
+13. run command: `test "$(sudo -u postgres psql -d target_db -tAc "SELECT count(*) FROM metrics")" = "$(sudo -u postgres psql -d postgres -tAc "SELECT count(*) FROM metrics")"`
+
+</TestPlan>
