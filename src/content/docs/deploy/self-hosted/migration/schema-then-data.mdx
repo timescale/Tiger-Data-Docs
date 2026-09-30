@@ -93,9 +93,9 @@ pg_dump -U <SOURCE_DB_USERNAME> -W \
 To avoid permissions errors, include the `--no-owner` flag:
 
 ```bash
-pg_restore -U tsdbadmin -W \
+pg_restore -U <USERNAME> -W \
 -h <HOST> -p <PORT> --no-owner -Fc \
--v -d tsdb dump_pre_data.bak
+-v -d <DATABASE> dump_pre_data.bak
 ```
 </NumberedItem>
 </NumberedList>
@@ -108,7 +108,7 @@ restore them.
 
 <NumberedList>
 <NumberedItem title={`Connect to your ${C.SELF_LONG} instance`}>
-```sql
+```bash
 psql "postgres://<USERNAME>:<PASSWORD>@<HOST>:<PORT>/<DATABASE>?sslmode=require"
 ```
 </NumberedItem>
@@ -151,7 +151,7 @@ If your tables are very large, you can migrate each table in multiple pieces.
 Split each table by time range, and copy each range individually. For example:
 
 ```sql
-\COPY (SELECT * FROM <TABLE_NAME> WHERE time > '2021-11-01' AND time < '2011-11-02') TO <TABLE_NAME_DATE_RANGE>.csv CSV
+\COPY (SELECT * FROM <TABLE_NAME> WHERE time > '2021-11-01' AND time < '2021-11-02') TO <TABLE_NAME_DATE_RANGE>.csv CSV
 ```
 </Callout>
 
@@ -177,7 +177,7 @@ recompress your data as you copy it in.
 <NumberedList>
 <NumberedItem title="Install timescaledb-parallel-copy">
 ```bash
-go get github.com/timescale/timescaledb-parallel-copy/cmd/timescaledb-parallel-copy
+go install github.com/timescale/timescaledb-parallel-copy/cmd/timescaledb-parallel-copy@latest
 ```
 </NumberedItem>
 <NumberedItem title={`Import data into your ${C.SELF_LONG} instance`}>
@@ -187,9 +187,9 @@ database. For example, if you have 4 CPUs, `<NUM_WORKERS>` should be `8`.
 ```bash
 timescaledb-parallel-copy \
 --connection "host=<HOST> \
-user=tsdbadmin password=<PASSWORD> \
+user=<USERNAME> password=<PASSWORD> \
 port=<PORT> \
-dbname=tsdb \
+dbname=<DATABASE> \
 sslmode=require
 " \
 --table <TABLE_NAME> \
@@ -206,8 +206,8 @@ Repeat for each table and hypertable you want to migrate.
 
 <NumberedList>
 <NumberedItem title={`Connect to your ${C.SELF_LONG} instance`}>
-```sql
-psql "postgres://tsdbadmin:<PASSWORD>@<HOST>:<PORT>/tsdb?sslmode=require"
+```bash
+psql "postgres://<USERNAME>:<PASSWORD>@<HOST>:<PORT>/<DATABASE>?sslmode=require"
 ```
 </NumberedItem>
 <NumberedItem title={`Restore the data to your ${C.SELF_LONG} instance`}>
@@ -239,9 +239,9 @@ pg_dump -U <SOURCE_DB_USERNAME> -W \
 Using your connection details. To avoid permissions errors, include the `--no-owner` flag:
 
 ```bash
-pg_restore -U tsdbadmin -W \
+pg_restore -U <USERNAME> -W \
 -h <HOST> -p <PORT> --no-owner -Fc \
--v -d tsdb dump_post_data.dump
+-v -d <DATABASE> dump_post_data.dump
 ```
 </NumberedItem>
 </NumberedList>
@@ -257,6 +257,12 @@ pg_restore: error: could not execute query: ERROR:  relation "<relation_name>" a
 
 ```
 pg_restore: error: could not execute query: ERROR:  trigger "ts_insert_blocker" for relation "<relation_name>" already exists
+```
+
+If your source database has continuous aggregates, the pre-data restore also reports one error per continuous aggregate. The view refers to a materialized hypertable in an excluded schema. You recreate the continuous aggregates in a later step:
+
+```
+pg_restore: error: could not execute query: ERROR:  relation "_timescaledb_internal._materialized_hypertable_<N>" does not exist
 ```
 
 ## Recreate continuous aggregates
@@ -294,7 +300,7 @@ avg_fill_levels |  SELECT round(avg(fill_measurements.fill_level), 2) AS avg_fil
 </NumberedItem>
 <NumberedItem title={`Connect to your ${C.SELF_LONG} instance`}>
 ```bash
-psql "postgres://tsdbadmin:<PASSWORD>@<HOST>:<PORT>/tsdb?sslmode=require"
+psql "postgres://<USERNAME>:<PASSWORD>@<HOST>:<PORT>/<DATABASE>?sslmode=require"
 ```
 </NumberedItem>
 <NumberedItem title="Recreate each continuous aggregate definition">
@@ -324,12 +330,12 @@ policies, compression policies, and reorder policies:
 ```sql
 SELECT application_name, schedule_interval, retry_period,
     config, hypertable_name
-    FROM timescaledb_information.jobs WHERE owner = '<SOURCE_DB_USERNAME>';
+    FROM timescaledb_information.jobs WHERE owner = '<SOURCE_DB_USERNAME>'::regrole;
 ```
 </NumberedItem>
 <NumberedItem title={`Connect to your ${C.SELF_LONG} instance`}>
-```sql
-psql "postgres://tsdbadmin:<PASSWORD>@<HOST>:<PORT>/tsdb?sslmode=require"
+```bash
+psql "postgres://<USERNAME>:<PASSWORD>@<HOST>:<PORT>/<DATABASE>?sslmode=require"
 ```
 </NumberedItem>
 <NumberedItem title="Recreate each policy">
