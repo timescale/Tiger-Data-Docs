@@ -7,6 +7,7 @@ keywords: [configuration, settings, Docker]
 
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 
 If you are running {C.TIMESCALE_DB} in a Docker container, there are two
 different ways to modify your {C.PG} configuration. You can edit the
@@ -52,3 +53,26 @@ using the `-c` option. For example:
 ```bash
 docker run -i -t timescale/timescaledb:latest-pg18 postgres -c max_wal_size=2GB
 ```
+
+<TestPlan>
+
+1. fork the self-hosted service
+2. run command: `apt-get install -y docker.io`
+3. run command: `docker run -d --name timescaledb -p 5433:5432 -e POSTGRES_PASSWORD=<PASSWORD> timescale/timescaledb:latest-pg18`
+4. run command: `docker start timescaledb`
+5. run command: `for i in $(seq 1 30); do docker exec timescaledb pg_isready -U postgres && break; sleep 2; done`
+6. run command: `docker exec timescaledb sh -c 'echo PGDATA=$PGDATA; ls -l $PGDATA/postgresql.conf'`
+7. run command: `docker exec timescaledb sh -c 'sed -i "s/^#*max_wal_size = .*/max_wal_size = 2GB/" $PGDATA/postgresql.conf'`
+8. run command: `docker exec timescaledb sh -c 'grep -c "^max_wal_size = 2GB" $PGDATA/postgresql.conf'`
+9. run command: `docker restart timescaledb`
+10. run command: `for i in $(seq 1 30); do docker exec timescaledb pg_isready -U postgres && break; sleep 2; done`
+11. run command: `test "$(docker exec timescaledb psql -U postgres -tAc 'SHOW max_wal_size')" = 2GB`
+12. run command: `docker run -d --name timescaledb_flag -e POSTGRES_PASSWORD=<PASSWORD> timescale/timescaledb:latest-pg18 postgres -c max_wal_size=2GB`
+13. run command: `for i in $(seq 1 30); do docker exec timescaledb_flag pg_isready -U postgres && break; sleep 2; done`
+14. run command: `test "$(docker exec timescaledb_flag psql -U postgres -tAc 'SHOW max_wal_size')" = 2GB`
+
+Not scripted:
+- Edit the PostgreSQL configuration file inside Docker: `docker exec -i -t timescaledb /bin/bash` and `vi` need a terminal; the plan makes the same edit with `docker exec … sed` and checks the file.
+- Setting parameters at the command prompt: `docker run -i -t` holds the foreground; the plan runs it detached and named, then reads the setting back.
+
+</TestPlan>

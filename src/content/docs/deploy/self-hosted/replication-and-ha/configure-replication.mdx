@@ -8,6 +8,7 @@ keywords: [replicas, replication, streaming]
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 
 This section outlines how to set up asynchronous streaming replication on one or
 more database replicas.
@@ -419,3 +420,42 @@ not provide support for automatic failover. For more information, see the
 [{C.PG} failover documentation](https://www.postgresql.org/docs/current/static/warm-standby-failover.html). If you require a
 configurable high availability solution with automatic failover functionality,
 check out [Patroni](https://github.com/zalando/patroni).
+
+<TestPlan>
+
+1. fork the self-hosted service
+2. run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+3. run SQL: `CREATE TABLE sensor_readings (time timestamptz NOT NULL, sensor_id int NOT NULL, reading double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+4. run SQL: `INSERT INTO sensor_readings SELECT t, (i % 3)::int, random() FROM generate_series(now() - INTERVAL '2 days', now(), INTERVAL '1 hour') WITH ORDINALITY AS g(t, i);`
+5. run SQL: `SET password_encryption = 'scram-sha-256';`
+6. run command: `sudo -u postgres psql -c "CREATE ROLE repuser WITH REPLICATION PASSWORD '<PASSWORD>' LOGIN;"`
+7. expect rows: `SELECT 1 FROM pg_authid WHERE rolname = 'repuser' AND rolreplication AND rolpassword LIKE 'SCRAM-SHA-256$%'`
+8. run command: `printf "listen_addresses = '*'\nwal_level = replica\nmax_wal_senders = 2\nmax_replication_slots = 2\nsynchronous_commit = off\n" >> /etc/postgresql/18/main/postgresql.conf`
+9. run command: `systemctl restart postgresql@18-main`
+10. expect rows: `SELECT 1 WHERE (SELECT setting FROM pg_settings WHERE name = 'listen_addresses') = '*' AND (SELECT setting FROM pg_settings WHERE name = 'wal_level') = 'replica' AND (SELECT setting FROM pg_settings WHERE name = 'max_wal_senders') = '2' AND (SELECT setting FROM pg_settings WHERE name = 'max_replication_slots') = '2' AND (SELECT setting FROM pg_settings WHERE name = 'synchronous_commit') = 'off'`
+11. run SQL: `SELECT * FROM pg_create_physical_replication_slot('replica_1_slot', true);`
+12. expect rows: `SELECT 1 FROM pg_replication_slots WHERE slot_name = 'replica_1_slot' AND slot_type = 'physical'`
+13. run command: `printf "host  replication repuser 127.0.0.1/32  scram-sha-256\n" >> /etc/postgresql/18/main/pg_hba.conf`
+14. run command: `systemctl restart postgresql@18-main`
+15. run command: `pg_createcluster 18 replica -p 5433`
+16. run command: `pg_ctlcluster 18 replica stop || true`
+17. run command: `rm -rf /var/lib/postgresql/18/replica/*`
+18. run command: `sudo -u postgres sh -c 'printf "127.0.0.1:5432:replication:repuser:<PASSWORD>\n" > ~/.pgpass && chmod 600 ~/.pgpass'`
+19. run command: `sudo -u postgres pg_basebackup -h 127.0.0.1 -D /var/lib/postgresql/18/replica -U repuser -vP -W`
+20. run command: `test -f /var/lib/postgresql/18/replica/PG_VERSION`
+21. run command: `sudo -u postgres touch /var/lib/postgresql/18/replica/standby.signal`
+22. run command: `printf "primary_conninfo = 'host=127.0.0.1 port=5432 user=repuser password=<PASSWORD> application_name=r1'\nprimary_slot_name = 'replica_1_slot'\n" >> /etc/postgresql/18/replica/postgresql.conf`
+23. run command: `printf "hot_standby = on\nwal_level = replica\nmax_wal_senders = 2\nmax_replication_slots = 2\nsynchronous_commit = off\n" >> /etc/postgresql/18/replica/postgresql.conf`
+24. run command: `grep -E '^(max_connections|max_worker_processes|max_locks_per_transaction|max_prepared_transactions|shared_preload_libraries) ' /etc/postgresql/18/main/postgresql.conf >> /etc/postgresql/18/replica/postgresql.conf`
+25. run command: `pg_ctlcluster 18 replica start`
+26. run command: `for i in $(seq 1 30); do grep -q 'started streaming WAL from primary' /var/log/postgresql/postgresql-18-replica.log && break; sleep 2; done; grep -c 'started streaming WAL from primary' /var/log/postgresql/postgresql-18-replica.log`
+27. run command: `grep -c 'database system is ready to accept read-only connections' /var/log/postgresql/postgresql-18-replica.log`
+28. run SQL: `INSERT INTO sensor_readings VALUES (now(), 99, 1.5);`
+29. run command: `for i in $(seq 1 30); do test "$(sudo -u postgres psql -p 5433 -tAc "SELECT count(*) FROM sensor_readings WHERE sensor_id = 99")" = 1 && break; sleep 1; done; test "$(sudo -u postgres psql -p 5433 -tAc "SELECT count(*) FROM sensor_readings")" = "$(sudo -u postgres psql -p 5432 -tAc "SELECT count(*) FROM sensor_readings")"`
+30. run SQL: `SELECT * FROM pg_stat_replication;`
+31. expect rows: `SELECT 1 FROM pg_stat_replication WHERE usename = 'repuser' AND application_name = 'r1' AND state = 'streaming'`
+
+Not scripted:
+- Failover: the page describes the option and links out; it gives nothing to run.
+
+</TestPlan>

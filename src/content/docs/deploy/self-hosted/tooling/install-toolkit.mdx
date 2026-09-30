@@ -9,6 +9,7 @@ import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 
 Some hyperfunctions are included by default in {C.TIMESCALE_DB}. For additional
 hyperfunctions, you need to install the {C.TOOLKIT_LONG} {C.PG}
@@ -910,3 +911,29 @@ Using `CASCADE` will drop all objects that depend on the {C.TOOLKIT_SHORT} exten
 </TabItem>
 
 </Tabs>
+
+<TestPlan>
+
+1. fork the self-hosted service
+2. run command: `echo 'APT::Get::Assume-Yes "true";' > /etc/apt/apt.conf.d/90doctest`
+3. run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run command: `sudo apt update`
+5. run command: `sudo apt install timescaledb-toolkit-postgresql-18`
+6. run SQL: `CREATE EXTENSION timescaledb_toolkit;`
+7. expect rows: `SELECT 1 FROM pg_extension WHERE extname = 'timescaledb_toolkit'`
+8. run command: `apt update`
+9. run command: `apt install timescaledb-toolkit-postgresql-18`
+10. run SQL: `ALTER EXTENSION timescaledb_toolkit UPDATE;`
+11. expect rows: `SELECT 1 FROM pg_extension e JOIN pg_available_extensions a ON a.name = e.extname WHERE e.extname = 'timescaledb_toolkit' AND e.extversion = a.default_version`
+12. run SQL: `DROP EXTENSION IF EXISTS timescaledb_toolkit CASCADE;`
+13. expect no rows: `SELECT 1 FROM pg_extension WHERE extname = 'timescaledb_toolkit'`
+14. run command: `sudo apt remove timescaledb-toolkit-postgresql-18`
+15. run command: `sudo apt autoremove`
+16. expect no rows: `SELECT 1 FROM pg_available_extensions WHERE name = 'timescaledb_toolkit'`
+
+Not scripted:
+- Install TimescaleDB Toolkit: the Docker, Kubernetes, Debian, Red Hat, Fedora, RockyLinux, macOS and Source tabs; the target is Ubuntu, and the linter keys on headings, so the Ubuntu tab's statements above are the ones it can check.
+- Update TimescaleDB Toolkit: the same tabs.
+- Uninstall TimescaleDB Toolkit: the same tabs.
+
+</TestPlan>
