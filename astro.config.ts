@@ -438,6 +438,8 @@ export default defineConfig({
                 { label: "Visualize financial tick data with Grafana", link: "/learn/tutorials/analyze-financial-tick-data" },
                 { label: "Visualize transport and geospatial data with Grafana", link: "/learn/tutorials/analyze-transport-data" },
                 { label: "Tiger Data cookbook", link: "/learn/tutorials/cookbook" },
+                { label: "Diagnose and fix a slow hypertable query", link: "learn/tutorials/diagnose-and-fix-a-slow-hypertable-query" },
+                { label: "Migrate a large production table to a hypertable while it receives writes", link: "learn/tutorials/migrate-a-table-to-a-hypertable" },
               ],
             },
             {
