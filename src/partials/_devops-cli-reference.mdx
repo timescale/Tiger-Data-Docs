@@ -2,6 +2,11 @@ import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import GLOBALFLAGS from "./_devops-cli-global-flags.mdx";
 import CONFIGOPTIONS from "./_devops-cli-config-options.mdx";
+import MetricsSystem from "./_metrics-system.mdx";
+import MetricsLocks from "./_metrics-locks.mdx";
+import MetricsReplication from "./_metrics-replication.mdx";
+import MetricsPgSettings from "./_metrics-pg-settings.mdx";
+import MetricsPgStats from "./_metrics-pg-stats.mdx";
 
 Use the following commands to manage {C.CLOUD_LONG} from the terminal. Every command supports `-h` for inline help, for example `tiger service create -h`. For the single-command version of common operations, see [common tasks](/build/tiger-cli-mcp/common-tasks); for longer, multi-step workflows, see the [cookbook](/build/tiger-cli-mcp/cookbook).
 
@@ -368,6 +373,8 @@ Configuration reset to defaults
 
 Manage {C.SERVICE_SHORT}s from the terminal. `tiger service` has the aliases `services` and `svc`, so `tiger svc list` is the same as `tiger service list`. For the {C.MCP_SHORT}-tool equivalent of each command, see the [{C.MCP_LONG} reference](/reference/tiger-cloud/tiger-mcp); for a task-by-task comparison, see [common tasks](/build/tiger-cli-mcp/common-tasks#manage-your-services).
 
+Every command that takes a {C.SERVICE_SHORT} argument accepts the {C.SERVICE_SHORT}'s name as well as its ID, so `tiger service stop analytics` and `tiger service stop <service-id>` do the same thing. A name that matches more than one {C.SERVICE_SHORT} is refused; pass the ID to disambiguate. The argument is written as `<name-or-id>` below, and omitting it falls back to your default {C.SERVICE_SHORT}. Two places still take only the ID: the `--service-id` flag, the `TIGER_SERVICE_ID` environment variable, and the `service_id` config key (a stored name would break every command at once if the {C.SERVICE_SHORT} is renamed), and the confirmation prompt on [`service delete`](#tiger-service-delete). Before {C.CLI_LONG} 0.26, these arguments accepted only the ID.
+
 ### `tiger service create`
 
 Create a new {C.SERVICE_SHORT} in the current {C.PROJECT_SHORT}.
@@ -395,7 +402,7 @@ Then the {C.SERVICE_SHORT}'s details, in the same format as [`service get`](#tig
 | Flag | Description |
 | --- | --- |
 | `--name` | Service name (auto-generated if omitted). |
-| `--addons` | Addons to enable: `time-series`, `ai`. Set to `none` for vanilla {C.PG}. |
+| `--addons` | Addons to enable: `time-series` ({C.TIMESCALE_DB}). Set to `none` for vanilla {C.PG}. Before {C.CLI_LONG} 0.26, there was also a deprecated `ai` addon. |
 | `--region` | Region code. [Free services](/get-started/quickstart/create-service#what-is-a-tiger-cloud-service) (shared CPU/memory) must use `us-east-1`. |
 | `--cpu` | CPU allocation in millicores. Set to `shared` for a free service. |
 | `--memory` | Memory allocation in gigabytes. Set to `shared` for a free service. |
@@ -437,10 +444,10 @@ You see something like:
 
 Show detailed information about a {C.SERVICE_SHORT}. Aliases: `describe`, `show`.
 
-**Usage**: `tiger service get <service-id> [flags]`
+**Usage**: `tiger service get <name-or-id> [flags]`
 
 ```bash
-tiger service get <service-id>
+tiger service get <name-or-id>
 ```
 
 You see something like:
@@ -471,12 +478,12 @@ You see something like:
 
 ### `tiger service fork`
 
-Fork an existing {C.SERVICE_SHORT} into a new, independent copy. Choose exactly one timing option. See [Test a change safely on a fork](/build/tiger-cli-mcp/cookbook#test-a-change-safely-on-a-fork) for a worked example.
+Fork an existing {C.SERVICE_SHORT} into a new, independent copy. By default the fork is taken at the current database state; pass `--last-snapshot` or `--to-timestamp` to fork from an earlier point instead. See [Test a change safely on a fork](/build/tiger-cli-mcp/cookbook#test-a-change-safely-on-a-fork) for a worked example.
 
-**Usage**: `tiger service fork <service-id> [flags]`
+**Usage**: `tiger service fork <name-or-id> [flags]`
 
 ```bash
-tiger service fork <service-id> --now
+tiger service fork <name-or-id>
 ```
 
 You see something like:
@@ -495,23 +502,24 @@ Then the fork's details, in the same format as [`service get`](#tiger-service-ge
 
 | Flag | Description |
 | --- | --- |
-| `--now` | Fork at the current database state. |
-| `--last-snapshot` | Fork at the last snapshot (faster). |
+| `--last-snapshot` | Fork at the last existing snapshot (faster). |
 | `--to-timestamp` | Fork at a point in time (RFC3339). |
 | `--cpu`, `--memory` | Compute for the fork (inherits from the source if omitted). See [`service create`](#tiger-service-create) for allowed configurations. |
-| `--name` | Fork name (default: `{source-service-name}-fork`). |
+| `--name` | Fork name (auto-generated from the source {C.SERVICE_SHORT}'s name if omitted). |
 | `--environment` | Environment tag: `DEV` or `PROD` (default: `DEV`). |
 | `--no-wait`, `--wait-timeout` | Wait behavior (default timeout: `30m`). |
 | `--no-set-default`, `--with-password`, `--output, -o` | Default-service and output options. |
+
+Before {C.CLI_LONG} 0.26, you had to choose exactly one timing option, and forking at the current state had its own flag, `--now`. The flag still works, but it is no longer needed: it names the default behavior.
 
 ### `tiger service resize`
 
 Change a {C.SERVICE_SHORT}'s CPU and memory. The service may be briefly unavailable during the resize.
 
-**Usage**: `tiger service resize <service-id> [flags]`
+**Usage**: `tiger service resize <name-or-id> [flags]`
 
 ```bash
-tiger service resize <service-id> --cpu 4000 --memory 16
+tiger service resize <name-or-id> --cpu 4000 --memory 16
 ```
 
 You see something like:
@@ -530,10 +538,10 @@ Service resized to 4 CPU/16 GB.
 
 Start an inactive {C.SERVICE_SHORT}. Alias: `resume`.
 
-**Usage**: `tiger service start <service-id> [flags]`
+**Usage**: `tiger service start <name-or-id> [flags]`
 
 ```bash
-tiger service start <service-id>
+tiger service start <name-or-id>
 ```
 
 You see something like:
@@ -551,10 +559,10 @@ Service started.
 
 Stop an active {C.SERVICE_SHORT}. After stopping, the service no longer accepts connections. Alias: `pause`.
 
-**Usage**: `tiger service stop <service-id> [flags]`
+**Usage**: `tiger service stop <name-or-id> [flags]`
 
 ```bash
-tiger service stop <service-id>
+tiger service stop <name-or-id>
 ```
 
 You see something like:
@@ -572,10 +580,10 @@ Service stopped.
 
 Update the master password for a {C.SERVICE_SHORT}.
 
-**Usage**: `tiger service update-password <service-id> [flags]`
+**Usage**: `tiger service update-password <name-or-id> [flags]`
 
 ```bash
-tiger service update-password <service-id> --auto-generate
+tiger service update-password <name-or-id> --auto-generate
 ```
 
 You see something like:
@@ -595,10 +603,10 @@ Password updated for tsdbadmin
 
 Rename a {C.SERVICE_SHORT}. Only the display name changes: the {C.SERVICE_SHORT} ID, endpoints, and stored credentials are untouched, so existing connections and connection strings keep working.
 
-**Usage**: `tiger service rename <service-id> <new-name>`
+**Usage**: `tiger service rename <name-or-id> <new-name>`
 
 ```bash
-tiger service rename <service-id> analytics-prod
+tiger service rename <name-or-id> analytics-prod
 ```
 
 You see:
@@ -613,10 +621,10 @@ Both arguments are required; there is no default-{C.SERVICE_SHORT} fallback, bec
 
 Delete a {C.SERVICE_SHORT}. This is irreversible and prompts you to type the {C.SERVICE_SHORT} ID to confirm before proceeding. The command returns as soon as the API accepts the deletion. Alias: `rm`.
 
-**Usage**: `tiger service delete <service-id> [flags]`
+**Usage**: `tiger service delete <name-or-id> [flags]`
 
 ```bash
-tiger service delete <service-id> --confirm
+tiger service delete <name-or-id> --confirm
 ```
 
 You see:
@@ -635,10 +643,10 @@ Before {C.CLI_LONG} 0.25, this command also took `--no-wait` and `--wait-timeout
 
 View the logs for a {C.SERVICE_SHORT}. Alias: `log`.
 
-**Usage**: `tiger service logs <service-id> [flags]`
+**Usage**: `tiger service logs <name-or-id> [flags]`
 
 ```bash
-tiger service logs <service-id> --tail 5
+tiger service logs <name-or-id> --tail 5
 ```
 
 You see something like:
@@ -651,13 +659,125 @@ You see something like:
 2026-08-13 07:29:22 UTC [307395]: [6a7d7252.4b0c3-2] 0 [unknown]@[unknown],app=[unknown] [08006] LOG:  could not receive data from client: Connection reset by peer
 ```
 
-{C.CLI_LONG} converts {C.PG} log timestamps to your machine's time zone, so set `TZ` if you want a specific one (for example, `TZ=UTC tiger service logs <service-id>`). The `wal_archive_command_pgbackrest` lines come from the backup agent rather than {C.PG}, and are always in UTC.
+{C.CLI_LONG} converts {C.PG} log timestamps to your machine's time zone, so set `TZ` if you want a specific one (for example, `TZ=UTC tiger service logs <name-or-id>`). The `wal_archive_command_pgbackrest` lines come from the backup agent rather than {C.PG}, and are always in UTC.
 
 | Flag | Description |
 | --- | --- |
 | `--tail` | Number of log entries to show (default: `100`). One entry can span several lines, for example a `FATAL` followed by its `DETAIL`, so the output can be longer than the number you ask for. |
 | `--since`, `--until` | Fetch logs within a time range (RFC3339, for example `2024-01-15T09:00:00Z`). |
 | `--node` | Specific node to fetch logs from (for services with HA replicas; `0` is valid). |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
+
+### `tiger service metrics available`
+
+List the names of the metric series available for a {C.SERVICE_SHORT}, for monitoring, debugging, and performance investigation. Use these names with [`service metrics details`](#tiger-service-metrics-details) and [`service metrics series`](#tiger-service-metrics-series). For the full list with descriptions, see [Available metrics](#available-metrics). Before {C.CLI_LONG} 0.26, the metrics commands were experimental and hidden unless the `TIGER_EXPERIMENTAL` environment variable was set, and this command was named `metrics available-series`.
+
+**Usage**: `tiger service metrics available [name-or-id] [flags]`
+
+```bash
+tiger service metrics available <name-or-id>
+```
+
+You see something like:
+
+```txt
+pg_stat_activity_count
+pg_stat_database_blks_hit
+pg_stat_database_blks_read
+timescale_cloud_database_num_connections
+timescale_cloud_database_qps
+timescale_cloud_system_cpu_usage_millicores
+timescale_cloud_system_memory_usage_bytes
+...
+```
+
+| Flag | Description |
+| --- | --- |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
+
+### `tiger service metrics details`
+
+Show descriptive metadata for a metric: what it measures, its type, its default aggregation function, and the labels you can filter or group it by.
+
+**Usage**: `tiger service metrics details [name-or-id] --metric <name> [flags]`
+
+```bash
+tiger service metrics details <name-or-id> --metric pg_stat_activity_count
+```
+
+You see something like:
+
+```txt
+┌─────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────┐
+│      PROPERTY       │                                             VALUE                                              │
+├─────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Name                │ pg_stat_activity_count                                                                         │
+│ Type                │ GAUGE                                                                                          │
+│ Default Aggregation │ MAX_TOTAL                                                                                      │
+│ Description         │ Number of connections in pg_stat_activity, grouped by state, connected role, and backend type. │
+└─────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────┬─────────────────────────────────────────────────────┐
+│    LABEL     │                     DESCRIPTION                     │
+├──────────────┼─────────────────────────────────────────────────────┤
+│ datname      │ undocumented                                        │
+│ state        │ undocumented                                        │
+│ region       │ Region the service runs in.                         │
+│ role         │ Instance role: primary, replica, or standby_leader. │
+│ ordinal      │ Per-pod ordinal within the service.                 │
+└──────────────┴─────────────────────────────────────────────────────┘
+```
+
+The `timescale_cloud_*` resource, queries-per-second (QPS), connection, and job metrics have no richer metadata; for those, this command returns just the name, with the type, default aggregation, description, and labels empty.
+
+| Flag | Description |
+| --- | --- |
+| `--metric` | The metric to describe. Use [`service metrics available`](#tiger-service-metrics-available) to discover valid names. |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
+
+### `tiger service metrics series`
+
+Fetch time-series data for a metric. Each labeled series, for example one per replica, is returned independently with its full list of data points.
+
+**Usage**: `tiger service metrics series [name-or-id] --metric <name> [flags]`
+
+```bash
+tiger service metrics series <name-or-id> --metric timescale_cloud_system_cpu_usage_millicores
+```
+
+You see something like:
+
+```txt
+┌───────────────────┬──────────────────────┬─────────┐
+│      SERIES       │         TIME         │  VALUE  │
+├───────────────────┼──────────────────────┼─────────┤
+│ role="primary"    │ 2026-09-30T12:00:00Z │ 102.000 │
+│ role="primary"    │ 2026-09-30T13:00:00Z │ 98.000  │
+│ role="primary"    │ 2026-09-30T14:00:00Z │ 110.000 │
+└───────────────────┴──────────────────────┴─────────┘
+```
+
+With no `--from` and `--to`, the command returns the last 24 hours bucketed into 1-hour intervals.
+
+```bash
+# A specific hour, primary instance only
+tiger service metrics series <name-or-id> --metric timescale_cloud_system_cpu_usage_millicores \
+  --from 2026-09-30T00:00:00Z --to 2026-09-30T01:00:00Z --role PRIMARY
+
+# Exclude a label value, one series per role
+tiger service metrics series <name-or-id> --metric pg_stat_activity_count \
+  --filter state!=idle --group-by role
+```
+
+| Flag | Description |
+| --- | --- |
+| `--metric` | The metric series to fetch. Use [`service metrics available`](#tiger-service-metrics-available) to discover valid names. |
+| `--from`, `--to` | Time window (RFC3339). Default: the last 24 hours. |
+| `--bucket-seconds` | Aggregation bucket size in seconds (minimum: `60`). Defaults to `3600` (1 hour) when `--from`/`--to` are also omitted; otherwise the server picks a size matched to the window. |
+| `--fn` | Aggregation function applied per bucket: `RATE`, `INCREASE`, `SUM`, `AVG`, `MIN`, `MAX`, `MIN_TOTAL`, `MAX_TOTAL`, `COUNT`, `P50`, `P90`, `P99`, or `LAST`. Omit to let the server pick the metric's default. Not accepted on the `timescale_cloud_*` resource, QPS, connection, and job metrics. |
+| `--role` | Restrict to one instance role: `PRIMARY` or `REPLICA`. |
+| `--filter` | Arbitrary label filter as `name=value` or `name!=value` (repeatable). `name!=value` also matches series missing the label entirely. |
+| `--group-by` | Label key to break the result into one series per distinct value (repeatable). Rejected on the same metrics that reject `--fn`. Omit to collapse into a single series. |
 | `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
 ## Database
@@ -668,12 +788,12 @@ The `--pooled` flag on these commands, and the `pooled` parameter on {C.MCP_SHOR
 
 ### `tiger db psql`
 
-Connect to a {C.SERVICE_SHORT} with `psql`. Pass extra `psql` flags after `--`, for example `tiger db psql <service-id> -- --single-transaction`. Before {C.CLI_LONG} 0.25, the primary name of this command was `db connect`; `connect` still works as an alias.
+Connect to a {C.SERVICE_SHORT} with `psql`. Pass extra `psql` flags after `--`, for example `tiger db psql <name-or-id> -- --single-transaction`. Before {C.CLI_LONG} 0.25, the primary name of this command was `db connect`; `connect` still works as an alias.
 
-**Usage**: `tiger db psql <service-id> [flags]`
+**Usage**: `tiger db psql <name-or-id> [flags]`
 
 ```bash
-tiger db psql <service-id>
+tiger db psql <name-or-id>
 ```
 
 You see something like:
@@ -704,9 +824,9 @@ Run a SQL query against a {C.SERVICE_SHORT} and print the results. Unlike [`db p
 The query comes from `--command`, from the SQL file named by `--file`, or, if neither is given, from stdin:
 
 ```bash
-tiger db query <service-id> -c "SELECT * FROM users LIMIT 5"
-tiger db query <service-id> -f schema.sql
-echo "SELECT 1" | tiger db query <service-id>
+tiger db query <name-or-id> -c "SELECT * FROM users LIMIT 5"
+tiger db query <name-or-id> -f schema.sql
+echo "SELECT 1" | tiger db query <name-or-id>
 ```
 
 You see something like:
@@ -737,10 +857,10 @@ This command is the {C.CLI_SHORT} equivalent of the [`db_query`](/reference/tige
 
 Print the connection string for a {C.SERVICE_SHORT}. Before {C.CLI_LONG} 0.25, the primary name of this command was `db connection-string`; the old name still works as an alias.
 
-**Usage**: `tiger db uri <service-id> [flags]`
+**Usage**: `tiger db uri <name-or-id> [flags]`
 
 ```bash
-tiger db uri <service-id>
+tiger db uri <name-or-id>
 ```
 
 You see something like:
@@ -766,10 +886,10 @@ postgresql://tsdbadmin@<direct-endpoint>/tsdb?sslmode=require&options=-c%20tsdb_
 
 Create a database role. The `role` subcommand has the alias `user`, so `tiger db create user` is the same command.
 
-**Usage**: `tiger db create role <service-id> [flags]`
+**Usage**: `tiger db create role <name-or-id> [flags]`
 
 ```bash
-tiger db create role <service-id> --name app_role --read-only
+tiger db create role <name-or-id> --name app_role --read-only
 ```
 
 You see:
@@ -792,10 +912,10 @@ You see:
 
 Display the schema of a {C.SERVICE_SHORT} database as readable text.
 
-**Usage**: `tiger db schema <service-id> [flags]`
+**Usage**: `tiger db schema <name-or-id> [flags]`
 
 ```bash
-tiger db schema <service-id>
+tiger db schema <name-or-id>
 ```
 
 You see something like:
@@ -827,10 +947,10 @@ TABLE: sensor_data
 
 Save the password for a {C.SERVICE_SHORT} to the keychain.
 
-**Usage**: `tiger db save-password <service-id> [flags]`
+**Usage**: `tiger db save-password <name-or-id> [flags]`
 
 ```bash
-tiger db save-password <service-id> --password=<password>
+tiger db save-password <name-or-id> --password=<password>
 ```
 
 You see:
@@ -848,10 +968,10 @@ Password saved successfully for service <service-id> (role: tsdbadmin)
 
 Test connectivity to a {C.SERVICE_SHORT}. Before {C.CLI_LONG} 0.25, the primary name of this command was `db test-connection`; `test-connection` and `test` still work as aliases.
 
-**Usage**: `tiger db ping <service-id> [flags]`
+**Usage**: `tiger db ping <name-or-id> [flags]`
 
 ```bash
-tiger db ping <service-id>
+tiger db ping <name-or-id>
 ```
 
 You see:
@@ -939,6 +1059,9 @@ You see something like:
 │ tool   │ service_get                            │
 │ tool   │ service_list                           │
 │ tool   │ service_logs                           │
+│ tool   │ service_metrics_available              │
+│ tool   │ service_metrics_details                │
+│ tool   │ service_metrics_series                 │
 │ tool   │ service_rename                         │
 │ tool   │ service_resize                         │
 │ tool   │ service_start                          │
@@ -1019,9 +1142,48 @@ The server starts listening for JSON-RPC requests on stdio (or HTTP, with the `h
 
 {C.CLI_LONG} ships completions for bash, zsh, fish, and PowerShell. Installing with Homebrew sets up the bash, zsh, and fish completions for you; otherwise generate them with `tiger completion <shell>`.
 
-Completion covers command and flag names, most flag values, and most command arguments. That includes {C.SERVICE_SHORT} and project IDs, so you can complete them instead of typing or pasting them.
+Completion covers command and flag names, most flag values, and most command arguments. That includes {C.SERVICE_SHORT}s and project IDs, so you can complete them instead of typing or pasting them. A {C.SERVICE_SHORT} argument completes to the {C.SERVICE_SHORT}'s name, falling back to its ID when what you typed matches the ID instead; the `--service-id` flag completes only IDs, because that is all the flag accepts. Before {C.CLI_LONG} 0.26, {C.SERVICE_SHORT} arguments completed only IDs.
 
 Aliases are not offered as suggestions, so `tiger service <TAB>` proposes `list` rather than `ls`, even though both work.
+
+## Available metrics
+
+The [`tiger service metrics`](#tiger-service-metrics-available) commands and the {C.MCP_LONG} [metrics tools](/reference/tiger-cloud/tiger-mcp#metrics-tools) serve the following metric series. Run `tiger service metrics available` to list them for your {C.SERVICE_SHORT}, and `tiger service metrics details` to inspect one metric's type, default aggregation, and labels.
+
+Apart from the [database metrics](#database-metrics), these are the same metrics the [{C.CLOUD_LONG} exporters](/integrate/observability-alerting/exported-metrics) export.
+
+### System metrics
+
+These metrics track the {C.SERVICE_SHORT}'s resource usage against its capacity: CPU, memory, disk space, and disk I/O.
+
+<MetricsSystem />
+
+### Database metrics
+
+These metrics back the {C.CONSOLE} dashboards. They are queryable here but are not exported by the {C.CLOUD_LONG} exporters, and they take no aggregation function or grouping (see [`service metrics series`](#tiger-service-metrics-series)).
+
+| Metric | Description |
+| --- | --- |
+| `timescale_cloud_database_qps` | Queries per second executed against the database. |
+| `timescale_cloud_database_num_connections` | Number of open connections to the database. |
+| `timescale_cloud_database_job_duration_usecs` | Duration of background job runs, in microseconds. |
+| `timescale_cloud_database_job_success` | Success or failure of background job runs. |
+
+### Lock metrics
+
+<MetricsLocks />
+
+### Replication metrics
+
+<MetricsReplication />
+
+### {C.PG} settings metrics
+
+<MetricsPgSettings />
+
+### {C.PG} statistics metrics
+
+<MetricsPgStats />
 
 ## Configuration parameters
 
