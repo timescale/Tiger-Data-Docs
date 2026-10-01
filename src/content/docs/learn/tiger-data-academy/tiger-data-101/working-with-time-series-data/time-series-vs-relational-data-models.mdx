@@ -1,0 +1,117 @@
+---
+title: Time-Series vs. Relational Data Models
+description: Understand the fundamental differences in how these two paradigms approach data
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+
+<div style="background: #f5f3ff; border-left: 3px solid #4f6bed; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; border-radius: 4px;">
+  **Tiger Data 101** → TimescaleDB | **Section:** Working with Time-Series Data | **⏱ Time:** ~2 min
+</div>
+
+## The Fundamental Difference
+
+| Dimension | Relational Model | Time-Series Model |
+| --- | --- | --- |
+| **Organizing principle** | Entity identity (ID) | Timestamp |
+| **Primary query** | "Get me entity X" (lookup) | "Get me data from time T1 to T2" (range scan) |
+| **Data mutability** | Frequent updates, deletes | Append-only |
+| **Storage optimization** | Row-based (fast for random access) | Column-based (fast for range queries) |
+| **Example use case** | Customer, Order, Product records | Sensor readings, stock prices, events |
+
+---
+
+## Side-by-Side Example
+
+### Relational: User Profiles
+
+```sql
+-- A typical relational table
+CREATE TABLE users (
+  id BIGINT PRIMARY KEY,
+  name TEXT,
+  email TEXT,
+  account_tier VARCHAR(50),
+  updated_at TIMESTAMP
+);
+
+-- Relational query: Find a specific user
+SELECT * FROM users WHERE id = 12345;
+```
+
+**Characteristics:**
+- Queries are **lookups by ID** or small filters
+- Data **updates frequently** (email, tier, preferences)
+- Each row is independent
+- Storage is **row-based** (all columns for one user together)
+
+### Time-Series: Sensor Readings
+
+```sql
+-- A time-series table (hypertable in TimescaleDB)
+CREATE TABLE sensor_readings (
+  time TIMESTAMP NOT NULL,
+  device_id TEXT NOT NULL,
+  temperature FLOAT,
+  humidity FLOAT,
+  pressure FLOAT
+);
+
+-- Time-series query: Get data over a time range
+SELECT * FROM sensor_readings 
+WHERE time >= '2025-01-01'::timestamp 
+  AND time < '2025-01-02'::timestamp 
+  AND device_id = 'sensor_042';
+```
+
+**Characteristics:**
+- Queries are **range scans** (fetch data between two timestamps)
+- Data **never updates** (readings are immutable)
+- Each row is part of a larger time-ordered sequence
+- Storage is **column-based** (all temperatures, all humidities, etc.)
+
+---
+
+## Why the Differences Matter
+
+### Relational Optimization
+
+Relational databases optimize for:
+- **Random access**: Fast row lookups by ID
+- **In-place updates**: Modify values efficiently
+- **Complex relationships**: JOINs between entities
+
+When you apply relational optimization to time-series data, you get **slow queries and expensive storage**.
+
+### Time-Series Optimization
+
+Time-series databases optimize for:
+- **Sequential writes**: Bulk appends are cheap
+- **Range queries**: Scanning a time window is fast
+- **Compression**: Encode columns efficiently
+- **Lifecycle**: Automatically manage old data
+
+When you apply time-series optimization to relational data, you get **slow random lookups**.
+
+<Callout type="important">
+The same database can hold both! TimescaleDB is a PostgreSQL extension, so you can store relational data (users, orders, metadata) **and** time-series data (metrics, events, sensor readings) in the same instance, with each optimized appropriately.
+</Callout>
+
+---
+
+<div style="display: flex; justify-content: flex-end; margin-top: 40px;">
+  <a href="/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/common-time-series-patterns" style="text-decoration: none; display: block; width: 100%;">
+    <div style="background: linear-gradient(135deg, #4f6bed 0%, #667eea 100%); border-radius: 8px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(79, 107, 237, 0.15); cursor: pointer; transition: all 0.2s ease; text-align: right;">
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: 12px;">
+        <span style="font-weight: 700; font-size: 16px;">NEXT PAGE</span>
+        <span style="font-size: 20px;">→</span>
+      </div>
+      <div style="color: #e0e7ff; font-weight: 500; font-size: 15px; margin-bottom: 8px; margin-top: 0;">Common Time-Series Patterns</div>
+      <div style="color: #e0e7ff; font-size: 14px; line-height: 1.5;">
+        Explore the most common patterns for time-series data: aggregations, downsampling, windowing, and anomaly detection.
+      </div>
+    </div>
+  </a>
+</div>
