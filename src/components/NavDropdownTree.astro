@@ -11,6 +11,10 @@ interface Props {
 }
 
 const { nodes, depth = 0 } = Astro.props as Props;
+
+function isExternal(href: string) {
+  return href.startsWith("http");
+}
 ---
 
 {
@@ -21,8 +25,31 @@ const { nodes, depth = 0 } = Astro.props as Props;
         class:list={["nav-dropdown-item", "nav-dropdown-item--leaf", depth > 0 && "nav-dropdown-item--nested"]}
         role="menuitem"
         style={`--nav-depth: ${depth}`}
+        target={isExternal(node.href) ? "_blank" : undefined}
+        rel={isExternal(node.href) ? "noopener noreferrer" : undefined}
       >
-        <span class="nav-dropdown-item-title">{node.label}</span>
+        <span class="nav-dropdown-item-title">
+          {node.label}
+          {isExternal(node.href) && (
+            <svg
+              class="nav-dropdown-item-external-icon"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          )}
+        </span>
       </a>
     ) : (
       <div
@@ -118,5 +145,12 @@ const { nodes, depth = 0 } = Astro.props as Props;
 
   .nav-dropdown-item--leaf:hover {
     background: light-dark(var(--tiger-grey-100), var(--tiger-grey-800));
+  }
+
+  .nav-dropdown-item-external-icon {
+    display: inline-block;
+    margin-left: 4px;
+    vertical-align: -1px;
+    opacity: 0.7;
   }
 </style>
