@@ -775,7 +775,7 @@ tiger service metrics series <name-or-id> --metric pg_stat_activity_count \
 | `--from`, `--to` | Time window (RFC3339). Default: the last 24 hours. |
 | `--bucket-seconds` | Aggregation bucket size in seconds (minimum: `60`). Defaults to `3600` (1 hour) when `--from`/`--to` are also omitted; otherwise the server picks a size matched to the window. |
 | `--fn` | Aggregation function applied per bucket: `RATE`, `INCREASE`, `SUM`, `AVG`, `MIN`, `MAX`, `MIN_TOTAL`, `MAX_TOTAL`, `COUNT`, `P50`, `P90`, `P99`, or `LAST`. Omit to let the server pick the metric's default. Not accepted on the `timescale_cloud_*` resource, QPS, connection, and job metrics. See [Aggregation functions](#aggregation-functions) for what each one computes. |
-| `--role` | Restrict to one instance role: `PRIMARY` or `REPLICA`. Omit to include every role's series — most queries about your own workload want `--role PRIMARY`, since blending primary and replica values together can be misleading. |
+| `--role` | Restrict to one instance role: `PRIMARY` or `REPLICA`. Omit to aggregate datapoints across all nodes — for most queries applying `--role PRIMARY` could be more meaningful. |
 | `--filter` | Arbitrary label filter as `name=value` or `name!=value` (repeatable). `name!=value` also matches series missing the label entirely. |
 | `--group-by` | Label key to break the result into one series per distinct value (repeatable). Rejected on the same metrics that reject `--fn`. Omit to collapse into a single series. |
 | `--output, -o` | Output format: `json`, `yaml`, or `table`. |
@@ -1187,7 +1187,7 @@ These metrics back the {C.CONSOLE} dashboards. They are queryable here but are n
 
 ## Aggregation functions
 
-`--fn` ({C.CLI_SHORT}) and `fn` ({C.MCP_SHORT}) pick how the raw samples in each bucket collapse into one value, and, when a query matches more than one labeled series (for example every replica, or every database), how those series combine. Each metric has its own sensible default, and it varies by metric — check it with [`service metrics details`](#tiger-service-metrics-details) (**Default Aggregation**) rather than assuming one. Omit `--fn`/`fn` to use it; a metric with no declared default of its own falls back to `LAST`.
+`--fn` ({C.CLI_SHORT}) and `fn` ({C.MCP_SHORT}) pick how the raw samples in each bucket collapse into one value, and, when a query matches more than one labeled series (for example every replica, or every database), how those series combine. Each metric has its own sensible default, and it varies by metric — check it with [`service metrics details`](#tiger-service-metrics-details) (**Default Aggregation**) rather than assuming one. Omit `--fn`/`fn` to use that default.
 
 | Function | What it computes |
 | --- | --- |
