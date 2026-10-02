@@ -24,7 +24,6 @@ pnpm build:local   # Alias for pnpm build
 pnpm dev:local     # Alias for pnpm dev
 pnpm preview       # Preview production build
 pnpm format        # Format code
-pnpm openapi:update # Refresh the checked-in Tiger Cloud OpenAPI definition
 ```
 
 The Tiger Cloud REST reference is generated locally from `stainless/openapi.yml`

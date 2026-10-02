@@ -33,7 +33,7 @@ const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/component
  * 2) Plugins such as `@vitejs/plugin-react` may delete `transform` in `configResolved`
  *    after Vite has cached which plugins expose `transform`, so `getHookHandler` returns
  *    undefined and handler.call() throws (upstream: vitejs/vite#21162). We ship a pnpm
- *    patch for `vite@7.3.1` (`patches/vite@7.3.1.patch`) that skips when `!handler`.
+ *    patch for `vite@7.3.5` (`patches/vite@7.3.5.patch`) that skips when `!handler`.
  */
 const HOOK_NAMES = ["transform", "load", "resolveId"] as const;
 const noopHandlers: Record<(typeof HOOK_NAMES)[number], () => null> = {
