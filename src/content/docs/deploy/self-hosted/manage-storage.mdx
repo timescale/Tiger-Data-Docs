@@ -71,7 +71,7 @@ SELECT move_chunk(
   chunk => '_timescaledb_internal._hyper_1_4_chunk',
   destination_tablespace => 'history',
   index_destination_tablespace => 'history',
-  reorder_index => '_timescaledb_internal._hyper_1_4_chunk_netdata_time_idx',
+  reorder_index => '_timescaledb_internal._hyper_1_4_chunk_conditions_time_idx',
   verbose => TRUE
 );
 ```
@@ -95,13 +95,17 @@ SELECT indexname FROM pg_indexes WHERE tablespace = 'history';
 ## Move data in bulk
 
 To move several chunks at once, select the chunks you want to move by using
-`FROM show_chunks(...)`. For example, to move chunks containing data between 1
-and 3 weeks old, in a hypertable named `example`:
+`FROM show_chunks(...)`. Pass an index of the {C.HYPERTABLE} as `reorder_index`: it applies to every
+{C.CHUNK} in the set, and without it `move_chunk` needs a {C.CHUNK} that has been clustered before.
+For example, to move chunks containing data between 1 and 3 weeks old, in a hypertable named
+`example`:
 
 ```sql
 SELECT move_chunk(
   chunk => i,
-  destination_tablespace => '<TABLESPACE>')
+  destination_tablespace => '<TABLESPACE>',
+  index_destination_tablespace => '<TABLESPACE>',
+  reorder_index => '<INDEX_NAME>')
 FROM show_chunks('example', now() - INTERVAL '1 week', now() - INTERVAL '3 weeks') i;
 ```
 
@@ -115,7 +119,7 @@ SELECT move_chunk(
   chunk => '_timescaledb_internal._hyper_1_4_chunk',
   destination_tablespace => 'pg_default',
   index_destination_tablespace => 'pg_default',
-  reorder_index => '_timescaledb_internal._hyper_1_4_chunk_netdata_time_idx'
+  reorder_index => '_timescaledb_internal._hyper_1_4_chunk_conditions_time_idx'
 );
 ```
 
@@ -127,7 +131,7 @@ SELECT move_chunk(
   chunk => '_timescaledb_internal._hyper_1_4_chunk',
   destination_tablespace => 'history',
   index_destination_tablespace => 'pg_default',
-  reorder_index => '_timescaledb_internal._hyper_1_4_chunk_netdata_time_idx'
+  reorder_index => '_timescaledb_internal._hyper_1_4_chunk_conditions_time_idx'
 );
 ```
 

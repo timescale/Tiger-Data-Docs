@@ -171,7 +171,7 @@ learnMore:
 ---
 ```
 
-This pattern is live on `src/content/docs/build/examples/hybrid-search.mdx` (see [PR #267](https://github.com/timescale/Tiger-Data-Docs/pull/267)).
+This pattern is live on `src/content/docs/learn/tutorials/hybrid-search.mdx` (see [PR #267](https://github.com/timescale/Tiger-Data-Docs/pull/267)).
 
 ### Recipe 2: Concept page (related reading only)
 
@@ -356,7 +356,7 @@ The card uses `margin-top: auto` inside a flex column. If you've added custom CS
 
 Browse these live examples to see the card in production context:
 
-- `src/content/docs/build/examples/hybrid-search.mdx`: full card (tutorials + related posts) added in [PR #267](https://github.com/timescale/Tiger-Data-Docs/pull/267).
+- `src/content/docs/learn/tutorials/hybrid-search.mdx`: full card (tutorials + related posts) added in [PR #267](https://github.com/timescale/Tiger-Data-Docs/pull/267).
 - Search the repo with `grep -rn "learnMore:" src/content/docs/` to find every page currently using the card.
 
 When you ship a new page using `learnMore`, you don't need to register it anywhere; it's auto-discovered through frontmatter.

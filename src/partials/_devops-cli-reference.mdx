@@ -35,10 +35,10 @@ Use ↑/↓ arrows or number keys to navigate, enter to select, q to quit
 The project picker only appears if you have multiple {C.PROJECT_SHORT}s and you did not pass `--project-id`. After you select one (or automatically, if you have only one):
 
 ```txt
-Successfully logged in (project: <project-id>)
+Logged in to project <project-id>
 
-🎉 Next steps:
-• Install MCP server for your favorite AI coding tool: tiger mcp install
+Next steps:
+• Install the MCP server for your AI coding tool: tiger mcp install
 • List existing services: tiger service list
 • Create a new service: tiger service create
 • Protect services from writes: tiger config set read_only prod (or all, off)
@@ -89,7 +89,7 @@ tiger auth logout
 You see:
 
 ```txt
-Successfully logged out and removed stored credentials
+Logged out and removed stored credentials
 ```
 
 To sign a {C.CLI_SHORT} login out remotely, for example on a machine you no longer control, revoke its session in [{C.CONSOLE}](/deploy/tiger-cloud/tiger-cloud-aws/security/overview#active-sessions) instead.
@@ -221,8 +221,8 @@ You see something like:
 
 ```txt
 ┌───────────────────┬──────────────────────────────────────────┐
-│ Tiger CLI Version │ 0.24.0                                   │
-│ Build Time        │ 2026-09-09T11:55:41Z                     │
+│ Tiger CLI Version │ 0.25.0                                   │
+│ Build Time        │ 2026-09-21T10:28:41Z                     │
 │ Git Commit        │ 56dd79944b4afbf8d86162533ad4bd14e56ebcc8 │
 │ Go Version        │ go1.27.0                                 │
 │ Platform          │ darwin/arm64                             │
@@ -247,27 +247,42 @@ tiger upgrade
 If you installed {C.CLI_LONG} with the direct install script and a newer version is available, you see:
 
 ```txt
-Upgrading tiger 0.23.0 → v0.24.0
-Downloading https://cli.tigerdata.com/releases/v0.24.0/tiger-cli_Darwin_arm64.tar.gz
+Upgrading Tiger CLI 0.24.0 → v0.25.0
+Downloading https://cli.tigerdata.com/releases/v0.25.0/tiger-cli_Darwin_arm64.tar.gz
 Verifying checksum
 Installing new binary to <install-path>/tiger
-tiger upgraded successfully to v0.24.0
+Upgraded Tiger CLI to v0.25.0
 ```
 
 If you installed {C.CLI_LONG} with a package manager such as Homebrew, `apt`, or `yum`/`dnf`, this command refuses to run and points you to that package manager instead.
 
-## Configuration
+## Feedback
 
-Manage {C.CLI_LONG}'s own settings. `tiger config` has the alias `cfg`, so `tiger cfg show` is the same as `tiger config show`. For the full list of keys, see [Configuration options](#configuration-options).
+### `tiger feedback`
 
-### `tiger config show`
+Send feedback, a bug report, or a support request to the {C.COMPANY} team. Pass the message as an argument, or omit it to read from stdin (with a prompt in an interactive terminal).
 
-Show the current configuration. Aliases: `list`, `ls`.
-
-**Usage**: `tiger config show [flags]`
+**Usage**: `tiger feedback [message]`
 
 ```bash
-tiger config show
+tiger feedback "I can't connect to my service after resuming it"
+echo "Great tool!" | tiger feedback
+```
+
+The message is sent with the email address of your {C.ACCOUNT_SHORT}, so the team can follow up, and with the {C.CLI_SHORT} version and operating system. The command opens no support case and returns no ticket to track; for anything that needs a tracked response, open a support request in [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/support) instead, and the command prints the link for your {C.PROJECT_SHORT}.
+
+## Configuration
+
+Manage {C.CLI_LONG}'s own settings. `tiger config` has the alias `cfg`, so `tiger cfg list` is the same as `tiger config list`. For the full list of keys, see [Configuration options](#configuration-options).
+
+### `tiger config list`
+
+Show the current configuration. Before {C.CLI_LONG} 0.25, the primary name of this command was `config show`; `show` and `ls` still work as aliases.
+
+**Usage**: `tiger config list [flags]`
+
+```bash
+tiger config list
 ```
 
 You see something like:
@@ -366,14 +381,13 @@ tiger service create --name analytics --region us-east-1
 You see something like:
 
 ```txt
-🚀 Creating service 'analytics'...
-✅ Service creation request accepted!
-📋 Service ID: <service-id>
-🔐 Password saved to system keyring for automatic authentication
-🎯 Set service '<service-id>' as default service.
-⏳ Waiting for service to be ready (wait timeout: 30m0s)...
-🎉 Service is ready and running!
-🔌 Run 'tiger db connect' to connect to your new service
+Creating service 'analytics'...
+Service ID: <service-id>
+Password saved to system keyring
+Default service set to <service-id>.
+Waiting for service to be ready (timeout: 30m0s)...
+Service is ready.
+Connect with: tiger db psql
 ```
 
 Then the {C.SERVICE_SHORT}'s details, in the same format as [`service get`](#tiger-service-get).
@@ -468,14 +482,13 @@ tiger service fork <service-id> --now
 You see something like:
 
 ```txt
-🍴 Forking service '<service-id>' to create '(auto-generated)' at current state...
-✅ Fork request accepted!
-📋 New Service ID: <new-service-id>
-🔐 Password saved to system keyring for automatic authentication
-🎯 Set service '<new-service-id>' as default service.
-⏳ Waiting for fork to complete (timeout: 30m0s)...
-🎉 Service fork completed successfully!
-🔌 Run 'tiger db connect' to connect to your new service
+Forking service '<service-id>' at current state...
+Service ID: <new-service-id>
+Password saved to system keyring
+Default service set to <new-service-id>.
+Waiting for fork to be ready (timeout: 30m0s)...
+Forked service is ready.
+Connect with: tiger db psql
 ```
 
 Then the fork's details, in the same format as [`service get`](#tiger-service-get).
@@ -504,10 +517,8 @@ tiger service resize <service-id> --cpu 4000 --memory 16
 You see something like:
 
 ```txt
-📐 Resizing service '<service-id>' to 4 CPU/16 GB...
-✅ Resize request accepted for service '<service-id>'!
-⏳ Waiting for resize to complete (timeout: 10m0s)...
-🎉 Service '<service-id>' has been successfully resized to 4 CPU/16 GB!
+Waiting for resize to complete (timeout: 10m0s)...
+Service resized to 4 CPU/16 GB.
 ```
 
 | Flag | Description |
@@ -528,9 +539,8 @@ tiger service start <service-id>
 You see something like:
 
 ```txt
-▶️  Start request accepted for service '<service-id>'.
-⏳ Waiting for service to start (wait timeout: 10m0s)...
-✅ Service has been successfully started!
+Waiting for service to start (timeout: 10m0s)...
+Service started.
 ```
 
 | Flag | Description |
@@ -550,9 +560,8 @@ tiger service stop <service-id>
 You see something like:
 
 ```txt
-⏹️  Stop request accepted for service '<service-id>'.
-⏳ Waiting for service to stop (timeout: 10m0s)...
-✅ Service has been successfully stopped!
+Waiting for service to stop (timeout: 10m0s)...
+Service stopped.
 ```
 
 | Flag | Description |
@@ -572,11 +581,9 @@ tiger service update-password <service-id> --auto-generate
 You see something like:
 
 ```txt
-Successfully generated a new password.
-Password saved to system keyring for automatic authentication
-To view your new password, run:
-	 tiger service get <service-id> --with-password
-✅ Master password for 'tsdbadmin' user updated successfully
+Password saved to system keyring
+View it with: tiger service get <service-id> --with-password
+Password updated for tsdbadmin
 ```
 
 | Flag | Description |
@@ -584,9 +591,27 @@ To view your new password, run:
 | `--new-password` | New password for the `tsdbadmin` user. |
 | `--auto-generate` | Auto-generate a secure password (mutually exclusive with `--new-password`). |
 
+### `tiger service rename`
+
+Rename a {C.SERVICE_SHORT}. Only the display name changes: the {C.SERVICE_SHORT} ID, endpoints, and stored credentials are untouched, so existing connections and connection strings keep working.
+
+**Usage**: `tiger service rename <service-id> <new-name>`
+
+```bash
+tiger service rename <service-id> analytics-prod
+```
+
+You see:
+
+```txt
+Renamed service '<service-id>' to 'analytics-prod'.
+```
+
+Both arguments are required; there is no default-{C.SERVICE_SHORT} fallback, because a single argument would be ambiguous between the {C.SERVICE_SHORT} to rename and the name to give it.
+
 ### `tiger service delete`
 
-Delete a {C.SERVICE_SHORT}. This is irreversible and prompts for confirmation before proceeding. Alias: `rm`.
+Delete a {C.SERVICE_SHORT}. This is irreversible and prompts you to type the {C.SERVICE_SHORT} ID to confirm before proceeding. The command returns as soon as the API accepts the deletion. Alias: `rm`.
 
 **Usage**: `tiger service delete <service-id> [flags]`
 
@@ -594,22 +619,17 @@ Delete a {C.SERVICE_SHORT}. This is irreversible and prompts for confirmation be
 tiger service delete <service-id> --confirm
 ```
 
-You see something like:
+You see:
 
 ```txt
-🗑️  Delete request accepted for service '<service-id>'.
-Waiting for service '<service-id>' to be deleted
-✅ Service '<service-id>' has been successfully deleted.
+Service '<service-id>' deleted.
 ```
 
 | Flag | Description |
 | --- | --- |
 | `--confirm` | Skip the confirmation prompt. AI agents must confirm with the user first. |
-| `--no-wait`, `--wait-timeout` | Wait behavior (default timeout: `30m`). |
 
-<Callout variant="note" title="No MCP tool for delete">
-There is no {C.MCP_SHORT} tool for `service delete`; use this {C.CLI_SHORT} command instead.
-</Callout>
+Before {C.CLI_LONG} 0.25, this command also took `--no-wait` and `--wait-timeout`; they were removed because the API removes the {C.SERVICE_SHORT} from view as soon as it accepts the deletion, so there is nothing to wait for. The [`service_delete`](/reference/tiger-cloud/tiger-mcp#service_delete) {C.MCP_SHORT} tool is the agent-side equivalent; deleting a {C.SERVICE_SHORT} tagged `PROD` through it prompts you for confirmation through the MCP client.
 
 ### `tiger service logs`
 
@@ -646,14 +666,14 @@ Connect to a {C.SERVICE_SHORT}'s database and manage roles from the terminal. Se
 
 The `--pooled` flag on these commands, and the `pooled` parameter on {C.MCP_SHORT}'s database tools, need a connection pooler on the {C.SERVICE_SHORT}. Without one, the command fails with `connection pooler not available for this service`.
 
-### `tiger db connect`
+### `tiger db psql`
 
-Connect to a {C.SERVICE_SHORT} with `psql`. Pass extra `psql` flags after `--`, for example `tiger db connect <service-id> -- --single-transaction`. Alias: `psql`.
+Connect to a {C.SERVICE_SHORT} with `psql`. Pass extra `psql` flags after `--`, for example `tiger db psql <service-id> -- --single-transaction`. Before {C.CLI_LONG} 0.25, the primary name of this command was `db connect`; `connect` still works as an alias.
 
-**Usage**: `tiger db connect <service-id> [flags]`
+**Usage**: `tiger db psql <service-id> [flags]`
 
 ```bash
-tiger db connect <service-id>
+tiger db psql <service-id>
 ```
 
 You see something like:
@@ -677,7 +697,7 @@ tsdb=>
 
 ### `tiger db query`
 
-Run a SQL query against a {C.SERVICE_SHORT} and print the results. Unlike [`db connect`](#tiger-db-connect), this runs the query directly and does not require a local `psql` installation. Pass a read replica set ID instead of a {C.SERVICE_SHORT} ID to query that replica. Alias: `sql`.
+Run a SQL query against a {C.SERVICE_SHORT} and print the results. Unlike [`db psql`](#tiger-db-psql), this runs the query directly and does not require a local `psql` installation. Pass a read replica set ID instead of a {C.SERVICE_SHORT} ID to query that replica. Alias: `sql`.
 
 **Usage**: `tiger db query [service-id] [flags]`
 
@@ -713,14 +733,14 @@ Row-returning statements print a `psql`-style table (or JSON/YAML with `--output
 
 This command is the {C.CLI_SHORT} equivalent of the [`db_query`](/reference/tiger-cloud/tiger-mcp#db_query) {C.MCP_SHORT} tool, with one difference: the {C.MCP_SHORT} tool caps how many rows it returns to the agent, while the {C.CLI_SHORT} command returns everything the query produced.
 
-### `tiger db connection-string`
+### `tiger db uri`
 
-Print the connection string for a {C.SERVICE_SHORT}. Alias: `uri`.
+Print the connection string for a {C.SERVICE_SHORT}. Before {C.CLI_LONG} 0.25, the primary name of this command was `db connection-string`; the old name still works as an alias.
 
-**Usage**: `tiger db connection-string <service-id> [flags]`
+**Usage**: `tiger db uri <service-id> [flags]`
 
 ```bash
-tiger db connection-string <service-id>
+tiger db uri <service-id>
 ```
 
 You see something like:
@@ -824,14 +844,14 @@ Password saved successfully for service <service-id> (role: tsdbadmin)
 | `--role` | Database role (default: `tsdbadmin`). |
 | `--password` | Password value (or use `TIGER_NEW_PASSWORD`). |
 
-### `tiger db test-connection`
+### `tiger db ping`
 
-Test connectivity to a {C.SERVICE_SHORT}. Aliases: `test`, `ping`.
+Test connectivity to a {C.SERVICE_SHORT}. Before {C.CLI_LONG} 0.25, the primary name of this command was `db test-connection`; `test-connection` and `test` still work as aliases.
 
-**Usage**: `tiger db test-connection <service-id> [flags]`
+**Usage**: `tiger db ping <service-id> [flags]`
 
 ```bash
-tiger db test-connection <service-id>
+tiger db ping <service-id>
 ```
 
 You see:
@@ -868,7 +888,7 @@ Install and manage {C.MCP_LONG}, the tool your AI agent uses to work with {C.CLO
 
 ### `tiger mcp install`
 
-Install and configure {C.MCP_LONG} for an AI agent. Supported clients: `claude-code`, `codex`, `copilot`, `cursor`, `gemini`, `vscode`, `windsurf`, `antigravity`, `kiro-cli`. If no client is given, you are prompted to choose. Alias: `add`.
+Install and configure {C.MCP_LONG} for an AI agent. Supported clients: `claude-code`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `vscode`, `windsurf`, `antigravity`, `kiro-cli`. If no client is given, you are prompted to choose. Alias: `add`.
 
 The `copilot` client configures the GitHub Copilot CLI, and the GitHub Copilot desktop app picks up the same configuration.
 
@@ -914,10 +934,12 @@ You see something like:
 │ tool   │ db_schema                              │
 │ tool   │ search_docs                            │
 │ tool   │ service_create                         │
+│ tool   │ service_delete                         │
 │ tool   │ service_fork                           │
 │ tool   │ service_get                            │
 │ tool   │ service_list                           │
 │ tool   │ service_logs                           │
+│ tool   │ service_rename                         │
 │ tool   │ service_resize                         │
 │ tool   │ service_start                          │
 │ tool   │ service_stop                           │
@@ -944,7 +966,7 @@ tiger mcp get setup-timescaledb-hypertables
 For `service_create`, you see something like:
 
 ```txt
-Create Database Service [open-world]
+Create Database Service
 
 Tool name: service_create
 
