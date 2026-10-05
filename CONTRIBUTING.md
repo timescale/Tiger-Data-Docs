@@ -13,7 +13,7 @@ If you're an external contributor looking to report a docs issue, suggest a chan
   pnpm dev
   ```
   Visit [localhost:4321](http://localhost:4321/).
-- No Stainless API key handy? Use `pnpm dev:local` instead: it skips generating the Tiger Cloud REST API reference and stubs that page.
+- No API credentials are required. `pnpm dev:local` is retained as an alias for `pnpm dev`.
 - Full setup details, environment variables, and other commands: [`README.md`](./README.md).
 
 ## Conventions

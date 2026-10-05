@@ -1,51 +1,35 @@
 # Tiger Data Docs
 
-Documentation site for Tiger Data, built on Astro + Starlight using the Stainless Docs Platform (`@stainless-api/docs`).
+Documentation site for Tiger Data, built on Astro 6, Starlight, and the Stainless Docs renderer.
 
 ## Prerequisites
 
 - **Node.js** (v22.12.0 or later, as required by `package.json`): [nodejs.org](https://nodejs.org/)
 - **pnpm** (package manager): install with `npm install -g pnpm` or see [pnpm.io/installation](https://pnpm.io/installation)
-- **Stainless API key**: required only if you need the generated **Tiger Cloud REST API** reference locally. To run without any Stainless credentials, use **`pnpm dev:local`** (see below).
-  1. Sign in at [app.stainless.com](https://app.stainless.com)
-  2. Go to **Org Settings → API keys** and copy your key (starts with `stl_sk...`)
-  3. Create a `.env` file in the project root (use `.env.example` as a template):
-     ```
-     STAINLESS_API_KEY="stl_sk..."
-     ```
-- **Stainless CLI** (optional but recommended): [CLI quickstart](https://www.stainless.com/docs/getting-started/quickstart-cli)
 
 ## Development quickstart
 
 1. Clone the repo and `cd` into it
-2. Copy the env file: `cp .env.example .env` and add your Stainless API key
-3. Install dependencies: `pnpm install`
-4. (Optional) Authenticate with the Stainless CLI: `stl auth login`
-5. Start the dev server: `pnpm dev`
-6. Visit [localhost:4321](http://localhost:4321/)
+2. Install dependencies: `pnpm install`
+3. Start the dev server: `pnpm dev`
+4. Visit [localhost:4321](http://localhost:4321/)
 
-### Run without a Stainless API key
-
-If you do not have `STAINLESS_API_KEY` or `stl auth login`, use the local preset so the site skips downloading the Tiger Cloud OpenAPI spec from Stainless:
-
-```bash
-pnpm install
-pnpm dev:local
-```
-
-`dev:local` sets `DOCS_LOCAL_WITHOUT_STAINLESS=1`, which disables generated REST API pages and points the Reference sidebar to a stub page (`/reference/tiger-cloud-rest-local-preview` in the running site). All other docs (TimescaleDB reference, Toolkit, guides, and so on) work normally.
-
-For a production build without Stainless (for example, CI that cannot reach the API), use `pnpm build:local`. To restore the full REST reference, unset `DOCS_LOCAL_WITHOUT_STAINLESS`, add a key or CLI auth, and run `pnpm dev` or `pnpm build` again.
+The development server and production build run without external API credentials. `dev:local` and `build:local` remain as aliases for compatibility.
 
 ### Other commands
 
 ```bash
 pnpm build         # Build for production
-pnpm build:local   # Build with DOCS_LOCAL_WITHOUT_STAINLESS (no Stainless API for REST reference)
-pnpm dev:local     # Dev server without Stainless API (same as DOCS_LOCAL_WITHOUT_STAINLESS=1)
+pnpm build:local   # Alias for pnpm build
+pnpm dev:local     # Alias for pnpm dev
 pnpm preview       # Preview production build
 pnpm format        # Format code
+pnpm openapi:update # Refresh the checked-in Tiger Cloud OpenAPI definition
 ```
+
+The Tiger Cloud REST reference is generated locally from `stainless/openapi.yml`
+and `stainless/stainless.yml`. See [`stainless/README.md`](./stainless/README.md)
+for provenance and update instructions.
 
 ## Site structure
 
@@ -128,20 +112,15 @@ integrationTechnologies: ["Kafka", "AWS"]
 
 If you set `integrationTechnologies`, it **replaces** inference from `keywords` for that page (the explicit list wins).
 
-## About Stainless docs
+## Documentation platform
 
-The Stainless Docs Platform is built on top of [Astro](https://astro.build) and [Starlight](https://starlight.astro.build). Starlight is a powerful documentation framework designed for speed, accessibility, and customizability.
-
-This project uses the `@stainless-api/docs` integration which provides:
-- Automatic API reference generation from the `tiger-cloud` Stainless project
-- MDX components (`Callout`, `Tabs`, `TabItem`, `Cards`, and so on)
-- Theme customization via `theme.css`
+The site uses [Astro](https://astro.build) and [Starlight](https://starlight.astro.build) directly. Project-owned components in `src/components/` provide custom callouts, cards, tabs, badges, and navigation.
 
 **→ [Component usage guide (README-component.md)](./README-component.md)**: how to use callouts (Tip, Note, Important, Warning, Callout with button) and other custom components. Instructions are in collapsible sections so you can expand only what you need.
 
 ## Environment
 
-`STAINLESS_API_KEY` (or `stl auth login`) is required for **generated** Tiger Cloud REST API reference unless you set **`DOCS_LOCAL_WITHOUT_STAINLESS=1`** or use **`pnpm dev:local`** / **`pnpm build:local`**. See `.env.example`.
+No environment variables are required for a local build. Optional integrations are documented in `.env.example`.
 
 ### Optional: Sentry error monitoring
 
@@ -165,27 +144,7 @@ No extra setup is needed; your assistant discovers the config automatically when
 
 ### Optional: Algolia instead of Pagefind
 
-By default, search uses [Pagefind](https://pagefind.app/) (no extra services). To use [Algolia](https://www.algolia.com/) for site search, set the four variables in `.env.example` and follow [Stainless: site search](https://www.stainless.com/docs/docs-platform/hosting-and-deploys/#site-search) (keys, security, and running `pnpm build` to upload the index).
-
-### Troubleshooting: `Connection error` (Stainless API)
-
-If `pnpm dev` or `pnpm build` fails with **`Error: Connection error`** from `@stainless-api/sdk` / `loadSpecs` / `inputResolver`, the docs plugin cannot reach **Stainless’s API** to download the **Tiger Cloud** OpenAPI spec and config. Try, in order:
-
-1. **API key in `.env`**  
-   Copy `.env.example` to `.env` in the **project root**. Add a real key from [Stainless → org settings → API keys](https://app.stainless.com/org/default/settings) (format `stl_sk_…`). Restart the dev server so Astro picks up the env var.
-
-2. **CLI auth (alternative to `.env`)**  
-   Run `stl auth login` ([Stainless CLI quickstart](https://www.stainless.com/docs/getting-started/quickstart-cli)). The plugin can use CLI login if no key is in `.env`.
-
-3. **Network**  
-   Confirm you can reach the API (browser or terminal):  
-   `curl -sI https://api.stainless.com`  
-   VPNs, corporate firewalls, or offline mode often cause this error.
-
-4. **Project access**  
-   Your key or CLI user must be able to access the **`tiger-cloud`** Stainless project configured in `astro.config.ts`. If you only have a personal org key, you may need access from the Tiger Data / Timescale team.
-
-After fixing auth or network, run `pnpm dev` again.
+By default, search uses [Pagefind](https://pagefind.app/) and needs no extra service. To use [Algolia](https://www.algolia.com/), set the four variables in `.env.example`.
 
 ## Doc constants (brand and product variables)
 
@@ -227,6 +186,5 @@ learnMore:
 
 ## Want to learn more?
 
-- [Stainless Docs Platform documentation](https://stainless.com/docs/docs-platform/)
 - [Starlight docs](https://starlight.astro.build/getting-started/)
 - [Astro docs](https://docs.astro.build)

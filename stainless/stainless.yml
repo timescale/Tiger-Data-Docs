@@ -1,0 +1,168 @@
+# yaml-language-server: $schema=https://app.stainless.com/config.schema.json
+
+# The main edition for the config, see the [docs] for more information.
+#
+# [docs]: https://www.stainless.com/docs/reference/editions
+edition: 2025-10-10
+
+organization:
+  # Name of your organization or company, used to determine the name of the client
+  # and headings.
+  name: tiger-cloud
+  # Link to your API documentation.
+  docs: https://www.tigerdata.com/contact
+  # Contact email for bug reports, questions, and support requests.
+  contact: ''
+
+# `targets` define the output targets and their customization options, such as
+# whether to emit the Node SDK and what its package name should be.
+targets:
+  typescript:
+    # The edition for this target, see the [docs] for more information.
+    #
+    # [docs]: https://www.stainless.com/docs/reference/editions
+    edition: typescript.2025-10-10
+    package_name: tiger-cloud
+    production_repo: null
+    publish:
+      npm: false
+
+# `environments` are a map of the name of the environment (e.g. "sandbox",
+# "production") to the corresponding url to use.
+environments:
+  production: https://console.cloud.tigerdata.com/public/api/v1
+  environment_1: https://api.tigerdata.com/public/v1
+
+# `resources` define the structure and organization for your API, such as how
+# methods and models are grouped together and accessed. See the [configuration
+# guide] for more information.
+#
+# [configuration guide]: https://www.stainless.com/docs/guides/configure#resources
+resources:
+  auth:
+    # Configure the methods defined in this resource. Each key in the object is the
+    # name of the method and the value is either an endpoint (for example, `get /foo`)
+    # or an object with more detail.
+    #
+    # [reference]: https://www.stainless.com/docs/reference/config#method
+    methods:
+      retrieve_info: get /auth/info
+
+  analytics:
+    methods:
+      identify:
+        endpoint: post /analytics/identify
+        skip: true # this endpoint will be entirely omitted from SDKs and Docs
+      track:
+        endpoint: post /analytics/track
+        skip: true # this endpoint will be entirely omitted from SDKs and Docs
+
+  projects:
+    methods:
+      get: get /projects
+      # Subresources define resources that are nested within another for more powerful
+      # logical groupings, e.g. `cards.payments`.
+    subresources:
+      vpcs:
+        models:
+          vpc: '#/components/schemas/VPC'
+        methods:
+          list: get /projects/{project_id}/vpcs
+          create: post /projects/{project_id}/vpcs
+          retrieve: get /projects/{project_id}/vpcs/{vpc_id}
+          delete: delete /projects/{project_id}/vpcs/{vpc_id}
+          rename: post /projects/{project_id}/vpcs/{vpc_id}/rename
+        subresources:
+          peerings:
+            # Configure the models--named types--defined in the resource. Each key in the
+            # object is the name of the model and the value is either the name of a schema in
+            # `#/components/schemas` or an object with more detail.
+            #
+            # [reference]: https://www.stainless.com/docs/reference/config#model
+            models:
+              peering: '#/components/schemas/Peering'
+            methods:
+              list: get /projects/{project_id}/vpcs/{vpc_id}/peerings
+              create: post /projects/{project_id}/vpcs/{vpc_id}/peerings
+              retrieve: get /projects/{project_id}/vpcs/{vpc_id}/peerings/{peering_id}
+              delete: delete /projects/{project_id}/vpcs/{vpc_id}/peerings/{peering_id}
+      services:
+        models:
+          endpoint: '#/components/schemas/Endpoint'
+          connection_pooler: '#/components/schemas/ConnectionPooler'
+          service: '#/components/schemas/Service'
+          environment_tag: '#/components/schemas/EnvironmentTag'
+          resize_input: '#/components/schemas/ResizeInput'
+          set_environment_input: '#/components/schemas/SetEnvironmentInput'
+          service_vpc_input: '#/components/schemas/ServiceVPCInput'
+        methods:
+          list: get /projects/{project_id}/services
+          create: post /projects/{project_id}/services
+          retrieve: get /projects/{project_id}/services/{service_id}
+          delete: delete /projects/{project_id}/services/{service_id}
+          start: post /projects/{project_id}/services/{service_id}/start
+          stop: post /projects/{project_id}/services/{service_id}/stop
+          attach_to_vpc: post /projects/{project_id}/services/{service_id}/attachToVPC
+          detach_from_vpc: post /projects/{project_id}/services/{service_id}/detachFromVPC
+          resize: post /projects/{project_id}/services/{service_id}/resize
+          enable_pooler: post /projects/{project_id}/services/{service_id}/enablePooler
+          disable_pooler: post /projects/{project_id}/services/{service_id}/disablePooler
+          fork_service: post /projects/{project_id}/services/{service_id}/forkService
+          update_password: post /projects/{project_id}/services/{service_id}/updatePassword
+          set_environment: post /projects/{project_id}/services/{service_id}/setEnvironment
+          logs: get /projects/{project_id}/services/{service_id}/logs
+          set_ha: post /projects/{project_id}/services/{service_id}/setHA
+        subresources:
+          replica_sets:
+            models:
+              read_replica_set: '#/components/schemas/ReadReplicaSet'
+            methods:
+              retrieve_replica_sets: get /projects/{project_id}/services/{service_id}/replicaSets
+              replica_sets: post /projects/{project_id}/services/{service_id}/replicaSets
+              delete: delete /projects/{project_id}/services/{service_id}/replicaSets/{replica_set_id}
+              resize: post /projects/{project_id}/services/{service_id}/replicaSets/{replica_set_id}/resize
+              enable_pooler: post /projects/{project_id}/services/{service_id}/replicaSets/{replica_set_id}/enablePooler
+              disable_pooler: post /projects/{project_id}/services/{service_id}/replicaSets/{replica_set_id}/disablePooler
+              set_environment: post /projects/{project_id}/services/{service_id}/replicaSets/{replica_set_id}/setEnvironment
+
+settings:
+  # All generated integration tests that hit the prism mock http server are marked
+  # as skipped. Removing this setting or setting it to false enables tests, but
+  # doing so may result in test failures due to bugs in the test server.
+  #
+  # [prism mock http server]: https://stoplight.io/open-source/prism
+  disable_mock_tests: true
+  license: Apache-2.0
+
+# `client_settings` define settings for the API client, such as extra constructor
+# arguments (used for authentication), retry behavior, idempotency, etc.
+client_settings:
+  opts:
+    api_key:
+      type: string
+      read_env: TIGER_CLOUD_API_KEY
+      nullable: true
+      auth:
+        security_scheme: bearerAuth
+
+security_schemes:
+  bearerAuth:
+    type: http
+    scheme: bearer
+
+security:
+  - bearerAuth: []
+
+# `readme` is used to configure the code snippets that will be rendered in the
+# README.md of various SDKs. In particular, you can change the `headline`
+# snippet's endpoint and the arguments to call it with.
+readme:
+  example_requests:
+    default:
+      type: request
+      endpoint: post /projects/{project_id}/vpcs
+      params: {}
+    headline:
+      type: request
+      endpoint: get /auth/info
+      params: {}
