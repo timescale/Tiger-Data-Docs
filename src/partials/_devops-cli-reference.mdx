@@ -373,7 +373,7 @@ Configuration reset to defaults
 
 Manage {C.SERVICE_SHORT}s from the terminal. `tiger service` has the aliases `services` and `svc`, so `tiger svc list` is the same as `tiger service list`. For the {C.MCP_SHORT}-tool equivalent of each command, see the [{C.MCP_LONG} reference](/reference/tiger-cloud/tiger-mcp); for a task-by-task comparison, see [common tasks](/build/tiger-cli-mcp/common-tasks#manage-your-services).
 
-Every command that takes a {C.SERVICE_SHORT} argument accepts the {C.SERVICE_SHORT}'s name as well as its ID, so `tiger service stop analytics` and `tiger service stop <service-id>` do the same thing. A name that matches more than one {C.SERVICE_SHORT} is refused; pass the ID to disambiguate. The argument is written as `<name-or-id>` below, and omitting it falls back to your default {C.SERVICE_SHORT}. Two places still take only the ID: the `--service-id` flag, the `TIGER_SERVICE_ID` environment variable, and the `service_id` config key (a stored name would break every command at once if the {C.SERVICE_SHORT} is renamed), and the confirmation prompt on [`service delete`](#tiger-service-delete). Before {C.CLI_LONG} 0.26, these arguments accepted only the ID.
+Every command that takes a {C.SERVICE_SHORT} argument accepts the {C.SERVICE_SHORT}'s name as well as its ID, so `tiger service stop analytics` and `tiger service stop <service-id>` do the same thing. A name that matches more than one {C.SERVICE_SHORT} is refused; pass the ID to disambiguate. The argument is written as `<name-or-id>` below. Omitting it falls back to your default {C.SERVICE_SHORT}, except for [`service delete`](#tiger-service-delete) and [`service rename`](#tiger-service-rename), which always need it. Two inputs still take only the ID: the configured default (the `--service-id` flag, the `TIGER_SERVICE_ID` environment variable, and the `service_id` config key), because a stored name would break every command at once if the {C.SERVICE_SHORT} is renamed; and the confirmation prompt on `service delete`. Before {C.CLI_LONG} 0.26, these arguments accepted only the ID.
 
 ### `tiger service create`
 
@@ -668,11 +668,15 @@ You see something like:
 | `--node` | Specific node to fetch logs from (for services with HA replicas; `0` is valid). |
 | `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
+## Metrics
+
+Query a {C.SERVICE_SHORT}'s time-series metrics for monitoring, debugging, and performance investigation. For the {C.MCP_SHORT}-tool equivalents, see [metrics tools](/reference/tiger-cloud/tiger-mcp#metrics-tools). For every metric you can query, see [Available metrics](#available-metrics).
+
 ### `tiger service metrics available`
 
 List the names of the metric series available for a {C.SERVICE_SHORT}, for monitoring, debugging, and performance investigation. Use these names with [`service metrics details`](#tiger-service-metrics-details) and [`service metrics series`](#tiger-service-metrics-series). For the full list with descriptions, see [Available metrics](#available-metrics). Before {C.CLI_LONG} 0.26, the metrics commands were experimental and hidden unless the `TIGER_EXPERIMENTAL` environment variable was set, and this command was named `metrics available-series`.
 
-**Usage**: `tiger service metrics available [name-or-id] [flags]`
+**Usage**: `tiger service metrics available <name-or-id> [flags]`
 
 ```bash
 tiger service metrics available <name-or-id>
@@ -699,7 +703,7 @@ timescale_cloud_system_memory_usage_bytes
 
 Show descriptive metadata for a metric: what it measures, its type, its default aggregation function, and the labels you can filter or group it by.
 
-**Usage**: `tiger service metrics details [name-or-id] --metric <name> [flags]`
+**Usage**: `tiger service metrics details <name-or-id> --metric <name> [flags]`
 
 ```bash
 tiger service metrics details <name-or-id> --metric pg_stat_activity_count
@@ -722,13 +726,15 @@ You see something like:
 ├──────────────┼─────────────────────────────────────────────────────┤
 │ datname      │ undocumented                                        │
 │ state        │ undocumented                                        │
+│ usename      │ undocumented                                        │
+│ backend_type │ undocumented                                        │
 │ region       │ Region the service runs in.                         │
 │ role         │ Instance role: primary, replica, or standby_leader. │
 │ ordinal      │ Per-pod ordinal within the service.                 │
 └──────────────┴─────────────────────────────────────────────────────┘
 ```
 
-The `timescale_cloud_*` resource, queries-per-second (QPS), connection, and job metrics have no richer metadata; for those, this command returns just the name, with the type, default aggregation, description, and labels empty.
+The `timescale_cloud_*` resource, queries-per-second (QPS), connection, and job metrics have no richer metadata; for those, this command returns just the name: the table shows `undocumented` for the type, default aggregation, and description and lists no labels, and JSON output returns those fields as null or empty.
 
 | Flag | Description |
 | --- | --- |
@@ -739,7 +745,7 @@ The `timescale_cloud_*` resource, queries-per-second (QPS), connection, and job 
 
 Fetch time-series data for a metric. Each labeled series, for example one per replica, is returned independently with its full list of data points.
 
-**Usage**: `tiger service metrics series [name-or-id] --metric <name> [flags]`
+**Usage**: `tiger service metrics series <name-or-id> --metric <name> [flags]`
 
 ```bash
 tiger service metrics series <name-or-id> --metric timescale_cloud_system_cpu_usage_millicores
@@ -748,13 +754,13 @@ tiger service metrics series <name-or-id> --metric timescale_cloud_system_cpu_us
 You see something like:
 
 ```txt
-┌───────────────────┬──────────────────────┬─────────┐
-│      SERIES       │         TIME         │  VALUE  │
-├───────────────────┼──────────────────────┼─────────┤
-│ role="primary"    │ 2026-09-30T12:00:00Z │ 102.000 │
-│ role="primary"    │ 2026-09-30T13:00:00Z │ 98.000  │
-│ role="primary"    │ 2026-09-30T14:00:00Z │ 110.000 │
-└───────────────────┴──────────────────────┴─────────┘
+┌──────────────────────────────┬──────────────────────┬─────────┐
+│            SERIES            │         TIME         │  VALUE  │
+├──────────────────────────────┼──────────────────────┼─────────┤
+│ {ordinal="0",role="primary"} │ 2026-09-30T12:00:00Z │ 102.000 │
+│ {ordinal="0",role="primary"} │ 2026-09-30T13:00:00Z │ 98.000  │
+│ {ordinal="0",role="primary"} │ 2026-09-30T14:00:00Z │ 110.000 │
+└──────────────────────────────┴──────────────────────┴─────────┘
 ```
 
 With no `--from` and `--to`, the command returns the last 24 hours bucketed into 1-hour intervals.
