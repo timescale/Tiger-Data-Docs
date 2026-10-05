@@ -780,8 +780,8 @@ tiger service metrics series <name-or-id> --metric pg_stat_activity_count \
 | `--metric` | The metric series to fetch. Use [`service metrics available`](#tiger-service-metrics-available) to discover valid names. |
 | `--from`, `--to` | Time window (RFC3339). Default: the last 24 hours. |
 | `--bucket-seconds` | Aggregation bucket size in seconds (minimum: `60`). Defaults to `3600` (1 hour) when `--from`/`--to` are also omitted; otherwise the server picks a size matched to the window. |
-| `--fn` | Aggregation function applied per bucket: `RATE`, `INCREASE`, `SUM`, `AVG`, `MIN`, `MAX`, `MIN_TOTAL`, `MAX_TOTAL`, `COUNT`, `P50`, `P90`, `P99`, or `LAST`. Omit to let the server pick the metric's default. Not accepted on the `timescale_cloud_*` resource, QPS, connection, and job metrics. |
-| `--role` | Restrict to one instance role: `PRIMARY` or `REPLICA`. |
+| `--fn` | Aggregation function applied per bucket: `RATE`, `INCREASE`, `SUM`, `AVG`, `MIN`, `MAX`, `MIN_TOTAL`, `MAX_TOTAL`, `COUNT`, `P50`, `P90`, `P99`, or `LAST`. Omit to let the server pick the metric's default. Not accepted on the `timescale_cloud_*` resource, QPS, connection, and job metrics. See [Aggregation functions](#aggregation-functions) for what each one computes. |
+| `--role` | Restrict to one instance role: `PRIMARY` or `REPLICA`. Omit to aggregate datapoints across all nodes. For most queries applying `--role PRIMARY` could be more meaningful. |
 | `--filter` | Arbitrary label filter as `name=value` or `name!=value` (repeatable). `name!=value` also matches series missing the label entirely. |
 | `--group-by` | Label key to break the result into one series per distinct value (repeatable). Rejected on the same metrics that reject `--fn`. Omit to collapse into a single series. |
 | `--output, -o` | Output format: `json`, `yaml`, or `table`. |
@@ -1190,6 +1190,21 @@ These metrics back the {C.CONSOLE} dashboards. They are queryable here but are n
 ### {C.PG} statistics metrics
 
 <MetricsPgStats />
+
+## Aggregation functions
+
+`--fn` ({C.CLI_SHORT}) and `fn` ({C.MCP_SHORT}) pick how the raw samples in each bucket collapse into one value, and, when a query matches more than one labeled series (for example every replica, or every database), how those series combine. Each metric has its own sensible default, and it varies by metric: check it with [`service metrics details`](#tiger-service-metrics-details) (**Default Aggregation**) rather than assuming one. Omit `--fn`/`fn` to use that default.
+
+| Function | What it computes |
+| --- | --- |
+| `LAST` | The last raw value in the bucket, summed across every matching series. Also the fallback when a metric declares no default of its own. Summing is why an unfiltered query against a service with replicas silently adds the primary's last value to every replica's, so narrow with `--role`/`role` or `--filter`/`filters` first. |
+| `SUM` | Total of all raw samples in the bucket, across every matching series. |
+| `AVG` | Average of all raw samples in the bucket, across every matching series (a weighted average, not an average of each series' own average). |
+| `COUNT` | Number of raw samples that landed in the bucket, across every matching series. |
+| `MIN`, `MAX` | The single most extreme raw value seen anywhere among the matching series, not the peak of their total. |
+| `MIN_TOTAL`, `MAX_TOTAL` | Sum every matching series together first, then take the minimum or maximum of *that combined series* across the bucket. The right choice for "did combined usage ever spike" (for example total connections across every database). Roughly Prometheus' `min_over_time(sum(...))` / `max_over_time(sum(...))`, rather than `min()`/`max()` alone. |
+| `RATE`, `INCREASE` | Per-second rate, or total increase, over the bucket, for ever-increasing counters (for example job run counts). Counter-reset aware and interpolated at the bucket boundaries, matching Prometheus' `rate()`/`increase()`. |
+| `P50`, `P90`, `P99` | Approximate percentile of the raw samples in the bucket, computed from a sketch rather than Prometheus-style histogram buckets (closer to `quantile_over_time()` than `histogram_quantile()`). |
 
 ## Configuration parameters
 
