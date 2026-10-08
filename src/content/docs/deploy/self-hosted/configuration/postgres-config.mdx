@@ -75,20 +75,29 @@ If you don't want to open the configuration file to make changes, you can also
 set parameters directly from the command prompt, using the `postgres` command.
 For example:
 
-```sql
+```bash
 postgres -c log_connections=yes -c log_destination='syslog'
 ```
 
 <TestPlan>
+target: self-hosted
 
-1. fork the self-hosted service
+1. fork the service
 2. run SQL: `SHOW config_file;`
 3. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'config_file' AND setting LIKE '%/postgresql.conf'`
 4. run command: `echo "log_connections = on" | sudo -u postgres tee -a "$(sudo -u postgres psql -d postgres -tAc 'SHOW config_file;')"`
 5. run SQL: `SELECT pg_reload_conf();`
 6. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'log_connections' AND setting = 'on'`
+7. run command: `pg_createcluster 18 prompt -p 5434`
+8. run command: `sudo -u postgres PGDATA=/etc/postgresql/18/prompt nohup /usr/lib/postgresql/18/bin/postgres -c log_connections=yes -c log_destination='syslog' > /tmp/prompt.log 2>&1 &`
+9. run command: `for i in $(seq 1 30); do sudo -u postgres pg_isready -p 5434 && break; sleep 1; done; sudo -u postgres pg_isready -p 5434`
+10. run command: `test "$(sudo -u postgres psql -p 5434 -d postgres -tAc 'SHOW log_connections')" = yes`
+11. run command: `test "$(sudo -u postgres psql -p 5434 -d postgres -tAc 'SHOW log_destination')" = syslog`
+12. run command: `pg_ctlcluster 18 prompt stop`
 
-Not scripted:
-- Setting parameters at the command prompt: `postgres -c …` starts a second server process, and the target already runs one.
+Step 7 is a fixture: `postgres -c …` starts a server, and the box already runs one on 5432, so the
+page's command gets a second cluster of its own on 5434. Step 8 is the page's command with the
+environment a reader has and the plan does not: `PGDATA` names the cluster, the binary is called
+by its path because Ubuntu keeps it off `PATH`, and `nohup … &` lets the step return.
 
 </TestPlan>
