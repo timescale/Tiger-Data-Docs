@@ -9,6 +9,7 @@ import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import DoWithAi from "@components/DoWithAi.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 Retention policies drop entire {C.CHUNK}s once their time range falls outside your window, which is cheaper than deleting millions of rows one by one. {C.TIMESCALE_DB} schedules a background {C.JOB} to apply the policy for you.
 
@@ -37,16 +38,6 @@ A data retention policy only allows you to drop {C.CHUNK}s based on how far they
 in the past. To drop {C.CHUNK}s based on how far they are in the future,
 [manually drop {C.CHUNK}s](/learn/data-lifecycle/data-retention/manually-drop-chunks).
 </Callout>
-
-## Remove a data retention policy
-
-Remove an existing data retention policy by using the
-[`remove_retention_policy`](/reference/timescaledb/data-retention/remove_retention_policy) function. Pass it the name
-of the {C.HYPERTABLE} to remove the policy from.
-
-```sql
-SELECT remove_retention_policy('conditions');
-```
 
 ## See scheduled data retention {C.JOB}s
 
@@ -89,3 +80,28 @@ total_runs          | 1
 total_successes     | 1
 total_failures      | 0
 ```
+
+## Remove a data retention policy
+
+Remove an existing data retention policy by using the
+[`remove_retention_policy`](/reference/timescaledb/data-retention/remove_retention_policy) function. Pass it the name
+of the {C.HYPERTABLE} to remove the policy from.
+
+```sql
+SELECT remove_retention_policy('conditions');
+```
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE conditions (time timestamptz NOT NULL, location text, temperature double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+5. run SQL: `SELECT add_retention_policy('conditions', INTERVAL '24 hours');`
+6. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_retention' AND hypertable_name = 'conditions' AND (config->>'drop_after')::interval = INTERVAL '24 hours' AND schedule_interval = INTERVAL '1 day'`
+7. run SQL: `SELECT j.hypertable_name, j.job_id, config, schedule_interval, job_status, last_run_status, last_run_started_at, js.next_start, total_runs, total_successes, total_failures FROM timescaledb_information.jobs j JOIN timescaledb_information.job_stats js ON j.job_id = js.job_id WHERE j.proc_name = 'policy_retention';`
+8. expect rows: `SELECT 1 FROM timescaledb_information.jobs j JOIN timescaledb_information.job_stats js ON j.job_id = js.job_id WHERE j.proc_name = 'policy_retention' AND j.hypertable_name = 'conditions' AND js.job_status = 'Scheduled'`
+9. run SQL: `SELECT remove_retention_policy('conditions');`
+10. expect no rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_retention' AND hypertable_name = 'conditions'`
+</TestPlan>
