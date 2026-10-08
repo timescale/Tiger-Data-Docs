@@ -7,6 +7,7 @@ keywords: [data retention, chunks]
 
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
+import TestPlan from "@components/TestPlan.astro";
 
 Drop {C.CHUNK}s manually by time value. For example, drop {C.CHUNK}s containing data
 older than 30 days.
@@ -67,3 +68,23 @@ SELECT drop_chunks(
   reference with all parameters.
 - [`show_chunks()` reference](/reference/timescaledb/hypertables/show_chunks): List {C.CHUNK}s
   before dropping them.
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE conditions (time timestamptz NOT NULL, location text, temperature double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time', tsdb.chunk_interval = '1 day');`
+5. run SQL: `INSERT INTO conditions (time, location, temperature) VALUES (now() - INTERVAL '3 days', 'office', 20.1), (now(), 'office', 21.4), (now() + INTERVAL '4 months', 'office', 99.9);`
+6. run SQL: `SELECT drop_chunks('conditions', INTERVAL '24 hours');`
+7. expect no rows: `SELECT 1 FROM conditions WHERE time < now() - INTERVAL '24 hours'`
+8. expect rows: `SELECT 1 FROM conditions WHERE time > now() - INTERVAL '1 hour' AND time < now() + INTERVAL '1 hour'`
+9. run SQL: `INSERT INTO conditions (time, location, temperature) VALUES (now() - INTERVAL '3 months 15 days', 'garage', 18.0), (now() - INTERVAL '5 months', 'garage', 17.5);`
+10. run SQL: `SELECT drop_chunks('conditions', older_than => INTERVAL '3 months', newer_than => INTERVAL '4 months')`
+11. expect no rows: `SELECT 1 FROM conditions WHERE time < now() - INTERVAL '3 months' AND time > now() - INTERVAL '4 months'`
+12. expect rows: `SELECT 1 FROM conditions WHERE time < now() - INTERVAL '4 months'`
+13. run SQL: `SELECT drop_chunks('conditions', newer_than => now() + INTERVAL '3 months');`
+14. expect no rows: `SELECT 1 FROM conditions WHERE time > now() + INTERVAL '3 months'`
+15. expect rows: `SELECT 1 FROM conditions WHERE time > now() - INTERVAL '1 hour' AND time < now() + INTERVAL '1 hour'`
+</TestPlan>
