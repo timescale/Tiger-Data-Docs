@@ -16,9 +16,6 @@ Apply the parameters with `ALTER SYSTEM`. A restart is required afterwards.
 ```bash
 psql "$SOURCE" <<'EOF'
 ALTER SYSTEM SET wal_level = 'logical';
-ALTER SYSTEM SET max_wal_senders = 30;
-ALTER SYSTEM SET max_replication_slots = 30;
-ALTER SYSTEM SET wal_sender_timeout = 0;
 ALTER SYSTEM SET max_locks_per_transaction = 1200;
 EOF
 ```
@@ -28,9 +25,6 @@ After restart, validate:
 ```bash
 psql "$SOURCE" <<'EOF'
 SHOW wal_level;
-SHOW max_wal_senders;
-SHOW max_replication_slots;
-SHOW wal_sender_timeout;
 SHOW max_locks_per_transaction;
 EOF
 ```
@@ -43,9 +37,6 @@ RDS and Aurora do not permit `ALTER SYSTEM`. Set the parameters in a custom para
 1. In the RDS console, create a parameter group for your {C.PG} major version, or edit the cluster parameter group for Aurora.
 2. Set:
    - `rds.logical_replication = 1` (enables `wal_level=logical`)
-   - `max_wal_senders = 30`
-   - `max_replication_slots = 30`
-   - `wal_sender_timeout = 0`
    - `max_locks_per_transaction = 1200`
 3. Attach the parameter group to your instance or cluster.
 4. Reboot the instance or cluster (for Aurora, reboot the writer) to apply.
@@ -70,14 +61,10 @@ No restart or `ALTER SYSTEM` is required. Validate:
 ```bash
 psql "$SOURCE" <<'EOF'
 SHOW wal_level;            -- expect: logical
-SHOW max_wal_senders;      -- expect: 10
-SHOW max_replication_slots;-- expect: 10
 EOF
 ```
 
 Neon computes may auto-suspend on idle. For long initial copies, raise the auto-suspend timeout in `Settings` > `Compute`, or pick a plan that disables it.
-
-`wal_sender_timeout` can only be changed via a Neon support case. Ask support to disable it (set to `0`) or set it to a high value such as 12 hours to avoid timeouts during the initial copy of large tables.
 
 </TabItem>
 <TabItem label="Supabase">
@@ -102,7 +89,7 @@ Use the **direct connection string**, not the connection pooler: pgBouncer doesn
 Azure does not permit `ALTER SYSTEM`. Set the parameters via the `Server parameters` blade in the Azure portal, or with `az postgres flexible-server parameter set`:
 
 1. Set `wal_level = logical`.
-2. Set `max_wal_senders = 30`, `max_replication_slots = 30`, `wal_sender_timeout = 0`, `max_locks_per_transaction = 1200`.
+2. Set `max_locks_per_transaction = 1200`.
 3. Save. Azure prompts to restart the server. Restart now.
 
 Validate:
@@ -113,6 +100,8 @@ psql "$SOURCE" -c "SHOW wal_level;"  -- expect: logical
 
 </TabItem>
 </Tabs>
+
+We recommend [`max_wal_senders`](https://www.postgresql.org/docs/current/runtime-config-replication.html#GUC-MAX-WAL-SENDERS) and [`max_replication_slots`](https://www.postgresql.org/docs/current/runtime-config-replication.html#GUC-MAX-REPLICATION-SLOTS) of `32`, where your provider permits these changes. The default `4` table-sync workers need `5` slots and WAL senders (`4 + 1` for the main stream). If you increase `--table-sync-workers` or `Initial table copy workers` in {C.CONSOLE}, increase both limits as needed for all replication clients. Restart the source after parameter changes. You do not need to change `wal_sender_timeout`.
 
 </NumberedItem>
 
@@ -147,7 +136,7 @@ If the admin lacks ownership of the application's hypertables, transfer ownershi
 </Callout>
 
 <Callout variant="note">
-**`pg_hba.conf`:** if the source {C.PG} instance restricts which users can connect via `pg_hba.conf`, add a `host` rule permitting the `livesync_migrate` user (or your chosen connector user) to connect from the migration/connector host. Managed providers (RDS/Aurora, Neon, Supabase, Azure) handle this through their own auth and network controls and do not use `pg_hba.conf`.
+**`pg_hba.conf`:** if the source {C.PG} instance restricts which users can connect via `pg_hba.conf`, add a `host` rule permitting the `livesync_migrate` user (or your chosen connector user) to connect. The {C.PG_CONNECTOR} in {C.CONSOLE} does not have a fixed IP address, so either allow the user from any address (`0.0.0.0/0`) with password authentication (`scram-sha-256`), or use SSH tunneling and allow the bastion host's IP address. Managed providers (RDS/Aurora, Neon, Supabase, Azure) do not let you edit `pg_hba.conf`; they control access through their own auth and network settings.
 </Callout>
 
 Grant the migration user access to all user schemas:

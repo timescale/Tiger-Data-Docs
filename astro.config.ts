@@ -1,9 +1,14 @@
 import { createRequire } from "node:module";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
 import type { AstroIntegration } from "astro";
-import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
+import {
+  fileSystemSDKJSONLoader,
+  generateAPIReferenceItems,
+  stainlessDocs,
+} from "@stainless-api/docs";
 import starlightLlmsTxt from "starlight-llms-txt";
 import sitemap from "@astrojs/sitemap";
 import rehypeBasePath from "./src/plugins/rehype-base-path";
@@ -171,14 +176,9 @@ async function collectHtmlFiles(dir: string): Promise<string[]> {
 // Base path from env var (e.g. BASE_PATH="/docs"). Falls back to "/" (no subpath).
 const BASE = process.env.BASE_PATH || "/";
 
-/**
- * Set `DOCS_LOCAL_WITHOUT_STAINLESS=1` to run `pnpm dev` / `pnpm build` without a
- * Stainless API key or `stl auth login`. Tiger Cloud REST API pages are omitted;
- * use a stub page and redirects instead (see README).
- */
-const DOCS_LOCAL_WITHOUT_STAINLESS =
-  process.env.DOCS_LOCAL_WITHOUT_STAINLESS === "1" ||
-  process.env.DOCS_LOCAL_WITHOUT_STAINLESS === "true";
+function repoPath(relativePath: string) {
+  return fileURLToPath(new URL(relativePath, import.meta.url));
+}
 
 /** Astro doesn't auto-prepend `base` to redirect destinations. This helper does. */
 function withBase(redirects: Record<string, string>): Record<string, string> {
@@ -224,18 +224,25 @@ export default defineConfig({
       },
     },
     integrations: [basePathPostProcessor(BASE), stainlessDocs({
-      apiReference: DOCS_LOCAL_WITHOUT_STAINLESS
-        ? undefined
-        : {
-            stainlessProject: "tiger-cloud",
-            basePath: "/reference/tiger-cloud-rest",
-            // Workaround to hide default TypeScript reference in the API reference page. It's showing the TypeScript lib even without have a Typescript SDK published.
-            excludeLanguages: ["typescript"],
-            propertySettings: {
-              collapseDescription: false,
-              expandDepth: 2,
-            },
-          },
+      apiReference: {
+        stainlessProject: "tiger-cloud",
+        basePath: "/reference/tiger-cloud-rest",
+        // Build from checked-in files so Stainless's renderer does not need
+        // credentials or network access.
+        loadSDKJSONFiles: fileSystemSDKJSONLoader({
+          specPath: repoPath("./stainless/openapi.yml"),
+          configFilePath: repoPath("./stainless/stainless.yml"),
+          languages: ["http", "typescript"],
+        }),
+        // The TypeScript SDK is not published, so show HTTP examples only.
+        excludeLanguages: ["typescript"],
+        // starlight-llms-txt owns /llms.txt for the full prose site.
+        llmsTxt: { disabled: true },
+        propertySettings: {
+          collapseDescription: false,
+          expandDepth: 2,
+        },
+      },
       title: "Tiger Data Docs",
       logo: {
         light: "./src/assets/logo-light.svg",
@@ -320,7 +327,6 @@ export default defineConfig({
       //   { icon: "github", label: "GitHub", href: "https://github.com/timescale/timescaledb" },
       // ],
       experimental: {
-        ...(DOCS_LOCAL_WITHOUT_STAINLESS ? { disableStainlessProseIndexing: true } : {}),
         starlightCompat: {
           components: {
             Head: "./src/components/Head.astro",
@@ -909,6 +915,7 @@ export default defineConfig({
                     { label: "Overview", link: "/integrate/query-administration" },
                     { label: "Azure Data Studio", link: "/integrate/query-administration/azure-data-studio" },
                     { label: "DBeaver", link: "/integrate/query-administration/dbeaver" },
+                    { label: "LibreDB Studio", link: "/integrate/query-administration/libredb-studio" },
                     { label: "pgAdmin", link: "/integrate/query-administration/pgadmin" },
                     { label: "PostgreSQL", link: "/integrate/query-administration/postgresql" },
                     { label: "psql", link: "/integrate/query-administration/psql" },
@@ -1938,24 +1945,13 @@ export default defineConfig({
                 { label: "Overview", link: "/reference/tiger-cloud" },
                 { label: "Tiger CLI", link: "/reference/tiger-cloud/tiger-cli" },
                 { label: "Tiger MCP", link: "/reference/tiger-cloud/tiger-mcp" },
-                DOCS_LOCAL_WITHOUT_STAINLESS
-                  ? {
-                      label: "Tiger Cloud REST API",
-                      collapsed: true,
-                      items: [
-                        {
-                          label: "Local preview (generated API disabled)",
-                          link: "/reference/tiger-cloud-rest-local-preview",
-                        },
-                      ],
-                    }
-                  : {
-                      label: "Tiger Cloud REST API",
-                      collapsed: true,
-                      items: generateAPIReferenceItems({
-                        excludeResourceOverviewPages: true,
-                      }),
-                    },
+                {
+                  label: "Tiger Cloud REST API",
+                  collapsed: true,
+                  items: generateAPIReferenceItems({
+                    excludeResourceOverviewPages: true,
+                  }),
+                },
                 {
                   label: "Data tiering",
                   collapsed: true,
@@ -2001,10 +1997,11 @@ export default defineConfig({
     // `pnpm dev` / `pnpm dev:local`, where Astro's dev server handles redirects natively and
     // Stainless's override doesn't apply (it only fires for the `build` command).
     redirects: withBase({
-      ...(DOCS_LOCAL_WITHOUT_STAINLESS
-        ? {
-            "/reference/tiger-cloud-rest": "/reference/tiger-cloud-rest-local-preview",
-          }
-        : {}),
+      "/deploy/tiger-cloud/pricing-and-account-management":
+        "/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management",
+      "/deploy/tiger-cloud/tiger-cloud-azure/security/vpc":
+        "/deploy/tiger-cloud/tiger-cloud-azure/security/azure-privatelink",
+      "/reference/timescaledb/install":
+        "/get-started/choose-your-path/install-timescaledb",
     }),
 });
