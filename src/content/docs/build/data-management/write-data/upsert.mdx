@@ -155,6 +155,14 @@ target: cloud, self-hosted
     DROP TABLE conditions_staging;
 17. [self-hosted] expect rows: `SELECT 1 FROM conditions WHERE location = 'office' AND temperature = 71.5 AND humidity = 55.0`
 18. [self-hosted] expect rows: `SELECT 1 FROM conditions HAVING count(*) = 3`
+19. [self-hosted] run command: `{ echo 'time,location,temperature,humidity'; echo '2017-07-28 11:42:42.846621+00,office,99.0,99.0'; } > /path/to/data.csv`
+20. [self-hosted] run SQL:
+    CREATE TEMP TABLE conditions_staging (LIKE conditions);
+    COPY conditions_staging(time, location, temperature, humidity) FROM '/path/to/data.csv' WITH (FORMAT CSV, HEADER);
+    INSERT INTO conditions SELECT * FROM conditions_staging ON CONFLICT (time, location) DO NOTHING;
+    DROP TABLE conditions_staging;
+21. [self-hosted] expect rows: `SELECT 1 FROM conditions WHERE location = 'office' AND temperature = 71.5 AND humidity = 55.0`
+22. [self-hosted] expect rows: `SELECT 1 FROM conditions HAVING count(*) = 3`
 
 Not scripted: Faster upserts on the columnstore: no procedure, the section links to the indexing page.
 </TestPlan>
