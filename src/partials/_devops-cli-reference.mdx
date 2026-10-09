@@ -674,7 +674,7 @@ Query a {C.SERVICE_SHORT}'s time-series metrics for monitoring, debugging, and p
 
 ### `tiger service metrics available`
 
-List the names of the metric series available for a {C.SERVICE_SHORT}, for monitoring, debugging, and performance investigation. Use these names with [`service metrics details`](#tiger-service-metrics-details) and [`service metrics series`](#tiger-service-metrics-series). For the full list with descriptions, see [Available metrics](#available-metrics). Before {C.CLI_LONG} 0.26, the metrics commands were experimental and hidden unless the `TIGER_EXPERIMENTAL` environment variable was set, and this command was named `metrics available-series`.
+List the names of the metric series available for the {C.SERVICE_SHORT} you specify, for monitoring, debugging, and performance investigation. Use these names with [`service metrics details`](#tiger-service-metrics-details) and [`service metrics series`](#tiger-service-metrics-series). For the full list with descriptions, see [Available metrics](#available-metrics). Before {C.CLI_LONG} 0.26, the metrics commands were experimental and hidden unless the `TIGER_EXPERIMENTAL` environment variable was set, and this command was named `metrics available-series`.
 
 **Usage**: `tiger service metrics available <name-or-id> [flags]`
 
@@ -685,13 +685,12 @@ tiger service metrics available <name-or-id>
 You see something like:
 
 ```txt
-pg_stat_activity_count
-pg_stat_database_blks_hit
-pg_stat_database_blks_read
-timescale_cloud_database_num_connections
-timescale_cloud_database_qps
 timescale_cloud_system_cpu_usage_millicores
 timescale_cloud_system_memory_usage_bytes
+pg_locks_count
+pg_stat_activity_count
+pg_stat_activity_max_tx_duration
+pg_stat_database_numbackends
 ...
 ```
 
@@ -734,7 +733,7 @@ You see something like:
 └──────────────┴─────────────────────────────────────────────────────┘
 ```
 
-The `timescale_cloud_*` resource, queries-per-second (QPS), connection, and job metrics have no richer metadata; for those, this command returns just the name: the table shows `undocumented` for the type, default aggregation, and description and lists no labels, and JSON output returns those fields as null or empty.
+The `timescale_cloud_system_*` metrics have no richer metadata; for those, this command returns just the name: the table shows `undocumented` for the type, default aggregation, and description and lists no labels, and JSON output returns those fields as null or empty.
 
 | Flag | Description |
 | --- | --- |
@@ -780,7 +779,7 @@ tiger service metrics series <name-or-id> --metric pg_stat_activity_count \
 | `--metric` | The metric series to fetch. Use [`service metrics available`](#tiger-service-metrics-available) to discover valid names. |
 | `--from`, `--to` | Time window (RFC3339). Default: the last 24 hours. |
 | `--bucket-seconds` | Aggregation bucket size in seconds (minimum: `60`). Defaults to `3600` (1 hour) when `--from`/`--to` are also omitted; otherwise the server picks a size matched to the window. |
-| `--fn` | Aggregation function applied per bucket: `RATE`, `INCREASE`, `SUM`, `AVG`, `MIN`, `MAX`, `MIN_TOTAL`, `MAX_TOTAL`, `COUNT`, `P50`, `P90`, `P99`, or `LAST`. Omit to let the server pick the metric's default. Not accepted on the `timescale_cloud_*` resource, QPS, connection, and job metrics. See [Aggregation functions](#aggregation-functions) for what each one computes. |
+| `--fn` | Aggregation function applied per bucket: `RATE`, `INCREASE`, `SUM`, `AVG`, `MIN`, `MAX`, `MIN_TOTAL`, `MAX_TOTAL`, `COUNT`, `P50`, `P90`, `P99`, or `LAST`. Omit to let the server pick the metric's default. Not accepted on the `timescale_cloud_system_*` metrics. See [Aggregation functions](#aggregation-functions) for what each one computes. |
 | `--role` | Restrict to one instance role: `PRIMARY` or `REPLICA`. Omit to aggregate datapoints across all nodes. For most queries applying `--role PRIMARY` could be more meaningful. |
 | `--filter` | Arbitrary label filter as `name=value` or `name!=value` (repeatable). `name!=value` also matches series missing the label entirely. |
 | `--group-by` | Label key to break the result into one series per distinct value (repeatable). Rejected on the same metrics that reject `--fn`. Omit to collapse into a single series. |
@@ -1154,26 +1153,13 @@ Aliases are not offered as suggestions, so `tiger service <TAB>` proposes `list`
 
 ## Available metrics
 
-The [`tiger service metrics`](#tiger-service-metrics-available) commands and the {C.MCP_LONG} [metrics tools](/reference/tiger-cloud/tiger-mcp#metrics-tools) serve the following metric series. Run `tiger service metrics available` to list them for your {C.SERVICE_SHORT}, and `tiger service metrics details` to inspect one metric's type, default aggregation, and labels.
-
-Apart from the [database metrics](#database-metrics), these are the same metrics the [{C.CLOUD_LONG} exporters](/integrate/observability-alerting/exported-metrics) export.
+The [`tiger service metrics`](#tiger-service-metrics-available) commands and the {C.MCP_LONG} [metrics tools](/reference/tiger-cloud/tiger-mcp#metrics-tools) serve the same metrics the [{C.CLOUD_LONG} exporters](/integrate/observability-alerting/exported-metrics) export, listed below. Run `tiger service metrics available` to see which of them are available for your {C.SERVICE_SHORT}, and `tiger service metrics details` to inspect one metric's type, default aggregation, and labels.
 
 ### System metrics
 
 These metrics track the {C.SERVICE_SHORT}'s resource usage against its capacity: CPU, memory, disk space, and disk I/O.
 
 <MetricsSystem />
-
-### Database metrics
-
-These metrics back the {C.CONSOLE} dashboards. They are queryable here but are not exported by the {C.CLOUD_LONG} exporters, and they take no aggregation function or grouping (see [`service metrics series`](#tiger-service-metrics-series)).
-
-| Metric | Description |
-| --- | --- |
-| `timescale_cloud_database_qps` | Queries per second executed against the database. |
-| `timescale_cloud_database_num_connections` | Number of open connections to the database. |
-| `timescale_cloud_database_job_duration_usecs` | Duration of background job runs, in microseconds. |
-| `timescale_cloud_database_job_success` | Success or failure of background job runs. |
 
 ### Lock metrics
 
@@ -1203,7 +1189,7 @@ These metrics back the {C.CONSOLE} dashboards. They are queryable here but are n
 | `COUNT` | Number of raw samples that landed in the bucket, across every matching series. |
 | `MIN`, `MAX` | The single most extreme raw value seen anywhere among the matching series, not the peak of their total. |
 | `MIN_TOTAL`, `MAX_TOTAL` | Sum every matching series together first, then take the minimum or maximum of *that combined series* across the bucket. The right choice for "did combined usage ever spike" (for example total connections across every database). Roughly Prometheus' `min_over_time(sum(...))` / `max_over_time(sum(...))`, rather than `min()`/`max()` alone. |
-| `RATE`, `INCREASE` | Per-second rate, or total increase, over the bucket, for ever-increasing counters (for example job run counts). Counter-reset aware and interpolated at the bucket boundaries, matching Prometheus' `rate()`/`increase()`. |
+| `RATE`, `INCREASE` | Per-second rate, or total increase, over the bucket, for ever-increasing counters (for example `pg_stat_database_xact_commit_total`). Counter-reset aware and interpolated at the bucket boundaries, matching Prometheus' `rate()`/`increase()`. |
 | `P50`, `P90`, `P99` | Approximate percentile of the raw samples in the bucket, computed from a sketch rather than Prometheus-style histogram buckets (closer to `quantile_over_time()` than `histogram_quantile()`). |
 
 ## Configuration parameters
