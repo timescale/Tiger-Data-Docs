@@ -203,10 +203,15 @@ SELECT show_chunks('temperature_readings');
 ```
 
 Optionally, force compression of newly generated {C.CHUNK}s into the {C.COLUMNSTORE} rather
-than waiting for the next scheduled run of your compression policy:
+than waiting for the next scheduled run of your columnstore policy:
 
 ```sql
-SELECT compress_chunk(i) FROM show_chunks('temperature_readings', older_than => INTERVAL '1 day') i;
+DO $$ DECLARE chunk regclass;
+BEGIN
+  FOR chunk IN SELECT show_chunks('temperature_readings', older_than => INTERVAL '1 day') LOOP
+    CALL convert_to_columnstore(chunk);
+  END LOOP;
+END $$;
 ```
 
 See [`show_chunks()`](/reference/timescaledb/hypertables/show_chunks) and
@@ -252,8 +257,13 @@ CROSS JOIN
   -- Generate sensor IDs from 1 to 100
   generate_series(1, 100) AS s(sensor_id);
 
--- Run the compression policy, compress everything older than one day
-SELECT compress_chunk(i) FROM show_chunks('temperature_readings', older_than => INTERVAL '1 day') i;
+-- Convert every chunk older than one day to the columnstore
+DO $$ DECLARE chunk regclass;
+BEGIN
+  FOR chunk IN SELECT show_chunks('temperature_readings', older_than => INTERVAL '1 day') LOOP
+    CALL convert_to_columnstore(chunk);
+  END LOOP;
+END $$;
 ```
 
 ### Simulate continuous ingestion
