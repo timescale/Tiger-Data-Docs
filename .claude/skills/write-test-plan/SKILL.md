@@ -150,7 +150,7 @@ off the page. Draft, run, fix.
    checkable outcome, partials included. Every row ends in a step number or a reason the plan
    cannot drive it; a reason is a `Not scripted:` entry or a tool gap worth raising. Post the table
    with the plan when you hand it over: a reader can see a blank in a table, and nobody can see
-   one in "lint clean". Six blanks on three pages got past the linter on 2026-10-09 this way.
+   one in "lint clean".
 
 10. **Lint, verify the SQL, then run.**
    ```bash
