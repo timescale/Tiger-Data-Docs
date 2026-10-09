@@ -51,8 +51,25 @@ On the target using `_ts_live_sync.subscription` (also shows `last_error` if any
 psql "$TARGET" -c "
   SELECT
     pg_size_pretty(source_flush_lsn - last_replicated_lsn) AS lag_bytes,
-    (metrics_updated_at - last_replicated_txn_time) AS lag_duration,
+    now() - last_replicated_txn_time AS replication_lag,
+    now() - metrics_updated_at AS last_progress_age,
+    now() - updated_at AS heartbeat_age,
     *
   FROM _ts_live_sync.subscription;
 "
 ```
+
+The connector writes `last_replicated_txn_time`, `metrics_updated_at`, and `updated_at`. If
+the connector hangs, all three freeze, so compare them against the target's `now()`, which
+keeps advancing:
+
+- `replication_lag`: time since the last replicated transaction committed at the source. It
+  grows whenever replication stalls, and it also grows while the source is idle.
+- `last_progress_age`: time since the connector last updated `last_replicated_txn_time`. A low
+  value means replication is moving. The timestamp uses the connector clock, so clock skew
+  can make it drift.
+- `heartbeat_age`: time since the connector last wrote these metrics to the subscription
+  catalog table. The connector refreshes it about every 30 seconds, even with no new
+  transactions. It grows only when the connector is hung or stopped. If `last_progress_age`
+  grows but `heartbeat_age` stays low, the connector runs but is stuck, often on a large
+  operation.

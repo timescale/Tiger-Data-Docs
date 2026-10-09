@@ -2,10 +2,28 @@
 /**
  * TestPlan – the doc testing tool's script for this page. Renders nothing.
  *
- * One block per page, at the end of the content. A plan is ONE NUMBERED LIST and nothing else: a
- * single linear script that walks every testable route the page documents, in order, reverting state
- * between them. Ordering between procedures, and interference between documented alternatives, are
- * handled by the script rather than guessed at by the tool.
+ * At the end of the content. A plan is ONE NUMBERED LIST and nothing else: a single linear script
+ * that walks every testable route the page documents, in order, reverting state between them.
+ * Ordering between procedures, and interference between documented alternatives, are handled by the
+ * script rather than guessed at by the tool.
+ *
+ * A plan says which products it runs on in a `target:` line before step 1, with the products the
+ * page is tagged with in frontmatter, spelled the way the tool runs them:
+ *
+ *   target: cloud, self-hosted
+ *
+ * No line means `cloud`. A step runs on every product in the line unless it starts with a prefix
+ * naming one of them: `[self-hosted] run command: ...`. In a two-product plan only `run SQL`, the
+ * `expect` assertions, `fork the service` and `download` mean the same thing on both sides and may go
+ * unprefixed; every other step must say which side it is for. A single-product plan takes no
+ * prefixes. The tool walks each product in turn and reports one verdict per product.
+ *
+ * When the two procedures diverge (a Console wizard on one side, editing postgresql.conf on the
+ * other) or the page imports a partial whose plan covers one product only, write one block per
+ * product, each with its own `target:` line; no two blocks on a page may claim the same product.
+ * Rule of thumb: more than a third of the steps prefixed means two blocks. A block claiming a
+ * product the page is not tagged with is an error; a tagged product no block covers is reported as
+ * not covered, never as a failure.
  *
  * A plan is the same flow written for a bot, and it MUST NOT DIVERGE FROM THE PAGE ON WHICH CONTROLS
  * IT PRESSES OR WHERE IT PRESSES THEM. A reader and the run go to the same places and press the same
@@ -47,16 +65,29 @@
  * The whole set:
  *
  *   Where the run happens
- *     fork the service              run what follows on a throwaway copy; without this the run uses
- *                                   the standing service and refuses every destructive step
+ *     target: cloud, self-hosted    (before step 1, not a step) the products the plan runs on
+ *     [self-hosted] <step>          this step runs on that product only
+ *     fork the service              run what follows on a throwaway copy of each product: a fork of
+ *                                   the standing Tiger Cloud service, and nothing extra on the
+ *                                   self-hosted side, where every run is a fresh box anyway. Without
+ *                                   this a Cloud run uses the standing service and refuses every
+ *                                   destructive step
  *     select the service            navigate to the service under test
  *     go to /operations             reach a path directly — positioning and resetting state, never a
  *                                   substitute for a documented click
+ *     open https://…                leave the Console for a site the page names (whatsmychaincert.com
+ *                                   on the strict-SSL page); `select the service` comes back
  *
  *   Files
  *     download https://…            fetch what the page tells the reader to download (archives are
  *                                   unzipped; the folder is psql's cwd and the source for `upload`)
  *     upload sample.csv             put a fetched file into a file input
+ *     paste bundle.crt into the box type a file an earlier command wrote into the page's only text
+ *                                   area, or into a named field ("into `Field`")
+ *     save the download as ~/.postgresql/root.crt
+ *                                   keep what the last click produced at the path the page names.
+ *                                   `~` is the run's own temporary home, which later `run command`
+ *                                   steps see as HOME; the account's real home is never touched
  *
  *   The interface
  *     click `Label`                 a labelled control
@@ -77,9 +108,25 @@
  *     type $INVITE_EMAIL into `Email`
  *                                   a value from DOCTEST_INPUT_INVITE_EMAIL — never write a real
  *                                   address, CIDR or credential in a plan
+ *     type the value the dialog asks for
+ *                                   a confirmation that demands a value only the dialog knows
+ *                                   ('Type "686" to confirm' names a connection's PID): read off the
+ *                                   open dialog and typed into its one field
  *     use the row for $OWNER_EMAIL  act on the table row holding a value this run owns; "act on the
  *                                   row for" is accepted too
- *     choose an unselected option   where the docs leave the choice open ("choose your strategy")
+ *     choose an unselected option   where the docs leave the choice open ("choose your strategy"):
+ *                                   a radio
+ *     select another option in the dropdown
+ *                                   the same for a drop-down ("select another role")
+ *     select another option in `Severity type`
+ *                                   the same, naming which drop-down on a page with several: by the
+ *                                   caption above it, or by the value it shows when it has none
+ *     edit a parameter value        the Database parameters grid: hover a value, press its edit icon,
+ *                                   enter an in-range value, click away to save. The icon has no
+ *                                   label a page could name, and the page leaves the parameter open
+ *     open the first row in the list
+ *                                   where the docs point at live data ("click a job ID in the list"):
+ *                                   the first row that drills one level below the current path
  *
  *   Data
  *     run SQL: SELECT …             inline; multi-line as indented lines under a trailing ":"

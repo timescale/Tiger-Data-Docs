@@ -1,13 +1,20 @@
 import { createRequire } from "node:module";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
 import type { AstroIntegration } from "astro";
-import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
+import {
+  fileSystemSDKJSONLoader,
+  generateAPIReferenceItems,
+  stainlessDocs,
+} from "@stainless-api/docs";
 import starlightLlmsTxt from "starlight-llms-txt";
+import sitemap from "@astrojs/sitemap";
 import rehypeBasePath from "./src/plugins/rehype-base-path";
 import rehypePagefindWeight from "./src/plugins/rehype-pagefind-weight";
 import remarkResolveConstantsInHeadings from "./src/plugins/remark-resolve-constants-in-headings";
+import { createSitemapSerializer } from "./src/lib/sitemap-lastmod";
 
 import sentry from "@sentry/astro";
 
@@ -169,14 +176,9 @@ async function collectHtmlFiles(dir: string): Promise<string[]> {
 // Base path from env var (e.g. BASE_PATH="/docs"). Falls back to "/" (no subpath).
 const BASE = process.env.BASE_PATH || "/";
 
-/**
- * Set `DOCS_LOCAL_WITHOUT_STAINLESS=1` to run `pnpm dev` / `pnpm build` without a
- * Stainless API key or `stl auth login`. Tiger Cloud REST API pages are omitted;
- * use a stub page and redirects instead (see README).
- */
-const DOCS_LOCAL_WITHOUT_STAINLESS =
-  process.env.DOCS_LOCAL_WITHOUT_STAINLESS === "1" ||
-  process.env.DOCS_LOCAL_WITHOUT_STAINLESS === "true";
+function repoPath(relativePath: string) {
+  return fileURLToPath(new URL(relativePath, import.meta.url));
+}
 
 /** Astro doesn't auto-prepend `base` to redirect destinations. This helper does. */
 function withBase(redirects: Record<string, string>): Record<string, string> {
@@ -222,18 +224,25 @@ export default defineConfig({
       },
     },
     integrations: [basePathPostProcessor(BASE), stainlessDocs({
-      apiReference: DOCS_LOCAL_WITHOUT_STAINLESS
-        ? null
-        : {
-            stainlessProject: "tiger-cloud",
-            basePath: "/reference/tiger-cloud-rest",
-            // Workaround to hide default TypeScript reference in the API reference page. It's showing the TypeScript lib even without have a Typescript SDK published.
-            excludeLanguages: ["typescript"],
-            propertySettings: {
-              collapseDescription: false,
-              expandDepth: 2,
-            },
-          },
+      apiReference: {
+        stainlessProject: "tiger-cloud",
+        basePath: "/reference/tiger-cloud-rest",
+        // Build from checked-in files so Stainless's renderer does not need
+        // credentials or network access.
+        loadSDKJSONFiles: fileSystemSDKJSONLoader({
+          specPath: repoPath("./stainless/openapi.yml"),
+          configFilePath: repoPath("./stainless/stainless.yml"),
+          languages: ["http", "typescript"],
+        }),
+        // The TypeScript SDK is not published, so show HTTP examples only.
+        excludeLanguages: ["typescript"],
+        // starlight-llms-txt owns /llms.txt for the full prose site.
+        llmsTxt: { disabled: true },
+        propertySettings: {
+          collapseDescription: false,
+          expandDepth: 2,
+        },
+      },
       title: "Tiger Data Docs",
       logo: {
         light: "./src/assets/logo-light.svg",
@@ -318,7 +327,6 @@ export default defineConfig({
       //   { icon: "github", label: "GitHub", href: "https://github.com/timescale/timescaledb" },
       // ],
       experimental: {
-        ...(DOCS_LOCAL_WITHOUT_STAINLESS ? { disableStainlessProseIndexing: true } : {}),
         starlightCompat: {
           components: {
             Head: "./src/components/Head.astro",
@@ -403,7 +411,7 @@ export default defineConfig({
           ],
         },
         // Learn tab: conceptual and overview content lives under /learn/. Hands-on how-tos link to /build/.
-        // Learn sidebar: groups follow dependency order. Retention + tiering: one "Data lifecycle" group. Chunks + time buckets: one "Chunks and time buckets" group (not nested under Hypertables). CAGGs: one "Continuous aggregates (CAGGs)" group (Tiger Cloud nested; backfill migration tool at end; "About CAGGs" omitted from nav, linked from overview).
+        // Learn sidebar: Overview always first, then Tutorials (hands-on entry point), then groups follow dependency order. Retention + tiering: one "Data lifecycle" group. Chunks + time buckets: one "Chunks and time buckets" group (not nested under Hypertables). CAGGs: one "Continuous aggregates (CAGGs)" group (Tiger Cloud nested; backfill migration tool at end; "About CAGGs" omitted from nav, linked from overview).
         {
           label: "Learn",
           link: "/learn",
@@ -414,6 +422,28 @@ export default defineConfig({
               items: [
                 { label: "What is Tiger Data", link: "/learn" },
                 { label: "Tiger Data architecture for real-time analytics", link: "/learn/deep-dive/whitepaper" },
+              ],
+            },
+            // --- Tutorials: combined tutorials, guided projects, and cookbook ---
+            {
+              label: "Tutorials",
+              collapsed: true,
+              items: [
+                { label: "Overview", link: "/learn/tutorials" },
+                { label: "Create Tiger Cloud services with Terraform", link: "/learn/tutorials/create-services-with-terraform" },
+                { label: "Simulate an IoT sensor dataset", link: "/learn/tutorials/simulate-iot-sensor-data" },
+                { label: "Ingest real-time financial data", link: "/learn/tutorials/ingest-real-time-financial-data" },
+                { label: "Analyze application events with UUIDv7", link: "/learn/tutorials/analyze-events-with-uuidv7" },
+                { label: "Build hybrid search with BM25 and vectors", link: "/learn/tutorials/hybrid-search" },
+                { label: "Build a production RAG system with Postgres", link: "/learn/tutorials/rag-postgres" },
+                { label: "Aggregate organizational data with AI agents", link: "/learn/tutorials/aggregate-organizational-data-with-ai" },
+                { label: "Analyze stock market data", link: "/learn/tutorials/analyze-stock-market-data" },
+                { label: "Analyze NYC taxi data", link: "/learn/tutorials/analyze-nyc-taxi-data" },
+                { label: "Analyze Bitcoin blockchain", link: "/learn/tutorials/analyze-blockchain" },
+                { label: "Analyze energy consumption", link: "/learn/tutorials/analyze-energy-consumption" },
+                { label: "Visualize financial tick data with Grafana", link: "/learn/tutorials/analyze-financial-tick-data" },
+                { label: "Visualize transport and geospatial data with Grafana", link: "/learn/tutorials/analyze-transport-data" },
+                { label: "Tiger Data cookbook", link: "/learn/tutorials/cookbook" },
               ],
             },
             {
@@ -530,8 +560,9 @@ export default defineConfig({
             },
           ],
         },
-        // Build tab — organized by Diataxis: hands-on learning first, then
+        // Build tab — organized by Diataxis: quickstarts first, then
         // job-scoped how-to groups, then optimization, then troubleshooting.
+        // Tutorials live under the Learn tab (/learn/tutorials).
         {
           label: "Build",
           link: "/build",
@@ -555,28 +586,6 @@ export default defineConfig({
                 { label: "Overview", link: "/build/how-to" },
                 { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
                 { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
-              ],
-            },
-            // --- Tutorials: combined tutorials, guided projects, and cookbook ---
-            {
-              label: "Tutorials",
-              collapsed: true,
-              items: [
-                { label: "Overview", link: "/build/examples" },
-                { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
-                { label: "Simulate an IoT sensor dataset", link: "/build/examples/simulate-iot-sensor-data" },
-                { label: "Ingest real-time financial data", link: "/build/examples/ingest-real-time-financial-data" },
-                { label: "Analyze application events with UUIDv7", link: "/build/examples/analyze-events-with-uuidv7" },
-                { label: "Build hybrid search with BM25 and vectors", link: "/build/examples/hybrid-search" },
-                { label: "Build a production RAG system with Postgres", link: "/build/examples/rag-postgres" },
-                { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
-                { label: "Analyze stock market data", link: "/build/examples/analyze-stock-market-data" },
-                { label: "Analyze NYC taxi data", link: "/build/examples/analyze-nyc-taxi-data" },
-                { label: "Analyze Bitcoin blockchain", link: "/build/examples/analyze-blockchain" },
-                { label: "Analyze energy consumption", link: "/build/examples/analyze-energy-consumption" },
-                { label: "Visualize financial tick data with Grafana", link: "/build/examples/analyze-financial-tick-data" },
-                { label: "Visualize transport and geospatial data with Grafana", link: "/build/examples/analyze-transport-data" },
-                { label: "Tiger Data cookbook", link: "/build/examples/cookbook" },
               ],
             },
             // --- Data lifecycle how-tos (mirrors Learn > Data lifecycle) ---
@@ -907,6 +916,7 @@ export default defineConfig({
                     { label: "Overview", link: "/integrate/query-administration" },
                     { label: "Azure Data Studio", link: "/integrate/query-administration/azure-data-studio" },
                     { label: "DBeaver", link: "/integrate/query-administration/dbeaver" },
+                    { label: "LibreDB Studio", link: "/integrate/query-administration/libredb-studio" },
                     { label: "pgAdmin", link: "/integrate/query-administration/pgadmin" },
                     { label: "PostgreSQL", link: "/integrate/query-administration/postgresql" },
                     { label: "psql", link: "/integrate/query-administration/psql" },
@@ -1056,6 +1066,7 @@ export default defineConfig({
                       collapsed: true,
                       items: [
                         { label: "Overview", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/overview" },
+                        { label: "Passwordless database access", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/passwordless-access" },
                         { label: "Client credentials", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/client-credentials" },
                         { label: "IP allow list", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/ip-allow-list" },
                         { label: "Control user access to projects", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/members" },
@@ -1127,6 +1138,7 @@ export default defineConfig({
                       collapsed: true,
                       items: [
                         { label: "Overview", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/overview" },
+                        { label: "Passwordless database access", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/passwordless-access" },
                         { label: "Client credentials", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/client-credentials" },
                         { label: "IP allow list", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/ip-allow-list" },
                         { label: "Control user access to projects", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/members" },
@@ -1934,24 +1946,13 @@ export default defineConfig({
                 { label: "Overview", link: "/reference/tiger-cloud" },
                 { label: "Tiger CLI", link: "/reference/tiger-cloud/tiger-cli" },
                 { label: "Tiger MCP", link: "/reference/tiger-cloud/tiger-mcp" },
-                DOCS_LOCAL_WITHOUT_STAINLESS
-                  ? {
-                      label: "Tiger Cloud REST API",
-                      collapsed: true,
-                      items: [
-                        {
-                          label: "Local preview (generated API disabled)",
-                          link: "/reference/tiger-cloud-rest-local-preview",
-                        },
-                      ],
-                    }
-                  : {
-                      label: "Tiger Cloud REST API",
-                      collapsed: true,
-                      items: generateAPIReferenceItems({
-                        excludeResourceOverviewPages: true,
-                      }),
-                    },
+                {
+                  label: "Tiger Cloud REST API",
+                  collapsed: true,
+                  items: generateAPIReferenceItems({
+                    excludeResourceOverviewPages: true,
+                  }),
+                },
                 {
                   label: "Data tiering",
                   collapsed: true,
@@ -1969,6 +1970,18 @@ export default defineConfig({
           ],
         },
       ],
+      }), sitemap({
+      serialize: createSitemapSerializer(),
+      changefreq: "weekly",
+      priority: 0.7,
+      // Filter out dynamic/reference pages that may not have source files
+      filter: (page: string) => {
+        // Exclude reference API pages (auto-generated by Stainless)
+        if (page.includes("/reference/tiger-cloud-rest/")) {
+          return false;
+        }
+        return true;
+      },
     }), ...(process.env.SENTRY_DSN
       ? [sentry({
           dsn: process.env.SENTRY_DSN,
@@ -1985,10 +1998,11 @@ export default defineConfig({
     // `pnpm dev` / `pnpm dev:local`, where Astro's dev server handles redirects natively and
     // Stainless's override doesn't apply (it only fires for the `build` command).
     redirects: withBase({
-      ...(DOCS_LOCAL_WITHOUT_STAINLESS
-        ? {
-            "/reference/tiger-cloud-rest": "/reference/tiger-cloud-rest-local-preview",
-          }
-        : {}),
+      "/deploy/tiger-cloud/pricing-and-account-management":
+        "/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management",
+      "/deploy/tiger-cloud/tiger-cloud-azure/security/vpc":
+        "/deploy/tiger-cloud/tiger-cloud-azure/security/azure-privatelink",
+      "/reference/timescaledb/install":
+        "/get-started/choose-your-path/install-timescaledb",
     }),
 });

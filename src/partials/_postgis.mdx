@@ -1,6 +1,7 @@
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import CreateHypertablePolicyNote from "./_create-hypertable-columnstore-policy-note.mdx";
+import TestPlan from "@components/TestPlan.astro";
 
 The `postgis` {C.PG} extension provides storing, indexing, and querying
 geographic data. It helps in spatial data analysis, the study of patterns,
@@ -74,8 +75,8 @@ CREATE INDEX ON covid_location (state_id, time DESC);
 
 <NumberedItem title="Insert sample data">
 
-The longitude and latitude coordinates of New Jersey are (-73.935242 40.730610),
-and New York are (-74.871826 39.833851):
+The longitude and latitude coordinates of New Jersey (`state_id` 34) are (-74.871826 39.833851),
+and New York (`state_id` 36) are (-73.935242 40.730610):
 
 ```sql
 INSERT INTO covid_location VALUES
@@ -110,14 +111,13 @@ The data you get back looks a bit like this:
 
 <NumberedItem title="Fetch the latest logged cases using SkipScan">
 
-Replace `<Interval_Time>` with the number of
-days between the day you are running the query and the day the last report
-was logged in the table, in this case 30, June, 2023:
+Replace `<Interval_Time>` with the number of days between the day you run the query and the
+day of the last report in the table, 30 June 2023 in this example:
 
 ```sql
 SELECT DISTINCT ON (state_id) state_id, ST_AsText(location) AS location
 FROM covid_location
-WHERE time > now() - INTERVAL '<Interval_Time>'
+WHERE time > now() - INTERVAL '<Interval_Time> days'
 ORDER BY state_id,
 time DESC;
 ```
@@ -126,10 +126,11 @@ The `ST_AsText(location)` function converts the binary geospatial data into
 human-readable format. The data you get back looks a bit like this:
 
 ```sql
-state_id |          location
+ state_id |          location
 ----------+-----------------------------
-34 | POINT(-74.871826 39.833851)
-(1 row)
+       34 | POINT(-74.871826 39.833851)
+       36 | POINT(-73.935242 40.73061)
+(2 rows)
 ```
 
 </NumberedItem>
@@ -159,3 +160,24 @@ cases | state_id
 </NumberedItem>
 
 </NumberedList>
+
+<TestPlan>
+
+1. fork the service
+2. select the service
+3. run SQL: `CREATE EXTENSION postgis;`
+4. expect rows: `SELECT 1 FROM pg_extension WHERE extname = 'postgis'`
+5. run SQL: `CREATE TABLE covid_location (time TIMESTAMPTZ NOT NULL, state_id INT NOT NULL, location GEOGRAPHY(POINT, 4326), cases INT NOT NULL, deaths INT NOT NULL) WITH (tsdb.hypertable);`
+6. expect rows: `SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'covid_location'`
+7. run SQL: `CREATE INDEX ON covid_location (state_id, time DESC);`
+8. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'covid_location' AND indexdef LIKE '%(state_id, "time" DESC)'`
+9. run SQL: `INSERT INTO covid_location VALUES ('2023-06-28 20:00:00',34,'POINT(-74.871826 39.833851)',5,2), ('2023-06-28 20:00:00',36,'POINT(-73.935242 40.730610)',7,1), ('2023-06-29 20:00:00',34,'POINT(-74.871826 39.833851)',14,0), ('2023-06-29 20:00:00',36,'POINT(-73.935242 40.730610)',12,1), ('2023-06-30 20:00:00',34,'POINT(-74.871826 39.833851)',10,4);`
+10. expect rows: `SELECT 1 FROM covid_location HAVING count(*) = 5`
+11. run SQL: `SELECT * FROM covid_location WHERE state_id = 34 AND time BETWEEN '2023-06-28 00:00:00' AND '2023-06-30 23:59:59';`
+12. expect rows: `SELECT 1 FROM covid_location WHERE state_id = 34 AND time BETWEEN '2023-06-28 00:00:00' AND '2023-06-30 23:59:59' HAVING count(*) = 3 AND sum(cases) = 29`
+13. run SQL: `SELECT DISTINCT ON (state_id) state_id, ST_AsText(location) AS location FROM covid_location WHERE time > now() - INTERVAL '3650 days' ORDER BY state_id, time DESC;`
+14. expect rows: `SELECT 1 FROM (SELECT DISTINCT ON (state_id) state_id, ST_AsText(location) AS location FROM covid_location WHERE time > now() - INTERVAL '3650 days' ORDER BY state_id, time DESC) latest HAVING count(*) = 2 AND bool_and(location IN ('POINT(-74.871826 39.833851)', 'POINT(-73.935242 40.73061)'))`
+15. run SQL: `SELECT DISTINCT cases, state_id FROM covid_location WHERE ST_DWithin(location, ST_GeogFromText('POINT(-73.9851 40.7589)'), 10000);`
+16. expect rows: `SELECT 1 FROM (SELECT DISTINCT cases, state_id FROM covid_location WHERE ST_DWithin(location, ST_GeogFromText('POINT(-73.9851 40.7589)'), 10000)) nearby HAVING count(*) = 2 AND bool_and(state_id = 36) AND sum(cases) = 19`
+
+</TestPlan>

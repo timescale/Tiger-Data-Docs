@@ -7,11 +7,16 @@ import imgTigerConsoleColumstoreDataSavingsLight from "../assets/images/deploy/t
 import imgTigerConsoleColumstoreDataSavingsDark from "../assets/images/deploy/tiger-cloud/tiger-console-columstore-data-savings-dark.png";
 import imgTigerConsoleServiceExplorerCaggsLight from "../assets/images/deploy/tiger-cloud/tiger-console-service-explorer-caggs.png";
 import imgTigerConsoleServiceExplorerCaggsDark from "../assets/images/deploy/tiger-cloud/tiger-console-service-explorer-caggs-dark.png";
+import imgTigerConsoleServiceExplorerColumnstoreLight from "../assets/images/deploy/tiger-cloud/tiger-console-service-explorer-columnstore.png";
+import imgTigerConsoleServiceExplorerColumnstoreDark from "../assets/images/deploy/tiger-cloud/tiger-console-service-explorer-columnstore-dark.png";
+import imgTigerConsoleServiceExplorerQueryLight from "../assets/images/deploy/tiger-cloud/tiger-console-service-explorer-query.png";
+import imgTigerConsoleServiceExplorerQueryDark from "../assets/images/deploy/tiger-cloud/tiger-console-service-explorer-query-dark.png";
 
 {C.SERVICE_SHORT_CAP} explorer in {C.CONSOLE} provides a rich administrative dashboard for
 understanding the state of your database instance. The explorer gives you
 insight into the performance of your database, giving you greater confidence and
-control over your data.
+control over your data. You can also write, run, and save queries directly in the
+explorer, so you manage and debug your database without switching context.
 
 The explorer works like an operations center as you develop and run your
 applications with {C.CLOUD_LONG}. It gives you quick access to the key properties of
@@ -21,34 +26,40 @@ and continuous aggregates.
 
 To see the explorer, select your {C.SERVICE_SHORT} in {C.CONSOLE_SHORT} and click `Explorer`.
 
-## General information
+## Browse your database objects
 
-In the `General information` section, you can see a high-level
-summary of your {C.SERVICE_SHORT}, including all your hypertables and
-relational tables. It summarizes your overall compression ratios, and other
-policy and continuous aggregate data. And, if you aren't already using key features like continuous aggregates, columnstore compression, or other automation policies and actions, it provides pointers to tutorials and documentation to help you get started.
+In the `Schemas` pane, you can see the schemas in your {C.SERVICE_SHORT} and the objects
+they contain. To find an object quickly, search by name, or filter by object type:
+`Hypertables`, `Tables`, or `Caggs`. To include {C.PG} catalog objects, enable
+`Show catalog objects`.
+
+When you select an object, it opens in its own tab. Tabs stay open as you work, so
+you can keep several objects open at the same time and quickly switch between
+them, for example, to compare the configuration of two {C.HYPERTABLE}s.
+
+## The home tab
+
+The home tab is always available and gives you a high-level summary of your
+{C.SERVICE_SHORT} in one place.
+
+In the `General information` section, you can see:
+
+ - all your hypertables, relational tables, and continuous aggregates.
+ - overall compression ratios with original and compressed sizes. Hover over `On-disk size` to split it into the {C.COLUMNSTORE} and {C.ROWSTORE} amounts. `Rowstore` here covers {C.HYPERTABLE} and {C.CAGG} data still in regular row format, including its indexes; plain {C.PG} tables are not counted.
+ - other policy and continuous aggregate data.
 
 <ThemeImage light={imgTigerConsoleServiceExplorerLight} dark={imgTigerConsoleServiceExplorerDark} alt="Service explorer" />
 
-## Tables
+In the `Columnstore` section, you see every {C.HYPERTABLE} and {C.CAGG} alongside how its data is stored right now:
 
-You can have a detailed look into all your tables, including information about table schemas, table indexes, and
-foreign keys. For your hypertables, it shows details about chunks, continuous
-aggregates, and policies such as data retention policies and data reordering.
-You can also inspect individual hypertables, including their sizes, dimension
-ranges, and columnstore compression status.
+- `Size`: the whole object on disk, indexes and TOAST included.
+- `Rowstore`: the part of that size still in regular row format.
+- `Columnstore`: the part converted to the compressed columnar format. Objects with no {C.COLUMNSTORE} data show `-`.
+- `Compression`: how much space the conversion saves, in percent. Objects you have not converted yet show `Convert to columnstore` instead, which opens the conversion wizard.
 
-From this section, you can also set an automated policy to compress chunks into the columnstore. For more information,
-see the [hypercore documentation](/learn/columnar-storage/understand-hypercore).
+Sort by `Size`, `Rowstore`, or `Columnstore` to find the objects that gain the most from the {C.COLUMNSTORE}.
 
-When you inspect a {C.HYPERTABLE}, a timeline chart visualizes its {C.CHUNK}s, showing their relative sizes and whether each is in the {C.ROWSTORE} or the {C.COLUMNSTORE}. By default, the chart shows the latest 100 {C.CHUNK}s; click and drag to zoom in on a specific time range. The chart also shows the status of the latest runs for the {C.HYPERTABLE}'s {C.COLUMNSTORE} job, with a link to the job's deep dive page.
-
-<ThemeImage light={imgTigerConsoleColumstoreDataSavingsLight} dark={imgTigerConsoleColumstoreDataSavingsDark} alt="Service explorer tables" />
-
-For more information about hypertables, see the
-[hypertables section](/learn/hypertables/understand-hypertables).
-
-## Continuous aggregates
+<ThemeImage light={imgTigerConsoleServiceExplorerColumnstoreLight} dark={imgTigerConsoleServiceExplorerColumnstoreDark} alt="Service explorer columnstore section" />
 
 In the `Continuous aggregate` section, you can see all your continuous
 aggregates, including top-level information such as their size, whether they are
@@ -56,5 +67,45 @@ configured for real-time aggregation, and their refresh periods.
 
 <ThemeImage light={imgTigerConsoleServiceExplorerCaggsLight} dark={imgTigerConsoleServiceExplorerCaggsDark} alt="Service explorer caggs" />
 
-For more information about continuous aggregates, see the
+The home tab also shows your data tiering status. If you aren't already using key
+features like continuous aggregates, {C.COLUMNSTORE} compression, or other automation
+policies and actions, the home tab provides pointers to tutorials and
+documentation to help you get started.
+
+## Inspect tables and hypertables
+
+Open a table in its own tab to have a detailed look at it, including information
+about table schemas, table indexes, and foreign keys. For your hypertables, the
+tab shows details such as size, approximate row count, {C.CHUNK}s, and the current
+and recommended {C.CHUNK} intervals. You can also inspect individual hypertables,
+including their sizes, dimension ranges, and {C.COLUMNSTORE} compression status.
+
+From an object tab, you can also create a {C.CAGG} or set an automated policy to
+compress {C.CHUNK}s into the {C.COLUMNSTORE}. For more information, see the
+[hypercore documentation](/learn/columnar-storage/understand-hypercore).
+
+When you inspect a {C.HYPERTABLE}, a timeline chart visualizes its {C.CHUNK}s, showing their relative sizes and whether each is in the {C.ROWSTORE} or the {C.COLUMNSTORE}. By default, the chart shows the latest 100 {C.CHUNK}s; click and drag to zoom in on a specific time range. The chart also shows the status of the latest runs for the {C.HYPERTABLE}'s {C.COLUMNSTORE} job, with a link to the job's deep dive page.
+
+<ThemeImage light={imgTigerConsoleColumstoreDataSavingsLight} dark={imgTigerConsoleColumstoreDataSavingsDark} alt="Service explorer tables" />
+
+Open a {C.CAGG} in its own tab to see top-level information such as its size,
+whether it is configured for real-time aggregation, and its refresh period.
+
+For more information about hypertables, see the
+[hypertables section](/learn/hypertables/understand-hypertables). For more
+information about continuous aggregates, see the
 [continuous aggregates section](/build/continuous-aggregates/create-a-continuous-aggregate).
+
+## Write and save queries
+
+You write and run queries directly in the explorer, without leaving the page:
+
+- To open a new query tab, click `+`. Write your query, then click `Run` to see
+  the results below the editor.
+- Keep multiple query tabs open at the same time and switch between them as you work.
+- To reuse a query later, save it. Your saved queries appear in the `Saved queries`
+  pane, where you can organize them into folders.
+- Queries you write in the floating [{C.SQL_EDITOR}](/build/data-management/run-queries-from-tiger-console#sql-editor)
+  appear in the `scratchpad` tab when you open the explorer.
+
+<ThemeImage light={imgTigerConsoleServiceExplorerQueryLight} dark={imgTigerConsoleServiceExplorerQueryDark} alt="Service explorer query tab" />
