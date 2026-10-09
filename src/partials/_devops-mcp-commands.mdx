@@ -32,12 +32,12 @@ Show detailed information about one {C.SERVICE_SHORT}.
 
 ### `service_create`
 
-Create a new {C.SERVICE_SHORT}. Addons: `time-series` ({C.TIMESCALE_DB}) and `ai` (AI/vector).
+Create a new {C.SERVICE_SHORT}.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | string | No | Service name (auto-generated if omitted). |
-| `addons` | array of strings (`time-series`, `ai`) | No | Addons to enable. Omit or use an empty array for {C.PG}-only. |
+| `addons` | array of strings (`time-series`) | No | Addons to enable; `time-series` enables {C.TIMESCALE_DB}. Use an empty array for {C.PG}-only. Before {C.CLI_LONG} 0.26, there was also a deprecated `ai` addon. |
 | `region` | string | No | Cloud region, for example `us-east-1`. |
 | `cpu_memory` | string (enum) | No | CPU/memory allocation, for example `"4 CPU/16 GB"`. See [allowed configurations](/reference/tiger-cloud/tiger-cli#tiger-service-create). |
 | `replicas` | integer (0-5) | No | Number of high-availability replicas. Default: `0`. |
@@ -125,14 +125,20 @@ Rename a {C.SERVICE_SHORT}. Only the display name changes: the {C.SERVICE_SHORT}
 
 ### `service_update_password`
 
-Update the `tsdbadmin` password. May disconnect existing sessions.
+Update the `tsdbadmin` password. The tool generates a secure random password itself; it does not accept one, because a password passed as a parameter, or typed into the chat, ends up in the agent's context. To set a specific password, use [`tiger service update-password`](/reference/tiger-cloud/tiger-cli#tiger-service-update-password) from the {C.CLI_SHORT} instead, which keeps it out of the conversation. Before {C.CLI_LONG} 0.26, this tool instead took a required `password` parameter.
+
+The change takes effect immediately and may disconnect existing sessions; applications using the old password fail to authenticate until they are updated. The new password is saved to the configured password storage. If saving fails, or password storage is off, and `with_password` is `false`, the result warns you that nobody has the password.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `service_id` | string | Yes | The {C.SERVICE_SHORT} to update. |
-| `password` | string | Yes | The new password for the `tsdbadmin` user. |
+| `with_password` | boolean | No | Include the generated password in the response. Default: `false`. |
 
-**Returns**: confirmation that the password was updated.
+**Returns**: whether the password was updated, where it was saved locally, and the password itself when `with_password` is `true`. `updated` is `false` when you decline the confirmation prompt.
+
+<Callout variant="note" title="A human in the loop for production">
+When the target is tagged `PROD`, the tool prompts you through the MCP client to type the {C.SERVICE_SHORT} ID back before it proceeds, like [`service_delete`](#service_delete). If your MCP client doesn't support this prompt (MCP elicitation), the update is refused and you are pointed to `tiger service update-password` instead.
+</Callout>
 
 ### `service_delete`
 
@@ -160,6 +166,48 @@ Fetch {C.SERVICE_SHORT} logs.
 | `node` | integer | No | Specific node to fetch logs from (for {C.SERVICE_SHORT}s with HA replicas; `0` is valid). Defaults to the primary node. |
 
 **Returns**: the matching log lines.
+
+## Metrics tools
+
+These tools let your agent monitor, debug, and investigate the performance of a {C.SERVICE_SHORT} from its time-series metrics. They are read-only, so they stay available in [read-only mode](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only). The {C.CLI_SHORT} equivalents are the [`tiger service metrics`](/reference/tiger-cloud/tiger-cli#tiger-service-metrics-available) commands; see [Available metrics](/reference/tiger-cloud/tiger-cli#available-metrics) for the full list of metrics with descriptions. For a worked debugging workflow, see [Diagnose a slowdown with service metrics](/build/tiger-cli-mcp/cookbook#diagnose-a-slowdown-with-service-metrics). Before {C.CLI_LONG} 0.26, the metrics tools were experimental and only registered when the `TIGER_EXPERIMENTAL` environment variable was set.
+
+### `service_metrics_available`
+
+List the names of the metric series available for the given {C.SERVICE_SHORT}.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The target {C.SERVICE_SHORT}. |
+
+**Returns**: an array of metric series names, for use with `service_metrics_details` and `service_metrics_series`.
+
+### `service_metrics_details`
+
+Get descriptive metadata for a metric: what it measures, its type, its default aggregation function, and the labels it can be filtered or grouped by. The `timescale_cloud_system_*` metrics have no richer metadata; for those, the tool returns just the name, with the other fields empty.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The target {C.SERVICE_SHORT}. |
+| `metric_name` | string | Yes | The metric to describe. Use `service_metrics_available` to discover valid names. |
+
+**Returns**: the metric's name, type, default aggregation, description, and labels.
+
+### `service_metrics_series`
+
+Fetch time-series data for a metric over a time window. The response groups data points by their label set, so a single request can return multiple labeled series, for example one per replica. Before {C.CLI_LONG} 0.26, `filters` supported only equality matches.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The target {C.SERVICE_SHORT}. |
+| `metric_name` | string | Yes | The metric series to fetch. Use `service_metrics_available` to discover valid names. |
+| `from`, `to` | string (RFC3339) | Yes | The time window. |
+| `role` | string (enum: `PRIMARY`, `REPLICA`) | No | Convenience filter for the `role` label. Omit to aggregate datapoints across all nodes. For most queries applying `PRIMARY` could be more meaningful. |
+| `filters` | array of `{key, value, match_type}` | No | Arbitrary label filters. `match_type` is `EQUAL` (default) or `NOT_EQUAL`; `NOT_EQUAL` also matches series missing the label entirely. |
+| `bucket_seconds` | integer | No | Aggregation bucket size in seconds (minimum: `60`). When omitted, the server picks a size matched to the window. |
+| `fn` | string (enum) | No | Aggregation function applied per bucket: `RATE`, `INCREASE`, `SUM`, `AVG`, `MIN`, `MAX`, `MIN_TOTAL`, `MAX_TOTAL`, `COUNT`, `P50`, `P90`, `P99`, or `LAST`. Omit to let the server pick the metric's default. Not accepted on the `timescale_cloud_system_*` metrics. See [Aggregation functions](/reference/tiger-cloud/tiger-cli#aggregation-functions) for what each one computes. |
+| `group_by` | array of strings | No | Label keys to break the result into one series per distinct value combination. Rejected on the same metrics that reject `fn`. Omit to collapse into a single series. |
+
+**Returns**: one series per distinct label set, each with its full list of data points.
 
 ## Database tools
 
