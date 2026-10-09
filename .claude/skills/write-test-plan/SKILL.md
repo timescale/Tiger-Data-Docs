@@ -133,7 +133,26 @@ off the page. Draft, run, fix.
    against the page's sample output, before filling it the way you know is right. A plan may name a
    value the page leaves open; it may not quietly correct an instruction the page gets wrong.
 
-9. **Lint, verify the SQL, then run.**
+9. **Write the claims table before you lint.** The linter reads fenced blocks and the controls a
+   page names. It does not read the rest, and the rest is where plans come up short: a `VACUUM` in a
+   tip, a `convert_to_columnstore(…, recompress => true)` in a link, a `tsdb.direct_compress` option
+   named in prose, a sentence that promises an outcome ("`INSERT` produces columnstore chunks on the
+   spot"). Before linting, list every claim on the page in one table and map each to the plan:
+
+   | claim | where | step |
+   |---|---|---|
+   | `DELETE FROM conditions WHERE …` | fenced block | 6, asserted 7 |
+   | `VACUUM FULL` | tip, inline code | 11 |
+   | direct compress writes columnstore chunks on insert | prose, partial | 33, asserted 34 |
+   | unique constraints must include the time column | prose | no expect-error verb |
+
+   One row per fenced block, per inline statement or option, and per sentence that states a
+   checkable outcome, partials included. Every row ends in a step number or a reason the plan
+   cannot drive it; a reason is a `Not scripted:` entry or a tool gap worth raising. Post the table
+   with the plan when you hand it over: a reader can see a blank in a table, and nobody can see
+   one in "lint clean".
+
+10. **Lint, verify the SQL, then run.**
    ```bash
    cd ../doc-testing-tool
    node scripts/lint-plan.mjs "<page url>"
@@ -159,7 +178,7 @@ off the page. Draft, run, fix.
    Then `node scripts/test-page.mjs "<page url>"`. Exit 3 before the browser opens means another run
    holds the project; wait for it.
 
-10. **Fix what the run reports.** A fix lands in the docs, the plan, or the tool, and the failure does
+11. **Fix what the run reports.** A fix lands in the docs, the plan, or the tool, and the failure does
    not say which.
    - Read the screenshots on a pass as much as on a failure. Hash them first: identical shots across
      consecutive passing steps mean the steps did nothing.

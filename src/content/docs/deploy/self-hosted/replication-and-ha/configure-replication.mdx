@@ -446,21 +446,22 @@ target: self-hosted
 14. run command: `systemctl restart postgresql@18-main`
 15. run command: `pg_createcluster 18 replica -p 5433`
 16. run command: `pg_ctlcluster 18 replica stop || true`
-17. run command: `rm -rf /var/lib/postgresql/18/replica/*`
-18. run command: `sudo -u postgres sh -c 'printf "127.0.0.1:5432:replication:repuser:<PASSWORD>\n" > ~/.pgpass && chmod 600 ~/.pgpass'`
-19. run command: `sudo -u postgres pg_basebackup -h 127.0.0.1 -D /var/lib/postgresql/18/replica -U repuser -vP -W`
-20. run command: `test -f /var/lib/postgresql/18/replica/PG_VERSION`
-21. run command: `sudo -u postgres touch /var/lib/postgresql/18/replica/standby.signal`
-22. run command: `printf "primary_conninfo = 'host=127.0.0.1 port=5432 user=repuser password=<PASSWORD> application_name=r1'\nprimary_slot_name = 'replica_1_slot'\n" >> /etc/postgresql/18/replica/postgresql.conf`
-23. run command: `printf "hot_standby = on\nwal_level = replica\nmax_wal_senders = 2\nmax_replication_slots = 2\nsynchronous_commit = off\n" >> /etc/postgresql/18/replica/postgresql.conf`
-24. run command: `grep -E '^(max_connections|max_worker_processes|max_locks_per_transaction|max_prepared_transactions|shared_preload_libraries) ' /etc/postgresql/18/main/postgresql.conf >> /etc/postgresql/18/replica/postgresql.conf`
-25. run command: `pg_ctlcluster 18 replica start`
-26. run command: `for i in $(seq 1 30); do grep -q 'started streaming WAL from primary' /var/log/postgresql/postgresql-18-replica.log && break; sleep 2; done; grep -c 'started streaming WAL from primary' /var/log/postgresql/postgresql-18-replica.log`
-27. run command: `grep -c 'database system is ready to accept read-only connections' /var/log/postgresql/postgresql-18-replica.log`
-28. run SQL: `INSERT INTO sensor_readings VALUES (now(), 99, 1.5);`
-29. run command: `for i in $(seq 1 30); do test "$(sudo -u postgres psql -p 5433 -tAc "SELECT count(*) FROM sensor_readings WHERE sensor_id = 99")" = 1 && break; sleep 1; done; test "$(sudo -u postgres psql -p 5433 -tAc "SELECT count(*) FROM sensor_readings")" = "$(sudo -u postgres psql -p 5432 -tAc "SELECT count(*) FROM sensor_readings")"`
-30. run SQL: `SELECT * FROM pg_stat_replication;`
-31. expect rows: `SELECT 1 FROM pg_stat_replication WHERE usename = 'repuser' AND application_name = 'r1' AND state = 'streaming'`
+17. run SQL: `show data_directory;`
+18. run command: `rm -rf /var/lib/postgresql/18/replica/*`
+19. run command: `sudo -u postgres sh -c 'printf "127.0.0.1:5432:replication:repuser:<PASSWORD>\n" > ~/.pgpass && chmod 600 ~/.pgpass'`
+20. run command: `sudo -u postgres pg_basebackup -h 127.0.0.1 -D /var/lib/postgresql/18/replica -U repuser -vP -W`
+21. run command: `test -f /var/lib/postgresql/18/replica/PG_VERSION`
+22. run command: `sudo -u postgres touch /var/lib/postgresql/18/replica/standby.signal`
+23. run command: `printf "primary_conninfo = 'host=127.0.0.1 port=5432 user=repuser password=<PASSWORD> application_name=r1'\nprimary_slot_name = 'replica_1_slot'\n" >> /etc/postgresql/18/replica/postgresql.conf`
+24. run command: `printf "hot_standby = on\nwal_level = replica\nmax_wal_senders = 2\nmax_replication_slots = 2\nsynchronous_commit = off\n" >> /etc/postgresql/18/replica/postgresql.conf`
+25. run command: `grep -E '^(max_connections|max_worker_processes|max_locks_per_transaction|max_prepared_transactions|shared_preload_libraries) ' /etc/postgresql/18/main/postgresql.conf >> /etc/postgresql/18/replica/postgresql.conf`
+26. run command: `pg_ctlcluster 18 replica start`
+27. run command: `for i in $(seq 1 30); do grep -q 'started streaming WAL from primary' /var/log/postgresql/postgresql-18-replica.log && break; sleep 2; done; grep -c 'started streaming WAL from primary' /var/log/postgresql/postgresql-18-replica.log`
+28. run command: `grep -c 'database system is ready to accept read-only connections' /var/log/postgresql/postgresql-18-replica.log`
+29. run SQL: `INSERT INTO sensor_readings VALUES (now(), 99, 1.5);`
+30. run command: `for i in $(seq 1 30); do test "$(sudo -u postgres psql -p 5433 -tAc "SELECT count(*) FROM sensor_readings WHERE sensor_id = 99")" = 1 && break; sleep 1; done; test "$(sudo -u postgres psql -p 5433 -tAc "SELECT count(*) FROM sensor_readings")" = "$(sudo -u postgres psql -p 5432 -tAc "SELECT count(*) FROM sensor_readings")"`
+31. run SQL: `SELECT * FROM pg_stat_replication;`
+32. expect rows: `SELECT 1 FROM pg_stat_replication WHERE usename = 'repuser' AND application_name = 'r1' AND state = 'streaming'`
 
 Not scripted:
 - Failover: the page describes the option and links out; it gives nothing to run.
