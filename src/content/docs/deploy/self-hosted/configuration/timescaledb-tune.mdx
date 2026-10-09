@@ -6,6 +6,7 @@ keywords: [configuration, settings, timescaledb-tune]
 ---
 
 import * as C from "@constants";
+import TestPlan from "@components/TestPlan.astro";
 
 To help make configuring {C.TIMESCALE_DB} a little easier, you can use the [`timescaledb-tune`](https://github.com/timescale/timescaledb-tune)
 tool. This tool handles setting the most common parameters to good values based
@@ -64,5 +65,29 @@ changes, you can automatically accept and append the suggestions to the end of
 your `postgresql.conf` by using some additional flags when you run the tool:
 
 ```bash
-timescaledb-tune --quiet --yes --dry-run >> /path/to/postgresql.conf
+timescaledb-tune --quiet --yes --dry-run >> <PATH_TO_POSTGRESQL_CONF>
 ```
+
+<TestPlan>
+target: self-hosted
+
+1. fork the service
+2. run command: `apt-get install -y golang-go`
+3. run command: `HOME=/root go install github.com/timescale/timescaledb-tune/cmd/timescaledb-tune@latest`
+4. run command: `test -x /root/go/bin/timescaledb-tune && /root/go/bin/timescaledb-tune --version`
+5. run command: `sed -i 's/^shared_buffers = .*/shared_buffers = 128MB/' "$(sudo -u postgres psql -d postgres -tAc 'SHOW config_file;')"`
+6. run command: `yes | timescaledb-tune`
+7. run command: `test "$(grep -c '^shared_buffers = 128MB' "$(sudo -u postgres psql -d postgres -tAc 'SHOW config_file;')")" = 0`
+8. run command: `sed -i 's/^shared_buffers = .*/shared_buffers = 128MB/' "$(sudo -u postgres psql -d postgres -tAc 'SHOW config_file;')"`
+9. run command: `test "$(timescaledb-tune --quiet --yes --dry-run | grep -c '^shared_buffers')" -ge 1`
+10. run command: `timescaledb-tune --quiet --yes --dry-run >> "$(sudo -u postgres psql -d postgres -tAc 'SHOW config_file;')"`
+11. run command: `systemctl restart postgresql`
+12. run command: `systemctl is-active postgresql`
+13. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'shared_buffers' AND setting::bigint > 16384`
+
+Step 2 is a fixture: the page assumes a Go toolchain, and `HOME=` in step 3 is the shell a reader has
+and a remote command does not. Step 6 is the interactive run with every
+prompt answered yes; step 7 shows it rewrote `shared_buffers` in place. Step 8 resets the file so
+the append in step 10 is tested from the same starting point.
+
+</TestPlan>

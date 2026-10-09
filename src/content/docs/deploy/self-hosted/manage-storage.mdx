@@ -8,6 +8,7 @@ keywords: [storage, tablespaces, move, chunks]
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 
 If you are running {C.TIMESCALE_DB} on your own hardware, you can save storage
 by moving chunks between tablespaces. By moving older chunks to cheaper, slower
@@ -141,3 +142,35 @@ and move the data to `history` and the indexes to `history_indexes`.
 
 In {C.TIMESCALE_DB} v2.0 and later, you can use `move_chunk` with the job scheduler
 framework. For more information, see the [jobs section](/reference/timescaledb/jobs-automation).
+
+<TestPlan>
+target: self-hosted
+
+1. fork the service
+2. run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+3. run SQL: `CREATE TABLE conditions (time timestamptz NOT NULL, device text, temperature double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+4. run SQL: `INSERT INTO conditions SELECT t, 'dev-' || (i % 5), 20 + random() * 10 FROM generate_series(now() - INTERVAL '34 days', now(), INTERVAL '1 hour') WITH ORDINALITY AS g(t, i);`
+5. expect rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'conditions' AND chunk_name = '_hyper_1_4_chunk'`
+6. run command: `mkdir -p /mnt/history && chown postgres:postgres /mnt/history`
+7. run SQL: `CREATE TABLESPACE history OWNER postgres LOCATION '/mnt/history';`
+8. expect rows: `SELECT 1 FROM pg_tablespace WHERE spcname = 'history'`
+9. run SQL: `SELECT show_chunks('conditions', older_than => INTERVAL '2 days');`
+10. expect rows: `SELECT 1 FROM show_chunks('conditions', older_than => INTERVAL '2 days') c WHERE c::text = '_timescaledb_internal._hyper_1_4_chunk'`
+11. run SQL: `SELECT move_chunk(chunk => '_timescaledb_internal._hyper_1_4_chunk', destination_tablespace => 'history', index_destination_tablespace => 'history', reorder_index => '_timescaledb_internal._hyper_1_4_chunk_conditions_time_idx', verbose => TRUE);`
+12. run SQL: `SELECT tablename from pg_tables WHERE tablespace = 'history' and tablename like '_hyper_%_%_chunk';`
+13. expect rows: `SELECT 1 FROM pg_tables WHERE tablespace = 'history' AND tablename = '_hyper_1_4_chunk'`
+14. run SQL: `SELECT indexname FROM pg_indexes WHERE tablespace = 'history';`
+15. expect rows: `SELECT 1 FROM pg_indexes WHERE tablespace = 'history' AND indexname = '_hyper_1_4_chunk_conditions_time_idx'`
+16. run SQL: `CREATE TABLE example (time timestamptz NOT NULL, value double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+17. run SQL: `INSERT INTO example SELECT t, random() FROM generate_series(now() - INTERVAL '34 days', now(), INTERVAL '1 hour') AS t;`
+18. run SQL: `SELECT move_chunk(chunk => i, destination_tablespace => 'history', index_destination_tablespace => 'history', reorder_index => 'example_time_idx') FROM show_chunks('example', now() - INTERVAL '1 week', now() - INTERVAL '3 weeks') i;`
+19. expect rows: `SELECT 1 FROM pg_tables t JOIN timescaledb_information.chunks c ON c.chunk_name = t.tablename WHERE c.hypertable_name = 'example' AND t.tablespace = 'history'`
+20. expect no rows: `SELECT 1 FROM pg_tables t JOIN timescaledb_information.chunks c ON c.chunk_name = t.tablename WHERE c.hypertable_name = 'example' AND t.tablespace = 'history' AND c.range_end > now() - INTERVAL '1 week'`
+21. run SQL: `SELECT move_chunk(chunk => '_timescaledb_internal._hyper_1_4_chunk', destination_tablespace => 'pg_default', index_destination_tablespace => 'pg_default', reorder_index => '_timescaledb_internal._hyper_1_4_chunk_conditions_time_idx');`
+22. expect no rows: `SELECT 1 FROM pg_tables WHERE tablespace = 'history' AND tablename = '_hyper_1_4_chunk'`
+23. expect no rows: `SELECT 1 FROM pg_indexes WHERE tablespace = 'history' AND indexname = '_hyper_1_4_chunk_conditions_time_idx'`
+24. run SQL: `SELECT move_chunk(chunk => '_timescaledb_internal._hyper_1_4_chunk', destination_tablespace => 'history', index_destination_tablespace => 'pg_default', reorder_index => '_timescaledb_internal._hyper_1_4_chunk_conditions_time_idx');`
+25. expect rows: `SELECT 1 FROM pg_tables WHERE tablespace = 'history' AND tablename = '_hyper_1_4_chunk'`
+26. expect no rows: `SELECT 1 FROM pg_indexes WHERE tablespace = 'history' AND indexname = '_hyper_1_4_chunk_conditions_time_idx'`
+
+</TestPlan>

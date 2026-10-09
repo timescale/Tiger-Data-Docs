@@ -6,6 +6,7 @@ products: [cloud, self_hosted]
 
 import * as C from "@constants";
 import DoWithAi from "@components/DoWithAi.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 Point fixes and time-bounded corrections both use [`UPDATE`](https://www.postgresql.org/docs/current/sql-update.html) against a {C.HYPERTABLE}, just like a regular table.
 
@@ -41,3 +42,19 @@ UPDATE conditions
   WHERE time >= '2017-07-28 11:40'
     AND time < '2017-07-28 11:50';
 ```
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE conditions (time timestamptz NOT NULL, location text, temperature double precision, humidity double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+5. run SQL: `INSERT INTO conditions (time, location, temperature, humidity) VALUES ('2017-07-28 11:42:42.846621+00', 'office', 68.5, 45.0), ('2017-07-28 11:45:00+00', 'garage', 60.0, 40.0), ('2017-07-28 11:55:00+00', 'office', 69.0, 46.0);`
+6. run SQL: `UPDATE conditions SET temperature = 70.2, humidity = 50.0 WHERE time = '2017-07-28 11:42:42.846621+00' AND location = 'office';`
+7. expect rows: `SELECT 1 FROM conditions WHERE time = '2017-07-28 11:42:42.846621+00' AND location = 'office' AND temperature = 70.2 AND humidity = 50.0`
+8. run SQL: `UPDATE conditions SET temperature = temperature + 0.1 WHERE time >= '2017-07-28 11:40' AND time < '2017-07-28 11:50';`
+9. expect rows: `SELECT 1 FROM conditions WHERE location = 'garage' AND round(temperature::numeric, 1) = 60.1`
+10. expect rows: `SELECT 1 FROM conditions WHERE time = '2017-07-28 11:42:42.846621+00' AND round(temperature::numeric, 1) = 70.3`
+11. expect rows: `SELECT 1 FROM conditions WHERE time = '2017-07-28 11:55:00+00' AND temperature = 69.0`
+</TestPlan>
