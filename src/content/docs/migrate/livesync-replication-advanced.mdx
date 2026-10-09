@@ -6,8 +6,9 @@ products: [cloud]
 
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { Callout } from "@stainless-api/docs/components";
 
-Advanced scenarios for [Livesync replication](/migrate/livesync-replication) migrations: continuous aggregates, compressed hypertables on older {C.TIMESCALE_DB} versions, and identity columns.
+Advanced scenarios for [Livesync replication](/migrate/livesync-replication) migrations: continuous aggregates, compressed hypertables on older {C.TIMESCALE_DB} versions, identity columns, and merging many source tables into one hypertable.
 
 ## Migrating continuous aggregates
 
@@ -148,3 +149,56 @@ ALTER TABLE <schema>.<table>
 
 </NumberedItem>
 </NumberedList>
+
+## Merge many source tables into one hypertable
+
+Some apps partition data themselves, with one table per period: `metrics-001`, `metrics-002`, and so on. Livesync can merge such tables into a single {C.HYPERTABLE} on the target, because the `table` in a `--table-map` source is a [Go regular expression](https://pkg.go.dev/regexp/syntax). The pattern is anchored for you, so `metrics-[0-9]+` matches `metrics-001` but not `app_metrics-001`. When you pass several `--table-map` flags, the first match wins. Tables that match no mapping sync one-to-one:
+
+```bash
+--table-map '{"source": {"schema": "public", "table": "metrics-[0-9]+"}, "target": {"schema": "public", "table": "metrics"}}'
+```
+
+Before you start Livesync, make the three changes below for every table you merge. The rest of the migration follows the [Livesync replication](/migrate/livesync-replication) steps.
+
+### Make the replica identity unique across the merged tables
+
+Livesync applies `UPDATE` and `DELETE` on the target by matching the source table's [replica identity](/migrate/livesync-replication#replication-identity) columns, by default the primary key. The target doesn't know which source table a row came from.
+
+<Callout variant="warning">
+If the replica identity is only unique within each source table, for example an `id` sequence that restarts at 1 in every monthly table, one `UPDATE` or `DELETE` on the source changes or removes the matching row of **every** merged table, with no error. An `UPDATE` that changes the partition column fails instead, and replication halts for the whole subscription.
+</Callout>
+
+Choose one option for every merged table on the source. Changing the replica identity only affects changes made afterwards, so do it before you create the publication:
+
+- **Append-only data**: create the publication for these tables `WITH (publish = 'insert')`. Livesync then never receives `UPDATE` or `DELETE` for them.
+- **A key that is unique across all the tables**, such as `(device_id, time)` when the tables cover different time ranges: create a unique index on it in each table and run `ALTER TABLE ... REPLICA IDENTITY USING INDEX ...`.
+- **Any other case**: `ALTER TABLE ... REPLICA IDENTITY FULL`. Livesync then matches on every column. This needs no new index but increases the write-ahead log volume on the source.
+
+### Create the target hypertable
+
+[Schema migration](/migrate/livesync-replication#schema-migration) creates the source tables on the target as regular tables. Use one of them as the template, then drop the copied `serial` default, which points at that table's own sequence:
+
+```sql
+CREATE TABLE public.metrics (LIKE public."metrics-001" INCLUDING DEFAULTS)
+WITH (
+  tsdb.hypertable,
+  tsdb.partition_column = 'time',
+  tsdb.chunk_interval = '7 days'
+);
+
+ALTER TABLE public.metrics ALTER COLUMN id DROP DEFAULT;
+```
+
+`LIKE` doesn't copy the primary key, so the per-table key on `id` stays behind. Don't add a unique constraint on a column that is only unique within each source table: the initial copy of the second table then fails with `duplicate key value violates unique constraint`. Finally, drop the merged source tables from the target, since Livesync doesn't write to them.
+
+### Publish the tables and check the mapping
+
+List every merged table explicitly in the [publication](/migrate/livesync-replication#publication). After you start Livesync, confirm that each one maps to the {C.HYPERTABLE}:
+
+```sql
+SELECT schemaname, tablename, target_table, state
+FROM _ts_live_sync.subscription_rel
+ORDER BY tablename;
+```
+
+When your app creates a new table during the migration, set its replica identity, add it to the publication, and run `refresh-publication` with the same `--table-map` flags. Without them, the new table maps to a target table with the same name.
