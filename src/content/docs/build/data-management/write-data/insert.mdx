@@ -178,27 +178,39 @@ target: cloud, self-hosted
 8. expect rows: `SELECT 1 FROM conditions HAVING count(*) = 4`
 9. run SQL: `INSERT INTO conditions VALUES (NOW(), 'office', 70.1, 50.1) RETURNING *;`
 10. expect rows: `SELECT 1 FROM conditions WHERE location = 'office' AND temperature = 70.1 AND humidity = 50.1`
-11. [self-hosted] run command: `mkdir -p /path/to && { echo 'time,location,temperature,humidity'; echo '2026-01-01 00:00:00+00,office,70.0,50.0'; echo '2026-01-01 00:05:00+00,garage,77.0,65.2'; } > /path/to/data.csv && echo '2026-01-02 00:00:00+00,office,71.0,51.0' > /path/to/stdin.csv`
-12. [self-hosted] run SQL: `COPY conditions(time, location, temperature, humidity) FROM '/path/to/data.csv' WITH (FORMAT CSV, HEADER);`
-13. [self-hosted] expect rows: `SELECT 1 FROM conditions WHERE time = '2026-01-01 00:00:00+00' AND location = 'office'`
-14. [self-hosted] run command: `sudo -u postgres psql -d postgres -c "COPY conditions(time, location, temperature, humidity) FROM STDIN WITH (FORMAT CSV);" < /path/to/stdin.csv`
-15. [self-hosted] expect rows: `SELECT 1 FROM conditions WHERE time = '2026-01-02 00:00:00+00' AND location = 'office'`
-16. [self-hosted] run command: `{ echo '#!/bin/sh'; echo 'echo "2026-01-03 00:00:00+00,lab,65.0,55.0"'; } > /usr/local/bin/generate_data.sh && chmod 755 /usr/local/bin/generate_data.sh`
-17. [self-hosted] run SQL: `COPY conditions(time, location, temperature, humidity) FROM PROGRAM 'generate_data.sh' WITH (FORMAT CSV);`
-18. [self-hosted] expect rows: `SELECT 1 FROM conditions WHERE time = '2026-01-03 00:00:00+00' AND location = 'lab'`
-19. run SQL: `CREATE MATERIALIZED VIEW conditions_daily WITH (timescaledb.continuous) AS SELECT time_bucket('1 day', time) AS day, avg(temperature) AS avg_temp FROM conditions GROUP BY day WITH NO DATA;`
-20. [self-hosted] run SQL:
+11. run SQL: `ALTER TABLE conditions SET (timescaledb.enable_columnstore, timescaledb.segmentby = 'location');`
+12. run SQL: `DO $$ DECLARE c regclass; BEGIN SELECT show_chunks('conditions') INTO c; CALL convert_to_columnstore(c, recompress => true); END $$;`
+13. expect rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'conditions' AND is_compressed`
+14. [self-hosted] run command: `mkdir -p /path/to && { echo 'time,location,temperature,humidity'; echo '2026-01-01 00:00:00+00,office,70.0,50.0'; echo '2026-01-01 00:05:00+00,garage,77.0,65.2'; } > /path/to/data.csv && echo '2026-01-02 00:00:00+00,office,71.0,51.0' > /path/to/stdin.csv`
+15. [self-hosted] run SQL: `COPY conditions(time, location, temperature, humidity) FROM '/path/to/data.csv' WITH (FORMAT CSV, HEADER);`
+16. [self-hosted] expect rows: `SELECT 1 FROM conditions WHERE time = '2026-01-01 00:00:00+00' AND location = 'office'`
+17. [self-hosted] run command: `sudo -u postgres psql -d postgres -c "COPY conditions(time, location, temperature, humidity) FROM STDIN WITH (FORMAT CSV);" < /path/to/stdin.csv`
+18. [self-hosted] expect rows: `SELECT 1 FROM conditions WHERE time = '2026-01-02 00:00:00+00' AND location = 'office'`
+19. [self-hosted] run command: `{ echo '#!/bin/sh'; echo 'echo "2026-01-03 00:00:00+00,lab,65.0,55.0"'; } > /usr/local/bin/generate_data.sh && chmod 755 /usr/local/bin/generate_data.sh`
+20. [self-hosted] run SQL: `COPY conditions(time, location, temperature, humidity) FROM PROGRAM 'generate_data.sh' WITH (FORMAT CSV);`
+21. [self-hosted] expect rows: `SELECT 1 FROM conditions WHERE time = '2026-01-03 00:00:00+00' AND location = 'lab'`
+22. [cloud] run command: `psql "$TARGET" -c "\copy (SELECT '2026-01-04 00:00:00+00'::timestamptz AS time, 'office' AS location, 72.0 AS temperature, 52.0 AS humidity) TO 'data.csv' WITH (FORMAT CSV, HEADER)"`
+23. [cloud] run command: `psql "$TARGET" -c "\copy conditions(time, location, temperature, humidity) FROM 'data.csv' WITH (FORMAT CSV, HEADER)"`
+24. [cloud] expect rows: `SELECT 1 FROM conditions WHERE time = '2026-01-04 00:00:00+00' AND location = 'office' AND temperature = 72.0`
+25. run SQL: `CREATE MATERIALIZED VIEW conditions_daily WITH (timescaledb.continuous) AS SELECT time_bucket('1 day', time) AS day, avg(temperature) AS avg_temp FROM conditions GROUP BY day WITH NO DATA;`
+26. [self-hosted] run SQL:
     BEGIN;
     SET LOCAL timescaledb.skip_cagg_invalidation = on;
     COPY conditions FROM '/path/to/data.csv' WITH (FORMAT CSV, HEADER);
     COMMIT;
-21. run SQL: `CALL refresh_continuous_aggregate('conditions_daily', '2026-01-01', '2026-01-02', force => true);`
-22. [self-hosted] expect rows: `SELECT 1 FROM conditions WHERE time >= '2026-01-01' AND time < '2026-01-02' HAVING count(*) = 4`
-23. [self-hosted] expect rows: `SELECT 1 FROM conditions_daily WHERE day = '2026-01-01' AND avg_temp = 73.5`
-24. run SQL: `SET timescaledb.enable_direct_compress_insert = on;`
-25. run SQL: `SET timescaledb.enable_direct_compress_copy = on;`
-26. run SQL: `CREATE TABLE metrics (time timestamptz NOT NULL, device_id int, reading double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
-27. run SQL: `ALTER TABLE metrics SET (timescaledb.direct_compress);`
-28. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_compaction' AND hypertable_name = 'metrics'`
-29. expect rows: `SELECT 1 FROM timescaledb_information.hypertable_columnstore_settings WHERE hypertable = 'metrics'::regclass`
+27. run SQL: `CALL refresh_continuous_aggregate('conditions_daily', '2026-01-01', '2026-01-02', force => true);`
+28. [self-hosted] expect rows: `SELECT 1 FROM conditions WHERE time >= '2026-01-01' AND time < '2026-01-02' HAVING count(*) = 4`
+29. [self-hosted] expect rows: `SELECT 1 FROM conditions_daily WHERE day = '2026-01-01' AND avg_temp = 73.5`
+30. run SQL: `SET timescaledb.enable_direct_compress_insert = on;`
+31. run SQL: `SET timescaledb.enable_direct_compress_copy = on;`
+32. run SQL: `CREATE TABLE metrics (time timestamptz NOT NULL, device_id int, reading double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+33. run SQL: `ALTER TABLE metrics SET (timescaledb.direct_compress);`
+34. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_compaction' AND hypertable_name = 'metrics'`
+35. expect rows: `SELECT 1 FROM timescaledb_information.hypertable_columnstore_settings WHERE hypertable = 'metrics'::regclass`
+36. run SQL: `INSERT INTO metrics SELECT g, 1, random() FROM generate_series(now() - INTERVAL '1 hour', now(), INTERVAL '1 second') g;`
+37. expect rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'metrics' AND is_compressed`
+38. run SQL: `CREATE TABLE metrics_direct (time timestamptz NOT NULL, device_id int, reading double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time', tsdb.direct_compress);`
+39. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_compaction' AND hypertable_name = 'metrics_direct'`
+40. expect rows: `SELECT 1 FROM timescaledb_information.hypertable_columnstore_settings WHERE hypertable = 'metrics_direct'::regclass`
+41. run SQL: `SET timescaledb.enable_direct_compress_auto_segmentby = off;`
 </TestPlan>
