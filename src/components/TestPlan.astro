@@ -51,6 +51,17 @@
  * check that its reason is still true. Absence of the whole block means nobody has written the plan
  * yet, and keeping those two apart is what makes plan coverage countable.
  *
+ * The one exception is an install-guide plan (`machine: bare`, below). It is checked against every
+ * command the page gives a reader on its tab, so an omission can only be declared, and `skip` is how:
+ * the check reports a command the plan neither runs nor skips, and a skip for a command the page no
+ * longer has.
+ *
+ * An install-guide plan runs the page's own commands, as a reader would type them. It is one block
+ * per distro, on the install page, and it is held to what a reader of that distro's tab sees: the
+ * Linux tab, the distro's tab, and the shared steps after the tabs. Each command in a shell code block
+ * there is run or skipped, and the plan runs nothing the page does not give. A `<placeholder>` in the
+ * page's command stands for whatever the reader substitutes.
+ *
  * A plan is parsed as MDX like the rest of the page, so an angle-bracket placeholder in a step —
  * <database-name> in a documented connection string, say — reads as an unclosed JSX tag and FAILS THE
  * BUILD. Wrap a statement in backticks to make it inline code; the parser strips them back off.
@@ -67,6 +78,12 @@
  *   Where the run happens
  *     target: cloud, self-hosted    (before step 1, not a step) the products the plan runs on
  *     [self-hosted] <step>          this step runs on that product only
+ *     machine: bare                 (before step 1, self-hosted only) the box has only the OS, and the
+ *                                   plan's own steps install the database: an install-guide run, as
+ *                                   the image's default user, with the page's commands verbatim.
+ *                                   Absent means the pre-installed box
+ *     os: ubuntu                    (with machine: bare, required) the distro: ubuntu, debian,
+ *                                   redhat, fedora, rocky or arch. One block per distro
  *     fork the service              run what follows on a throwaway copy of each product: a fork of
  *                                   the standing Tiger Cloud service, and nothing extra on the
  *                                   self-hosted side, where every run is a fresh box anyway. Without
@@ -132,6 +149,14 @@
  *     run SQL: SELECT …             inline; multi-line as indented lines under a trailing ":"
  *     run command: `psql -d "…"`    a shell command; documented placeholders are resolved from the
  *                                   environment at run time
+ *     answer `Is this ok [y/N]:` with `y`
+ *                                   what a reader types at a prompt the `run command:` above it raises
+ *                                   (bare plans). `<Enter>` is a bare Enter, and a trailing `each time`
+ *                                   answers every time the prompt appears. A line typed at a psql
+ *                                   prompt (answer `postgres=#` with `\dx`) counts as a command and is
+ *                                   held to the page like one
+ *     skip `cmd`: reason            (bare plans only) a command the page gives that this plan does not
+ *                                   run, and why: the only way to leave one out
  *     exit psql                     end the psql session, so later SQL goes back through the Console
  *     replace the statement with:   swap the statement a Console editor generated for the one the
  *                                   page gives (the continuous-aggregate wizard). Multi-line as
