@@ -990,6 +990,7 @@ export default defineConfig({
                     { label: "PostgreSQL", link: "/integrate/query-administration/postgresql" },
                     { label: "psql", link: "/integrate/query-administration/psql" },
                     { label: "qStudio", link: "/integrate/query-administration/qstudio" },
+                    { label: "VisuaLeaf", link: "/integrate/query-administration/visualeaf" },
                   ],
                 },
                 {

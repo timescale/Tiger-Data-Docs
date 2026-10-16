@@ -1,0 +1,115 @@
+---
+title: "Integrate VisuaLeaf with Tiger Cloud"
+description: "Query, browse, and visualize your database from a cross-platform desktop database client"
+products: [cloud, self_hosted]
+integrationCategory: "query-administration"
+integrationPlatforms: ["aws", "azure", "self-hosted"]
+integrationIndustry: ["manufacturing", "iot"]
+keywords: ["visualeaf integration","sql editor","database client","query tool","visual query builder","er diagram","desktop gui"]
+sidebar:
+  label: "VisuaLeaf"
+---
+
+import * as C from "@constants";
+
+import IntegrationPrereqs from '@partials/_prereqs-cloud-and-self.mdx';
+import ConnectionDetails from '@partials/_prereqs-connection-details.mdx';
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+
+import { Image } from "astro:assets";
+import imgVisualeafSelectTimescaledb from "../../../../assets/images/integrate/query-administration/integrations-visualeaf-select-timescaledb.png";
+import imgVisualeafTestConnection from "../../../../assets/images/integrate/query-administration/integrations-visualeaf-test-connection.png";
+import imgVisualeafObjectBrowser from "../../../../assets/images/integrate/query-administration/integrations-visualeaf-object-browser.png";
+import imgVisualeafQueryResults from "../../../../assets/images/integrate/query-administration/integrations-visualeaf-query-results.png";
+
+[VisuaLeaf](https://visualeaf.com/database/timescaledb/) is a cross-platform desktop database client for Windows, macOS, and Linux, with a SQL editor, a results grid, a visual query builder, ER diagrams, and charts built from query results. It has a dedicated {C.TIMESCALE_DB} connection type, and a free Community Edition alongside paid editions.
+
+This page explains how to integrate VisuaLeaf with your {C.SERVICE_LONG}.
+
+In this integration guide, you:
+
+- Connect VisuaLeaf to your {C.SERVICE_SHORT} using its {C.TIMESCALE_DB} connection type.
+- Browse your schema and hypertables in the VisuaLeaf `Connections` sidebar.
+- Run a time-series query from the VisuaLeaf SQL editor.
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+
+- [VisuaLeaf](https://visualeaf.com/download) downloaded and installed. The free Community Edition is enough for this guide.
+</Prerequisites>
+
+## Connect VisuaLeaf to your service
+
+To connect to {C.CLOUD_LONG}:
+
+<NumberedList>
+  <NumberedItem title="Start VisuaLeaf and open the connection dialog">
+
+    Click `New Connection` to open the `Connect a database` picker.
+
+  </NumberedItem>
+  <NumberedItem title="Select TimescaleDB as the connection type">
+
+    In the search box, type `timescale`, then select `TimescaleDB`. It is listed under `PostgreSQL-compatible` and connects over the standard {C.PG} wire protocol.
+
+    <Image src={imgVisualeafSelectTimescaledb} alt="VisuaLeaf New Connection dialog with timescale typed in the database search box and the TimescaleDB connection type shown under PostgreSQL-compatible" />
+
+  </NumberedItem>
+  <NumberedItem title="Configure the connection">
+
+    Fill in the connection name and use your [connection details](/integrate/find-connection-details) for `Host`, `Port` (`5432` by default), `Database`, `Username`, and `Password`. {C.CLOUD_LONG} requires SSL. To enforce it, expand `Advanced driver properties` and set `sslmode` to `require`.
+
+  </NumberedItem>
+  <NumberedItem title="Click `Test Connection`, then `Save & Connect`">
+
+    A successful test shows `Connection successful` above the connection fields. `Save & Connect` saves the connection and opens it in the `Connections` sidebar.
+
+    <Image src={imgVisualeafTestConnection} alt="VisuaLeaf New Connection form with the TimescaleDB database type selected, host, port, and database filled in, and a Connection successful banner after clicking Test Connection" />
+
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated VisuaLeaf with {C.CLOUD_LONG}.
+
+## Verify the integration
+
+<NumberedList>
+  <NumberedItem title="Browse the schema">
+
+    In the `Connections` sidebar, expand your connection, then your database. Expand the `public` schema, then `Tables`, to see your hypertables. The internal `_timescaledb_*` and `timescaledb_*` schemas are listed alongside your own schemas.
+
+    <Image src={imgVisualeafObjectBrowser} alt="VisuaLeaf Connections sidebar with the docs_demo database expanded, showing the internal _timescaledb schemas and the public schema's Tables folder containing the greenhouse_readings hypertable" />
+
+  </NumberedItem>
+  <NumberedItem title="Run a query against a hypertable">
+
+    Right-click your database and select `New SQL Editor`. Run a query against one of your hypertables, for example:
+
+    ```sql
+    SELECT time_bucket('1 hour', ts) AS bucket, greenhouse,
+      avg(temperature)::numeric(4,1) AS avg_temp,
+      max(humidity) AS max_humidity
+    FROM greenhouse_readings
+    WHERE greenhouse = 'Osaka'
+    GROUP BY bucket, greenhouse
+    ORDER BY bucket
+    LIMIT 12;
+    ```
+
+    Press `F5` to run the whole script, or `F9` to run only the selected text. The results grid opens below the editor.
+
+    <Image src={imgVisualeafQueryResults} alt="VisuaLeaf SQL editor with a time_bucket query against the greenhouse_readings hypertable and a results grid below it showing hourly average temperature and maximum humidity" />
+
+  </NumberedItem>
+</NumberedList>
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard title="DBeaver" description="Manage and query your data with a cross-platform SQL editor and administration tool" href="/integrate/query-administration/dbeaver" />
+  <RelatedContentCard title="pgAdmin" description="Query, visualize, and manage your database with an open-source administration tool" href="/integrate/query-administration/pgadmin" />
+  <RelatedContentCard title="Understand hypertables" description="Learn how TimescaleDB partitions a hypertable into chunks" href="/learn/hypertables/understand-hypertables" />
+</RelatedContentCards>
