@@ -12,6 +12,7 @@ import PrereqCloudSelf from "../../../../partials/_prereqs-cloud-and-self.mdx";
 import { Prerequisites } from "@components/Prerequisites";
 import DoWithAi from "@components/DoWithAi.astro";
 import TestPlan from "@components/TestPlan.astro";
+import SinceRelease from "@components/SinceRelease.astro";
 
 Refresh policies control how and when a materialized {C.CAGG} catches up with its source {C.HYPERTABLE}. You can run refreshes on a schedule or trigger them manually when you need a one-off catch-up.
 
@@ -190,6 +191,28 @@ CALL refresh_continuous_aggregate('example', '2021-05-01', '2021-06-01');
 
 Follow the logic used by automated refresh policies and avoid refreshing {C.TIME_BUCKET}s that are likely to have a lot of writes. This means that you should generally not refresh the latest incomplete {C.TIME_BUCKET}. To include the latest raw data in your queries, use [{C.RTAGG}](/learn/continuous-aggregates/real-time-aggregates) instead.
 
+### See what a refresh did
+
+<SinceRelease version="2.31.0" product="tsdb" />
+
+By default, a refresh reports nothing. To see how much work it did, set
+`timescaledb.cagg_refresh_stats_level` to `summary` for your session. Each refresh then
+reports the batches it processed, the window it covered, and the rows it materialized and
+deleted, as a notice to you and as a line in the server log:
+
+```sql
+SET timescaledb.cagg_refresh_stats_level = 'summary';
+CALL refresh_continuous_aggregate('example', '2021-05-01', '2021-06-01');
+```
+
+```
+NOTICE:  continuous aggregate refresh: processed 4 batch(es) of 4 in window [ 2021-05-01 00:00:00+00, 2021-06-01 00:00:00+00 ], materialized 31 row(s), deleted 0 row(s)
+```
+
+If nothing in the window changed since the last refresh, the notice says that the
+{C.CAGG} is already up-to-date. Refresh policies report the same line to the server log when
+the setting is on for the database, for example through `ALTER DATABASE ... SET`.
+
 <TestPlan>
 target: cloud, self-hosted
 
@@ -221,4 +244,7 @@ target: cloud, self-hosted
 26. run SQL: `CALL refresh_continuous_aggregate('example', '2021-05-01', '2021-06-01');`
 27. expect rows: `SELECT 1 FROM example WHERE bucket >= '2021-05-01' AND bucket < '2021-06-01' HAVING count(*) = 31`
 28. expect no rows: `SELECT 1 FROM example WHERE bucket < '2021-05-01' OR bucket >= '2021-06-01'`
+29. run SQL: `SET timescaledb.cagg_refresh_stats_level = 'summary';`
+30. run SQL: `CALL refresh_continuous_aggregate('example', '2021-05-01', '2021-06-01');`
+31. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'timescaledb.cagg_refresh_stats_level' AND enumvals @> ARRAY['summary']`
 </TestPlan>
