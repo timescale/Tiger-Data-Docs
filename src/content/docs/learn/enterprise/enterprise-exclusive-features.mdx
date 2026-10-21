@@ -20,7 +20,8 @@ Bringing up a production service is a workflow in the console. You enroll your s
 between a single-node service and a highly available one, and the console deploys {C.PG} with
 {C.TIMESCALE_DB}, connection pooling, and monitoring across every node. An advisory preflight
 checks each target first, for resources, a supported operating system, and leftovers from an
-earlier install. Extensions come from a supported set and are chosen at deploy time.
+earlier install. The deploy installs {C.TIMESCALE_DB}, and the {C.PG} contrib extensions are
+available with `CREATE EXTENSION`.
 
 ## Automatic failover
 
@@ -33,28 +34,32 @@ downtime.
 
 ## Backups and point-in-time recovery
 
-Backups run on pgBackRest. Each service keeps a copy on its own node and can add a second on a
-dedicated backup server, which is what lets it recover when a machine is lost. Full and
-differential backups run on schedules you set, and restores run from the console, to the latest
-backup or to any validated moment inside the recovery window. You can also build a new service
-from backups without touching the original. Schedules are off by default, so a new service is
-not backing itself up until you set them.
+Backups run on pgBackRest. A single-node service keeps a local copy on its own server, and any
+service can add a remote copy on a dedicated backup server: that is the copy that survives the
+loss of a database server, and the only copy a highly available service has. Full and
+differential backups run on schedules you can change, the remote copy is scheduled by default,
+and a full backup runs as soon as a service is first deployed. Restores run from the console, to
+the latest backup or to any moment inside the verified backup coverage, and you can fork a new
+service from backups without touching the original.
 
 ## Networking without inbound ports
 
 The console reaches your servers over an encrypted mesh that each server joins with a single
 enrollment command. The server is the side that dials out, so there are no inbound ports to
 open. In a plant or operational technology network, where inbound access is not something you
-can negotiate, that is often what makes a deployment possible at all. Outbound is another matter
-while you build: provisioning pulls packages from the internet, so a database server needs
-outbound access until its service is up, though the console host itself needs none.
+can negotiate, that is often what makes a deployment possible at all. A database server needs no
+internet access either: it gets its mesh agent and its database packages from the console, which
+serves signed server packages over the mesh. Only the console host reaches out, to download the
+console image and the server packages and to activate a license, and an offline package built on
+another computer removes even that.
 
 ## Built-in monitoring
 
 The console scrapes every database server and charts per-node CPU, memory, storage,
 transactions, disk, and connections, without you standing up a monitoring stack first. You can
 query the metrics engine directly, or federate the whole set into a Prometheus you already run,
-with starter dashboards if you keep your own Grafana on top.
+with starter dashboards if you keep your own Grafana on top. Alert rules on the same metrics
+notify Slack, Microsoft Teams, a webhook, or email once you add a destination.
 
 ## Support
 
