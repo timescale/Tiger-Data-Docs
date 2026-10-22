@@ -971,6 +971,14 @@ components:
         type: string
         minLength: 3
         example: "alb8jicdpr"
+    BranchId:
+      name: branch_id
+      in: path
+      required: true
+      description: The unique identifier of the branch.
+      schema:
+        type: string
+        example: "br4nch1d9x"
     BackupRegionCode:
       name: region_code
       in: path
@@ -1566,6 +1574,7 @@ components:
       description: A set of read replicas for a service.
       required:
         - id
+        - service_id
         - name
         - status
         - nodes
@@ -1576,6 +1585,10 @@ components:
           type: string
           description: The unique identifier for the read replica set.
           example: "alb8jicdpr"
+        service_id:
+          type: string
+          description: The ID of the parent service this read replica set was created from.
+          example: "d1k5vk7hf2"
         name:
           type: string
           description: The name of the read replica set.
@@ -1617,6 +1630,32 @@ components:
           type: string
           description: Environment tag for the read replica set.
           example: "PROD"
+    BranchRename:
+      type: object
+      description: Parameters for renaming a branch.
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: The new name for the branch.
+          example: "my-production-db-pr-412"
+    BranchResizeInput:
+      type: object
+      minProperties: 1
+      properties:
+        cpu_millis:
+          type: string
+          pattern: "^[0-9]+$"
+          description: The new CPU allocation in milli-cores.
+          example: "1000"
+        memory_gbs:
+          type: string
+          pattern: "^[0-9]+$"
+          description: The new memory allocation in gigabytes.
+          example: "4"
+      description: >-
+        At least one of cpu_millis, memory_gbs, or iops must be provided. cpu_millis and memory_gbs must be provided together.
     ServiceCreate:
       type: object
       description: Parameters for creating a service.
@@ -1774,10 +1813,7 @@ components:
           example: 1
     ResizeInput:
       type: object
-      description: Parameters for resizing a service.
-      required:
-        - cpu_millis
-        - memory_gbs
+      minProperties: 1
       properties:
         cpu_millis:
           type: string
@@ -1789,6 +1825,8 @@ components:
           pattern: "^[0-9]+$"
           description: The new memory allocation in gigabytes.
           example: "4"
+      description: >-
+        At least one of cpu_millis, memory_gbs, or iops must be provided. cpu_millis and memory_gbs must be provided together.
     UpdatePasswordInput:
       type: object
       description: Parameters for updating a service's password.
