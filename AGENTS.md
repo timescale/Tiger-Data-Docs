@@ -56,7 +56,7 @@ Then use `{C.CLOUD_LONG}`, `{C.PG}`, `{C.TIMESCALE_DB}`, and so on in MDX conten
 
 Key overrides and components in `src/components/`:
 
-- `Callout.astro`: custom styled callout, exported with other project-owned MDX components from `src/components/docs-components.ts`.
+- `Callout.astro`: custom styled callout. Pages import `Callout` from `@stainless-api/docs/components`; a Vite alias in `astro.config.ts` points that import at this file.
 - `Header.astro`, `Footer.astro`, `PageTitle.astro`, `PageNavigation.astro`: Starlight overrides.
 - `PageSidebar.astro` + `LearnMore.astro`: right-rail "Learn more" card driven by per-page frontmatter (`learnMore:` block). Auto-hides when absent. Full authoring guide: [`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md). Prefer this over one-off "related content" patterns.
 - `NumberedList.ts` (re-exporting `numbered-list/NumberedList.astro` and `numbered-list/NumberedItem.astro`): ordered step components for procedures. Astro, not React, on purpose: a React island strips the Expressive Code stylesheet from code blocks inside it.
@@ -113,13 +113,13 @@ The full component reference, with copy-paste examples, is [`README-component.md
 
 ```mdx
 import * as C from "@constants";
-import { Callout } from "@components/docs-components";
+import { Callout } from "@stainless-api/docs/components";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import { Prerequisites } from "@components/Prerequisites";
 ```
 
-Two things that trip people up: `Callout` variants are only `tip`, `note`, `important`, `warning`, and `callout` (a call-to-action with a button), with no `info`/`success`/`danger`/`caution`; and `Tabs`/`TabItem` come from `@astrojs/starlight/components`. Use `NumberedList` and `NumberedItem` for step-by-step procedures.
+Two things that trip people up: `Callout` takes `variant=`, and the variants are only `tip`, `note`, `important`, `warning`, and `callout` (a call-to-action with a button), with no `info`/`success`/`danger`/`caution`; and `Tabs`/`TabItem` come from `@astrojs/starlight/components`. Use `NumberedList` and `NumberedItem` for step-by-step procedures.
 
 ### Partials
 
