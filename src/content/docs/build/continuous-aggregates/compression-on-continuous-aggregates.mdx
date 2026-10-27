@@ -9,6 +9,7 @@ import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import SinceRelease from "@components/SinceRelease.astro";
 import DoWithAi from "@components/DoWithAi.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 <SinceRelease version="2.20.0" product="tsdb" />
 
@@ -17,8 +18,9 @@ To save on storage costs, you use {C.HYPERCORE} to downsample historical data st
 [{C.COLUMNSTORE} policy](/reference/timescaledb/hypercore/add_columnstore_policy). This policy defines the intervals when {C.TIMESCALE_DB} converts {C.CHUNK}s in a {C.CAGG} from the {C.ROWSTORE} to the {C.COLUMNSTORE}.
 
 {C.COLUMNSTORE_CAP} works in the same way on [{C.HYPERTABLE}s and {C.CAGG}s](/learn/columnar-storage/understand-hypercore). When you enable
-{C.COLUMNSTORE} with no other options, your data is [segmented by](/reference/timescaledb/continuous-aggregates/alter_materialized_view#arguments) the `groupby` columns
-in the {C.CAGG}, and [ordered by](/reference/timescaledb/continuous-aggregates/alter_materialized_view#arguments) the time column. [{C.RTAGG_CAP}](/learn/continuous-aggregates/real-time-aggregates)
+{C.COLUMNSTORE} with no other options, your data is [ordered by](/reference/timescaledb/continuous-aggregates/alter_materialized_view#arguments) the `time_bucket` column
+followed by the remaining `GROUP BY` columns of the {C.CAGG}, and is not [segmented](/reference/timescaledb/continuous-aggregates/alter_materialized_view#arguments).
+Before {C.TIMESCALE_DB} v2.25.0, the default was to segment by the `GROUP BY` columns and order by the `time_bucket` column. [{C.RTAGG_CAP}](/learn/continuous-aggregates/real-time-aggregates)
 is disabled by default.
 
 <DoWithAi />
@@ -79,3 +81,36 @@ SELECT alter_job(<job_id>,
 ```
 
 You must enable {C.HYPERCORE} on the {C.CAGG} first. Otherwise, {C.TIMESCALE_DB} skips the conversion.
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE conditions (time TIMESTAMPTZ NOT NULL, device INTEGER NOT NULL, temperature DOUBLE PRECISION) WITH (tsdb.hypertable, tsdb.partition_column = 'time', tsdb.chunk_interval = '1 day');`
+5. run SQL: `INSERT INTO conditions SELECT t, d, d * 10 + extract(hour FROM t) FROM generate_series(now() - INTERVAL '90 days', now(), INTERVAL '6 hours') AS t, generate_series(1, 2) AS d;`
+6. run SQL: `CREATE MATERIALIZED VIEW conditions_summary_daily WITH (timescaledb.continuous) AS SELECT device, time_bucket(INTERVAL '1 day', time) AS bucket, avg(temperature) FROM conditions GROUP BY device, bucket;`
+7. expect rows: `SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'conditions_summary_daily' AND NOT compression_enabled`
+8. run SQL: `ALTER MATERIALIZED VIEW conditions_summary_daily set (timescaledb.enable_columnstore = true);`
+9. expect rows: `SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'conditions_summary_daily' AND compression_enabled AND materialized_only`
+10. expect rows: `SELECT 1 FROM timescaledb_information.hypertable_columnstore_settings s JOIN timescaledb_information.continuous_aggregates c ON s.hypertable = format('%I.%I', c.materialization_hypertable_schema, c.materialization_hypertable_name)::regclass WHERE c.view_name = 'conditions_summary_daily' AND coalesce(s.segmentby, '') = '' AND s.orderby = 'bucket,device'`
+11. run SQL: `ALTER MATERIALIZED VIEW conditions_summary_daily set (timescaledb.enable_columnstore = false);`
+12. expect rows: `SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'conditions_summary_daily' AND NOT compression_enabled`
+13. run SQL: `ALTER MATERIALIZED VIEW conditions_summary_daily set (timescaledb.enable_columnstore = true);`
+14. run SQL: `SELECT add_continuous_aggregate_policy('conditions_summary_daily', start_offset => INTERVAL '30 days', end_offset => INTERVAL '1 day', schedule_interval => INTERVAL '1 hour');`
+15. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'conditions_summary_daily' AND (config->>'start_offset')::interval = INTERVAL '30 days' AND (config->>'end_offset')::interval = INTERVAL '1 day' AND schedule_interval = INTERVAL '1 hour'`
+16. run SQL: `CALL add_columnstore_policy('conditions_summary_daily', after => INTERVAL '45 days');`
+17. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression' AND hypertable_name = 'conditions_summary_daily' AND (config->>'compress_after')::interval = INTERVAL '45 days'`
+18. run SQL: `CREATE FUNCTION columnstore_job_id() RETURNS int AS $$ SELECT job_id FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression' AND hypertable_name = 'conditions_summary_daily' $$ LANGUAGE sql;`
+19. run SQL: `CREATE FUNCTION refresh_job_id() RETURNS int AS $$ SELECT job_id FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'conditions_summary_daily' $$ LANGUAGE sql;`
+20. run SQL: `CALL run_job(columnstore_job_id());`
+21. expect rows: `SELECT 1 FROM timescaledb_information.chunks ch JOIN timescaledb_information.continuous_aggregates c ON ch.hypertable_name = c.materialization_hypertable_name WHERE c.view_name = 'conditions_summary_daily' AND ch.is_compressed AND ch.range_end < now() - INTERVAL '45 days'`
+22. expect no rows: `SELECT 1 FROM timescaledb_information.chunks ch JOIN timescaledb_information.continuous_aggregates c ON ch.hypertable_name = c.materialization_hypertable_name WHERE c.view_name = 'conditions_summary_daily' AND ch.is_compressed AND ch.range_end > now() - INTERVAL '30 days'`
+23. run SQL: `SELECT alter_job(refresh_job_id(), config => jsonb_set((SELECT config FROM _timescaledb_catalog.bgw_job WHERE id = refresh_job_id()), '{compress_after_refresh}', 'true'));`
+24. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE job_id = refresh_job_id() AND (config->>'compress_after_refresh')::boolean`
+25. run SQL: `INSERT INTO conditions SELECT t, 3, 30 FROM generate_series(now() - INTERVAL '20 days', now() - INTERVAL '2 days', INTERVAL '6 hours') AS t;`
+26. run SQL: `CALL run_job(refresh_job_id());`
+27. expect rows: `SELECT 1 FROM conditions_summary_daily WHERE device = 3 LIMIT 1`
+28. expect rows: `SELECT 1 FROM timescaledb_information.chunks ch JOIN timescaledb_information.continuous_aggregates c ON ch.hypertable_name = c.materialization_hypertable_name WHERE c.view_name = 'conditions_summary_daily' AND ch.is_compressed AND ch.range_end > now() - INTERVAL '30 days'`
+</TestPlan>

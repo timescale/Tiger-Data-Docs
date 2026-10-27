@@ -10,6 +10,7 @@ import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import SinceRelease from "@components/SinceRelease.astro";
 import DoWithAi from "@components/DoWithAi.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 A {C.CAGG} stores precomputed rollups so analytical queries avoid rescanning all raw rows. You create the materialized view first, then wire up refresh (policy or manual). You can build on a {C.HYPERTABLE} or stack another {C.CAGG}, and you can define more than one {C.CAGG} per source.
 
@@ -145,12 +146,12 @@ example:
 ```sql
 CREATE MATERIALIZED VIEW conditions_summary_daily_3
 WITH (timescaledb.continuous) AS
-SELECT time_bucket(INTERVAL '1 day', day) AS bucket,
+SELECT time_bucket(INTERVAL '1 day', time) AS bucket,
    AVG(temperature),
    MAX(temperature),
    MIN(temperature),
    name
-FROM devices JOIN conditions USING (device_id)
+FROM conditions JOIN devices ON devices.device_id = conditions.device
 GROUP BY name, bucket;
 ```
 
@@ -175,7 +176,7 @@ enabled.
 
 ```sql
 SELECT *
-  FROM conditions_summary_hourly
+  FROM conditions_summary_daily
   WHERE device = 5
   AND bucket >= '2020-01-01'
   AND bucket < '2020-04-01';
@@ -186,7 +187,7 @@ SELECT *
 
 ```sql
 SELECT *
-  FROM conditions_summary_hourly
+  FROM conditions_summary_daily
   WHERE max - min > 1800
   AND bucket >= '2020-01-01' AND bucket < '2020-04-01'
   ORDER BY bucket DESC, device DESC LIMIT 20;
@@ -221,12 +222,13 @@ Support is experimental, there is a risk of data inconsistency. For example, in 
 To use a window function in a {C.CAGG}:
 
 <NumberedList>
-<NumberedItem title="Create a simple table">
+<NumberedItem title="Create a simple hypertable">
 ```sql
-CREATE TABLE example (
-  time       TIMESTAMPTZ       NOT NULL,
-  value      TEXT              NOT NULL
-);
+CREATE TABLE sales (
+  time         TIMESTAMPTZ       NOT NULL,
+  customer_id  INTEGER           NOT NULL,
+  amount       NUMERIC           NOT NULL
+) WITH (tsdb.hypertable, tsdb.partition_column = 'time');
 ```
 </NumberedItem>
 
@@ -264,14 +266,14 @@ Window functions that partition by time_bucket should be safe even with LAG()/LE
 For {C.TIMESCALE_DB} v2.19.3 and below, {C.CAGG}s do not support window functions. To work around this:
 
 <NumberedList>
-<NumberedItem title="Create a simple table">
-Create a simple table to store a value at a specific time:
+<NumberedItem title="Create a simple hypertable">
+Create a simple {C.HYPERTABLE} to store a value at a specific time:
 
 ```sql
 CREATE TABLE example (
   time       TIMESTAMPTZ       NOT NULL,
-  value      TEXT              NOT NULL
-);
+  value      DOUBLE PRECISION  NOT NULL
+) WITH (tsdb.hypertable, tsdb.partition_column = 'time');
 ```
 </NumberedItem>
 
@@ -298,3 +300,50 @@ FROM example_aggregate;
 ```
 </NumberedItem>
 </NumberedList>
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE conditions (time TIMESTAMPTZ NOT NULL, device INTEGER NOT NULL, location TEXT NOT NULL DEFAULT 'lab', temperature DOUBLE PRECISION, humidity DOUBLE PRECISION) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+5. run SQL: `INSERT INTO conditions (time, device, temperature) SELECT t, d, extract(hour FROM t) * 100 + d FROM generate_series('2020-01-01 00:00+00'::timestamptz, '2020-03-31 23:00+00', INTERVAL '1 hour') AS t, generate_series(1, 5) AS d;`
+6. expect rows: `SELECT 1 FROM conditions HAVING count(*) = 10920`
+7. run SQL: `CREATE MATERIALIZED VIEW conditions_summary_daily WITH (timescaledb.continuous) AS SELECT device, time_bucket(INTERVAL '1 day', time) AS bucket, AVG(temperature), MAX(temperature), MIN(temperature) FROM conditions GROUP BY device, bucket;`
+8. expect rows: `SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'conditions_summary_daily'`
+9. expect rows: `SELECT 1 FROM conditions_summary_daily HAVING count(*) = 455`
+10. expect rows: `SELECT 1 FROM timescaledb_information.continuous_aggregates c JOIN timescaledb_information.dimensions m ON m.hypertable_name = c.materialization_hypertable_name JOIN timescaledb_information.dimensions s ON s.hypertable_name = 'conditions' WHERE c.view_name = 'conditions_summary_daily' AND s.time_interval = INTERVAL '7 days' AND m.time_interval = INTERVAL '70 days'`
+11. run SQL: `SELECT add_continuous_aggregate_policy('conditions_summary_daily', start_offset => INTERVAL '1 month', end_offset => INTERVAL '1 day', schedule_interval => INTERVAL '1 hour');`
+12. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'conditions_summary_daily' AND (config->>'start_offset')::interval = INTERVAL '1 month' AND (config->>'end_offset')::interval = INTERVAL '1 day' AND schedule_interval = INTERVAL '1 hour'`
+13. run SQL: `CREATE TABLE rides (pickup_datetime TIMESTAMPTZ NOT NULL, vendor_id INTEGER NOT NULL, fare_amount NUMERIC, trip_distance NUMERIC) WITH (tsdb.hypertable, tsdb.partition_column = 'pickup_datetime');`
+14. run SQL: `INSERT INTO rides SELECT t, v, 10 + v, 2 * v FROM generate_series(now() - INTERVAL '3 weeks', now(), INTERVAL '30 minutes') AS t, generate_series(1, 2) AS v;`
+15. run SQL: `CREATE MATERIALIZED VIEW cagg_rides_view WITH (timescaledb.continuous) AS SELECT vendor_id, time_bucket('1h', pickup_datetime) AS hour, count(*) total_rides, avg(fare_amount) avg_fare, max(trip_distance) as max_trip_distance, min(trip_distance) as min_trip_distance FROM rides GROUP BY vendor_id, time_bucket('1h', pickup_datetime) WITH NO DATA;`
+16. expect no rows: `SELECT 1 FROM cagg_rides_view LIMIT 1`
+17. run SQL: `CALL refresh_continuous_aggregate('cagg_rides_view', NULL, localtimestamp - INTERVAL '1 week');`
+18. expect rows: `SELECT 1 FROM cagg_rides_view HAVING count(*) > 0 AND max(hour) < now() - INTERVAL '1 week'`
+19. run SQL: `SELECT add_continuous_aggregate_policy('cagg_rides_view', start_offset => INTERVAL '1 week', end_offset => INTERVAL '1 hour', schedule_interval => INTERVAL '30 minutes');`
+20. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'cagg_rides_view' AND (config->>'start_offset')::interval = INTERVAL '1 week' AND (config->>'end_offset')::interval = INTERVAL '1 hour' AND schedule_interval = INTERVAL '30 minutes'`
+21. run SQL: `CREATE TABLE devices (device_id INTEGER PRIMARY KEY, name TEXT NOT NULL);`
+22. run SQL: `INSERT INTO devices SELECT d, 'device-' || d FROM generate_series(1, 5) AS d;`
+23. run SQL: `CREATE MATERIALIZED VIEW conditions_summary_daily_3 WITH (timescaledb.continuous) AS SELECT time_bucket(INTERVAL '1 day', time) AS bucket, AVG(temperature), MAX(temperature), MIN(temperature), name FROM conditions JOIN devices ON devices.device_id = conditions.device GROUP BY name, bucket;`
+24. expect rows: `SELECT 1 FROM conditions_summary_daily_3 WHERE name = 'device-5' HAVING count(*) = 91`
+25. run SQL: `SELECT * FROM conditions_summary_daily WHERE device = 5 AND bucket >= '2020-01-01' AND bucket < '2020-04-01';`
+26. expect rows: `SELECT 1 FROM conditions_summary_daily WHERE device = 5 AND bucket >= '2020-01-01' AND bucket < '2020-04-01' HAVING count(*) = 91`
+27. run SQL: `SELECT * FROM conditions_summary_daily WHERE max - min > 1800 AND bucket >= '2020-01-01' AND bucket < '2020-04-01' ORDER BY bucket DESC, device DESC LIMIT 20;`
+28. expect rows: `SELECT 1 FROM conditions_summary_daily WHERE max - min > 1800 AND bucket >= '2020-01-01' AND bucket < '2020-04-01' HAVING count(*) >= 20`
+29. run SQL: `CREATE TABLE sales (time TIMESTAMPTZ NOT NULL, customer_id INTEGER NOT NULL, amount NUMERIC NOT NULL) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+30. run SQL: `INSERT INTO sales SELECT t, c, 10 * c FROM generate_series(now() - INTERVAL '10 days', now(), INTERVAL '3 hours') AS t, generate_series(1, 3) AS c;`
+31. [self-hosted] run SQL: `ALTER DATABASE postgres SET timescaledb.enable_cagg_window_functions = true;`
+32. run SQL: `SET timescaledb.enable_cagg_window_functions TO TRUE;`
+33. run SQL: `CREATE MATERIALIZED VIEW example_aggregate WITH (timescaledb.continuous) AS SELECT time_bucket('1d', time), customer_id, sum(amount) AS amount, sum(amount) - LAG(sum(amount),1,NULL) OVER (PARTITION BY time_bucket('1d', time) ORDER BY sum(amount) DESC) AS amount_diff, ROW_NUMBER() OVER (PARTITION BY time_bucket('1d', time) ORDER BY sum(amount) DESC) FROM sales GROUP BY 1,2;`
+34. expect rows: `SELECT 1 FROM example_aggregate WHERE row_number = 1 AND amount_diff IS NULL LIMIT 1`
+35. expect rows: `SELECT 1 FROM example_aggregate WHERE row_number = 2 AND amount_diff < 0 LIMIT 1`
+36. run SQL: `DROP MATERIALIZED VIEW example_aggregate;`
+37. run SQL: `CREATE TABLE example (time TIMESTAMPTZ NOT NULL, value DOUBLE PRECISION NOT NULL) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+38. run SQL: `INSERT INTO example SELECT t, extract(minute FROM t) FROM generate_series(now() - INTERVAL '2 hours', now(), INTERVAL '1 minute') AS t;`
+39. run SQL: `CREATE MATERIALIZED VIEW example_aggregate WITH (timescaledb.continuous) AS SELECT time_bucket('10 minutes', time) AS bucket, first(value, time) AS value FROM example GROUP BY bucket;`
+40. expect rows: `SELECT 1 FROM example_aggregate HAVING count(*) >= 12`
+41. run SQL: `SELECT bucket, value - lag(value, 1) OVER (ORDER BY bucket) AS delta FROM example_aggregate;`
+42. expect rows: `SELECT 1 FROM (SELECT value - lag(value, 1) OVER (ORDER BY bucket) AS delta FROM example_aggregate) AS d WHERE delta = 10 LIMIT 1`
+</TestPlan>

@@ -10,6 +10,7 @@ import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import { Prerequisites } from "@components/Prerequisites";
 import LivesyncSourceSetup from "../../../partials/_livesync-source-setup.mdx";
+import LivesyncSourceLimitations from "../../../partials/_livesync-source-limitations.mdx";
 import LivesyncConnectionStringNote from "../../../partials/_livesync-connection-string-note.mdx";
 import LivesyncReplicationIdentity from "../../../partials/_livesync-replication-identity.mdx";
 import LivesyncPublication from "../../../partials/_livesync-publication.mdx";
@@ -57,6 +58,8 @@ You can drive Livesync replication from the {C.CONSOLE} UI or from a self-hosted
 
 ## Limitations
 
+<LivesyncSourceLimitations />
+
 - **Compressed {C.HYPERTABLE} chunks are copied uncompressed.** Livesync copies logical data by decompressing compressed chunks on the fly during the table copy. This removes the {C.TIMESCALE_DB} extension-version coupling between source and target, but the target starts with {C.COLUMNSTORE} data in row form. Copying compressed chunks as-is is on the roadmap but not yet available; re-enable columnstore on the target after the sync (see [Columnstore](/learn/columnar-storage/understand-hypercore) / [Post-sync](#post-sync)).
 - **{C.TIMESCALE_DB} source must be on 2.16.0 or newer** if any chunk is ever compressed or decompressed during the migration. Earlier versions don't emit the decompression-boundary markers that Livesync needs to deduplicate the WAL stream, so the target ends up with duplicate records. This affects all of:
   - `INSERT`s into a chunk that the compression policy later compresses.
@@ -66,6 +69,8 @@ You can drive Livesync replication from the {C.CONSOLE} UI or from a self-hosted
   The pre-2.16.0 GUC `timescaledb.enable_decompression_logrep_markers` is incomplete (it doesn't cover compression policies or explicit compress/decompress) and requires {C.PG} 14 or later to do anything.
 
   If you can't upgrade, the practical mitigations are: keep chunks that may receive writes uncompressed (for example, the last three months), pause compression policies during the migration, or plan to re-sync affected hypertables.
+
+- **Detaching or dropping a partition, and `TRUNCATE`, are not synced from the source.** This includes `pg_partman` retention, and {C.TIMESCALE_DB} retention policies that drop {C.CHUNK}s. The target keeps the removed rows. If the source writes rows with the same keys as the removed ones, Livesync stops with a duplicate key error, or the target gets a duplicate row when the table has no primary key or unique constraint. Repeat these operations on the target, or use a matching [retention policy](/reference/timescaledb/data-retention/add_retention_policy) on the target. To recover, see [Duplicate key error after rows are removed on the source](/migrate/livesync-replication-troubleshooting#duplicate-key-error-after-rows-are-removed-on-the-source).
 
 ## Source setup
 

@@ -10,6 +10,7 @@ products: [self_hosted]
 import * as C from "@constants";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 import { Callout } from "@stainless-api/docs/components";
+import TestPlan from "@components/TestPlan.astro";
 
 import TestingEnv from "../../../../partials/_selfhosted_production_alert.mdx";
 import AddTimescaleDBToDB from "../../../../partials/_add-timescaledb-to-a-database.mdx";
@@ -179,7 +180,7 @@ You can install {C.TIMESCALE_DB} on any local system from source.
 
 To install {C.TIMESCALE_DB} from source, you need:
 
-- **{C.PG}**: Install a [supported version of {C.PG}](https://www.postgresql.org/download/). We recommend not using {C.TIMESCALE_DB} with {C.PG} 17.1, 16.5, 15.9, 14.14, 13.17, or 12.21. These minor versions [introduced a breaking binary interface change](https://www.postgresql.org/about/news/postgresql-172-166-1510-1415-1318-and-1222-released-2965/) that was reverted in subsequent releases. Build with {C.PG} 17.2, 16.6, or higher.
+- **{C.PG}**: Install a [supported version of {C.PG}](https://www.postgresql.org/download/). We recommend not using {C.TIMESCALE_DB} with {C.PG} 17.1, 16.5, 15.9, 14.14, 13.17, or 12.21. These minor versions [introduced a breaking binary interface change](https://www.postgresql.org/about/news/postgresql-172-166-1510-1415-1318-and-1222-released-2965/) that was reverted in subsequent releases. Build with {C.PG} 16.6 or higher, or 17.3 or higher.
 
 - **Build tools**:
   - [CMake 3.11 or later](https://cmake.org/download/)
@@ -194,3 +195,268 @@ To install {C.TIMESCALE_DB} from source, you need:
 </TabItem>
 
 </Tabs>
+
+<TestPlan>
+target: self-hosted
+machine: bare
+os: debian
+1. fork the service
+2. run command: `sudo apt update`
+3. run command: `sudo apt install gnupg postgresql-common apt-transport-https lsb-release wget`
+4. answer `Continue? [Y/n]` with `Y`
+5. run command: `sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh`
+6. answer `Press Enter to continue, or Ctrl-C to abort.` with `<Enter>`
+7. run command: `echo "deb https://packagecloud.io/timescale/timescaledb/debian/ $(lsb_release -c -s) main" | sudo tee /etc/apt/sources.list.d/timescaledb.list`
+8. run command: `wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/timescaledb.gpg`
+9. run command: `sudo apt update`
+10. run command: `sudo apt install timescaledb-2-postgresql-18 postgresql-client-18`
+11. answer `Continue? [Y/n]` with `Y`
+12. run command: `sudo timescaledb-tune`
+13. answer `Is this correct? [(y)es/(n)o]:` with `y`
+14. answer `Is this okay? [(y)es/(n)o]:` with `y`
+15. answer `Tune memory/parallelism/WAL and other settings? [(y)es/(n)o]:` with `y`
+16. answer `Is this okay? [(y)es/(s)kip/(q)uit]:` with `y` each time
+17. run command: `sudo systemctl restart postgresql`
+18. run command: `sudo -u postgres psql`
+19. answer `postgres=#` with `\password postgres`
+20. answer `Enter new password for user "postgres":` with `<PASSWORD>`
+21. answer `Enter it again:` with `<PASSWORD>`
+22. answer `postgres=#` with `\q`
+23. run command: `psql -d "postgres://postgres:<PASSWORD>@localhost:5432/postgres"`
+24. answer `postgres=#` with `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+25. answer `postgres=#` with `\dx`
+26. answer `postgres=#` with `\q`
+27. expect rows: `SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'`
+</TestPlan>
+
+<TestPlan>
+target: self-hosted
+machine: bare
+os: ubuntu
+1. fork the service
+2. run command: `sudo apt update`
+3. run command: `sudo apt install gnupg postgresql-common apt-transport-https lsb-release wget`
+4. answer `Do you want to continue? [Y/n]` with `Y`
+5. run command: `sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh`
+6. answer `Press Enter to continue, or Ctrl-C to abort.` with `<Enter>`
+7. run command: `echo "deb https://packagecloud.io/timescale/timescaledb/ubuntu/ $(lsb_release -c -s) main" | sudo tee /etc/apt/sources.list.d/timescaledb.list`
+8. run command: `wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/timescaledb.gpg`
+9. skip `wget --quiet -O - https://packagecloud.io/timescale/timescaledb/gpgkey | sudo apt-key add -`: for Ubuntu 21.10 and earlier, the run is on a current Ubuntu
+10. run command: `sudo apt update`
+11. run command: `sudo apt install timescaledb-2-postgresql-18 postgresql-client-18`
+12. answer `Do you want to continue? [Y/n]` with `Y`
+13. run command: `sudo timescaledb-tune`
+14. answer `Is this correct? [(y)es/(n)o]:` with `y`
+15. answer `Is this okay? [(y)es/(n)o]:` with `y`
+16. answer `Tune memory/parallelism/WAL and other settings? [(y)es/(n)o]:` with `y`
+17. answer `Is this okay? [(y)es/(s)kip/(q)uit]:` with `y` each time
+18. run command: `sudo systemctl restart postgresql`
+19. run command: `sudo -u postgres psql`
+20. answer `postgres=#` with `\password postgres`
+21. answer `Enter new password for user "postgres":` with `<PASSWORD>`
+22. answer `Enter it again:` with `<PASSWORD>`
+23. answer `postgres=#` with `\q`
+24. run command: `psql -d "postgres://postgres:<PASSWORD>@localhost:5432/postgres"`
+25. answer `postgres=#` with `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+26. answer `postgres=#` with `\dx`
+27. answer `postgres=#` with `\q`
+28. expect rows: `SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'`
+</TestPlan>
+
+<TestPlan>
+target: self-hosted
+machine: bare
+os: redhat
+1. fork the service
+2. run command: `sudo yum install https://download.postgresql.org/pub/repos/yum/reporpms/EL-$(rpm -E %{rhel})-x86_64/pgdg-redhat-repo-latest.noarch.rpm`
+3. answer `Is this ok [y/N]:` with `y` each time
+4. run command:
+   `sudo tee /etc/yum.repos.d/timescale_timescaledb.repo <<EOL
+   [timescale_timescaledb]
+   name=timescale_timescaledb
+   baseurl=https://packagecloud.io/timescale/timescaledb/el/$(rpm -E %{rhel})/\$basearch
+   repo_gpgcheck=1
+   gpgcheck=0
+   enabled=1
+   gpgkey=https://packagecloud.io/timescale/timescaledb/gpgkey
+   sslverify=1
+   sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+   metadata_expire=300
+   EOL`
+5. run command: `sudo dnf makecache`
+6. answer `Is this ok [y/N]:` with `y` each time
+7. run command: `sudo yum install timescaledb-2-postgresql-18 postgresql18`
+8. answer `Is this ok [y/N]:` with `y` each time
+9. run command: `sudo dnf -qy module disable postgresql`
+10. run command: `sudo /usr/pgsql-18/bin/postgresql-18-setup initdb`
+11. run command: `sudo timescaledb-tune --pg-config=/usr/pgsql-18/bin/pg_config`
+12. answer `Is this correct? [(y)es/(n)o]:` with `y`
+13. answer `Is this okay? [(y)es/(n)o]:` with `y`
+14. answer `Tune memory/parallelism/WAL and other settings? [(y)es/(n)o]:` with `y`
+15. answer `Is this okay? [(y)es/(s)kip/(q)uit]:` with `y` each time
+16. run command: `sudo systemctl enable postgresql-18`
+17. run command: `sudo systemctl start postgresql-18`
+18. run command: `sudo -u postgres psql`
+19. answer `postgres=#` with `\password postgres`
+20. answer `Enter new password for user "postgres":` with `<PASSWORD>`
+21. answer `Enter it again:` with `<PASSWORD>`
+22. answer `postgres=#` with `\q`
+23. run command: `psql -d "postgres://postgres:<PASSWORD>@localhost:5432/postgres"`
+24. answer `postgres=#` with `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+25. answer `postgres=#` with `\dx`
+26. answer `postgres=#` with `\q`
+27. expect rows: `SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'`
+</TestPlan>
+
+<TestPlan>
+target: self-hosted
+machine: bare
+os: fedora
+1. fork the service
+2. run command: `sudo yum install https://download.postgresql.org/pub/repos/yum/reporpms/F-$(rpm -E %{fedora})-x86_64/pgdg-fedora-repo-latest.noarch.rpm`
+3. answer `Is this ok [y/N]:` with `y` each time
+4. run command:
+   `sudo tee /etc/yum.repos.d/timescale_timescaledb.repo <<EOL
+   [timescale_timescaledb]
+   name=timescale_timescaledb
+   baseurl=https://packagecloud.io/timescale/timescaledb/el/9/\$basearch
+   repo_gpgcheck=1
+   gpgcheck=0
+   enabled=1
+   gpgkey=https://packagecloud.io/timescale/timescaledb/gpgkey
+   sslverify=1
+   sslcacert=/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+   metadata_expire=300
+   EOL`
+5. run command: `sudo dnf makecache`
+6. answer `Is this ok [y/N]:` with `y` each time
+7. run command: `sudo yum install timescaledb-2-postgresql-18 postgresql18`
+8. answer `Is this ok [y/N]:` with `y` each time
+9. run command: `sudo /usr/pgsql-18/bin/postgresql-18-setup initdb`
+10. run command: `sudo timescaledb-tune --pg-config=/usr/pgsql-18/bin/pg_config`
+11. answer `Is this correct? [(y)es/(n)o]:` with `y`
+12. answer `Is this okay? [(y)es/(n)o]:` with `y`
+13. answer `Tune memory/parallelism/WAL and other settings? [(y)es/(n)o]:` with `y`
+14. answer `Is this okay? [(y)es/(s)kip/(q)uit]:` with `y` each time
+15. run command: `sudo systemctl enable postgresql-18`
+16. run command: `sudo systemctl start postgresql-18`
+17. run command: `sudo -u postgres psql`
+18. answer `postgres=#` with `\password postgres`
+19. answer `Enter new password for user "postgres":` with `<PASSWORD>`
+20. answer `Enter it again:` with `<PASSWORD>`
+21. answer `postgres=#` with `\q`
+22. run command: `psql -d "postgres://postgres:<PASSWORD>@localhost:5432/postgres"`
+23. answer `postgres=#` with `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+24. answer `postgres=#` with `\dx`
+25. answer `postgres=#` with `\q`
+26. expect rows: `SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'`
+</TestPlan>
+
+<TestPlan>
+target: self-hosted
+machine: bare
+os: rocky
+1. fork the service
+2. run command: `sudo dnf makecache`
+3. run command: `sudo dnf install -y epel-release`
+4. run command: `sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-$(rpm -E %{rhel})-x86_64/pgdg-redhat-repo-latest.noarch.rpm`
+5. run command:
+   `sudo tee /etc/yum.repos.d/timescale_timescaledb.repo <<EOL
+   [timescale_timescaledb]
+   name=timescale_timescaledb
+   baseurl=https://packagecloud.io/timescale/timescaledb/el/$(rpm -E %{rhel})/\$basearch
+   repo_gpgcheck=1
+   gpgcheck=0
+   enabled=1
+   gpgkey=https://packagecloud.io/timescale/timescaledb/gpgkey
+   sslverify=1
+   sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+   metadata_expire=300
+   EOL`
+6. run command: `sudo dnf module disable postgresql -y`
+7. run command: `sudo dnf install -y postgresql18-server postgresql18-contrib timescaledb-2-postgresql-18`
+8. run command: `sudo /usr/pgsql-18/bin/postgresql-18-setup initdb`
+9. run command: `sudo timescaledb-tune --pg-config=/usr/pgsql-18/bin/pg_config`
+10. answer `Is this correct? [(y)es/(n)o]:` with `y`
+11. answer `Is this okay? [(y)es/(n)o]:` with `y`
+12. answer `Tune memory/parallelism/WAL and other settings? [(y)es/(n)o]:` with `y`
+13. answer `Is this okay? [(y)es/(s)kip/(q)uit]:` with `y` each time
+14. run command: `sudo systemctl enable postgresql-18`
+15. run command: `sudo systemctl start postgresql-18`
+16. run command: `sudo -u postgres psql`
+17. answer `postgres=#` with `\password postgres`
+18. answer `Enter new password for user "postgres":` with `<PASSWORD>`
+19. answer `Enter it again:` with `<PASSWORD>`
+20. answer `postgres=#` with `\q`
+21. run command: `psql -d "postgres://postgres:<PASSWORD>@localhost:5432/postgres"`
+22. answer `postgres=#` with `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+23. answer `postgres=#` with `\dx`
+24. answer `postgres=#` with `\q`
+25. expect rows: `SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'`
+</TestPlan>
+
+<TestPlan>
+target: self-hosted
+machine: bare
+os: arch
+1. fork the service
+2. run command: `sudo pacman -Syu timescaledb timescaledb-tune postgresql-libs`
+3. answer `Proceed with installation? [Y/n]` with `Y`
+4. run command: `sudo -u postgres initdb --locale=en_US.UTF-8 --encoding=UTF8 -D /var/lib/postgres/data --data-checksums`
+5. run command: `sudo timescaledb-tune`
+6. answer `Is this correct? [(y)es/(n)o]:` with `y`
+7. answer `Is this okay? [(y)es/(n)o]:` with `y`
+8. answer `Tune memory/parallelism/WAL and other settings? [(y)es/(n)o]:` with `y`
+9. answer `Is this okay? [(y)es/(s)kip/(q)uit]:` with `y` each time
+10. run command: `sudo systemctl enable postgresql.service`
+11. run command: `sudo systemctl start postgresql.service`
+12. run command: `sudo -u postgres psql`
+13. answer `postgres=#` with `\password postgres`
+14. answer `Enter new password for user "postgres":` with `<PASSWORD>`
+15. answer `Enter it again:` with `<PASSWORD>`
+16. answer `postgres=#` with `\q`
+17. run command: `psql -d "postgres://postgres:<PASSWORD>@localhost:5432/postgres"`
+18. answer `postgres=#` with `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+19. answer `postgres=#` with `\dx`
+20. answer `postgres=#` with `\q`
+21. expect rows: `SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'`
+</TestPlan>
+
+<TestPlan>
+target: self-hosted
+machine: bare
+os: ubuntu
+path: docker-ha
+needs: docker, psql
+1. fork the service
+2. run command: `docker pull timescale/timescaledb-ha:pg18`
+3. run command: `mkdir -p /home/ubuntu/pgdata`
+4. run command: `docker run -d --name timescaledb -p 5432:5432 -v /home/ubuntu/pgdata:/pgdata -e PGDATA=/pgdata -e POSTGRES_PASSWORD=password timescale/timescaledb-ha:pg18`
+5. wait up to 120s for postgres in container `timescaledb`
+6. run command: `psql -d "postgres://postgres:password@127.0.0.1:5432/postgres"`
+7. answer `postgres=#` with `\dx`
+8. answer `postgres=#` with `<Ctrl-D>`
+9. expect output contains `Enables scalable inserts and complex queries for time-series data`
+10. skip `docker run -d --name timescaledb -p 127.0.0.1:5432:5432 -v </a/local/data/folder>:/pgdata -e PGDATA=/pgdata -e POSTGRES_PASSWORD=password timescale/timescaledb-ha:pg18`: an alternative to step 4 that reuses the container name
+11. skip `docker exec -it timescaledb psql -U postgres`: an alternative to step 6 for hosts without psql
+</TestPlan>
+
+<TestPlan>
+target: self-hosted
+machine: bare
+os: ubuntu
+path: docker-light
+needs: docker, psql
+1. fork the service
+2. run command: `docker pull timescale/timescaledb:latest-pg18`
+3. run command: `mkdir -p /home/ubuntu/pgdata`
+4. run command: `docker run -v /home/ubuntu/pgdata:/pgdata -e PGDATA=/pgdata -d --name timescaledb -p 5432:5432 -e POSTGRES_PASSWORD=password timescale/timescaledb:latest-pg18`
+5. wait up to 120s for postgres in container `timescaledb`
+6. run command: `psql -d "postgres://postgres:password@127.0.0.1:5432/postgres"`
+7. answer `postgres=#` with `\dx`
+8. answer `postgres=#` with `<Ctrl-D>`
+9. expect output contains `Enables scalable inserts and complex queries for time-series data`
+10. skip `docker run -v </a/local/data/folder>:/pgdata -e PGDATA=/pgdata -d --name timescaledb -p 127.0.0.1:5432:5432 -e POSTGRES_PASSWORD=password timescale/timescaledb:latest-pg18`: an alternative to step 4 that reuses the container name
+11. skip `docker exec -it timescaledb psql -U postgres`: an alternative to step 6 for hosts without psql
+12. skip `docker run -d --name timescaledb -p 5432:5432 -v </your/data/dir>:/pgdata -e PGDATA=/pgdata -e POSTGRES_PASSWORD=password timescale/timescaledb:latest-pg18`: an alternative to step 4 that reuses the container name
+</TestPlan>

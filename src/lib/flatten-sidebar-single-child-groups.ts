@@ -9,6 +9,9 @@ type SidebarEntry = StarlightRouteData["sidebar"][number];
  *
  * Opt out by setting `attrs: { "data-no-flatten": "true" }` on the inner link entry — useful when
  * a group is intentionally a single-item collapsible category (e.g. "Destination" with one item).
+ *
+ * REST reference groups (whose links carry `data-stldocs-method`) are never flattened: a resource
+ * with one endpoint still reads as a resource, and its label would otherwise replace the method.
  */
 export function flattenSidebarSingleChildGroups(entries: SidebarEntry[]): SidebarEntry[] {
   return entries.map(transformEntry);
@@ -24,7 +27,8 @@ function transformEntry(entry: SidebarEntry): SidebarEntry {
   if (
     processed.length === 1 &&
     processed[0].type === "link" &&
-    processed[0].attrs?.["data-no-flatten"] !== "true"
+    processed[0].attrs?.["data-no-flatten"] !== "true" &&
+    processed[0].attrs?.["data-stldocs-method"] === undefined
   ) {
     const link = processed[0];
     return {

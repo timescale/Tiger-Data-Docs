@@ -1,0 +1,31 @@
+# Settings for the docs link check. See scripts/check-links.mjs and
+# .github/workflows/link-check.yml. Run locally with `pnpm lint:links`.
+
+# Only HTTP 200 counts as working. A link that redirects is a stale link and
+# is reported separately by the script.
+accept = [200]
+
+# Check that the #fragment of a link exists on the target page.
+include_fragments = true
+
+# Be gentle with the host; www.tigerdata.com rate-limits at higher concurrency.
+max_concurrency = 4
+max_retries = 6
+retry_wait_time = 8
+timeout = 30
+
+user_agent = "Mozilla/5.0 (Tiger-Data-Docs link check)"
+
+# Links that are legitimately not pages.
+exclude = [
+  # Vercel protection bypass on preview links.
+  "x-vercel-protection-bypass",
+  # The Stainless reference serves these to markdown clients, not browsers.
+  "/index\\.md$",
+  # Back-to-top anchors the Stainless renderer emits on endpoint pages.
+  "#_top$",
+  # Tab state in the URL hash on pages with Console and CLI tabs.
+  "#tab=",
+  # The docs home link: the site root on previews, /docs/ on production, both redirected.
+  "^https?://[^/]+(/docs)?/?$",
+]

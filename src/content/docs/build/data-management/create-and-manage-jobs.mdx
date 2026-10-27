@@ -10,6 +10,7 @@ import { NumberedList, NumberedItem } from "@components/NumberedList";
 import PrereqCloudOrSelf from "../../../../partials/_prereqs-cloud-or-self.mdx";
 import { Prerequisites } from "@components/Prerequisites";
 import DoWithAi from "@components/DoWithAi.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 {C.JOB_CAP}s are custom functions or procedures that {C.TIMESCALE_DB} runs on your schedule. The sections below show how to register one, test it, and change or remove it safely.
 
@@ -30,6 +31,7 @@ Wrap it in a `CREATE` statement:
 ```sql
 CREATE FUNCTION <function_name> (job_id INT DEFAULT NULL, config JSONB DEFAULT NULL)
 RETURNS VOID
+AS $<variable_name>$
 DECLARE
     <declaration>;
 BEGIN
@@ -90,11 +92,12 @@ SELECT * FROM timescaledb_information.jobs;
 The result looks like this:
 
 ```sql
-job_id |      application_name      | schedule_interval | max_runtime | max_retries | retry_period |      proc_schema      |    proc_name     |   owner   | scheduled |         config         |          next_start           | hypertable_schema | hypertable_name
---------+----------------------------+-------------------+-------------+-------------+--------------+-----------------------+------------------+-----------+-----------+------------------------+-------------------------------+-------------------+-----------------
-1 | Telemetry Reporter [1]     | 24:00:00          | 00:01:40    |          -1 | 01:00:00     | _timescaledb_internal | policy_telemetry | postgres  | t         |                        | 2022-08-18 06:26:39.524065+00 |                   |
-1000 | User-Defined Action [1000] | 01:00:00          | 00:00:00    |          -1 | 00:05:00     | public                | reindex_mytable  | tsdbadmin | t         |                        | 2022-08-17 07:17:24.831698+00 |                   |
-(2 rows)
+ job_id |           application_name           | schedule_interval | max_runtime | max_retries | retry_period |      proc_schema       |             proc_name             |   owner   | scheduled | fixed_schedule |                                         config                                         |          next_start           |         initial_start         | hypertable_schema | hypertable_name |      check_schema      |               check_name
+--------+--------------------------------------+-------------------+-------------+-------------+--------------+------------------------+-----------------------------------+-----------+-----------+----------------+----------------------------------------------------------------------------------------+-------------------------------+-------------------------------+-------------------+-----------------+------------------------+-----------------------------------------
+   1074 | User-Defined Action [1074]           | 01:00:00          | 00:00:00    |          -1 | 00:05:00     | public                 | reindex_mytable                   | tsdbadmin | t         | t              |                                                                                        | 2026-10-12 09:28:40.657211+00 | 2026-10-12 09:28:40.657211+00 |                   |                 |                        |
+      3 | Job History Log Retention Policy [3] | 06:00:00          | 01:00:00    |          -1 | 01:00:00     | _timescaledb_functions | policy_job_stat_history_retention | tsdbadmin | t         | t              | {"drop_after": "1 month", "max_failures_per_job": 1000, "max_successes_per_job": 1000} | 2026-10-12 12:00:00+00        | 2000-01-01 00:00:00+00        |                   |                 | _timescaledb_functions | policy_job_stat_history_retention_check
+      1 | Telemetry Reporter [1]               | 24:00:00          | 00:01:40    |          -1 | 01:00:00     | _timescaledb_functions | policy_telemetry                  | postgres  | t         | f              |                                                                                        | 2026-10-13 07:02:01.612712+00 |                               |                   |                 |                        |
+(3 rows)
 ```
 </NumberedItem>
 </NumberedList>
@@ -111,10 +114,10 @@ SET client_min_messages TO DEBUG1;
 </NumberedItem>
 
 <NumberedItem title={`Run the ${C.JOB}`}>
-Replace `1000` with your `job_id`:
+Replace `<JOB_ID>` with the `job_id` that `add_job` returned:
 
 ```sql
-CALL run_job(1000);
+CALL run_job(<JOB_ID>);
 ```
 </NumberedItem>
 </NumberedList>
@@ -125,34 +128,65 @@ Alter an existing {C.JOB} with [`alter_job`](/reference/timescaledb/jobs-automat
 
 <NumberedList>
 <NumberedItem title={`Change a ${C.JOB}'s config`}>
-To replace the entire JSON config for a {C.JOB}, call `alter_job` with a new `config` object. For example, replace the JSON config for a {C.JOB} with ID `1000`:
+To replace the entire JSON config for a {C.JOB}, call `alter_job` with a new `config` object. Replace `<JOB_ID>` with the `job_id` that `add_job` returned:
 
 ```sql
-SELECT alter_job(1000, config => '{"hypertable":"metrics"}');
+SELECT alter_job(<JOB_ID>, config => '{"hypertable":"metrics"}');
 ```
 </NumberedItem>
 
 <NumberedItem title={`Turn off ${C.JOB} scheduling`}>
-To turn off automatic scheduling of a {C.JOB}, call `alter_job` and set `scheduled` to `false`. You can still run the {C.JOB} manually with `run_job`. For example, turn off the scheduling for a {C.JOB} with ID `1000`:
+To turn off automatic scheduling of a {C.JOB}, call `alter_job` and set `scheduled` to `false`. You can still run the {C.JOB} manually with `run_job`. For example:
 
 ```sql
-SELECT alter_job(1000, scheduled => false);
+SELECT alter_job(<JOB_ID>, scheduled => false);
 ```
 </NumberedItem>
 
 <NumberedItem title="Re-enable automatic scheduling">
-To re-enable automatic scheduling of a {C.JOB}, call `alter_job` and set `scheduled` to `true`. For example, re-enable scheduling for a {C.JOB} with ID `1000`:
+To re-enable automatic scheduling of a {C.JOB}, call `alter_job` and set `scheduled` to `true`. For example:
 
 ```sql
-SELECT alter_job(1000, scheduled => true);
+SELECT alter_job(<JOB_ID>, scheduled => true);
 ```
 </NumberedItem>
 
 <NumberedItem title={`Delete a ${C.JOB} with \`delete_job\``}>
-For example, to delete a {C.JOB} with ID `1000`:
+Replace `<JOB_ID>` with the `job_id` of the {C.JOB} to delete:
 
 ```sql
-SELECT delete_job(1000);
+SELECT delete_job(<JOB_ID>);
 ```
 </NumberedItem>
 </NumberedList>
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE mytable (id int PRIMARY KEY, note text);`
+5. run SQL: `CREATE FUNCTION reindex_job_id() RETURNS int AS $$ SELECT job_id FROM timescaledb_information.jobs WHERE proc_name = 'reindex_mytable' $$ LANGUAGE sql;`
+6. run SQL: `CREATE FUNCTION reindex_mytable(job_id INT DEFAULT NULL, config JSONB DEFAULT NULL) RETURNS VOID AS $$ BEGIN REINDEX TABLE mytable; END; $$ LANGUAGE plpgsql;`
+7. expect rows: `SELECT 1 FROM pg_proc WHERE proname = 'reindex_mytable'`
+8. run SQL: `select reindex_mytable();`
+9. expect rows: `SELECT 1 FROM (SELECT reindex_mytable()) r`
+10. run SQL: `SELECT add_job('reindex_mytable', '1h', config => NULL);`
+11. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'reindex_mytable' AND proc_schema = 'public' AND schedule_interval = INTERVAL '1 hour' AND config IS NULL AND scheduled`
+12. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'reindex_mytable' AND application_name = 'User-Defined Action [' || job_id || ']' AND max_runtime = INTERVAL '0' AND max_retries = -1 AND retry_period = INTERVAL '5 minutes' AND next_start <= now() + INTERVAL '1 hour'`
+13. run SQL: `SELECT * FROM timescaledb_information.jobs;`
+14. run SQL: `SET client_min_messages TO DEBUG1;`
+15. run SQL: `CALL run_job(reindex_job_id());`
+16. run SQL: `SELECT alter_job(reindex_job_id(), config => '{"hypertable":"metrics"}');`
+17. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'reindex_mytable' AND config = '{"hypertable":"metrics"}'::jsonb`
+18. run SQL: `SELECT alter_job(reindex_job_id(), schedule_interval => INTERVAL '2 hours');`
+19. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'reindex_mytable' AND schedule_interval = INTERVAL '2 hours'`
+20. run SQL: `SELECT alter_job(reindex_job_id(), scheduled => false);`
+21. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'reindex_mytable' AND NOT scheduled`
+22. run SQL: `CALL run_job(reindex_job_id());`
+23. run SQL: `SELECT alter_job(reindex_job_id(), scheduled => true);`
+24. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'reindex_mytable' AND scheduled`
+25. run SQL: `SELECT delete_job(reindex_job_id());`
+26. expect no rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'reindex_mytable'`
+</TestPlan>
