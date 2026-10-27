@@ -141,6 +141,12 @@ To sync data from your S3 bucket to your {C.SERVICE_LONG} using {C.CONSOLE}:
 
        The {C.S3_CONNECTOR} uses prefix filters where possible, place patterns carefully at the end of your glob expression. AWS S3 doesn't support complex filtering. If your expression filters too many files, the list operation may time out.
     1. Click the search icon. You see the files to sync. Click `Continue`.
+
+       If the pattern matches no files, {C.CONSOLE} inspects the bucket and explains why: `This bucket is empty`,
+       `No files match this pattern` with a sample of the keys it did find under the same folder, `Nothing under <folder>/ yet`
+       with a sample of keys from elsewhere in the bucket, or `All matching files are skipped` when the start-after file sorts
+       past every match. Click `Edit pattern` or `Edit start after file` to correct the setting, or click `Continue anyway`
+       (`Continue without files` when the bucket is empty) to keep the pattern and sync files as they arrive.
   </NumberedItem>
   <NumberedItem title="Optimize the data to synchronize in hypertables">
 
@@ -149,6 +155,10 @@ To sync data from your S3 bucket to your {C.SERVICE_LONG} using {C.CONSOLE}:
 
     1. Choose `Create a new table for your data` or `Ingest data to an existing table`.
        <ThemeImage light={imgTigerConsoleS3ConnectorCreateTablesLight} dark={imgTigerConsoleS3ConnectorCreateTablesDark} alt="S3 connector table selection in Tiger Console" />
+
+       If no files matched your pattern, there is no schema to read, so `Create a new table for your data` opens an editor
+       where you define each column yourself: its name, its type, and whether it partitions the {C.HYPERTABLE}. For CSV files,
+       add the columns in the same order they appear in the file. For Parquet files, the column names must match the field names.
     1. Choose the `Data type` for each column, then click `Continue`.
     1. Configure the insert behavior when there is a conflict, then click `Continue`.
     1. Choose the polling interval. This can be a minute, an hour, or a [cron expression](https://en.wikipedia.org/wiki/Cron#Cron_expression).
