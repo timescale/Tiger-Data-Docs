@@ -63,6 +63,54 @@ ALTER TABLE <schema>.<table> REPLICA IDENTITY FULL;              -- all columns 
 
 If your {C.PG} tables use native partitioning, setting `REPLICA IDENTITY` on the root (parent) table does not automatically apply it to the partitioned child tables. Set `REPLICA IDENTITY` on each partitioned child table individually.
 
+## Duplicate key error after rows are removed on the source
+
+Livesync does not sync a partition detach or drop, or a `TRUNCATE`, from the source. This includes `pg_partman` retention, and {C.TIMESCALE_DB} retention policies that drop {C.CHUNK}s. The target keeps the removed rows. If the source writes rows with the same keys as the removed ones, the sync stops with:
+
+```
+ERROR: duplicate key value violates unique constraint "<constraint>"
+```
+
+Livesync does not skip duplicate inserts by default. Do not use `--cdc.skip-duplicate-inserts` to fix this error: it keeps the old row on the target and ignores the new row from the source.
+
+If the source truncated the table, [restart the table](#restart-a-single-table). If the source detached or dropped a partition or {C.CHUNK}:
+
+<NumberedList>
+
+<NumberedItem title="Delete the rows of the removed partition on the target">
+
+```sql
+DELETE FROM <schema>.<table>
+WHERE <partition_column> >= '<lower_bound>'
+  AND <partition_column> < '<upper_bound>';
+```
+
+</NumberedItem>
+
+<NumberedItem title="Restart Livesync and wait for it to catch up">
+Livesync applies the failed transaction and all later changes.
+</NumberedItem>
+
+<NumberedItem title="Copy back the rows that the source wrote before the error">
+The `DELETE` also removes the rows that the source wrote into this range after the detach and before the error. Livesync applied these rows before, so it does not apply them again. Copy the range from the source, and insert only the rows that the target does not have:
+
+```bash
+psql "$SOURCE" -c "\copy (SELECT * FROM <schema>.<table> WHERE <partition_column> >= '<lower_bound>' AND <partition_column> < '<upper_bound>') TO 'removed_range.csv' WITH (FORMAT csv)"
+
+psql "$TARGET" <<'EOF'
+CREATE TEMP TABLE removed_range (LIKE <schema>.<table>);
+\copy removed_range FROM 'removed_range.csv' WITH (FORMAT csv)
+INSERT INTO <schema>.<table> SELECT * FROM removed_range ON CONFLICT DO NOTHING;
+EOF
+```
+
+Run this step when the replication lag is near zero. If Livesync applies a row from this range after the copy, the same error occurs again.
+</NumberedItem>
+
+</NumberedList>
+
+To prevent this error, repeat each detach, drop, and `TRUNCATE` on the target, or use a matching [retention policy](/reference/timescaledb/data-retention/add_retention_policy) on the target. For details, see [Limitations](/migrate/livesync-replication#limitations).
+
 ## Lag growing
 
 Scale up the target. Check for long-running transactions on the source that hold `xmin` and prevent WAL cleanup:
@@ -78,7 +126,7 @@ ORDER BY xmin_age DESC;
 
 If the target's IOPS or disk throughput is pinned during the initial data copy, the most common cause is index maintenance on the destination tables. Each non-PK index has to be updated for every `COPY`'d row, which multiplies the I/O cost.
 
-Drop the non-PK indexes on the target before the copy and recreate them after all tables reach state `r` or `s`. Primary-key and unique-constraint indexes must stay; Livesync uses them for `INSERT ... ON CONFLICT` deduplication.
+Drop the non-PK indexes on the target before the copy and recreate them after all tables reach state `r` or `s`. Primary-key and unique-constraint indexes must stay; Livesync uses them to find the rows for `UPDATE` and `DELETE`, and they reject duplicate rows.
 
 ```sql
 -- On the TARGET, before initial copy:

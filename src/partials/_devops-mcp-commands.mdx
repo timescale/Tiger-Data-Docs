@@ -200,7 +200,7 @@ Fetch time-series data for a metric over a time window. The response groups data
 | --- | --- | --- | --- |
 | `service_id` | string | Yes | The target {C.SERVICE_SHORT}. |
 | `metric_name` | string | Yes | The metric series to fetch. Use `service_metrics_available` to discover valid names. |
-| `from`, `to` | string (RFC3339) | Yes | The time window. |
+| `from`, `to` | string (RFC3339) | Yes | The time window. `to` cannot be in the future; use the current time for the latest data. |
 | `role` | string (enum: `PRIMARY`, `REPLICA`) | No | Convenience filter for the `role` label. Omit to aggregate datapoints across all nodes. For most queries applying `PRIMARY` could be more meaningful. |
 | `filters` | array of `{key, value, match_type}` | No | Arbitrary label filters. `match_type` is `EQUAL` (default) or `NOT_EQUAL`; `NOT_EQUAL` also matches series missing the label entirely. |
 | `bucket_seconds` | integer | No | Aggregation bucket size in seconds (minimum: `60`). When omitted, the server picks a size matched to the window. |
@@ -247,6 +247,17 @@ Return the schema of a {C.SERVICE_SHORT} database as readable text (tables, view
 
 **Returns**: readable text describing tables, views, materialized views, enum types, functions, procedures, indexes, triggers, and {C.TIMESCALE_DB} {C.HYPERTABLE} and {C.CAGG} metadata. The connection is opened in immutable read-only mode, so this tool never writes.
 
+### `db_extensions_list`
+
+List the {C.PG} extensions installed in a {C.SERVICE_SHORT} database, so your agent can check what is available, such as `timescaledb_toolkit`, before it writes SQL that depends on it. The {C.CLI_SHORT} equivalent is [`tiger db extensions list`](/reference/tiger-cloud/tiger-cli#tiger-db-extensions-list). Added in {C.CLI_LONG} 0.27.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The target {C.SERVICE_SHORT} (or a read replica set ID, to list the extensions on the replica instead of the primary). |
+| `role` | string | No | Database role to connect as. Default: `tsdbadmin`. |
+
+**Returns**: the installed extensions, ordered by name, each with its name (as used in `CREATE EXTENSION`), installed version, the schema its objects live in, and its description, when it has one. The connection is opened in immutable read-only mode, so this tool never writes and stays available in read-only mode.
+
 ## Documentation and skills tools
 
 ### `search_docs`
@@ -272,3 +283,17 @@ Retrieve a built-in skill for {C.TIMESCALE_DB} operations and best practices (fo
 | `path` | string | Yes | A relative path to a file or directory within the skill. Use `.` to list the skill's root directory, or leave empty for the skill's `SKILL.md`. |
 
 **Returns**: the requested skill content, or a directory listing.
+
+If your coding agent supports skills, you can also install the same skills locally with [`tiger skills install`](/reference/tiger-cloud/tiger-cli#tiger-skills-install), so the agent loads them natively instead of calling `view_skill`.
+
+## Feedback tool
+
+### `feedback`
+
+Send feedback or a bug report to the {C.COMPANY} team. The message reaches a person, so your agent should confirm the wording with you before sending. It opens no support case and returns no ticket; the response includes the {C.CONSOLE} URL for opening a tracked support ticket. The {C.CLI_SHORT} equivalent is [`tiger feedback`](/reference/tiger-cloud/tiger-cli#tiger-feedback).
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `message` | string | Yes | The feedback or bug report: what you were trying to do and what happened. At most 3,000 characters. |
+
+**Returns**: whether the message was sent, and the support URL for a tracked ticket.

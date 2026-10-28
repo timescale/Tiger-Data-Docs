@@ -6,11 +6,16 @@ keywords: [hyperfunctions, Toolkit, statistics]
 ---
 
 import * as C from "@constants";
+import TestPlan from "@components/TestPlan.astro";
 
 Window functions and {C.CAGG}s often need the same statistical moments (mean, stddev, kurtosis) in a composable aggregate. {C.TIMESCALE_DB} wraps those patterns in `stats_agg` so you can reuse one state object across rollups instead of recomputing from scratch in plain {C.PG}.
 
 This example calculates the average, standard deviation, and kurtosis of
-a value in the `measurements` table:
+a value in a `measurements` table:
+
+```sql
+CREATE TABLE measurements (ts TIMESTAMPTZ NOT NULL, val DOUBLE PRECISION) WITH (tsdb.hypertable, tsdb.partition_column = 'ts');
+```
 
 ```sql
 SELECT
@@ -24,7 +29,7 @@ GROUP BY 1;
 
 This uses a two-step aggregation process. The first step is an aggregation step (`stats_agg(val)`),
 which creates a machine-readable form of the aggregate. The second step is an accessor.
-The available accessors are `average`, `stddev`, and `kurtosis`. The accessors
+The accessors include `average`, `stddev`, `variance`, `skewness`, `kurtosis`, `sum`, and `num_vals`. The accessors
 run final calculations and output the calculated value in a human-readable way.
 This makes it easier to construct your queries, because it distinguishes the
 parameters, and makes it clear which aggregates are being re-aggregated or
@@ -65,7 +70,11 @@ aggregate performs all the same calculations on each individual variable
 as performing separate one-dimensional aggregates would, and
 additionally performs linear regression on the two variables. Accessors
 for one-dimensional values append a `_y` or `_x` to the name. For
-example:
+example, with `val2` as the dependent variable and `val1` as the independent one:
+
+```sql
+CREATE TABLE measurements_multival (ts TIMESTAMPTZ NOT NULL, val1 DOUBLE PRECISION, val2 DOUBLE PRECISION) WITH (tsdb.hypertable, tsdb.partition_column = 'ts');
+```
 
 ```sql
 SELECT
@@ -77,3 +86,26 @@ FROM measurements_multival;
 
 For more information about statistical aggregation API calls, see the
 [hyperfunction API documentation](/reference/toolkit/statistical-and-regression-analysis/stats_agg-one-variable/stats_agg).
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run command: `echo 'APT::Get::Assume-Yes "true";' > /etc/apt/apt.conf.d/90doctest`
+4. [self-hosted] run command: `apt update`
+5. [self-hosted] run command: `apt install timescaledb-toolkit-postgresql-18`
+6. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+7. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb_toolkit;`
+8. run SQL: `CREATE TABLE measurements (ts TIMESTAMPTZ NOT NULL, val DOUBLE PRECISION) WITH (tsdb.hypertable, tsdb.partition_column = 'ts');`
+9. run SQL: `INSERT INTO measurements SELECT '2026-01-01 00:00+00'::timestamptz + (g || ' seconds')::interval, (g % 60)::double precision FROM generate_series(0, 3599, 10) AS g;`
+10. run SQL: `SELECT time_bucket('10 min'::interval, ts), average(stats_agg(val)), stddev(stats_agg(val), 'pop'), kurtosis(stats_agg(val), 'pop') FROM measurements GROUP BY 1;`
+11. expect rows: `SELECT 1 FROM (SELECT time_bucket('10 min'::interval, ts) AS bucket, average(stats_agg(val)) AS mean, stddev(stats_agg(val), 'pop') AS sd FROM measurements GROUP BY 1) t HAVING count(*) = 6 AND max(abs(mean - 25)) < 1e-9 AND max(abs(sd - sqrt(1750.0 / 6))) < 1e-9`
+12. expect rows: `SELECT 1 FROM pg_proc p JOIN pg_type t ON t.oid = p.proargtypes[0] WHERE t.typname = 'statssummary1d' AND p.proname IN ('average', 'stddev', 'variance', 'skewness', 'kurtosis', 'sum', 'num_vals') HAVING count(DISTINCT p.proname) = 7`
+13. run SQL: `SELECT bucket, average(rolling(stats_agg) OVER fifteen_min), stddev(rolling(stats_agg) OVER fifteen_min, 'pop'), kurtosis(rolling(stats_agg) OVER fifteen_min, 'pop') FROM (SELECT time_bucket('1 min'::interval, ts) AS bucket, stats_agg(val) FROM measurements GROUP BY 1) AS stats WINDOW fifteen_min as (ORDER BY bucket ASC RANGE '15 minutes' PRECEDING);`
+14. expect rows: `SELECT 1 FROM (SELECT bucket, average(rolling(stats_agg) OVER fifteen_min) AS mean FROM (SELECT time_bucket('1 min'::interval, ts) AS bucket, stats_agg(val) FROM measurements GROUP BY 1) AS stats WINDOW fifteen_min AS (ORDER BY bucket ASC RANGE '15 minutes' PRECEDING)) t HAVING count(*) = 60 AND max(abs(mean - 25)) < 1e-9`
+15. run SQL: `CREATE TABLE measurements_multival (ts TIMESTAMPTZ NOT NULL, val1 DOUBLE PRECISION, val2 DOUBLE PRECISION) WITH (tsdb.hypertable, tsdb.partition_column = 'ts');`
+16. run SQL: `INSERT INTO measurements_multival SELECT '2026-01-01 00:00+00'::timestamptz + (g || ' minutes')::interval, g, 2 * g + 1 FROM generate_series(1, 100) AS g;`
+17. run SQL: `SELECT average_y(stats_agg(val2, val1)), stddev_x(stats_agg(val2, val1)), slope(stats_agg(val2, val1)) FROM measurements_multival;`
+18. expect rows: `SELECT 1 FROM (SELECT average_y(stats_agg(val2, val1)) AS mean_y, stddev_x(stats_agg(val2, val1)) AS sd_x, slope(stats_agg(val2, val1)) AS s FROM measurements_multival) t WHERE abs(s - 2) < 1e-9 AND abs(mean_y - 102) < 1e-9 AND abs(sd_x - (SELECT stddev_samp(g) FROM generate_series(1, 100) AS g)) < 1e-9`
+</TestPlan>

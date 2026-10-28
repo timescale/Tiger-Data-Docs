@@ -9,6 +9,19 @@ import * as C from "@constants";
   Make compatible changes to the schema in your {C.SERVICE_LONG} first, then make
   the same changes to the source {C.PG} instance.
 
+* Detaching or dropping a partition, and `TRUNCATE`, are not synced from the source.
+
+  This includes `pg_partman` retention, and {C.TIMESCALE_DB} retention policies that drop
+  {C.CHUNK}s. The target keeps the removed rows. If the source writes rows with the same
+  keys as the removed ones, the sync stops with a duplicate key error, or the target gets a
+  duplicate row when the table has no primary key or unique constraint.
+
+  Repeat these operations on the target: delete the rows of each detached or dropped
+  partition, and truncate each truncated table. For partition or {C.CHUNK} retention, you
+  can instead use a {C.HYPERTABLE} on the target with a matching
+  [retention policy](/reference/timescaledb/data-retention/add_retention_policy). To recover
+  from the duplicate key error, see [Troubleshooting](/migrate/livesync-replication-troubleshooting#duplicate-key-error-after-rows-are-removed-on-the-source).
+
 * Ensure that the source {C.PG} instance and the target {C.SERVICE_LONG} have the same extensions installed.
 
   The {C.PG_CONNECTOR} does not create extensions on the target. If the table uses

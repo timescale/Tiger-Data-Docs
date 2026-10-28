@@ -1,0 +1,90 @@
+name: Link check (nightly, external)
+
+# Checks every link on production, external links included. Internal links are
+# also covered by the per-PR `Link check` workflow; this run exists for links
+# that leave the site, which are too slow and too flaky to gate PRs on.
+# Findings go to the job summary and to a single tracking issue that is
+# updated on every run and closed when the site is clean.
+
+on:
+  schedule:
+    - cron: "17 4 * * 1-5" # 04:17 UTC, Monday to Friday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: link-check-nightly
+  cancel-in-progress: true
+
+jobs:
+  external:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install lychee
+        env:
+          LYCHEE_VERSION: lychee-v0.22.0
+        run: |
+          set -euo pipefail
+          curl -sSL "https://github.com/lycheeverse/lychee/releases/download/${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-gnu.tar.gz" | tar xz -C /usr/local/bin lychee
+          lychee --version
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check every link on production
+        id: check
+        env:
+          LINKCHECK_BASE_URL: https://www.tigerdata.com/docs
+        run: |
+          set +e
+          node scripts/check-links.mjs --external --out .linkcheck
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the report
+        if: always()
+        run: |
+          if [ -f .linkcheck/report.md ]; then cat .linkcheck/report.md >> "$GITHUB_STEP_SUMMARY"; else echo "The check did not produce a report; see the job log." >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Update the tracking issue
+        if: always()
+        uses: actions/github-script@v8
+        env:
+          EXIT: ${{ steps.check.outputs.exit }}
+        with:
+          script: |
+            const fs = require("fs");
+            const title = "Nightly link check: broken links on production";
+            const marker = "<!-- link-check-nightly -->";
+            let report = "";
+            try { report = fs.readFileSync(".linkcheck/report.md", "utf8"); } catch {}
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const exit = process.env.EXIT;
+            if (exit !== "0" && exit !== "1") {
+              core.setFailed("The link check could not run; see the job log. The tracking issue was left as it was.");
+              return;
+            }
+            const clean = exit === "0";
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo, state: "open", labels: "link-check", per_page: 10,
+            });
+            const existing = open.find((i) => i.title === title);
+            if (clean) {
+              if (existing) {
+                await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: `${marker}\nClean on ${new Date().toISOString().slice(0, 10)}. [Run](${runUrl})` });
+                await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: "closed" });
+              }
+              return;
+            }
+            const body = `${marker}\nUpdated by the nightly link check. Latest [run](${runUrl}).\n\n${report}`;
+            if (existing) {
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body });
+            } else {
+              await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ["link-check", "documentation"], assignees: ["atovpeko"] });
+            }

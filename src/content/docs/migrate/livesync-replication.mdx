@@ -70,6 +70,8 @@ You can drive Livesync replication from the {C.CONSOLE} UI or from a self-hosted
 
   If you can't upgrade, the practical mitigations are: keep chunks that may receive writes uncompressed (for example, the last three months), pause compression policies during the migration, or plan to re-sync affected hypertables.
 
+- **Detaching or dropping a partition, and `TRUNCATE`, are not synced from the source.** This includes `pg_partman` retention, and {C.TIMESCALE_DB} retention policies that drop {C.CHUNK}s. The target keeps the removed rows. If the source writes rows with the same keys as the removed ones, Livesync stops with a duplicate key error, or the target gets a duplicate row when the table has no primary key or unique constraint. Repeat these operations on the target, or use a matching [retention policy](/reference/timescaledb/data-retention/add_retention_policy) on the target. To recover, see [Duplicate key error after rows are removed on the source](/migrate/livesync-replication-troubleshooting#duplicate-key-error-after-rows-are-removed-on-the-source).
+
 ## Source setup
 
 <LivesyncSourceSetup />
