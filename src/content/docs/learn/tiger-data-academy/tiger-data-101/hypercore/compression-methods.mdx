@@ -1,0 +1,59 @@
+---
+title: Compression Methods
+description: Learn how Hypercore compresses time-series data
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+
+<div style="background: #f5f3ff; border-left: 3px solid #4f6bed; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; border-radius: 4px;">
+  **Tiger Data 101** → TimescaleDB | **Section:** Hypercore | **⏱ Time:** ~2 min
+</div>
+
+## Key compression methods
+
+### Dictionary encoding
+For columns with repeated values (e.g., device IDs, status codes):
+- Store unique values once, reference by ID
+- Example: 1000 rows of "sensor_A" stored as "1 → sensor_A" + 1000 copies of "1"
+
+### Delta encoding
+For numeric sequences with small differences:
+- Store only differences between consecutive values
+- Example: temperatures [22.5, 22.6, 22.4, 22.7] → store [22.5, +0.1, -0.2, +0.3]
+
+### Gorilla compression
+Specifically optimized for floating-point time-series (from Facebook's Gorilla paper):
+- Compresses timestamps and floating-point values in log-linear fashion
+- Achieves 10–40x compression on typical sensor/metric data
+
+### Array encoding
+For repeated patterns or constant-width structures
+
+---
+
+## Enabling compression
+
+```sql
+ALTER TABLE sensor_readings SET (
+  timescaledb.compress,
+  timescaledb.compress_orderby = 'time DESC',
+  timescaledb.compress_segmentby = 'device_id'
+);
+
+-- Add automatic compression policy
+SELECT add_compression_policy('sensor_readings', INTERVAL '7 days');
+```
+
+---
+
+<div style="background: linear-gradient(135deg, #4f6bed 0%, #667eea 100%); border-radius: 8px; padding: 20px; margin: 28px 0; color: white; box-shadow: 0 4px 12px rgba(79, 107, 237, 0.15);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+    <span style="font-size: 20px;">→</span>
+    <span style="font-weight: 700; font-size: 16px;">NEXT MODULE</span>
+  </div>
+  <a href="/learn/tiger-data-academy/tiger-data-101/hypercore/enabling-and-best-practices" style="color: #e0e7ff; text-decoration: none; font-weight: 500; display: block; font-size: 15px;">
+    **Enabling Hypercore** — Learn how to apply compression and manage hot vs. cold data.
+  </a>
+</div>
+
