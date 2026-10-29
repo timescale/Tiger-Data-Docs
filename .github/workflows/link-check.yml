@@ -1,0 +1,117 @@
+name: Link check
+
+# Runs against every Vercel preview deployment, so there is no second build.
+# Checks every internal link and anchor on the rendered site. A broken link
+# fails the check; a link that merely redirects is listed as stale.
+# Details: scripts/check-links.mjs and lychee.toml. Locally: `pnpm lint:links`.
+
+on:
+  deployment_status:
+
+permissions:
+  pull-requests: write
+  deployments: read
+  contents: read
+
+concurrency:
+  group: link-check-${{ github.event.deployment.sha }}
+  cancel-in-progress: true
+
+jobs:
+  link-check:
+    if: |
+      github.event.deployment_status.state == 'success' &&
+      startsWith(github.event.deployment.environment, 'Preview') &&
+      contains(github.event.deployment_status.target_url, 'vercel.app')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Find PR for this deployment
+        id: pr
+        uses: actions/github-script@v8
+        env:
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+        with:
+          script: |
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: process.env.DEPLOY_SHA,
+            });
+            const pr = prs.find((p) => p.state === "open");
+            if (!pr) {
+              core.info("No open PR for this deployment; skipping.");
+              return;
+            }
+            core.setOutput("number", pr.number);
+
+      - name: Checkout repo at deploy SHA
+        if: steps.pr.outputs.number
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha }}
+
+      - name: Install lychee
+        if: steps.pr.outputs.number
+        env:
+          LYCHEE_VERSION: lychee-v0.22.0
+        run: |
+          set -euo pipefail
+          curl -sSL "https://github.com/lycheeverse/lychee/releases/download/${LYCHEE_VERSION}/lychee-x86_64-unknown-linux-gnu.tar.gz" | tar xz -C /usr/local/bin lychee
+          lychee --version
+
+      - name: Set up Node
+        if: steps.pr.outputs.number
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check links on the preview
+        if: steps.pr.outputs.number
+        id: check
+        env:
+          LINKCHECK_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          VERCEL_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set +e
+          node scripts/check-links.mjs --out .linkcheck
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the report
+        if: steps.pr.outputs.number && always()
+        run: |
+          if [ -f .linkcheck/report.md ]; then cat .linkcheck/report.md >> "$GITHUB_STEP_SUMMARY"; else echo "The check did not produce a report; see the job log." >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Comment on the PR
+        if: steps.pr.outputs.number && always()
+        uses: actions/github-script@v8
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          EXIT: ${{ steps.check.outputs.exit }}
+        with:
+          script: |
+            const fs = require("fs");
+            const marker = "<!-- link-check -->";
+            const pull_number = parseInt(process.env.PR_NUMBER, 10);
+            let report = "";
+            try { report = fs.readFileSync(".linkcheck/report.md", "utf8"); } catch {}
+            const exit = process.env.EXIT;
+            const verdict = exit === "0" ? "✅ **Link check** passed on this preview."
+              : exit === "1" ? "❌ **Link check** found problems on this preview."
+              : "⚠️ **Link check** could not run on this preview; see the job log.";
+            const body = `${marker}\n${verdict}\n\n${report}`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: pull_number, per_page: 100,
+            });
+            const mine = comments.find((c) => c.body && c.body.startsWith(marker));
+            if (mine) {
+              await github.rest.issues.updateComment({ owner: context.repo.owner, repo: context.repo.repo, comment_id: mine.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: pull_number, body });
+            }
+
+      - name: Fail on broken links
+        if: steps.pr.outputs.number && steps.check.outputs.exit != '0'
+        run: |
+          if [ "${{ steps.check.outputs.exit }}" = "1" ]; then echo "Broken links found. See the job summary or the PR comment."; else echo "The link check could not run. See the job log."; fi
+          exit 1

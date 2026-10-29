@@ -8,6 +8,7 @@ keywords: [jobs, compression, downsample]
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import DoWithAi from "@components/DoWithAi.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 {C.TIMESCALE_DB} lets you downsample and convert {C.CHUNK}s to the {C.COLUMNSTORE} by combining a [{C.CAGG} refresh policy](/build/continuous-aggregates/refresh-policies) with
 [{C.HYPERCORE}](/learn/columnar-storage/understand-hypercore). If you want to implement features not supported by those policies, you can write
@@ -72,7 +73,7 @@ BEGIN
     -- drop temp table
     EXECUTE format('DROP TABLE %I;', tmp_name);
 
-    PERFORM convert_to_columnstore (chunk);
+    CALL convert_to_columnstore (chunk);
 
     COMMIT;
   END LOOP;
@@ -82,10 +83,30 @@ $$;
 </NumberedItem>
 
 <NumberedItem title={`Register the ${C.JOB} to run daily`}>
-In the `config`, set `lag` to 12 months to drop {C.CHUNK}s containing data older than 12 months.
+In the `config`, set `lag` to 12 months to downsample {C.CHUNK}s containing data older than 12 months and convert them to the {C.COLUMNSTORE}.
 
 ```sql
 SELECT add_job('downsample_compress','1d', config => '{"lag":"12 month"}');
 ```
 </NumberedItem>
 </NumberedList>
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE metrics (time TIMESTAMPTZ NOT NULL, device_id INTEGER NOT NULL, value DOUBLE PRECISION) WITH (tsdb.hypertable, tsdb.partition_column = 'time', tsdb.chunk_interval = '30 days');`
+5. run SQL: `INSERT INTO metrics SELECT t, d, d + extract(minute FROM t) FROM generate_series(now() - INTERVAL '15 months', now(), INTERVAL '10 minutes') AS t, generate_series(1, 2) AS d;`
+6. expect rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'metrics' AND range_end < now() - INTERVAL '12 months' AND NOT is_compressed`
+7. run SQL: `CREATE OR REPLACE PROCEDURE downsample_compress (job_id int, config jsonb) LANGUAGE PLPGSQL AS $$ DECLARE lag interval; chunk REGCLASS; tmp_name name; BEGIN SELECT jsonb_object_field_text (config, 'lag')::interval INTO STRICT lag; IF lag IS NULL THEN RAISE EXCEPTION 'Config must have lag'; END IF; FOR chunk IN SELECT show.oid FROM show_chunks('metrics', older_than => lag) SHOW (oid) INNER JOIN pg_class pgc ON pgc.oid = show.oid INNER JOIN pg_namespace pgns ON pgc.relnamespace = pgns.oid INNER JOIN timescaledb_information.chunks chunk ON chunk.chunk_name = pgc.relname AND chunk.chunk_schema = pgns.nspname WHERE chunk.is_compressed::bool = FALSE LOOP RAISE NOTICE 'Processing chunk: %', chunk::text; SELECT '_tmp' || relname FROM pg_class WHERE oid = chunk INTO STRICT tmp_name; EXECUTE format($sql$ CREATE UNLOGGED TABLE %I AS SELECT time_bucket('1h', time), device_id, avg(value) FROM %s GROUP BY 1, 2; $sql$, tmp_name, chunk); EXECUTE format('TRUNCATE %s;', chunk); EXECUTE format('INSERT INTO %s(time, device_id, value) SELECT * FROM %I;', chunk, tmp_name); EXECUTE format('DROP TABLE %I;', tmp_name); CALL convert_to_columnstore (chunk); COMMIT; END LOOP; END $$;`
+8. run SQL: `SELECT add_job('downsample_compress','1d', config => '{"lag":"12 month"}');`
+9. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'downsample_compress' AND schedule_interval = INTERVAL '1 day' AND (config->>'lag')::interval = INTERVAL '12 months'`
+10. run SQL: `CREATE FUNCTION downsample_job_id() RETURNS int AS $$ SELECT job_id FROM timescaledb_information.jobs WHERE proc_name = 'downsample_compress' $$ LANGUAGE sql;`
+11. run SQL: `CALL run_job(downsample_job_id());`
+12. expect no rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'metrics' AND range_end < now() - INTERVAL '12 months' AND NOT is_compressed`
+13. expect no rows: `SELECT 1 FROM metrics WHERE time < now() - INTERVAL '13 months' GROUP BY time_bucket('1h', time), device_id HAVING count(*) > 1`
+14. expect rows: `SELECT 1 FROM metrics WHERE time > now() - INTERVAL '1 month' GROUP BY time_bucket('1h', time), device_id HAVING count(*) = 6 LIMIT 1`
+15. expect no rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'metrics' AND range_start > now() - INTERVAL '12 months' AND is_compressed`
+</TestPlan>

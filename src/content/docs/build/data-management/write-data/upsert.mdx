@@ -7,6 +7,7 @@ products: [cloud, self_hosted]
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import DoWithAi from "@components/DoWithAi.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 An upsert either inserts a new row or reconciles with an existing one in a single round trip. That helps with idempotent ingestion and late-arriving measurements:
 
@@ -128,3 +129,40 @@ DROP TABLE conditions_staging;
 ```
 </NumberedItem>
 </NumberedList>
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE conditions (time TIMESTAMPTZ NOT NULL, location TEXT NOT NULL, temperature DOUBLE PRECISION NULL, humidity DOUBLE PRECISION NULL, UNIQUE (time, location));`
+5. expect rows: `SELECT 1 FROM pg_constraint WHERE conrelid = 'conditions'::regclass AND contype = 'u'`
+6. run SQL: `ALTER TABLE conditions ADD CONSTRAINT conditions_time_location UNIQUE (time, location);`
+7. expect rows: `SELECT 1 FROM pg_constraint WHERE conname = 'conditions_time_location' AND contype = 'u'`
+8. run SQL: `INSERT INTO conditions (time, location, temperature, humidity) VALUES ('2017-07-28 11:42:42.846621+00', 'office', 70.0, 50.0), ('2017-07-28 11:40:00+00', 'garage', 65.0, 45.0);`
+9. run SQL: `INSERT INTO conditions VALUES ('2017-07-28 11:42:42.846621+00', 'office', 70.2, 50.1) ON CONFLICT (time, location) DO UPDATE SET temperature = excluded.temperature, humidity = excluded.humidity;`
+10. expect rows: `SELECT 1 FROM conditions WHERE time = '2017-07-28 11:42:42.846621+00' AND location = 'office' AND temperature = 70.2 AND humidity = 50.1`
+11. expect rows: `SELECT 1 FROM conditions HAVING count(*) = 2`
+12. run SQL: `INSERT INTO conditions VALUES ('2017-07-28 11:42:42.846621+00', 'office', 70.1, 50.0) ON CONFLICT DO NOTHING;`
+13. expect rows: `SELECT 1 FROM conditions WHERE time = '2017-07-28 11:42:42.846621+00' AND location = 'office' AND temperature = 70.2 AND humidity = 50.1`
+14. expect rows: `SELECT 1 FROM conditions HAVING count(*) = 2`
+15. [self-hosted] run command: `mkdir -p /path/to && { echo 'time,location,temperature,humidity'; echo '2017-07-28 11:42:42.846621+00,office,71.5,55.0'; echo '2017-07-28 12:00:00+00,garage,60.0,40.0'; } > /path/to/data.csv`
+16. [self-hosted] run SQL:
+    CREATE TEMP TABLE conditions_staging (LIKE conditions);
+    COPY conditions_staging(time, location, temperature, humidity) FROM '/path/to/data.csv' WITH (FORMAT CSV, HEADER);
+    INSERT INTO conditions SELECT * FROM conditions_staging ON CONFLICT (time, location) DO UPDATE SET temperature = EXCLUDED.temperature, humidity = EXCLUDED.humidity;
+    DROP TABLE conditions_staging;
+17. [self-hosted] expect rows: `SELECT 1 FROM conditions WHERE location = 'office' AND temperature = 71.5 AND humidity = 55.0`
+18. [self-hosted] expect rows: `SELECT 1 FROM conditions HAVING count(*) = 3`
+19. [self-hosted] run command: `{ echo 'time,location,temperature,humidity'; echo '2017-07-28 11:42:42.846621+00,office,99.0,99.0'; } > /path/to/data.csv`
+20. [self-hosted] run SQL:
+    CREATE TEMP TABLE conditions_staging (LIKE conditions);
+    COPY conditions_staging(time, location, temperature, humidity) FROM '/path/to/data.csv' WITH (FORMAT CSV, HEADER);
+    INSERT INTO conditions SELECT * FROM conditions_staging ON CONFLICT (time, location) DO NOTHING;
+    DROP TABLE conditions_staging;
+21. [self-hosted] expect rows: `SELECT 1 FROM conditions WHERE location = 'office' AND temperature = 71.5 AND humidity = 55.0`
+22. [self-hosted] expect rows: `SELECT 1 FROM conditions HAVING count(*) = 3`
+
+Not scripted: Faster upserts on the columnstore: no procedure, the section links to the indexing page.
+</TestPlan>

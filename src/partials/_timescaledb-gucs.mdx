@@ -2,6 +2,7 @@
 | ---- | ---- | ------- | ----------- |
 | `auto_sparse_indexes` | `BOOLEAN` | `true` | The hypertable columns that are used as index keys will have suitable sparse indexes when compressed. Must be set at the moment of chunk compression, e.g. when the `compress_chunk()` is called. |
 | `bgw_log_level` | `ENUM` | `WARNING` | Log level for the scheduler and workers of the background worker subsystem. Requires configuration reload to change. |
+| `cagg_refresh_stats_level` | `ENUM` | `CAGG_REFRESH_STATS_OFF` | Level of statistics reporting for a continuous aggregate refresh. 'off' reports nothing. 'summary' reports a summary to the server log and as a notice to the client. 'verbose_log' reports the same as summary, and additionally records more detailed statistics, when applicable, to the server log. |
 | `cagg_rewrites_debug_info` | `BOOLEAN` | `false` | Print debug info about whether queries can be rewritten with Caggs |
 | `compress_truncate_behaviour` | `ENUM` | `COMPRESS_TRUNCATE_ONLY` | Defines how truncate behaves at the end of compression. 'truncate_only' forces truncation. 'truncate_disabled' deletes rows instead of truncate. 'truncate_or_delete' allows falling back to deletion. |
 | `compression_batch_size_limit` | `INTEGER` | `TARGET_COMPRESSED_BATCH_SIZE` | Setting this option to a number between 1 and 32767 will force compression to limit the size of compressed batches to that amount of uncompressed tuples. The setting influences only the compression process itself. The value of the setting is taken from the context of the session where the compression is performed. It is not persisted in any way.<br />min: `1`, max: `GLOBAL_MAX_ROWS_PER_COMPRESSION` |
@@ -10,9 +11,10 @@
 | `current_timestamp_mock` | `STRING` | `NULL` |  this is for debugging purposes |
 | `debug_bgw_scheduler_exit_status` | `INTEGER` | `0` |  this is for debugging purposes<br />min: `0`, max: `255` |
 | `debug_compression_path_info` | `BOOLEAN` | `false` |  this is for debugging/information purposes |
+| `debug_enable_columnarscan` | `BOOLEAN` | `true` | Do not use |
 | `debug_have_int128` | `BOOLEAN` | `#ifdef HAVE_INT128 true` |  this is for debugging purposes |
 | `debug_require_batch_sorted_merge` | `ENUM` | `DRO_Allow` |  this is for debugging purposes |
-| `debug_require_deferred_chunk_scan` | `ENUM` | `DRO_Allow` | this is for debugging purposes, to check whether a query uses the DeferredChunkAppend node without depending on EXPLAIN output |
+| `debug_require_deferred_chunk_append` | `ENUM` | `DRO_Allow` | this is for debugging purposes, to check whether a query uses the DeferredChunkAppend node without depending on EXPLAIN output |
 | `debug_require_vector_agg` | `ENUM` | `DRO_Allow` |  this is for debugging purposes |
 | `debug_require_vector_qual` | `ENUM` | `DRO_Allow` | this is for debugging purposes, to let us check if the vectorized quals are used or not. EXPLAIN differs after PG15 for custom nodes, and using the test templates is a pain |
 | `debug_skip_scan_info` | `BOOLEAN` | `false` | Print debug info about SkipScan distinct columns |
@@ -22,6 +24,7 @@
 | `direct_compress_insert_tuple_sort_limit` | `INTEGER` | `30000` | This is mainly used to keep the memory footprint down for operations like importing large amounts of data in single transaction. Setting this to 0 would make it unlimited.<br />min: `0`, max: `2147483647` |
 | `direct_compress_segmentby_batch_size_limit` | `INTEGER` | `500` | Each distinct value of a candidate segmentby column must have at least this many rows for the column to be selected.<br />min: `1`, max: `TARGET_COMPRESSED_BATCH_SIZE` |
 | `direct_compress_segmentby_min_rows` | `INTEGER` | `5000` | During direct compress, automatic segmentby selection only runs when the number of buffered tuples meets this threshold.<br />min: `0`, max: `2147483647` |
+| `enable_aic_compression` | `BOOLEAN` | `false` | Enable adaptive integer compression (AIC) |
 | `enable_bool_compression` | `BOOLEAN` | `true` | Enable bool compression |
 | `enable_bulk_decompression` | `BOOLEAN` | `true` | Increases throughput of decompression, but might increase query memory usage |
 | `enable_cagg_reorder_groupby` | `BOOLEAN` | `true` | Enable group by clause reordering for continuous aggregates |
@@ -35,7 +38,7 @@
 | `enable_chunkwise_aggregation` | `BOOLEAN` | `true` | Enable the pushdown of aggregations to the chunk level |
 | `enable_columnar_scan_filter_pushdown` | `BOOLEAN` | `true` | Enable pushing down the filters into the compressed scan part of the columnar scan |
 | `enable_columnarindexscan` | `BOOLEAN` | `true` | Enable experimental support for returning results directly from compression metadata without decompression |
-| `enable_columnarscan` | `BOOLEAN` | `true` | Transparently decompress columnar data using ColumnarScan custom node. Disabling columnar scan will ignore data stored in columnar format in queries. |
+| `enable_columnarscan_metadata_only` | `BOOLEAN` | `true` | Answer LIMIT 1 queries, with or without ORDER BY, from the compression metadata without decompression |
 | `enable_composite_bloom_indexes` | `BOOLEAN` | `true` | This composite index speeds up the equality queries on compressed columns, and can be disabled when not desired. |
 | `enable_compressed_direct_batch_delete` | `BOOLEAN` | `true` | Enable direct batch deletion in compressed chunks |
 | `enable_compressed_merge` | `BOOLEAN` | `false` | Enable MERGE support for compressed hypertables. This is only available in debug builds and will currently do full decompression |
@@ -91,6 +94,7 @@
 | `max_cached_chunks_per_hypertable` | `INTEGER` | `1024` | Maximum number of chunks stored in the cache<br />min: `0`, max: `65536` |
 | `max_open_chunks_per_insert` | `INTEGER` | `1024` | Maximum number of open chunk tables per insert<br />min: `0`, max: `PG_INT16_MAX` |
 | `max_tuples_decompressed_per_dml_transaction` | `INTEGER` | `100000` | If the number of tuples exceeds this value, an error will be thrown and transaction rolled back. Setting this to 0 sets this value to unlimited number of tuples decompressed.<br />min: `0`, max: `2147483647` |
+| `move_to_columnstore_tuple_sort_limit` | `INTEGER` | `0` | This is mainly used to keep the memory footprint down when moving large amounts of uncompressed data in a single transaction. Setting this to 0 would make it unlimited.<br />min: `0`, max: `2147483647` |
 | `read_legacy_bloom1_v1` | `BOOLEAN` | `false` | These legacy indexes might give false negatives if they were built by the TimescaleDB extension compiled with different build options. |
 | `restoring` | `BOOLEAN` | `false` | In restoring mode all timescaledb internal hooks are disabled. This mode is required for restoring logical dumps of databases with timescaledb. |
 | `shutdown_bgw_scheduler` | `BOOLEAN` | `false` |  this is for debugging purposes |
@@ -100,4 +104,4 @@
 | `telemetry_level` | `ENUM` | `TELEMETRY_DEFAULT` | Level used to determine which telemetry to send |
 | `use_custom_toaster` | `BOOLEAN` | `false` | This setting is only used for compression. It has no effect on PostgreSQL 19 and above. |
 
-Version: [2.30.1](https://github.com/timescale/timescaledb/releases/tag/2.30.1)
+Version: [2.31.0](https://github.com/timescale/timescaledb/releases/tag/2.31.0)

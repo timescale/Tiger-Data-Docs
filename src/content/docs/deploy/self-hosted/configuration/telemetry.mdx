@@ -9,6 +9,7 @@ import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import PrivacyPolicy from "../../../../../partials/_privacy-policy.mdx";
+import TestPlan from "@components/TestPlan.astro";
 
 {C.TIMESCALE_DB} collects anonymous usage data to help us better understand and assist
 our users. It also helps us provide some services, such as automated version
@@ -221,7 +222,8 @@ If you turn off telemetry, the version checking feature is also turned off.
 
 <NumberedList>
 <NumberedItem title={`Open your ${C.PG} configuration file`}>
-Locate the `timescaledb.telemetry_level` parameter. See the
+Locate the `timescaledb.telemetry_level` parameter, or add it: a fresh install does not set it, and
+the default is `basic`. See the
 [{C.PG} configuration file](/deploy/self-hosted/configuration/postgres-config) instructions for locating
 and opening the file.
 </NumberedItem>
@@ -231,18 +233,24 @@ timescaledb.telemetry_level=off
 ```
 </NumberedItem>
 <NumberedItem title="Reload the configuration file">
-```bash
-pg_ctl
-```
-
-Alternatively, you can use this command at the `psql` prompt, as the root
-user:
+Connect with `psql` as a superuser and run:
 
 ```sql
-ALTER [SYSTEM | DATABASE | USER] { *db_name* | *role_specification* } SET timescaledb.telemetry_level=off
+SELECT pg_reload_conf();
 ```
 
-This command disables telemetry for the specified system, database, or user.
+You can also run `pg_ctl reload` from a shell. On Debian and Ubuntu package installs, `pg_ctl` is not on
+the path; use `pg_ctlcluster <VERSION> main reload` instead.
+
+Alternatively, instead of editing the file, run this at the `psql` prompt as a superuser, then reload
+as above:
+
+```sql
+ALTER SYSTEM SET timescaledb.telemetry_level = off;
+```
+
+This disables telemetry for the whole instance. To change it for one database only, run
+`ALTER DATABASE <DATABASE_NAME> SET timescaledb.telemetry_level = off;` instead.
 </NumberedItem>
 </NumberedList>
 
@@ -260,16 +268,53 @@ timescaledb.telemetry_level=basic
 ```
 </NumberedItem>
 <NumberedItem title="Reload the configuration file">
-```bash
-pg_ctl
-```
-
-Alternatively, you can use this command at the `psql` prompt, as the root user:
+Connect with `psql` as a superuser and run:
 
 ```sql
-ALTER [SYSTEM | DATABASE | USER] { *db_name* | *role_specification* } SET timescaledb.telemetry_level=basic
+SELECT pg_reload_conf();
 ```
 
-This command enables telemetry for the specified system, database, or user.
+You can also run `pg_ctl reload` from a shell. On Debian and Ubuntu package installs, `pg_ctl` is not on
+the path; use `pg_ctlcluster <VERSION> main reload` instead.
+
+Alternatively, instead of editing the file, run this at the `psql` prompt as a superuser, then reload
+as above:
+
+```sql
+ALTER SYSTEM SET timescaledb.telemetry_level = basic;
+```
+
+This enables telemetry for the whole instance. To change it for one database only, run
+`ALTER DATABASE <DATABASE_NAME> SET timescaledb.telemetry_level = basic;` instead.
 </NumberedItem>
 </NumberedList>
+
+<TestPlan>
+target: self-hosted
+
+1. fork the service
+2. run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+3. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'timescaledb.telemetry_level' AND setting = 'basic'`
+4. run command: `echo "timescaledb.telemetry_level=off" | sudo -u postgres tee -a "$(sudo -u postgres psql -d postgres -tAc 'SHOW config_file;')"`
+5. run SQL: `SELECT pg_reload_conf();`
+6. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'timescaledb.telemetry_level' AND setting = 'off'`
+7. run SQL: `ALTER SYSTEM SET timescaledb.telemetry_level=basic;`
+8. run SQL: `SELECT pg_reload_conf();`
+9. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'timescaledb.telemetry_level' AND setting = 'basic'`
+10. run SQL: `ALTER SYSTEM RESET timescaledb.telemetry_level;`
+11. run command: `sudo -u postgres sed -i 's/^timescaledb.telemetry_level=off$/timescaledb.telemetry_level=basic/' "$(sudo -u postgres psql -d postgres -tAc 'SHOW config_file;')"`
+12. run SQL: `SELECT pg_reload_conf();`
+13. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'timescaledb.telemetry_level' AND setting = 'basic'`
+14. run SQL: `ALTER SYSTEM SET timescaledb.telemetry_level=off;`
+15. run SQL: `SELECT pg_reload_conf();`
+16. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'timescaledb.telemetry_level' AND setting = 'off'`
+17. run SQL: `ALTER SYSTEM RESET timescaledb.telemetry_level;`
+18. run SQL: `SELECT pg_reload_conf();`
+19. expect rows: `SELECT 1 FROM pg_settings WHERE name = 'timescaledb.telemetry_level' AND setting = 'basic'`
+20. run SQL: `ALTER DATABASE postgres SET timescaledb.telemetry_level = off;`
+21. expect rows: `SELECT 1 WHERE current_setting('timescaledb.telemetry_level') = 'off'`
+22. run SQL: `ALTER DATABASE postgres SET timescaledb.telemetry_level = basic;`
+23. expect rows: `SELECT 1 WHERE current_setting('timescaledb.telemetry_level') = 'basic'`
+24. run SQL: `ALTER DATABASE postgres RESET timescaledb.telemetry_level;`
+
+</TestPlan>

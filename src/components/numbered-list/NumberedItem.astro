@@ -1,0 +1,37 @@
+---
+/**
+ * NumberedItem – one entry in a NumberedList.
+ *
+ * Use inside <NumberedList>: each item shows a bold title followed by an optional body (slot).
+ * The body can be plain text or MDX (code blocks, tabs, callouts, links, and so on).
+ *
+ * Backticks in the title render as <code>:
+ *   <NumberedItem title="Use `psql` to connect">...</NumberedItem>
+ *
+ * Styles live in src/styles/cards.css (numbered list section).
+ */
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+
+// Split "Use `psql` to connect" into ["Use ", "`psql`", " to connect"]; backtick parts become <code>.
+const titleParts = String(title).split(/(`[^`]+`)/g).filter((part) => part !== "");
+const hasBody = Astro.slots.has("default");
+---
+
+<li class="numbered-list__item">
+  <div class="numbered-list__item-content">
+    <strong class="numbered-list__item-title">
+      {titleParts.map((part) =>
+        part.startsWith("`") && part.endsWith("`") ? <code>{part.slice(1, -1)}</code> : part,
+      )}
+    </strong>
+    {hasBody && (
+      <div class="numbered-list__item-body">
+        <slot />
+      </div>
+    )}
+  </div>
+</li>

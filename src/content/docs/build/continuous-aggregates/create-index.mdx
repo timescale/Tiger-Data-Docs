@@ -6,6 +6,7 @@ keywords: [continuous aggregates, indexes]
 ---
 import * as C from "@constants";
 import DoWithAi from "@components/DoWithAi.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 {C.CAGG_CAP}s create helpful composite indexes by default, but you can turn that off or add your own for specific filters. This page covers the automatic indexes, how to disable them, and how to manage custom ones.
 
@@ -64,3 +65,22 @@ an aggregated column.
 
 You can't create unique indexes on a {C.CAGG}, in any of the
 {C.TIMESCALE_DB} versions.
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE conditions (time timestamptz NOT NULL, device text, location text, temperature double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+5. run SQL: `INSERT INTO conditions (time, device, location, temperature) VALUES (now() - INTERVAL '2 days', 'd1', 'office', 20.5), (now() - INTERVAL '1 day', 'd1', 'office', 21.0), (now() - INTERVAL '1 day', 'd2', 'garage', 17.0);`
+6. run SQL: `CREATE MATERIALIZED VIEW weather_daily WITH (timescaledb.continuous) AS SELECT device, location, time_bucket(INTERVAL '1 day', time) AS bucket, avg(temperature) AS avg_temp FROM conditions GROUP BY device, location, bucket;`
+7. expect rows: `SELECT 1 FROM pg_indexes WHERE schemaname = '_timescaledb_internal' AND tablename = (SELECT materialization_hypertable_name FROM timescaledb_information.continuous_aggregates WHERE view_name = 'weather_daily') AND indexdef LIKE '%device, bucket%'`
+8. expect rows: `SELECT 1 FROM pg_indexes WHERE schemaname = '_timescaledb_internal' AND tablename = (SELECT materialization_hypertable_name FROM timescaledb_information.continuous_aggregates WHERE view_name = 'weather_daily') AND indexdef LIKE '%location, bucket%'`
+9. run SQL: `CREATE MATERIALIZED VIEW conditions_daily WITH (timescaledb.continuous, timescaledb.create_group_indexes=false) AS SELECT device, location, time_bucket(INTERVAL '1 day', time) AS bucket, avg(temperature) AS avg_temp FROM conditions GROUP BY device, location, bucket;`
+10. expect no rows: `SELECT 1 FROM pg_indexes WHERE schemaname = '_timescaledb_internal' AND tablename = (SELECT materialization_hypertable_name FROM timescaledb_information.continuous_aggregates WHERE view_name = 'conditions_daily') AND (indexdef LIKE '%device, bucket%' OR indexdef LIKE '%location, bucket%')`
+11. run SQL: `CREATE INDEX avg_temp_idx ON weather_daily (avg_temp);`
+12. expect rows: `SELECT 1 FROM pg_indexes WHERE schemaname = '_timescaledb_internal' AND indexname = 'avg_temp_idx'`
+13. run SQL: `DROP INDEX _timescaledb_internal.avg_temp_idx`
+14. expect no rows: `SELECT 1 FROM pg_indexes WHERE schemaname = '_timescaledb_internal' AND indexname = 'avg_temp_idx'`
+</TestPlan>

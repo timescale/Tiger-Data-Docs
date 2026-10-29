@@ -1,8 +1,8 @@
 ---
 title: Tiger CLI and MCP cookbook
-description: Copy-paste prompts for Tiger MCP that design a schema, analyze your data, compare performance, test safely with forks, and tune a service
+description: Copy-paste prompts for Tiger MCP that design a schema, analyze your data, test safely with forks, tune a service, and diagnose slowdowns with metrics
 products: [cloud]
-keywords: [Tiger MCP, cookbook, recipes, prompts, hypertable, forks, performance, pg_stat_statements]
+keywords: [Tiger MCP, cookbook, recipes, prompts, hypertable, forks, performance, metrics, pg_stat_statements]
 ---
 
 import * as C from "@constants";
@@ -105,7 +105,7 @@ GROUP BY bucket, sensor_id;
 5. When I'm done, remind me to delete the fork.
 ```
 
-A fork is an independent, writable copy of a {C.SERVICE_SHORT}. Nothing you do on it reaches the source. See [`tiger service fork`](/reference/tiger-cloud/tiger-cli#tiger-service-fork) for the fork command and its strategies (`--now`, `--last-snapshot`, `--to-timestamp`). This same fork-first pattern applies to any risky change: schema migrations, configuration tuning, or bulk deletes.
+A fork is an independent, writable copy of a {C.SERVICE_SHORT}. Nothing you do on it reaches the source. See [`tiger service fork`](/reference/tiger-cloud/tiger-cli#tiger-service-fork) for the fork command; by default it forks at the current database state, or fork from an earlier point with `--last-snapshot` or `--to-timestamp`. This same fork-first pattern applies to any risky change: schema migrations, configuration tuning, or bulk deletes.
 
 **Full recipe on GitHub**: see [Safe Experimentation with Forks](https://github.com/timescale/pg-ai-cookbook/blob/main/recipes/04-safe-experimentation-with-forks.md).
 
@@ -174,6 +174,29 @@ LIMIT 10;
 A sequential scan in the `EXPLAIN` output on a large {C.HYPERTABLE} is the most common finding, usually fixed with an index on the filtered or joined column. See [Improve hypertable performance](/build/performance-optimization/improve-hypertable-performance) for more on interpreting query plans.
 
 **Full recipe on GitHub**: see [Advanced Performance Analysis](https://github.com/timescale/pg-ai-cookbook/blob/main/recipes/06-advanced-performance-analysis.md).
+
+## Diagnose a slowdown with service metrics
+
+**Setup**: works on any {C.SERVICE_SHORT}. The metrics come from the {C.CLOUD_LONG} platform rather than from SQL, so the agent can investigate even when the database itself is too loaded to answer queries, and can see history from before it was connected.
+
+**Safety**: read-only. The metrics tools never touch your data, and they stay available when the agent is [restricted to read-only](/build/tiger-cli-mcp/agent-best-practices#restrict-agents-to-read-only).
+
+```text
+1. My app slowed down this afternoon. For service "analytics-poc", pull CPU, memory, and disk I/O usage for the last 24 hours and compare each against the service's total capacity.
+2. Pull transaction throughput and connection counts over the same window, and tell me whether the slowdown lines up with a traffic change.
+3. If a resource is saturated, name it and tell me when the saturation started.
+4. Cross-check inside the database: what do pg_stat_activity and pg_stat_statements say was running around that time?
+5. Summarize the most likely cause and recommend a fix (for example, resize, connection pooling, or query changes). Don't change anything.
+```
+
+The agent discovers metric names with [`service_metrics_available`](/reference/tiger-cloud/tiger-mcp#service_metrics_available), then fetches series such as `timescale_cloud_system_cpu_usage_millicores` against `timescale_cloud_system_cpu_total_millicores`, `timescale_cloud_system_memory_usage_bytes`, `pg_stat_database_xact_commit_total`, and `pg_stat_activity_count`. The {C.CLI_SHORT} equivalent of step 1 is:
+
+```bash
+tiger service metrics series analytics-poc --metric timescale_cloud_system_cpu_usage_millicores --role PRIMARY
+tiger service metrics series analytics-poc --metric timescale_cloud_system_memory_usage_bytes --role PRIMARY
+```
+
+The [available metrics](/reference/tiger-cloud/tiger-cli#available-metrics) also cover the `pg_stat_*` families, so the same investigation extends to locks, replication lag, and per-database activity. Metrics tell you *which* resource is constrained and *when* it started; if the answer turns out to be a specific query, continue with [Find and fix slow queries](#find-and-fix-slow-queries), and if the workload has simply outgrown the compute, resize with [`tiger service resize`](/reference/tiger-cloud/tiger-cli#tiger-service-resize).
 
 ## Next steps
 

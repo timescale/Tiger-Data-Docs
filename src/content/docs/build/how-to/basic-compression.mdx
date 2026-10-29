@@ -18,6 +18,7 @@ import { Callout } from "@stainless-api/docs/components";
 import { Prerequisites } from "@components/Prerequisites";
 import PrereqCloudOrSelf from "../../../../partials/_prereqs-cloud-or-self.mdx";
 import DoWithAi from "@components/DoWithAi.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 {C.HYPERCORE_CAP} is {C.TIMESCALE_DB}'s hybrid row-columnar storage engine. It automatically compresses {C.CHUNK}s from the {C.ROWSTORE} into the {C.COLUMNSTORE}, typically reducing storage by 90–98% while making analytical queries significantly faster.
 
@@ -61,9 +62,55 @@ This automatically:
 Choose `segmentby` based on how you filter data (for example, by device, location, or user). Choose `orderby` based on your most common sort order (usually time descending). Lower cardinality `segmentby` columns give better compression.
 </Callout>
 
+## Insert sample data
+
+Add a month of readings from ten devices, one row a minute each, so there is enough data to compress:
+
+```sql
+INSERT INTO conditions (time, location, device, temperature, humidity)
+SELECT
+  time,
+  'office',
+  'sensor-' || device,
+  round((20 + 5 * sin(extract(epoch FROM time) / 3600) + random())::numeric, 1),
+  round((45 + 10 * cos(extract(epoch FROM time) / 7200) + random())::numeric, 1)
+FROM generate_series(now() - INTERVAL '30 days', now(), INTERVAL '1 minute') AS time,
+     generate_series(1, 10) AS device;
+```
+
+The {C.COLUMNSTORE} policy converts {C.CHUNK}s that are older than one {C.CHUNK} interval, seven days by default. The oldest three weeks of this data are eligible; the newest week stays in the {C.ROWSTORE}.
+
 ## Check compression results
 
-After the {C.COLUMNSTORE} policy runs, check how much space you've saved:
+The policy runs once a day. To convert the eligible {C.CHUNK}s now instead of waiting, find the policy's job ID and run it:
+
+```sql
+SELECT job_id FROM timescaledb_information.jobs
+WHERE hypertable_name = 'conditions' AND proc_name = 'policy_compression';
+```
+
+```sql
+CALL run_job(<JOB_ID>);
+```
+
+Then check how much space the {C.COLUMNSTORE} saved on the converted {C.CHUNK}s:
+
+```sql
+SELECT pg_size_pretty(before_compression_total_bytes) AS before,
+       pg_size_pretty(after_compression_total_bytes) AS after
+FROM hypertable_columnstore_stats('conditions');
+```
+
+The result looks like this:
+
+```sql
+ before |  after
+--------+---------
+ 21 MB  | 3632 kB
+(1 row)
+```
+
+For the size of the whole {C.HYPERTABLE}, {C.ROWSTORE} {C.CHUNK}s included:
 
 ```sql
 SELECT
@@ -89,3 +136,37 @@ SELECT * FROM chunks_detailed_size('conditions');
 - [Understand {C.HYPERCORE}](/learn/columnar-storage/understand-hypercore): How the hybrid storage engine works.
 - [Set up {C.HYPERCORE}](/build/columnar-storage/setup-hypercore): Optimize `segmentby`, `orderby`, and policies.
 - [Compression methods in {C.HYPERCORE}](/learn/columnar-storage/compression-methods): Algorithms used for each data type.
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE conditions (time TIMESTAMPTZ NOT NULL, location TEXT NOT NULL, device TEXT NOT NULL, temperature DOUBLE PRECISION NULL, humidity DOUBLE PRECISION NULL) WITH (tsdb.hypertable, tsdb.segmentby = 'device', tsdb.orderby = 'time DESC');`
+5. expect rows: `SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'conditions'`
+6. expect rows: `SELECT 1 FROM timescaledb_information.dimensions WHERE hypertable_name = 'conditions' AND column_name = 'time'`
+7. expect rows: `SELECT 1 FROM timescaledb_information.hypertable_columnstore_settings WHERE hypertable = 'conditions'::regclass AND segmentby = 'device' AND orderby = '"time" DESC'`
+8. expect rows: `SELECT 1 FROM timescaledb_information.jobs j JOIN timescaledb_information.dimensions d ON d.hypertable_name = j.hypertable_name WHERE j.proc_name = 'policy_compression' AND j.hypertable_name = 'conditions' AND (j.config->>'compress_after')::interval = d.time_interval AND d.time_interval = INTERVAL '7 days'`
+9. run SQL: `INSERT INTO conditions (time, location, device, temperature, humidity) SELECT time, 'office', 'sensor-' || device, round((20 + 5 * sin(extract(epoch FROM time) / 3600) + random())::numeric, 1), round((45 + 10 * cos(extract(epoch FROM time) / 7200) + random())::numeric, 1) FROM generate_series(now() - INTERVAL '30 days', now(), INTERVAL '1 minute') AS time, generate_series(1, 10) AS device;`
+10. expect rows: `SELECT 1 FROM conditions HAVING count(*) = 432010`
+11. run SQL: `CREATE FUNCTION conditions_policy_id() RETURNS int AS $$ SELECT j.job_id FROM timescaledb_information.jobs j WHERE j.hypertable_name = 'conditions' AND j.proc_name = 'policy_compression' $$ LANGUAGE sql;`
+12. run SQL: `SELECT job_id FROM timescaledb_information.jobs WHERE hypertable_name = 'conditions' AND proc_name = 'policy_compression';`
+13. run SQL: `CALL run_job(conditions_policy_id());`
+14. expect no rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'conditions' AND NOT is_compressed AND range_end < NOW() - INTERVAL '7 days'`
+15. expect rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'conditions' AND NOT is_compressed AND range_end > NOW()`
+16. expect rows: `SELECT 1 FROM hypertable_columnstore_stats('conditions') WHERE number_compressed_chunks >= 3 AND number_compressed_chunks < total_chunks`
+17. run SQL: `SELECT pg_size_pretty(before_compression_total_bytes) AS before, pg_size_pretty(after_compression_total_bytes) AS after FROM hypertable_columnstore_stats('conditions');`
+18. expect rows: `SELECT 1 FROM hypertable_columnstore_stats('conditions') WHERE after_compression_total_bytes * 4 < before_compression_total_bytes`
+19. run SQL: `INSERT INTO conditions VALUES (NOW() - INTERVAL '20 days', 'lab', 'sensor-99', 21.5, 41.0);`
+20. run SQL: `UPDATE conditions SET humidity = 42.0 WHERE location = 'lab';`
+21. expect rows: `SELECT 1 FROM conditions WHERE location = 'lab' AND humidity = 42.0 HAVING count(*) = 1`
+22. run SQL: `DELETE FROM conditions WHERE location = 'lab';`
+23. expect no rows: `SELECT 1 FROM conditions WHERE location = 'lab'`
+24. expect no rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'conditions' AND NOT is_compressed AND range_end < NOW() - INTERVAL '7 days'`
+25. expect rows: `SELECT 1 FROM conditions HAVING count(*) = 432010`
+26. run SQL: `SELECT hypertable_size('conditions') AS total_size, pg_size_pretty(hypertable_size('conditions')) AS pretty_size;`
+27. expect rows: `SELECT 1 WHERE hypertable_size('conditions') > 0`
+28. run SQL: `SELECT * FROM chunks_detailed_size('conditions');`
+29. expect rows: `SELECT 1 FROM chunks_detailed_size('conditions') HAVING count(*) >= 5`
+</TestPlan>

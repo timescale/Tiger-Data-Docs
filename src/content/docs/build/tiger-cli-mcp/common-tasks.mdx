@@ -33,7 +33,7 @@ Or ask your agent: _"Create a time-series service called analytics in us-east-1.
 ### How do I test a change without risking production data?
 
 ```bash
-tiger service fork <service-id> --now
+tiger service fork <name-or-id>
 ```
 
 Or ask your agent: _"Fork service abc123 so I can test a schema change."_ (calls [`service_fork`](/reference/tiger-cloud/tiger-mcp#service_fork)). See [Test a change safely on a fork](/build/tiger-cli-mcp/cookbook#test-a-change-safely-on-a-fork) for a full workflow.
@@ -73,13 +73,22 @@ tiger service logs <service-id> --tail 100
 
 Or ask your agent: _"List my services and show recent logs for abc123."_ (calls [`service_list`](/reference/tiger-cloud/tiger-mcp#service_list), [`service_get`](/reference/tiger-cloud/tiger-mcp#service_get), [`service_logs`](/reference/tiger-cloud/tiger-mcp#service_logs)).
 
+### How do I check a service's CPU, memory, or query metrics?
+
+```bash
+tiger service metrics available <name-or-id>
+tiger service metrics series <name-or-id> --metric timescale_cloud_system_cpu_usage_millicores
+```
+
+Or ask your agent: _"Is service abc123 running close to its CPU or memory limits?"_ (calls [`service_metrics_available`](/reference/tiger-cloud/tiger-mcp#service_metrics_available) and [`service_metrics_series`](/reference/tiger-cloud/tiger-mcp#service_metrics_series)). See [Available metrics](/reference/tiger-cloud/tiger-cli#available-metrics) for the full list. For a full debugging workflow, see [Diagnose a slowdown with service metrics](/build/tiger-cli-mcp/cookbook#diagnose-a-slowdown-with-service-metrics).
+
 ### How do I delete a service?
 
 ```bash
 tiger service delete <service-id> --confirm
 ```
 
-There is no {C.MCP_SHORT} tool for delete; run this {C.CLI_SHORT} command yourself.
+Or ask your agent: _"Delete service abc123."_ (calls [`service_delete`](/reference/tiger-cloud/tiger-mcp#service_delete)). Deleting a {C.SERVICE_SHORT} tagged `PROD` prompts you through the MCP client to type the {C.SERVICE_SHORT} ID back before it proceeds.
 
 ## Work with your data
 
@@ -90,7 +99,7 @@ tiger db query <service-id> -c "SELECT count(*) FROM metrics"
 tiger db query <service-id> -f schema.sql
 ```
 
-For an interactive session, open one with `tiger db connect <service-id>` instead.
+For an interactive session, open one with `tiger db psql <service-id>` instead.
 
 With {C.MCP_LONG}, you skip the connection and describe the task, and the agent runs the SQL against the {C.SERVICE_SHORT} you name (calls [`db_query`](/reference/tiger-cloud/tiger-mcp#db_query)).
 
@@ -112,6 +121,8 @@ The same pattern covers the rest of your everyday data work. Run the SQL yoursel
 - Load data from a file with `\COPY`, or ask your agent to add small amounts, for example _"Insert a few sample rows into metrics for testing."_
 - Roll up a continuous aggregate, for example _"Create a continuous aggregate on metrics for hourly averages per device."_
 - Add compression and retention, for example _"Convert metrics chunks older than 7 days to the columnstore and drop data older than 30 days."_
+
+To see which {C.PG} extensions a {C.SERVICE_SHORT} has, for example whether `timescaledb_toolkit` is there for hyperfunctions, run [`tiger db extensions list <service-id>`](/reference/tiger-cloud/tiger-cli#tiger-db-extensions-list), or ask _"Which extensions are installed on analytics?"_ (calls [`db_extensions_list`](/reference/tiger-cloud/tiger-mcp#db_extensions_list)).
 
 ## Analyze, design, and optimize with Tiger MCP
 

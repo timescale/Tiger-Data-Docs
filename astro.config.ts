@@ -1,17 +1,93 @@
 import { createRequire } from "node:module";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
 import type { AstroIntegration } from "astro";
-import { generateAPIReferenceItems, stainlessDocs } from "@stainless-api/docs";
+import {
+  fileSystemSDKJSONLoader,
+  generateAPIReferenceItems,
+  stainlessDocs,
+} from "@stainless-api/docs";
+import type { ReferenceSidebarConfigItem } from "@stainless-api/docs";
 import starlightLlmsTxt from "starlight-llms-txt";
+import sitemap from "@astrojs/sitemap";
 import rehypeBasePath from "./src/plugins/rehype-base-path";
 import rehypePagefindWeight from "./src/plugins/rehype-pagefind-weight";
 import remarkResolveConstantsInHeadings from "./src/plugins/remark-resolve-constants-in-headings";
+import { createSitemapSerializer } from "./src/lib/sitemap-lastmod";
 
 import sentry from "@sentry/astro";
 
 const require = createRequire(import.meta.url);
+
+/**
+ * Stainless labels sidebar entries by capitalising every word of the
+ * stainless.yml key ("Retrieve Replica Sets", "Set Ha", "Vpcs"). House style
+ * is sentence case, with product acronyms kept as acronyms.
+ */
+const NAV_ACRONYMS: Record<string, string> = {
+  ha: "HA",
+  vpc: "VPC",
+  vpcs: "VPCs",
+};
+
+/** Label a method page by its spec summary ("Stop a service") rather than its key ("Stop"). */
+function labelFor(item: ReferenceSidebarConfigItem): string {
+  const summary = item.kind === "method_page" ? item.metadata?.summary : undefined;
+  return sentenceCase(summary?.trim() || item.label);
+}
+
+function sentenceCase(label: string): string {
+  return label
+    .split(" ")
+    .map((word, i) => {
+      const lower = word.toLowerCase();
+      if (NAV_ACRONYMS[lower]) return NAV_ACRONYMS[lower];
+      return i === 0 ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower;
+    })
+    .join(" ");
+}
+
+/**
+ * Flatten the generated REST reference sidebar to one level of groups.
+ *
+ * Stainless nests resource groups the way `stainless/stainless.yml` nests
+ * resources (projects > services > metrics > details), which buries most
+ * endpoints two or three levels deep. Hoist every nested group to the top
+ * level, and fold a group with a single method into its parent. Page URLs
+ * are unaffected: they come from the resource tree, not from the sidebar.
+ */
+function flattenApiReferenceSidebar(
+  items: ReferenceSidebarConfigItem[],
+): ReferenceSidebarConfigItem[] {
+  const out: ReferenceSidebarConfigItem[] = [];
+  const visit = (item: ReferenceSidebarConfigItem) => {
+    if (item.kind !== "group") {
+      out.push({ ...item, label: labelFor(item) });
+      return;
+    }
+    const own = item.entries
+      .filter((e) => e.kind !== "group")
+      .map((e) => ({ ...e, label: labelFor(e) }));
+    const nested = item.entries.filter((e) => e.kind === "group");
+    for (const sub of nested) {
+      if (sub.kind === "group" && sub.entries.length === 1 && sub.entries[0].kind !== "group") {
+        own.push({ ...sub.entries[0], label: labelFor(sub.entries[0]) });
+      }
+    }
+    if (own.length > 0) {
+      out.push({ ...item, label: sentenceCase(item.label), entries: own, collapsed: true });
+    }
+    for (const sub of nested) {
+      if (sub.kind === "group" && !(sub.entries.length === 1 && sub.entries[0].kind !== "group")) {
+        visit(sub);
+      }
+    }
+  };
+  items.forEach(visit);
+  return out;
+}
 
 // Resolve package subpaths so aliasing the main "components" entry doesn't break ThemeSelect/SDKSelect.
 const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/components/scripts");
@@ -26,7 +102,7 @@ const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/component
  * 2) Plugins such as `@vitejs/plugin-react` may delete `transform` in `configResolved`
  *    after Vite has cached which plugins expose `transform`, so `getHookHandler` returns
  *    undefined and handler.call() throws (upstream: vitejs/vite#21162). We ship a pnpm
- *    patch for `vite@7.3.1` (`patches/vite@7.3.1.patch`) that skips when `!handler`.
+ *    patch for `vite@7.3.7` (`patches/vite@7.3.7.patch`) that skips when `!handler`.
  */
 const HOOK_NAMES = ["transform", "load", "resolveId"] as const;
 const noopHandlers: Record<(typeof HOOK_NAMES)[number], () => null> = {
@@ -169,14 +245,9 @@ async function collectHtmlFiles(dir: string): Promise<string[]> {
 // Base path from env var (e.g. BASE_PATH="/docs"). Falls back to "/" (no subpath).
 const BASE = process.env.BASE_PATH || "/";
 
-/**
- * Set `DOCS_LOCAL_WITHOUT_STAINLESS=1` to run `pnpm dev` / `pnpm build` without a
- * Stainless API key or `stl auth login`. Tiger Cloud REST API pages are omitted;
- * use a stub page and redirects instead (see README).
- */
-const DOCS_LOCAL_WITHOUT_STAINLESS =
-  process.env.DOCS_LOCAL_WITHOUT_STAINLESS === "1" ||
-  process.env.DOCS_LOCAL_WITHOUT_STAINLESS === "true";
+function repoPath(relativePath: string) {
+  return fileURLToPath(new URL(relativePath, import.meta.url));
+}
 
 /** Astro doesn't auto-prepend `base` to redirect destinations. This helper does. */
 function withBase(redirects: Record<string, string>): Record<string, string> {
@@ -185,12 +256,6 @@ function withBase(redirects: Record<string, string>): Record<string, string> {
     Object.entries(redirects).map(([from, to]) => [from, BASE + to])
   );
 }
-
-// ESM dynamic import: starlight-links-validator ships TypeScript; `require()` fails on Node 22+
-// ("Stripping types is currently unsupported for files under node_modules").
-const starlightLinksValidator = process.env.CHECK_LINKS
-  ? (await import("starlight-links-validator")).default
-  : null;
 
 // https://astro.build/config
 export default defineConfig({
@@ -222,18 +287,25 @@ export default defineConfig({
       },
     },
     integrations: [basePathPostProcessor(BASE), stainlessDocs({
-      apiReference: DOCS_LOCAL_WITHOUT_STAINLESS
-        ? null
-        : {
-            stainlessProject: "tiger-cloud",
-            basePath: "/reference/tiger-cloud-rest",
-            // Workaround to hide default TypeScript reference in the API reference page. It's showing the TypeScript lib even without have a Typescript SDK published.
-            excludeLanguages: ["typescript"],
-            propertySettings: {
-              collapseDescription: false,
-              expandDepth: 2,
-            },
-          },
+      apiReference: {
+        stainlessProject: "tiger-cloud",
+        basePath: "/reference/tiger-cloud-rest",
+        // Build from checked-in files so Stainless's renderer does not need
+        // credentials or network access.
+        loadSDKJSONFiles: fileSystemSDKJSONLoader({
+          specPath: repoPath("./stainless/openapi.yml"),
+          configFilePath: repoPath("./stainless/stainless.yml"),
+          languages: ["http", "typescript"],
+        }),
+        // The TypeScript SDK is not published, so show HTTP examples only.
+        excludeLanguages: ["typescript"],
+        // starlight-llms-txt owns /llms.txt for the full prose site.
+        llmsTxt: { disabled: true },
+        propertySettings: {
+          collapseDescription: false,
+          expandDepth: 0,
+        },
+      },
       title: "Tiger Data Docs",
       logo: {
         light: "./src/assets/logo-light.svg",
@@ -254,9 +326,13 @@ export default defineConfig({
       },
       head: [
         {
-          // Segment
+          // Google Consent Mode v2 defaults. Must be pushed to dataLayer before GTM's
+          // own script runs (below), so every GTM-managed tag starts out respecting
+          // the deny-by-default state instead of firing before a consent decision
+          // exists. OsanoConsent.astro (rendered in Head.astro) calls `gtag('consent',
+          // 'update', ...)` once the visitor's actual choice is known.
           tag: "script",
-          content: `!function(){function isBot(){if(typeof navigator==='undefined'||!navigator.userAgent)return true;var ua=navigator.userAgent.toLowerCase();var botPatterns=['bot','crawler','spider','crawling','slurp','bingpreview','facebookexternalhit','facebot','twitterbot','rogerbot','linkedinbot','embedly','quora link preview','showyoubot','outbrain','pinterest','developers.google.com/+/web/snippet','slackbot','vkshare','w3c_validator','redditbot','applebot','whatsapp','flipboard','tumblr','bitlybot','skypeuripreview','nuzzel','discordbot','google page speed','qwantify','pinterestbot','bitrix link preview','xing-contenttabreceiver','chrome-lighthouse','telegrambot','headlesschrome','phantom','baiduspider','baiduspider-render','yandexbot','duckduckbot','ahrefsbot','semrushbot','dotbot','mj12bot','petalbot','gptbot','chatgpt','claudebot','claude-web','anthropic-ai','google-extended','cohere-ai','omgilibot','omgili','facebookbot','meta-externalagent','diffbot','bytespider','perplexitybot','youbot','ai2bot','ccbot','dataforseobotd'];return botPatterns.some(function(pattern){return ua.indexOf(pattern)!==-1})}if(isBot()){console.debug('Bot detected, skipping Segment analytics');return}var i="analytics",analytics=window[i]=window[i]||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","screen","once","off","on","addSourceMiddleware","addIntegrationMiddleware","setAnonymousId","addDestinationMiddleware","register"];analytics.factory=function(e){return function(){if(window[i].initialized)return window[i][e].apply(window[i],arguments);var n=Array.prototype.slice.call(arguments);if(["track","screen","alias","group","page","identify"].indexOf(e)>-1){var c=document.querySelector("link[rel='canonical']");n.push({__t:"bpc",c:c&&c.getAttribute("href")||void 0,p:location.pathname,u:location.href,s:location.search,t:document.title,r:document.referrer})}n.unshift(e);analytics.push(n);return analytics}};for(var n=0;n<analytics.methods.length;n++){var key=analytics.methods[n];analytics[key]=analytics.factory(key)}analytics.load=function(key,n){var t=document.createElement("script");t.type="text/javascript";t.async=!0;t.setAttribute("data-global-segment-analytics-key",i);t.src="https://cdn.segment.com/analytics.js/v1/"+key+"/analytics.min.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r);analytics._loadOptions=n};analytics._writeKey="CF77jkjlE82B4PhIHbbMDiSmOJsDYMqF";analytics.SNIPPET_VERSION="5.2.0";analytics.load("CF77jkjlE82B4PhIHbbMDiSmOJsDYMqF");analytics.page()}}();`,
+          content: `window.dataLayer=window.dataLayer||[];window.gtag=window.gtag||function(){window.dataLayer.push(arguments)};window.gtag('consent','default',{analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',functionality_storage:'denied',personalization_storage:'denied',security_storage:'granted',wait_for_update:500});`,
         },
         {
           // GTM
@@ -270,11 +346,6 @@ export default defineConfig({
           `,
         },
         {
-          // Twitter/X ads pixel
-          tag: "script",
-          content: `!function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);},s.version='1.1',s.queue=[],u=t.createElement(n),u.async=!0,u.src='//static.ads-twitter.com/uwt.js',a=t.getElementsByTagName(n)[0],a.parentNode.insertBefore(u,a))}(window,document,'script');twq('init','o8fs3');twq('track','PageView');`,
-        },
-        {
           // Sidebar active-branch expander: Starlight persists open/closed sidebar
           // groups in sessionStorage and restores them on load, which can override the
           // server-rendered open state and leave the current page hidden inside a
@@ -285,25 +356,12 @@ export default defineConfig({
           tag: "script",
           content: `(function(){function exp(){var b=document.getElementById("starlight__sidebar");if(!b)return;var a=b.querySelector('[aria-current="page"]');if(!a)return;var e=a.parentElement;while(e&&e!==b){if(e.tagName==="DETAILS")e.open=true;e=e.parentElement;}}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",exp);}else{exp();}document.addEventListener("astro:page-load",exp);})();`,
         },
-        // ──── BEGIN STATSIG ────
-        // Statsig client-side SDK: session replay, web analytics, and gate exposure logging.
-        // Uses Segment's ajs_anonymous_id cookie for user identification.
-        // TO REMOVE: see README-statsig.md for full cleanup instructions.
-        // Gate: new_docs_site_rollout — https://console.statsig.com/2aVMoalsJmTVASIsy8WxBu/gates/new_docs_site_rollout
-        // Env var: PUBLIC_STATSIG_CLIENT_KEY (set in Vercel + .env.local)
-        {
-          tag: "script",
-          content: `!function(){try{var k="${import.meta.env.PUBLIC_STATSIG_CLIENT_KEY}";if(!k||k==="undefined"){console.debug("Statsig: no client key, skipping");return}var e=document.cookie.match(/ajs_anonymous_id=([^;]+)/);if(e&&e[1]){var t=document.createElement("script");t.async=!0;t.src="https://cdn.jsdelivr.net/npm/@statsig/js-client@3/build/statsig-js-client+session-replay+web-analytics.min.js";t.onload=function(){try{var s=new window.__STATSIG__.StatsigClient(k,{userID:decodeURIComponent(e[1])});s.initializeAsync().then(function(){s.checkGate("new_docs_site_rollout")})}catch(err){console.debug("Statsig init error:",err)}};document.head.appendChild(t)}}catch(err){console.debug("Statsig setup error:",err)}}();`,
-        },
-        // ──── END STATSIG ────
-        // ──── BEGIN POSTHOG ────
-        // PostHog product analytics. The project API key (phc_...) is public and
-        // safe to ship in client-side code, so it's hardcoded here.
-        {
-          tag: "script",
-          content: `!function(t,e){var o,n,p,r;e.__SV||(window.posthog && window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="ki Ci init qi Hi pr ji zi Di capture calculateEventProperties Qi register register_once register_for_session unregister unregister_for_session Ki getFeatureFlag getFeatureFlagPayload getFeatureFlagResult getAllFeatureFlags isFeatureEnabled reloadFeatureFlags updateFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey displaySurvey cancelPendingSurvey canRenderSurvey canRenderSurveyAsync Xi identify setPersonProperties unsetPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset setIdentity clearIdentity get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException addExceptionStep captureLog startExceptionAutocapture stopExceptionAutocapture loadToolbar get_property getSessionProperty Ji Gi createPersonProfile setInternalOrTestUser Yi Ai rn opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing get_explicit_consent_status is_capturing clear_opt_in_out_capturing Vi debug mr it getPageViewId captureTraceFeedback captureTraceMetric Oi".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);posthog.init('phc_OsZpGzq2LBW8OMXjdktxavhYkehe8R05zsW0zN6prLF',{api_host:'https://us.i.posthog.com',defaults:'2026-05-30',person_profiles:'identified_only'});`,
-        },
-        // ──── END POSTHOG ────
+        // PostHog and the Twitter/X ads pixel are consent-gated (and, for PostHog,
+        // read PUBLIC_POSTHOG_KEY), which requires the real Astro env var pipeline —
+        // import.meta.env doesn't expose .env vars inside this config file (see git
+        // history on this file for PUBLIC_POSTHOG_KEY). They live in
+        // src/components/HeadScripts/{PostHogAnalytics,TwitterPixel}.astro instead,
+        // rendered from Head.astro after OsanoConsent.astro.
       ],
       header: {
         layout: "stacked",
@@ -318,7 +376,6 @@ export default defineConfig({
       //   { icon: "github", label: "GitHub", href: "https://github.com/timescale/timescaledb" },
       // ],
       experimental: {
-        ...(DOCS_LOCAL_WITHOUT_STAINLESS ? { disableStainlessProseIndexing: true } : {}),
         starlightCompat: {
           components: {
             Head: "./src/components/Head.astro",
@@ -332,17 +389,7 @@ export default defineConfig({
           } as Record<string, string>,
           /** Single-link sidebar groups become one clickable row (see `src/starlight-route-middleware.ts`). */
           routeMiddleware: ["./src/starlight-route-middleware.ts"],
-          plugins: [
-              starlightLlmsTxt(),
-              ...(starlightLinksValidator
-                ? [starlightLinksValidator({
-                    // The Tiger Cloud REST API reference is auto-generated by the
-                    // Stainless docs integration and only exists when STAINLESS_API_KEY
-                    // is set. Exclude its paths so lint:links passes without the key.
-                    exclude: ["/reference/tiger-cloud-rest/**", "/files/**"],
-                  })]
-                : []),
-            ],
+          plugins: [starlightLlmsTxt()],
         },
       },
       tabs: [
@@ -403,7 +450,7 @@ export default defineConfig({
           ],
         },
         // Learn tab: conceptual and overview content lives under /learn/. Hands-on how-tos link to /build/.
-        // Learn sidebar: groups follow dependency order. Retention + tiering: one "Data lifecycle" group. Chunks + time buckets: one "Chunks and time buckets" group (not nested under Hypertables). CAGGs: one "Continuous aggregates (CAGGs)" group (Tiger Cloud nested; backfill migration tool at end; "About CAGGs" omitted from nav, linked from overview).
+        // Learn sidebar: Overview always first, then Tutorials (hands-on entry point), then groups follow dependency order. Retention + tiering: one "Data lifecycle" group. Chunks + time buckets: one "Chunks and time buckets" group (not nested under Hypertables). CAGGs: one "Continuous aggregates (CAGGs)" group (Tiger Cloud nested; backfill migration tool at end; "About CAGGs" omitted from nav, linked from overview).
         {
           label: "Learn",
           link: "/learn",
@@ -414,6 +461,28 @@ export default defineConfig({
               items: [
                 { label: "What is Tiger Data", link: "/learn" },
                 { label: "Tiger Data architecture for real-time analytics", link: "/learn/deep-dive/whitepaper" },
+              ],
+            },
+            // --- Tutorials: combined tutorials, guided projects, and cookbook ---
+            {
+              label: "Tutorials",
+              collapsed: true,
+              items: [
+                { label: "Overview", link: "/learn/tutorials" },
+                { label: "Create Tiger Cloud services with Terraform", link: "/learn/tutorials/create-services-with-terraform" },
+                { label: "Simulate an IoT sensor dataset", link: "/learn/tutorials/simulate-iot-sensor-data" },
+                { label: "Ingest real-time financial data", link: "/learn/tutorials/ingest-real-time-financial-data" },
+                { label: "Analyze application events with UUIDv7", link: "/learn/tutorials/analyze-events-with-uuidv7" },
+                { label: "Build hybrid search with BM25 and vectors", link: "/learn/tutorials/hybrid-search" },
+                { label: "Build a production RAG system with Postgres", link: "/learn/tutorials/rag-postgres" },
+                { label: "Aggregate organizational data with AI agents", link: "/learn/tutorials/aggregate-organizational-data-with-ai" },
+                { label: "Analyze stock market data", link: "/learn/tutorials/analyze-stock-market-data" },
+                { label: "Analyze NYC taxi data", link: "/learn/tutorials/analyze-nyc-taxi-data" },
+                { label: "Analyze Bitcoin blockchain", link: "/learn/tutorials/analyze-blockchain" },
+                { label: "Analyze energy consumption", link: "/learn/tutorials/analyze-energy-consumption" },
+                { label: "Visualize financial tick data with Grafana", link: "/learn/tutorials/analyze-financial-tick-data" },
+                { label: "Visualize transport and geospatial data with Grafana", link: "/learn/tutorials/analyze-transport-data" },
+                { label: "Tiger Data cookbook", link: "/learn/tutorials/cookbook" },
               ],
             },
             {
@@ -530,8 +599,9 @@ export default defineConfig({
             },
           ],
         },
-        // Build tab — organized by Diataxis: hands-on learning first, then
+        // Build tab — organized by Diataxis: quickstarts first, then
         // job-scoped how-to groups, then optimization, then troubleshooting.
+        // Tutorials live under the Learn tab (/learn/tutorials).
         {
           label: "Build",
           link: "/build",
@@ -555,28 +625,6 @@ export default defineConfig({
                 { label: "Overview", link: "/build/how-to" },
                 { label: "Your first hypertable", link: "/build/how-to/your-first-hypertable" },
                 { label: "Basic compression with hypercore", link: "/build/how-to/basic-compression" },
-              ],
-            },
-            // --- Tutorials: combined tutorials, guided projects, and cookbook ---
-            {
-              label: "Tutorials",
-              collapsed: true,
-              items: [
-                { label: "Overview", link: "/build/examples" },
-                { label: "Create Tiger Cloud services with Terraform", link: "/build/examples/create-services-with-terraform" },
-                { label: "Simulate an IoT sensor dataset", link: "/build/examples/simulate-iot-sensor-data" },
-                { label: "Ingest real-time financial data", link: "/build/examples/ingest-real-time-financial-data" },
-                { label: "Analyze application events with UUIDv7", link: "/build/examples/analyze-events-with-uuidv7" },
-                { label: "Build hybrid search with BM25 and vectors", link: "/build/examples/hybrid-search" },
-                { label: "Build a production RAG system with Postgres", link: "/build/examples/rag-postgres" },
-                { label: "Aggregate organizational data with AI agents", link: "/build/examples/aggregate-organizational-data-with-ai/" },
-                { label: "Analyze stock market data", link: "/build/examples/analyze-stock-market-data" },
-                { label: "Analyze NYC taxi data", link: "/build/examples/analyze-nyc-taxi-data" },
-                { label: "Analyze Bitcoin blockchain", link: "/build/examples/analyze-blockchain" },
-                { label: "Analyze energy consumption", link: "/build/examples/analyze-energy-consumption" },
-                { label: "Visualize financial tick data with Grafana", link: "/build/examples/analyze-financial-tick-data" },
-                { label: "Visualize transport and geospatial data with Grafana", link: "/build/examples/analyze-transport-data" },
-                { label: "Tiger Data cookbook", link: "/build/examples/cookbook" },
               ],
             },
             // --- Data lifecycle how-tos (mirrors Learn > Data lifecycle) ---
@@ -849,6 +897,7 @@ export default defineConfig({
                     { label: "Overview", link: "/integrate/bi-vizualization" },
                     { label: "Cube", link: "/integrate/bi-vizualization/cube" },
                     { label: "Looker", link: "/integrate/bi-vizualization/looker" },
+                    { label: "Metabase", link: "/integrate/bi-vizualization/metabase" },
                     { label: "Mode Analytics", link: "/integrate/bi-vizualization/mode" },
                     { label: "Power BI", link: "/integrate/bi-vizualization/power-bi" },
                     { label: "Retool", link: "/integrate/bi-vizualization/retool" },
@@ -907,10 +956,12 @@ export default defineConfig({
                     { label: "Overview", link: "/integrate/query-administration" },
                     { label: "Azure Data Studio", link: "/integrate/query-administration/azure-data-studio" },
                     { label: "DBeaver", link: "/integrate/query-administration/dbeaver" },
+                    { label: "LibreDB Studio", link: "/integrate/query-administration/libredb-studio" },
                     { label: "pgAdmin", link: "/integrate/query-administration/pgadmin" },
                     { label: "PostgreSQL", link: "/integrate/query-administration/postgresql" },
                     { label: "psql", link: "/integrate/query-administration/psql" },
                     { label: "qStudio", link: "/integrate/query-administration/qstudio" },
+                    { label: "VisuaLeaf", link: "/integrate/query-administration/visualeaf" },
                   ],
                 },
                 {
@@ -955,12 +1006,12 @@ export default defineConfig({
               label: "Industry",
               collapsed: true,
               items: [
-                { label: "Oil and gas", link: "/integrate/?industry=oil-and-gas" },
-                { label: "IoT", link: "/integrate/?industry=iot" },
-                { label: "Energy", link: "/integrate/?industry=energy" },
-                { label: "Crypto", link: "/integrate/?industry=crypto" },
-                { label: "Healthcare", link: "/integrate/?industry=healthcare" },
-                { label: "Manufacturing", link: "/integrate/?industry=manufacturing" },
+                { label: "Oil and gas", link: "/integrate?industry=oil-and-gas" },
+                { label: "IoT", link: "/integrate?industry=iot" },
+                { label: "Energy", link: "/integrate?industry=energy" },
+                { label: "Crypto", link: "/integrate?industry=crypto" },
+                { label: "Healthcare", link: "/integrate?industry=healthcare" },
+                { label: "Manufacturing", link: "/integrate?industry=manufacturing" },
               ],
             },
             // --- Platform (matches integrationPlatforms) ---
@@ -968,9 +1019,9 @@ export default defineConfig({
               label: "Platform",
               collapsed: true,
               items: [
-                { label: "Tiger Cloud on AWS", link: "/integrate/?platform=aws" },
-                { label: "Tiger Cloud on Azure", link: "/integrate/?platform=azure" },
-                { label: "Self-Hosted", link: "/integrate/?platform=self-hosted" },
+                { label: "Tiger Cloud on AWS", link: "/integrate?platform=aws" },
+                { label: "Tiger Cloud on Azure", link: "/integrate?platform=azure" },
+                { label: "Self-Hosted", link: "/integrate?platform=self-hosted" },
               ],
             },
             // --- First Party / Third Party ---
@@ -978,8 +1029,8 @@ export default defineConfig({
               label: "First party/third party",
               collapsed: true,
               items: [
-                { label: "First party", link: "/integrate/?party=first-party" },
-                { label: "Third party", link: "/integrate/?party=third-party" },
+                { label: "First party", link: "/integrate?party=first-party" },
+                { label: "Third party", link: "/integrate?party=third-party" },
               ],
             },
             // --- Technology ---
@@ -987,18 +1038,18 @@ export default defineConfig({
               label: "Technology",
               collapsed: true,
               items: [
-                { label: "PostgreSQL", link: "/integrate/?technology=PostgreSQL" },
-                { label: "Python", link: "/integrate/?technology=Python" },
-                { label: "SQL", link: "/integrate/?technology=SQL" },
-                { label: "Kafka", link: "/integrate/?technology=Kafka" },
-                { label: "AWS", link: "/integrate/?technology=AWS" },
-                { label: "Azure", link: "/integrate/?technology=Azure" },
-                { label: "GCP", link: "/integrate/?technology=GCP" },
-                { label: "Terraform", link: "/integrate/?technology=Terraform" },
-                { label: "Kubernetes", link: "/integrate/?technology=Kubernetes" },
-                { label: "Grafana", link: "/integrate/?technology=Grafana" },
-                { label: "Prometheus", link: "/integrate/?technology=Prometheus" },
-                { label: "REST API", link: "/integrate/?technology=REST+API" },
+                { label: "AWS", link: "/integrate?technology=AWS" },
+                { label: "Azure", link: "/integrate?technology=Azure" },
+                { label: "GCP", link: "/integrate?technology=GCP" },
+                { label: "Grafana", link: "/integrate?technology=Grafana" },
+                { label: "Kafka", link: "/integrate?technology=Kafka" },
+                { label: "Kubernetes", link: "/integrate?technology=Kubernetes" },
+                { label: "PostgreSQL", link: "/integrate?technology=PostgreSQL" },
+                { label: "Prometheus", link: "/integrate?technology=Prometheus" },
+                { label: "Python", link: "/integrate?technology=Python" },
+                { label: "REST API", link: "/integrate?technology=REST+API" },
+                { label: "SQL", link: "/integrate?technology=SQL" },
+                { label: "Terraform", link: "/integrate?technology=Terraform" },
               ],
             },
             {
@@ -1056,6 +1107,7 @@ export default defineConfig({
                       collapsed: true,
                       items: [
                         { label: "Overview", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/overview" },
+                        { label: "Passwordless database access", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/passwordless-access" },
                         { label: "Client credentials", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/client-credentials" },
                         { label: "IP allow list", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/ip-allow-list" },
                         { label: "Control user access to projects", link: "/deploy/tiger-cloud/tiger-cloud-aws/security/members" },
@@ -1127,6 +1179,7 @@ export default defineConfig({
                       collapsed: true,
                       items: [
                         { label: "Overview", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/overview" },
+                        { label: "Passwordless database access", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/passwordless-access" },
                         { label: "Client credentials", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/client-credentials" },
                         { label: "IP allow list", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/ip-allow-list" },
                         { label: "Control user access to projects", link: "/deploy/tiger-cloud/tiger-cloud-azure/security/members" },
@@ -1934,24 +1987,14 @@ export default defineConfig({
                 { label: "Overview", link: "/reference/tiger-cloud" },
                 { label: "Tiger CLI", link: "/reference/tiger-cloud/tiger-cli" },
                 { label: "Tiger MCP", link: "/reference/tiger-cloud/tiger-mcp" },
-                DOCS_LOCAL_WITHOUT_STAINLESS
-                  ? {
-                      label: "Tiger Cloud REST API",
-                      collapsed: true,
-                      items: [
-                        {
-                          label: "Local preview (generated API disabled)",
-                          link: "/reference/tiger-cloud-rest-local-preview",
-                        },
-                      ],
-                    }
-                  : {
-                      label: "Tiger Cloud REST API",
-                      collapsed: true,
-                      items: generateAPIReferenceItems({
-                        excludeResourceOverviewPages: true,
-                      }),
-                    },
+                {
+                  label: "Tiger Cloud REST API",
+                  collapsed: true,
+                  items: generateAPIReferenceItems(
+                    { excludeResourceOverviewPages: true },
+                    flattenApiReferenceSidebar,
+                  ),
+                },
                 {
                   label: "Data tiering",
                   collapsed: true,
@@ -1969,6 +2012,18 @@ export default defineConfig({
           ],
         },
       ],
+      }), sitemap({
+      serialize: createSitemapSerializer(),
+      changefreq: "weekly",
+      priority: 0.7,
+      // Filter out dynamic/reference pages that may not have source files
+      filter: (page: string) => {
+        // Exclude reference API pages (auto-generated by Stainless)
+        if (page.includes("/reference/tiger-cloud-rest/")) {
+          return false;
+        }
+        return true;
+      },
     }), ...(process.env.SENTRY_DSN
       ? [sentry({
           dsn: process.env.SENTRY_DSN,
@@ -1985,10 +2040,11 @@ export default defineConfig({
     // `pnpm dev` / `pnpm dev:local`, where Astro's dev server handles redirects natively and
     // Stainless's override doesn't apply (it only fires for the `build` command).
     redirects: withBase({
-      ...(DOCS_LOCAL_WITHOUT_STAINLESS
-        ? {
-            "/reference/tiger-cloud-rest": "/reference/tiger-cloud-rest-local-preview",
-          }
-        : {}),
+      "/deploy/tiger-cloud/pricing-and-account-management":
+        "/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management",
+      "/deploy/tiger-cloud/tiger-cloud-azure/security/vpc":
+        "/deploy/tiger-cloud/tiger-cloud-azure/security/azure-privatelink",
+      "/reference/timescaledb/install":
+        "/get-started/choose-your-path/install-timescaledb",
     }),
 });

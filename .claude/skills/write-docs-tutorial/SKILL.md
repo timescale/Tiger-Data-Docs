@@ -1,6 +1,6 @@
 ---
 name: write-docs-tutorial
-description: Write a tutorial for the Tiger Data Docs site following established conventions. Use when creating a new tutorial, cookbook, or step-by-step guide for the /build/examples section — especially for database, search, AI, or data engineering topics.
+description: Write a tutorial for the Tiger Data Docs site following established conventions. Use when creating a new tutorial, cookbook, or step-by-step guide for the /learn/tutorials section — especially for database, search, AI, or data engineering topics.
 user-invocable: true
 allowed-tools: Read Grep Glob Edit Write Bash Agent
 argument-hint: "[topic or source URL]"
@@ -13,13 +13,13 @@ You are writing a tutorial for the Tiger Data Docs site (Astro + Starlight + Sta
 
 ## What you're building
 
-A self-contained, step-by-step tutorial MDX file that lives in `src/content/docs/build/examples/`. The tutorial should be followable from scratch — a reader with no prior setup should be able to go from zero to a working result by following every step in order.
+A self-contained, step-by-step tutorial MDX file that lives in `src/content/docs/learn/tutorials/`. The tutorial should be followable from scratch — a reader with no prior setup should be able to go from zero to a working result by following every step in order.
 
 If given a source URL (e.g., a GitHub cookbook repo), adapt that content into the docs format. If given a topic, research the codebase and write from scratch.
 
 ## File structure
 
-Create the tutorial at: `src/content/docs/build/examples/<slug>.mdx`
+Create the tutorial at: `src/content/docs/learn/tutorials/<slug>.mdx`
 
 ### Frontmatter
 
@@ -195,12 +195,12 @@ You MUST also:
 
 1. **Add a sidebar entry** in `astro.config.ts` under the "Tutorials" section (~line 514):
    ```ts
-   { label: "<Tutorial title>", link: "/build/examples/<slug>" },
+   { label: "<Tutorial title>", link: "/learn/tutorials/<slug>" },
    ```
 
-2. **Add a card** to `src/content/docs/build/examples/index.mdx`:
+2. **Add a card** to `src/content/docs/learn/tutorials/index.mdx`:
    ```mdx
-   <RelatedContentCard title="<Title>" description={`<Description using ${C.CONSTANT} if needed>`} href="/build/examples/<slug>" />
+   <RelatedContentCard title="<Title>" description={`<Description using ${C.CONSTANT} if needed>`} href="/learn/tutorials/<slug>" />
    ```
 
 3. **Add glossary entries** for any new terms introduced. Edit `src/lib/glossary-data.ts` and insert alphabetically. Use the appropriate category from: TimescaleDB, Storage, Time-series, Cloud, Security, Operations, Observability, AI & vectors, PostgreSQL, Data & migration.

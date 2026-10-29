@@ -3,7 +3,7 @@ name: Doc feedback / bug
 about: Report unclear, outdated, or incorrect documentation or suggest improvements
 title: '[Docs] '
 labels: documentation, triage
-assignees: ''
+assignees: atovpeko
 ---
 
 ## Page or section

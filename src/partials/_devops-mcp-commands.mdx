@@ -10,7 +10,7 @@ Parameter names, types, and required or optional fields can change with new {C.M
 ## Service tools
 
 <Callout variant="note">
-Read-only mode restricts the mutating tools: `service_create`, `service_fork`, `service_start`, `service_stop`, `service_resize`, `service_update_password`. With `read_only=all` they are not registered at all; with `read_only=prod` they stay available but refuse calls against {C.SERVICE_SHORT}s tagged `PROD`. See [Restrict {C.MCP_LONG} to read-only](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only).
+Read-only mode restricts the mutating tools: `service_create`, `service_fork`, `service_start`, `service_stop`, `service_resize`, `service_rename`, `service_update_password`, `service_delete`. With `read_only=all` they are not registered at all; with `read_only=prod` they stay available but refuse calls against {C.SERVICE_SHORT}s tagged `PROD` (for `service_create` and `service_fork`, a call that requests `environment: PROD`). See [Restrict {C.MCP_LONG} to read-only](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only).
 </Callout>
 
 ### `service_list`
@@ -32,15 +32,16 @@ Show detailed information about one {C.SERVICE_SHORT}.
 
 ### `service_create`
 
-Create a new {C.SERVICE_SHORT}. Addons: `time-series` ({C.TIMESCALE_DB}) and `ai` (AI/vector).
+Create a new {C.SERVICE_SHORT}.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | string | No | Service name (auto-generated if omitted). |
-| `addons` | array of strings (`time-series`, `ai`) | No | Addons to enable. Omit or use an empty array for {C.PG}-only. |
+| `addons` | array of strings (`time-series`) | No | Addons to enable; `time-series` enables {C.TIMESCALE_DB}. Use an empty array for {C.PG}-only. Before {C.CLI_LONG} 0.26, there was also a deprecated `ai` addon. |
 | `region` | string | No | Cloud region, for example `us-east-1`. |
 | `cpu_memory` | string (enum) | No | CPU/memory allocation, for example `"4 CPU/16 GB"`. See [allowed configurations](/reference/tiger-cloud/tiger-cli#tiger-service-create). |
 | `replicas` | integer (0-5) | No | Number of high-availability replicas. Default: `0`. |
+| `environment` | string (enum: `DEV`, `PROD`) | No | Environment tag for the new {C.SERVICE_SHORT}. Default: `DEV`. Under `read_only=prod`, requesting `PROD` is refused. |
 | `wait` | boolean | No | Wait for the {C.SERVICE_SHORT} to be ready before returning. Default: `false`. |
 | `set_default` | boolean | No | Set the new {C.SERVICE_SHORT} as the default. Default: `true`. |
 | `with_password` | boolean | No | Include the password in the response. Default: `false`. |
@@ -62,6 +63,7 @@ Fork a {C.SERVICE_SHORT} into an independent copy.
 | `target_time` | string (RFC3339) | Only with `PITR` | Point in time to fork from. |
 | `name` | string | No | Fork name (auto-generated if omitted). |
 | `cpu_memory` | string (enum) | No | CPU/memory allocation for the fork. Inherits from the source if omitted. |
+| `environment` | string (enum: `DEV`, `PROD`) | No | Environment tag for the fork. Default: `DEV`. Under `read_only=prod`, requesting `PROD` is refused; forking a `PROD` source into a `DEV` fork is allowed. |
 | `wait` | boolean | No | Wait for the fork to be ready before returning. Default: `false`. |
 | `set_default` | boolean | No | Set the fork as the default {C.SERVICE_SHORT}. Default: `true`. |
 | `with_password` | boolean | No | Include the password in the response. Default: `false`. |
@@ -110,16 +112,47 @@ Stop a running {C.SERVICE_SHORT}.
 
 **Returns**: the {C.SERVICE_SHORT}'s updated status.
 
+### `service_rename`
+
+Rename a {C.SERVICE_SHORT}. Only the display name changes: the {C.SERVICE_SHORT} ID, endpoints, and stored credentials are untouched. The {C.CLI_SHORT} equivalent is [`tiger service rename`](/reference/tiger-cloud/tiger-cli#tiger-service-rename).
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The {C.SERVICE_SHORT} to rename. |
+| `name` | string | Yes | The new name for the {C.SERVICE_SHORT}. |
+
+**Returns**: the {C.SERVICE_SHORT} ID (unchanged) and the name as stored after the rename.
+
 ### `service_update_password`
 
-Update the `tsdbadmin` password. May disconnect existing sessions.
+Update the `tsdbadmin` password. The tool generates a secure random password itself; it does not accept one, because a password passed as a parameter, or typed into the chat, ends up in the agent's context. To set a specific password, use [`tiger service update-password`](/reference/tiger-cloud/tiger-cli#tiger-service-update-password) from the {C.CLI_SHORT} instead, which keeps it out of the conversation. Before {C.CLI_LONG} 0.26, this tool instead took a required `password` parameter.
+
+The change takes effect immediately and may disconnect existing sessions; applications using the old password fail to authenticate until they are updated. The new password is saved to the configured password storage. If saving fails, or password storage is off, and `with_password` is `false`, the result warns you that nobody has the password.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `service_id` | string | Yes | The {C.SERVICE_SHORT} to update. |
-| `password` | string | Yes | The new password for the `tsdbadmin` user. |
+| `with_password` | boolean | No | Include the generated password in the response. Default: `false`. |
 
-**Returns**: confirmation that the password was updated.
+**Returns**: whether the password was updated, where it was saved locally, and the password itself when `with_password` is `true`. `updated` is `false` when you decline the confirmation prompt.
+
+<Callout variant="note" title="A human in the loop for production">
+When the target is tagged `PROD`, the tool prompts you through the MCP client to type the {C.SERVICE_SHORT} ID back before it proceeds, like [`service_delete`](#service_delete). If your MCP client doesn't support this prompt (MCP elicitation), the update is refused and you are pointed to `tiger service update-password` instead.
+</Callout>
+
+### `service_delete`
+
+Delete a {C.SERVICE_SHORT} permanently. The {C.CLI_SHORT} equivalent is [`tiger service delete`](/reference/tiger-cloud/tiger-cli#tiger-service-delete). Before {C.CLI_LONG} 0.25, there was no {C.MCP_SHORT} tool for delete.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The {C.SERVICE_SHORT} to delete. |
+
+**Returns**: the {C.SERVICE_SHORT} ID, whether it was deleted, and a human-readable outcome. `deleted` is `false` when you decline the confirmation prompt.
+
+<Callout variant="warning" title="Irreversible, with a human in the loop for production">
+Deleting a {C.SERVICE_SHORT} destroys it and all of its data. When the target is tagged `PROD`, the tool prompts you through the MCP client to type the {C.SERVICE_SHORT} ID back before it proceeds, matching the {C.CLI_SHORT}'s confirmation. If your MCP client doesn't support this prompt (MCP elicitation), the deletion is refused and you are pointed to `tiger service delete` instead, so a production {C.SERVICE_SHORT} is never deleted unconfirmed.
+</Callout>
 
 ### `service_logs`
 
@@ -133,6 +166,48 @@ Fetch {C.SERVICE_SHORT} logs.
 | `node` | integer | No | Specific node to fetch logs from (for {C.SERVICE_SHORT}s with HA replicas; `0` is valid). Defaults to the primary node. |
 
 **Returns**: the matching log lines.
+
+## Metrics tools
+
+These tools let your agent monitor, debug, and investigate the performance of a {C.SERVICE_SHORT} from its time-series metrics. They are read-only, so they stay available in [read-only mode](/get-started/quickstart/mcp-cli#restrict-tiger-mcp-to-read-only). The {C.CLI_SHORT} equivalents are the [`tiger service metrics`](/reference/tiger-cloud/tiger-cli#tiger-service-metrics-available) commands; see [Available metrics](/reference/tiger-cloud/tiger-cli#available-metrics) for the full list of metrics with descriptions. For a worked debugging workflow, see [Diagnose a slowdown with service metrics](/build/tiger-cli-mcp/cookbook#diagnose-a-slowdown-with-service-metrics). Before {C.CLI_LONG} 0.26, the metrics tools were experimental and only registered when the `TIGER_EXPERIMENTAL` environment variable was set.
+
+### `service_metrics_available`
+
+List the names of the metric series available for the given {C.SERVICE_SHORT}.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The target {C.SERVICE_SHORT}. |
+
+**Returns**: an array of metric series names, for use with `service_metrics_details` and `service_metrics_series`.
+
+### `service_metrics_details`
+
+Get descriptive metadata for a metric: what it measures, its type, its default aggregation function, and the labels it can be filtered or grouped by. The `timescale_cloud_system_*` metrics have no richer metadata; for those, the tool returns just the name, with the other fields empty.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The target {C.SERVICE_SHORT}. |
+| `metric_name` | string | Yes | The metric to describe. Use `service_metrics_available` to discover valid names. |
+
+**Returns**: the metric's name, type, default aggregation, description, and labels.
+
+### `service_metrics_series`
+
+Fetch time-series data for a metric over a time window. The response groups data points by their label set, so a single request can return multiple labeled series, for example one per replica. Before {C.CLI_LONG} 0.26, `filters` supported only equality matches.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The target {C.SERVICE_SHORT}. |
+| `metric_name` | string | Yes | The metric series to fetch. Use `service_metrics_available` to discover valid names. |
+| `from`, `to` | string (RFC3339) | Yes | The time window. `to` cannot be in the future; use the current time for the latest data. |
+| `role` | string (enum: `PRIMARY`, `REPLICA`) | No | Convenience filter for the `role` label. Omit to aggregate datapoints across all nodes. For most queries applying `PRIMARY` could be more meaningful. |
+| `filters` | array of `{key, value, match_type}` | No | Arbitrary label filters. `match_type` is `EQUAL` (default) or `NOT_EQUAL`; `NOT_EQUAL` also matches series missing the label entirely. |
+| `bucket_seconds` | integer | No | Aggregation bucket size in seconds (minimum: `60`). When omitted, the server picks a size matched to the window. |
+| `fn` | string (enum) | No | Aggregation function applied per bucket: `RATE`, `INCREASE`, `SUM`, `AVG`, `MIN`, `MAX`, `MIN_TOTAL`, `MAX_TOTAL`, `COUNT`, `P50`, `P90`, `P99`, or `LAST`. Omit to let the server pick the metric's default. Not accepted on the `timescale_cloud_system_*` metrics. See [Aggregation functions](/reference/tiger-cloud/tiger-cli#aggregation-functions) for what each one computes. |
+| `group_by` | array of strings | No | Label keys to break the result into one series per distinct value combination. Rejected on the same metrics that reject `fn`. Omit to collapse into a single series. |
+
+**Returns**: one series per distinct label set, each with its full list of data points.
 
 ## Database tools
 
@@ -172,6 +247,17 @@ Return the schema of a {C.SERVICE_SHORT} database as readable text (tables, view
 
 **Returns**: readable text describing tables, views, materialized views, enum types, functions, procedures, indexes, triggers, and {C.TIMESCALE_DB} {C.HYPERTABLE} and {C.CAGG} metadata. The connection is opened in immutable read-only mode, so this tool never writes.
 
+### `db_extensions_list`
+
+List the {C.PG} extensions installed in a {C.SERVICE_SHORT} database, so your agent can check what is available, such as `timescaledb_toolkit`, before it writes SQL that depends on it. The {C.CLI_SHORT} equivalent is [`tiger db extensions list`](/reference/tiger-cloud/tiger-cli#tiger-db-extensions-list). Added in {C.CLI_LONG} 0.27.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `service_id` | string | Yes | The target {C.SERVICE_SHORT} (or a read replica set ID, to list the extensions on the replica instead of the primary). |
+| `role` | string | No | Database role to connect as. Default: `tsdbadmin`. |
+
+**Returns**: the installed extensions, ordered by name, each with its name (as used in `CREATE EXTENSION`), installed version, the schema its objects live in, and its description, when it has one. The connection is opened in immutable read-only mode, so this tool never writes and stays available in read-only mode.
+
 ## Documentation and skills tools
 
 ### `search_docs`
@@ -197,3 +283,17 @@ Retrieve a built-in skill for {C.TIMESCALE_DB} operations and best practices (fo
 | `path` | string | Yes | A relative path to a file or directory within the skill. Use `.` to list the skill's root directory, or leave empty for the skill's `SKILL.md`. |
 
 **Returns**: the requested skill content, or a directory listing.
+
+If your coding agent supports skills, you can also install the same skills locally with [`tiger skills install`](/reference/tiger-cloud/tiger-cli#tiger-skills-install), so the agent loads them natively instead of calling `view_skill`.
+
+## Feedback tool
+
+### `feedback`
+
+Send feedback or a bug report to the {C.COMPANY} team. The message reaches a person, so your agent should confirm the wording with you before sending. It opens no support case and returns no ticket; the response includes the {C.CONSOLE} URL for opening a tracked support ticket. The {C.CLI_SHORT} equivalent is [`tiger feedback`](/reference/tiger-cloud/tiger-cli#tiger-feedback).
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `message` | string | Yes | The feedback or bug report: what you were trying to do and what happened. At most 3,000 characters. |
+
+**Returns**: whether the message was sent, and the support URL for a tracked ticket.

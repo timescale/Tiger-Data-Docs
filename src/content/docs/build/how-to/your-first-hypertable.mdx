@@ -17,6 +17,7 @@ import { NumberedList, NumberedItem } from "@components/NumberedList";
 import { Prerequisites } from "@components/Prerequisites";
 import PrereqCloudOrSelf from "../../../../partials/_prereqs-cloud-or-self.mdx";
 import DoWithAi from "@components/DoWithAi.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 You will create a {C.HYPERTABLE} from scratch, see why time-based partitioning matters, and finish with queries you can reuse. Expect the same SQL surface you already know, with {C.CHUNK}-aware planning underneath.
 
@@ -117,3 +118,25 @@ You have built your first {C.HYPERTABLE} and used it for inserts and a time-orde
 - [Understand {C.CHUNK}s](/learn/chunks/understanding-chunks): What {C.CHUNK}s are, why they matter, and how to use them effectively.
 - [Basic compression with {C.HYPERCORE}](/build/how-to/basic-compression): Compress data into the {C.COLUMNSTORE} for up to 98% storage savings and faster analytical queries.
 - [{C.HYPERTABLE_CAP} operations](/learn/hypertables/optimize-data-in-hypertables): Create, alter, and drop {C.HYPERTABLE}s, and speed up data ingest.
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE conditions (time TIMESTAMPTZ NOT NULL, location TEXT NOT NULL, device TEXT NOT NULL, temperature DOUBLE PRECISION NULL, humidity DOUBLE PRECISION NULL) WITH (tsdb.hypertable, tsdb.segmentby = 'device', tsdb.orderby = 'time DESC');`
+5. expect rows: `SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'conditions'`
+6. expect rows: `SELECT 1 FROM timescaledb_information.dimensions WHERE hypertable_name = 'conditions' AND column_name = 'time'`
+7. expect rows: `SELECT 1 FROM timescaledb_information.hypertable_columnstore_settings WHERE hypertable = 'conditions'::regclass AND segmentby = 'device' AND orderby = '"time" DESC'`
+8. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'conditions' AND indexdef LIKE '%("time" DESC)'`
+9. run SQL: `INSERT INTO conditions (time, location, device, temperature, humidity) VALUES (NOW() - INTERVAL '2 hours', 'office', 'sensor-1', 22.1, 45.0), (NOW() - INTERVAL '1 hour', 'office', 'sensor-1', 22.3, 44.8), (NOW(), 'office', 'sensor-1', 22.2, 45.1);`
+10. expect rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'conditions'`
+11. run SQL: `SELECT * FROM conditions ORDER BY time DESC;`
+12. expect rows: `SELECT 1 FROM conditions HAVING count(*) = 3`
+13. expect rows: `SELECT 1 FROM (SELECT temperature FROM conditions ORDER BY time DESC LIMIT 1) latest WHERE temperature = 22.2`
+14. run SQL: `UPDATE conditions SET humidity = 45.2 WHERE temperature = 22.2;`
+15. expect rows: `SELECT 1 FROM conditions WHERE temperature = 22.2 AND humidity = 45.2`
+16. run SQL: `DELETE FROM conditions WHERE temperature = 22.1;`
+17. expect rows: `SELECT 1 FROM conditions HAVING count(*) = 2`
+</TestPlan>

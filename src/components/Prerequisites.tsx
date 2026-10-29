@@ -21,7 +21,7 @@ import type { ReactNode } from "react";
  *                           multiple independent examples.
  *
  *   context="tutorial"    → "Prerequisites for this tutorial"
- *                           Use for end-to-end learning content under /build/examples/
+ *                           Use for end-to-end learning content under /learn/tutorials/
  *                           and similar (multi-step tutorials, full walkthroughs).
  *
  *   context="integration" → "Prerequisites for this integration guide"

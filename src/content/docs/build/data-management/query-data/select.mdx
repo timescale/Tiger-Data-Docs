@@ -6,6 +6,7 @@ products: [cloud, self_hosted]
 
 import * as C from "@constants";
 import DoWithAi from "@components/DoWithAi.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 [`SELECT`](https://www.postgresql.org/docs/current/sql-select.html) against a {C.HYPERTABLE} works like any other table: filters, joins, aggregates, and window functions all apply. The examples below cover common time-window patterns.
 
@@ -64,3 +65,23 @@ SELECT COUNT(DISTINCT conditions.location) FROM conditions
   WHERE locations.air_conditioning = True
     AND time > NOW() - INTERVAL '1 day';
 ```
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE conditions (time timestamptz NOT NULL, location text, temperature double precision, humidity double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+5. run SQL: `CREATE TABLE locations (location text PRIMARY KEY, air_conditioning boolean);`
+6. run SQL: `INSERT INTO locations (location, air_conditioning) VALUES ('office', true), ('garage', false), ('lab', true);`
+7. run SQL: `INSERT INTO conditions (time, location, temperature, humidity) VALUES (now() - INTERVAL '20 minutes', 'office', 22.5, 45.0), (now() - INTERVAL '50 minutes', 'office', 23.0, 44.0), (now() - INTERVAL '2 hours', 'garage', 18.0, 60.0), (now() - INTERVAL '10 hours', 'lab', 21.0, 50.0), (now() - INTERVAL '2 days', 'lab', 20.0, 52.0);`
+8. run SQL: `SELECT * FROM conditions ORDER BY time DESC LIMIT 100;`
+9. expect rows: `SELECT 1 FROM (SELECT * FROM conditions ORDER BY time DESC LIMIT 100) AS newest HAVING count(*) = 5`
+10. run SQL: `SELECT COUNT(*) FROM conditions WHERE time > NOW() - INTERVAL '12 hours';`
+11. expect rows: `SELECT 1 FROM conditions WHERE time > NOW() - INTERVAL '12 hours' HAVING count(*) = 4`
+12. run SQL: `SELECT time_bucket('15 minutes', time) AS fifteen_min, location, COUNT(*), MAX(temperature) AS max_temp, MAX(humidity) AS max_hum FROM conditions WHERE time > NOW() - INTERVAL '3 hours' GROUP BY fifteen_min, location ORDER BY fifteen_min DESC, max_temp DESC;`
+13. expect rows: `SELECT 1 FROM (SELECT time_bucket('15 minutes', time) AS fifteen_min, location FROM conditions WHERE time > NOW() - INTERVAL '3 hours' GROUP BY fifteen_min, location) AS buckets HAVING count(*) = 3`
+14. run SQL: `SELECT COUNT(DISTINCT conditions.location) FROM conditions JOIN locations ON conditions.location = locations.location WHERE locations.air_conditioning = True AND time > NOW() - INTERVAL '1 day';`
+15. expect rows: `SELECT 1 FROM conditions JOIN locations ON conditions.location = locations.location WHERE locations.air_conditioning = True AND time > NOW() - INTERVAL '1 day' HAVING COUNT(DISTINCT conditions.location) = 2`
+</TestPlan>

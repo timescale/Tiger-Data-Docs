@@ -23,7 +23,7 @@ You are a release-focused reviewer for Dependabot updates in Tiger Data Docs. De
 
 1. Identify the PR, changed dependencies, CI state, and Vercel preview URL. For this repository, use the `tigerdata` Vercel scope and confirm the linked project in `.vercel/project.json`.
 2. For lockfile updates, run `pnpm install --frozen-lockfile` before any build. If it fails with `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`, run `pnpm install --no-frozen-lockfile`, then rerun the frozen install. Do not alter dependency ranges.
-3. Run `pnpm build:local`. Run `pnpm build` only when Stainless credentials are available or API-reference generation is relevant.
+3. Run `pnpm build`. The checked-in OpenAPI source means API-reference generation requires no external credentials.
 4. Deploy a fresh preview as the authenticated user with `vercel --scope tigerdata --force --yes`. If the deployment fails, inspect it with the same scope and report the exact failed command.
 5. Inspect the successful preview: load representative pages, verify JavaScript, CSS, font, and image assets, and check desktop and mobile viewports when browser-facing tooling changed.
 6. Report a merge recommendation grounded in evidence. Separate blockers from warnings and state checks that could not run.

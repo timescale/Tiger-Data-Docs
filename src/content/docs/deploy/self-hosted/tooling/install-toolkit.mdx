@@ -9,6 +9,7 @@ import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 
 Some hyperfunctions are included by default in {C.TIMESCALE_DB}. For additional
 hyperfunctions, you need to install the {C.TOOLKIT_LONG} {C.PG}
@@ -910,3 +911,45 @@ Using `CASCADE` will drop all objects that depend on the {C.TOOLKIT_SHORT} exten
 </TabItem>
 
 </Tabs>
+
+<TestPlan>
+target: self-hosted
+
+1. fork the service
+2. run command: `echo 'APT::Get::Assume-Yes "true";' > /etc/apt/apt.conf.d/90doctest`
+3. run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run command: `sudo apt update`
+5. run command: `sudo apt install timescaledb-toolkit-postgresql-18`
+6. run SQL: `CREATE EXTENSION timescaledb_toolkit;`
+7. expect rows: `SELECT 1 FROM pg_extension WHERE extname = 'timescaledb_toolkit'`
+8. run command: `apt update`
+9. run command: `apt install timescaledb-toolkit-postgresql-18`
+10. run SQL: `ALTER EXTENSION timescaledb_toolkit UPDATE;`
+11. expect rows: `SELECT 1 FROM pg_extension e JOIN pg_available_extensions a ON a.name = e.extname WHERE e.extname = 'timescaledb_toolkit' AND e.extversion = a.default_version`
+12. run SQL: `DROP EXTENSION IF EXISTS timescaledb_toolkit CASCADE;`
+13. expect no rows: `SELECT 1 FROM pg_extension WHERE extname = 'timescaledb_toolkit'`
+14. run command: `sudo apt remove timescaledb-toolkit-postgresql-18`
+15. run command: `sudo apt autoremove`
+16. expect no rows: `SELECT 1 FROM pg_available_extensions WHERE name = 'timescaledb_toolkit'`
+17. run command: `apt-get install -y docker.io`
+18. run command: `docker run -d --name timescaledb -p 5433:5432 -e POSTGRES_PASSWORD=<PASSWORD> timescale/timescaledb-ha:pg18`
+19. run command: `for i in $(seq 1 90); do docker exec timescaledb pg_isready -U postgres && break; sleep 2; done; docker exec timescaledb pg_isready -U postgres`
+20. run command: `test "$(docker exec timescaledb psql -U postgres -tAc "SELECT count(*) FROM pg_extension WHERE extname = 'timescaledb_toolkit'")" = 1`
+21. run command: `docker pull timescale/timescaledb-ha:pg18`
+22. run command: `docker exec -i timescaledb psql -U postgres -d postgres -c "DROP EXTENSION IF EXISTS timescaledb_toolkit CASCADE;"`
+23. run command: `test "$(docker exec timescaledb psql -U postgres -tAc "SELECT count(*) FROM pg_extension WHERE extname = 'timescaledb_toolkit'")" = 0`
+
+Steps 1 to 16 are the Ubuntu tab. Steps 17 to 23 are the Docker tab on the same box: the HA image is
+started on port 5433, step 20 checks the Toolkit is already enabled as the page says, step 21 is the
+update, and steps 22 and 23 are the uninstall from one database.
+
+Not scripted:
+- Debian tab: the target is Ubuntu; Debian, Red Hat, Fedora and Rocky Linux each need their own image.
+- Red Hat tab: the same.
+- Fedora tab: the same.
+- RockyLinux tab: the same.
+- Kubernetes tab: needs a cluster.
+- macOS tab: needs a Mac.
+- Source tab: builds the extension with a Rust toolchain, which is not what a small box is for.
+
+</TestPlan>

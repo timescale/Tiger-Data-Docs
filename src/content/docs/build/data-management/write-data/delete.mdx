@@ -7,6 +7,7 @@ products: [cloud, self_hosted]
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import DoWithAi from "@components/DoWithAi.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 Row deletes use the standard [`DELETE`](https://www.postgresql.org/docs/current/sql-delete.html) statement against a {C.HYPERTABLE}. This works the same whether the {C.CHUNK} is in the {C.ROWSTORE} or the {C.COLUMNSTORE}. You don't
 need to decompress a {C.CHUNK} before deleting from it: {C.TIMESCALE_DB} decompresses only the rows your
@@ -36,3 +37,21 @@ If you delete a lot of data, run
 {C.HYPERTABLE}. You can do so either manually or by data retention policy.
 
 To learn more, see the [data retention section](/learn/data-lifecycle/data-retention/about-data-retention).
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE conditions (time timestamptz NOT NULL, location text, temperature double precision, humidity double precision) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+5. run SQL: `INSERT INTO conditions (time, location, temperature, humidity) VALUES (now() - INTERVAL '4 hours', 'office', 70.0, 65.0), (now() - INTERVAL '3 hours', 'garage', 30.0, 70.0), (now() - INTERVAL '2 hours', 'basement', 66.0, 40.0), (now() - INTERVAL '1 hour', 'lab', 34.9, 59.9);`
+6. run SQL: `DELETE FROM conditions WHERE temperature < 35 OR humidity < 60;`
+7. expect no rows: `SELECT 1 FROM conditions WHERE temperature < 35 OR humidity < 60`
+8. expect rows: `SELECT 1 FROM conditions WHERE location = 'office' HAVING count(*) = 1`
+9. expect rows: `SELECT 1 FROM conditions HAVING count(*) = 1`
+10. run SQL: `VACUUM conditions;`
+11. run SQL: `VACUUM FULL conditions;`
+
+Not scripted: Delete data by dropping chunks: the section links to the data retention pages, whose plans cover it.
+</TestPlan>
