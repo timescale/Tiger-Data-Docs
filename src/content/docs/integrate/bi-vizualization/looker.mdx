@@ -1,6 +1,7 @@
 ---
 title: Integrate Looker with Tiger Data
 description: Connect Looker to Tiger Cloud or self-hosted TimescaleDB to model, explore, and visualize your data.
+products: [cloud, self_hosted]
 integrationCategory: bi-vizualization
 integrationPlatforms: [aws, azure, self-hosted]
 integrationIndustry: [saas, fintech, iot]
@@ -69,9 +70,10 @@ Looker connects with a dedicated database role and uses a scratch schema to mate
   </NumberedItem>
   <NumberedItem title="Create a scratch schema for persistent derived tables">
 
-    Create a schema owned by the `looker` role for Looker to write PDTs into, then set the role's search path:
+    Let your admin user act as the `looker` role, create a schema owned by `looker` for Looker to write PDTs into, then set the role's search path. Replace `<ADMIN_USER>` with the user you connected as, `tsdbadmin` on {C.CLOUD_LONG}:
 
     ```sql
+    GRANT looker TO <ADMIN_USER>;
     CREATE SCHEMA looker_scratch AUTHORIZATION looker;
     ALTER USER looker SET search_path TO public, looker_scratch;
     ```
@@ -105,12 +107,12 @@ Point Looker at your service or database using the role you created.
 
     Turn on `Enable PDTs` and set the **Temp Database** to `looker_scratch`, the scratch schema you created.
 
-    If your service or database requires encrypted connections, enable SSL. When Looker is hosted, add Looker's egress IP addresses to your network or firewall allowlist so it can reach your service or database.
+    Enable SSL. {C.CLOUD_LONG} rejects unencrypted connections; for self-hosted {C.TIMESCALE_DB}, this depends on how your instance is configured. When Looker is hosted, add Looker's egress IP addresses to your network or firewall allowlist so it can reach your service or database.
 
   </NumberedItem>
   <NumberedItem title="Test and save">
 
-    Click `Test` to confirm Looker can connect, then `Connect` to save.
+    Click `Test Connection` to confirm Looker can connect, then `Connect` to save.
 
     All connection tests should pass, confirming Looker can reach your service or database and use the scratch schema.
 
@@ -145,7 +147,7 @@ You have successfully integrated Looker with {C.COMPANY}.
 ## Troubleshooting
 
 - **Connection test fails on PDTs:** confirm the `looker_scratch` schema is owned by the `looker` role and that the role's `search_path` includes it.
-- **Connection times out:** for hosted Looker, make sure Looker's egress IP addresses are allowlisted in your network, and that SSL is enabled for {C.CLOUD_LONG}.
+- **Connection times out:** for hosted Looker, make sure Looker's egress IP addresses are allowlisted in your network.
 
 For other connectivity and authentication issues, see [Troubleshoot {C.CLOUD_LONG} integrations](/integrate/troubleshooting).
 
