@@ -5,12 +5,13 @@ products: [cloud]
 keywords: [tiered storage]
 tableOfContents:
   minHeadingLevel: 2
-  maxHeadingLevel: 2
+  maxHeadingLevel: 3
 ---
 
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { Tabs, TabItem } from "@astrojs/starlight/components";
 import TieredStorageBilling from "../../../../../partials/_tiered-storage-billing.mdx";
 
 import ThemeImage from "@components/ThemeImage.astro";
@@ -19,19 +20,23 @@ import imgHighPerformanceStorageTigerConsoleDark from "../../../../../assets/ima
 import imgEnableTieredStorageTigerConsoleLight from "../../../../../assets/images/build/data-management/enable-tiered-storage-tiger-console.png";
 import imgEnableTieredStorageTigerConsoleDark from "../../../../../assets/images/build/data-management/enable-tiered-storage-tiger-console-dark.png";
 
-Tiering splits hot data on fast local volumes from cold data in cheaper object storage. {C.CLOUD_LONG} implements that as a high-performance tier plus a low-cost object storage tier:
+Tiering splits hot data on high-performance storage from cold data in cheaper object storage. {C.CLOUD_LONG} implements that as a high-performance tier plus a low-cost object storage tier:
 
 - You use [high-performance storage](#high-performance-storage-tier) to store and query frequently accessed data.
 
 - You use [low-cost object storage](#low-cost-object-storage-tier) to cut costs by migrating rarely used data from the high-performance storage. After you enable tiered storage, you then either [create automated tiering policies](#automate-tiering-with-policies) or [manually tier and untier data](#manually-tier-and-untier-chunks).
 
+What the high-performance tier is depends on the platform. Standard {C.SERVICE_SHORT}s use the cloud provider's block storage. Fluid {C.SERVICE_SHORT}s use Fluid storage, a distributed storage layer built by {C.COMPANY} that shares unchanged data between a {C.SERVICE_SHORT} and its branches and supports higher IOPS. The object storage tier is the same for both.
+
 You can query the data on the object storage tier, but you cannot modify it. Make sure that you are not tiering data that needs to be **actively modified**.
 
-<TieredStorageBilling />
+<TieredStorageBilling fluid />
 
 ## High-performance storage tier
 
-By default, {C.CLOUD_LONG} stores your {C.SERVICE_SHORT} data in the high-performance storage. This gives you up to 64 TB of storage and a configurable IOPS value to better suit your needs:
+By default, {C.CLOUD_LONG} stores your {C.SERVICE_SHORT} data in the high-performance storage. Storage grows with your data, and you configure the IOPS value to suit your workload.
+
+### Configure IOPS
 
 <NumberedList>
 <NumberedItem title={`Select your ${C.SERVICE_SHORT}`}>
@@ -40,42 +45,73 @@ In <a href={C.CONSOLE_URL}>{C.CONSOLE}</a>, select your {C.SERVICE_SHORT}, then 
 </NumberedItem>
 
 <NumberedItem title="Select the IOPS value">
-Select the IOPS value in the `I/O boost` dropdown:
+Under `I/O boost`, select or enter the IOPS value. See [Available IOPS](#available-iops).
 
 <ThemeImage light={imgHighPerformanceStorageTigerConsoleLight} dark={imgHighPerformanceStorageTigerConsoleDark} alt="Default high-performance storage in Tiger Console" />
-
-- Under the [{C.PERFORMANCE} {C.PRICING_PLAN}](/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management), IOPS is set to 3,000 - 5,000 autoscale and cannot be changed.
-- Under the [{C.SCALE} {C.PRICING_PLAN}](/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management), IOPS is set to 5,000 - 8,000 autoscale and can be upgraded to 40,000 IOPS subject to your service's CPU configuration.
-- Under the [{C.ENTERPRISE} {C.PRICING_PLAN}](/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management), IOPS is set to 5,000 - 8,000 autoscale and can be upgraded to 80,000 IOPS subject to your service's CPU configuration.
-
-The available IOPS and the corresponding throughput depend on your service's CPU, cloud provider, and the {C.PRICING_PLAN}:
-
-- **{C.CLOUD_LONG} on AWS**
-
-    | {C.PRICING_PLAN_CAP} | Min CPU | IOPS  | Throughput, MB/s  |
-    | ----------------- | ------- | ----- | ---- |
-    | {C.SCALE}/{C.ENTERPRISE}  | Under 16     | 16,000 | 1,000 |
-    | {C.SCALE}/{C.ENTERPRISE}  | 16      | 24,000 | 1,000 |
-    | {C.SCALE}/{C.ENTERPRISE}  | 32      | 32,000 | 1,500 |
-    | {C.SCALE}/{C.ENTERPRISE}  | 32      | 40,000 | 1,500 |
-    | {C.ENTERPRISE}        | 48      | 60,000 | 1,875 |
-    | {C.ENTERPRISE}        | 64      | 80,000 | 2,000 |
-
-- **{C.CLOUD_LONG} on Azure**
-
-    | {C.PRICING_PLAN_CAP} | Min CPU  | IOPS  | Throughput, MB/s |
-    | ----------------- | ------- | ----- | ---- |
-    | {C.SCALE}/{C.ENTERPRISE}  | n/a     | 16,000 | 1,000 |
-    | {C.SCALE}/{C.ENTERPRISE}  | 16      | 24,000 | 1,000 |
-    | {C.SCALE}/{C.ENTERPRISE}  | 32      | 32,000 | 1,200 |
-    | {C.SCALE}/{C.ENTERPRISE}  | 32      | 40,000 | 1,200 |
-    | {C.ENTERPRISE}            | 48      | 60,000 | 1,200 |
-    | {C.ENTERPRISE}            | 64      | 80,000 | 1,200 |
 </NumberedItem>
 
 <NumberedItem title="Click `Apply`">
 </NumberedItem>
 </NumberedList>
+
+### Available IOPS
+
+The IOPS you can set, and the corresponding throughput, depend on the platform, the {C.SERVICE_SHORT}'s CPU, the cloud provider, and your {C.PRICING_PLAN}.
+
+#### Standard {C.SERVICE_SHORT}s
+
+Up to 64 TB of storage. IOPS autoscales with storage size within a range set by your {C.PRICING_PLAN}; on {C.SCALE} and {C.ENTERPRISE} you can upgrade to a higher fixed value, gated by the {C.SERVICE_SHORT}'s CPU.
+
+- Under the [{C.PERFORMANCE} {C.PRICING_PLAN}](/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management), IOPS is set to 3,000 - 5,000 autoscale and cannot be changed.
+- Under the [{C.SCALE} {C.PRICING_PLAN}](/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management), IOPS is set to 5,000 - 8,000 autoscale and can be upgraded to 40,000 IOPS subject to your service's CPU configuration.
+- Under the [{C.ENTERPRISE} {C.PRICING_PLAN}](/deploy/tiger-cloud/tiger-cloud-aws/pricing-and-account-management), IOPS is set to 5,000 - 8,000 autoscale and can be upgraded to 80,000 IOPS subject to your service's CPU configuration.
+
+Each IOPS upgrade requires a minimum CPU and comes with a set throughput:
+
+<Tabs>
+<TabItem label="AWS">
+
+| {C.PRICING_PLAN_CAP} | Min CPU | IOPS  | Throughput, MB/s  |
+| ----------------- | ------- | ----- | ---- |
+| {C.SCALE}/{C.ENTERPRISE}  | Under 16     | 16,000 | 1,000 |
+| {C.SCALE}/{C.ENTERPRISE}  | 16      | 24,000 | 1,000 |
+| {C.SCALE}/{C.ENTERPRISE}  | 32      | 32,000 | 1,500 |
+| {C.SCALE}/{C.ENTERPRISE}  | 32      | 40,000 | 1,500 |
+| {C.ENTERPRISE}        | 48      | 60,000 | 1,875 |
+| {C.ENTERPRISE}        | 64      | 80,000 | 2,000 |
+
+</TabItem>
+<TabItem label="Azure">
+
+| {C.PRICING_PLAN_CAP} | Min CPU  | IOPS  | Throughput, MB/s |
+| ----------------- | ------- | ----- | ---- |
+| {C.SCALE}/{C.ENTERPRISE}  | n/a     | 16,000 | 1,000 |
+| {C.SCALE}/{C.ENTERPRISE}  | 16      | 24,000 | 1,000 |
+| {C.SCALE}/{C.ENTERPRISE}  | 32      | 32,000 | 1,200 |
+| {C.SCALE}/{C.ENTERPRISE}  | 32      | 40,000 | 1,200 |
+| {C.ENTERPRISE}            | 48      | 60,000 | 1,200 |
+| {C.ENTERPRISE}            | 64      | 80,000 | 1,200 |
+
+</TabItem>
+</Tabs>
+
+#### Fluid {C.SERVICE_SHORT}s
+
+No autoscaling. Each compute size has a fixed baseline, and on {C.SCALE} and {C.ENTERPRISE} you raise IOPS in steps of 1,000 up to the maximum for that size, as often as you need.
+
+| {C.PRICING_PLAN_CAP} | CPU | Baseline IOPS | Maximum IOPS |
+| ----------------- | ------ | ------ | ------- |
+| {C.PERFORMANCE} | 0.25 | 3,000 | 3,000 |
+| {C.PERFORMANCE} | 0.5 | 4,000 | 4,000 |
+| {C.PERFORMANCE} | 1 to 8 | 6,000 | 6,000 |
+| {C.SCALE}/{C.ENTERPRISE} | 0.25 | 3,000 | 3,000 |
+| {C.SCALE}/{C.ENTERPRISE} | 0.5 | 4,000 | 4,000 |
+| {C.SCALE}/{C.ENTERPRISE} | 1 | 6,000 | 12,000 |
+| {C.SCALE}/{C.ENTERPRISE} | 2 | 8,000 | 16,000 |
+| {C.SCALE}/{C.ENTERPRISE} | 4 | 12,000 | 48,000 |
+| {C.SCALE}/{C.ENTERPRISE} | 8 | 16,000 | 64,000 |
+| {C.SCALE}/{C.ENTERPRISE} | 16 | 24,000 | 128,000 |
+| {C.SCALE}/{C.ENTERPRISE} | 32 | 32,000 | 192,000 |
 
 ## Low-cost object storage tier
 
