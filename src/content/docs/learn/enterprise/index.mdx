@@ -1,0 +1,115 @@
+---
+title: Meet TimescaleDB Enterprise
+description: A cloud-like database experience on infrastructure you control, with high availability, backups, monitoring, and commercial support built in
+keywords: [timescaledb enterprise, on-premises, private cloud, air-gap, edge]
+# products: [enterprise] — add once the "enterprise" product tag is added to content.config.ts
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+import ThemeImage from "@components/ThemeImage.astro";
+import systemOverviewLight from "../../../../assets/images/learn/enterprise/system-overview-light.png";
+import systemOverviewDark from "../../../../assets/images/learn/enterprise/system-overview-dark.png";
+
+{C.TDB_ENTERPRISE} gives you the operations of a managed service on infrastructure you control.
+A console on your own network does the work you would otherwise script by hand, and underneath
+it is the same {C.PG} and {C.TIMESCALE_DB} you would install yourself.
+
+{C.TDB_ENTERPRISE} exists for the places a managed database cannot go, whether that is your own
+data center, a cloud account you operate, or the edge. On a factory floor or a remote site in
+energy or manufacturing, a service has to keep working when the network does not. In regulated
+and air-gapped data centers the requirement is stricter still, because a running database can
+never reach outward at all.
+
+{C.TDB_ENTERPRISE} meets that requirement. Once a service is running, its operation does not
+depend on {C.COMPANY} infrastructure: there is no hosted control plane in the path, so queries,
+failover, and backups never wait on anything outside your own network, and an air-gapped install
+uses license files rather than online activation.
+
+{C.TDB_ENTERPRISE} is also the database behind Ignition Enterprise Historian. It was built for
+what an industrial historian demands: continuous high-volume telemetry, high-resolution history
+kept for the long term, and fast queries over all of it.
+
+<Callout variant="important">
+
+{C.TDB_ENTERPRISE} is in public beta.
+
+</Callout>
+
+## Architecture
+
+An installation has two tiers: a control plane and a data plane. The **control plane** is the
+console, a Docker container and the only piece you deploy centrally. It holds the web console,
+the HTTP API, a metrics engine that keeps 30 days of history by default, and the coordinator
+for the private mesh your servers join. You sign in as a local user with a viewer, operator, or
+admin role, with two-factor authentication if you turn it on, or through your own identity
+provider over OIDC, and an audit log records what each user did, with secrets redacted, and
+exports to CSV or JSON for your log system.
+
+The **data plane** is your own Linux servers, bare metal or virtual machines, running Ubuntu
+26.04 on x86_64 or aarch64. The public beta supports Ubuntu 26.04 only; more operating systems
+follow later. You enroll them with the console, and it installs and configures what runs on
+them: {C.PG} with {C.TIMESCALE_DB}, Patroni and etcd for leader election and failover, HAProxy
+and PgBouncer for routing and pooled connections, and pgBackRest for backups. A service is
+either a single node or a highly available group of nodes, and it can use a separate enrolled
+machine as a dedicated backup server.
+
+Every service is a new one. The console cannot adopt a {C.PG} or {C.TIMESCALE_DB} database you
+already run, so bringing an existing database under it means migrating the data into a service
+the console created.
+
+<ThemeImage
+  light={systemOverviewLight}
+  dark={systemOverviewDark}
+  alt="System overview: a browser reaches the console container over HTTPS, the console reaches your database servers over the mesh to deploy, monitor and collect logs, and your applications connect to the database servers directly over PostgreSQL"
+/>
+
+The console reaches your servers over the mesh, and only over the mesh: it deploys them,
+scrapes their metrics, and fetches logs when you ask for them. Each server joins by running a
+single enrollment command, which installs the console's certificate authority and its mesh
+agent. The server is the side that reaches out, so it needs no inbound access from outside, and
+it needs no internet access either: a deploy installs the database packages from signed server
+packages that the console serves over the mesh.
+
+Day to day, the console is where you set backup schedules, restore to a point in time, fork a
+service from its backups, and read per-node metrics and logs. A failed primary is replaced
+without you; switchover and forced failover are there when you want to drive it yourself. See the
+[{C.TDB_ENTERPRISE} documentation](https://tsdbe-docs.vercel.app/) for setup,
+configuration, and step-by-step guides to each of these tasks.
+
+## Licensing
+
+{C.TDB_ENTERPRISE} is commercially licensed: you need a license for each database service you
+run. Licenses are signed files that the console verifies locally, and the console itself runs
+without one. A license is what lets you create a database service and bring its servers up.
+
+Licenses are sized by each server's CPU and memory, and one covers a single service across up to
+three servers, so a primary and its replicas are covered together. Enrolled infrastructure is
+not licensed: backup servers and dedicated consensus clusters do not consume one.
+
+An expired license does not stop a running service: backups, restores in place, failover,
+switchover, and restarts all continue, and what it blocks is new services, deploys, and forks.
+The database does become read-only, straight away for an expired trial and after a grace period
+for a paid license, until you renew or move the service to another license. To get a license,
+activate a key online, install a license file on a console with no internet access at all, or
+start a 7-day trial sized to the tier you would buy, which you can reset after it expires, up to
+seven times.
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Key differentiators"
+    description="How TimescaleDB Enterprise compares to running TimescaleDB yourself, and when to choose each."
+    href="/learn/enterprise/enterprise-exclusive-features"
+  />
+  <RelatedContentCard
+    title="Feature comparison"
+    description="Compare TimescaleDB Enterprise, self-hosted, and fully managed options side by side."
+    href="/learn/capabilities-and-comparison/feature-comparison"
+  />
+  <RelatedContentCard
+    title="Install and deploy"
+    description="Set up the console, enroll servers, and create your first service."
+    href="https://tsdbe-docs.vercel.app/"
+  />
+</RelatedContentCards>
