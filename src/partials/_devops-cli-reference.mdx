@@ -226,10 +226,10 @@ You see something like:
 
 ```txt
 ┌───────────────────┬──────────────────────────────────────────┐
-│ Tiger CLI Version │ 0.25.0                                   │
-│ Build Time        │ 2026-09-21T10:28:41Z                     │
-│ Git Commit        │ 56dd79944b4afbf8d86162533ad4bd14e56ebcc8 │
-│ Go Version        │ go1.27.0                                 │
+│ Tiger CLI Version │ 0.27.0                                   │
+│ Build Time        │ 2026-10-27T14:54:58Z                     │
+│ Git Commit        │ 6109880bcd60650c76295f870a595bcf29b5545b │
+│ Go Version        │ go1.27.3                                 │
 │ Platform          │ darwin/arm64                             │
 └───────────────────┴──────────────────────────────────────────┘
 ```
@@ -252,11 +252,11 @@ tiger upgrade
 If you installed {C.CLI_LONG} with the direct install script and a newer version is available, you see:
 
 ```txt
-Upgrading Tiger CLI 0.24.0 → v0.25.0
-Downloading https://cli.tigerdata.com/releases/v0.25.0/tiger-cli_Darwin_arm64.tar.gz
+Upgrading Tiger CLI 0.26.0 → v0.27.0
+Downloading https://cli.tigerdata.com/releases/v0.27.0/tiger-cli_Darwin_arm64.tar.gz
 Verifying checksum
 Installing new binary to <install-path>/tiger
-Upgraded Tiger CLI to v0.25.0
+Upgraded Tiger CLI to v0.27.0
 ```
 
 If you installed {C.CLI_LONG} with a package manager such as Homebrew, `apt`, or `yum`/`dnf`, this command refuses to run and points you to that package manager instead.
@@ -293,25 +293,22 @@ tiger config list
 You see something like:
 
 ```txt
-┌──────────────────┬───────────────────────────────────────────────────┐
-│     PROPERTY     │                       VALUE                       │
-├──────────────────┼───────────────────────────────────────────────────┤
-│ api_url          │ https://console.cloud.tigerdata.com/public/api/v1 │
-│ analytics        │ true                                              │
-│ console_url      │ https://console.cloud.tigerdata.com               │
-│ docs_mcp         │ true                                              │
-│ docs_mcp_url     │ https://mcp.tigerdata.com/docs                    │
-│ gateway_url      │ https://console.cloud.tigerdata.com/api           │
-│ mcp_max_rows     │ 100                                               │
-│ color            │ true                                              │
-│ output           │ table                                             │
-│ password_storage │ keyring                                           │
-│ read_only        │ off                                               │
-│ releases_url     │ https://cli.tigerdata.com                         │
-│ service_id       │                                                   │
-│ version_check    │ true                                              │
-└──────────────────┴───────────────────────────────────────────────────┘
+┌──────────────────┬─────────┐
+│     PROPERTY     │  VALUE  │
+├──────────────────┼─────────┤
+│ analytics        │ true    │
+│ color            │ true    │
+│ docs_mcp         │ true    │
+│ mcp_max_rows     │ 100     │
+│ output           │ table   │
+│ password_storage │ keyring │
+│ read_only        │ off     │
+│ service_id       │         │
+│ version_check    │ true    │
+└──────────────────┴─────────┘
 ```
+
+Before {C.CLI_LONG} 0.27, the list also showed the endpoint URLs (`api_url`, `console_url`, `docs_mcp_url`, `gateway_url`, and `releases_url`). They only matter when developing against other environments, so they are now hidden from the list and from shell completion; `tiger config set` still accepts them.
 
 | Flag | Description |
 | --- | --- |
@@ -440,6 +437,8 @@ You see something like:
 | --- | --- |
 | `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
+With no {C.SERVICE_SHORT}s, table output prints a message to stderr, while `-o json` and `-o yaml` print an empty list (`[]`), so scripts always get structured output. Before {C.CLI_LONG} 0.27, the JSON and YAML output was empty in this case.
+
 ### `tiger service get`
 
 Show detailed information about a {C.SERVICE_SHORT}. Aliases: `describe`, `show`.
@@ -531,7 +530,7 @@ Service resized to 4 CPU/16 GB.
 
 | Flag | Description |
 | --- | --- |
-| `--cpu`, `--memory` | New allocation. CPU is in millicores, memory in gigabytes, so 4 CPU / 16 GB is `--cpu 4000 --memory 16`. See [`service create`](#tiger-service-create) for allowed configurations. |
+| `--cpu`, `--memory` | New allocation. CPU is in millicores, memory in gigabytes, so 4 CPU / 16 GB is `--cpu 4000 --memory 16`. See [`service create`](#tiger-service-create) for allowed configurations. You cannot resize to `shared`. |
 | `--no-wait`, `--wait-timeout` | Wait behavior (default timeout: `10m`). |
 
 ### `tiger service start`
@@ -612,7 +611,7 @@ tiger service rename <name-or-id> analytics-prod
 You see:
 
 ```txt
-Renamed service '<service-id>' to 'analytics-prod'.
+Renamed service 'analytics' (<service-id>) to 'analytics-prod'.
 ```
 
 Both arguments are required; there is no default-{C.SERVICE_SHORT} fallback, because a single argument would be ambiguous between the {C.SERVICE_SHORT} to rename and the name to give it.
@@ -630,7 +629,7 @@ tiger service delete <name-or-id> --confirm
 You see:
 
 ```txt
-Service '<service-id>' deleted.
+Service 'analytics' (<service-id>) deleted.
 ```
 
 | Flag | Description |
@@ -777,7 +776,7 @@ tiger service metrics series <name-or-id> --metric pg_stat_activity_count \
 | Flag | Description |
 | --- | --- |
 | `--metric` | The metric series to fetch. Use [`service metrics available`](#tiger-service-metrics-available) to discover valid names. |
-| `--from`, `--to` | Time window (RFC3339). Default: the last 24 hours. |
+| `--from`, `--to` | Time window (RFC3339). `--to` cannot be in the future. Default: the last 24 hours. |
 | `--bucket-seconds` | Aggregation bucket size in seconds (minimum: `60`). Defaults to `3600` (1 hour) when `--from`/`--to` are also omitted; otherwise the server picks a size matched to the window. |
 | `--fn` | Aggregation function applied per bucket: `RATE`, `INCREASE`, `SUM`, `AVG`, `MIN`, `MAX`, `MIN_TOTAL`, `MAX_TOTAL`, `COUNT`, `P50`, `P90`, `P99`, or `LAST`. Omit to let the server pick the metric's default. Not accepted on the `timescale_cloud_system_*` metrics. See [Aggregation functions](#aggregation-functions) for what each one computes. |
 | `--role` | Restrict to one instance role: `PRIMARY` or `REPLICA`. Omit to aggregate datapoints across all nodes. For most queries applying `--role PRIMARY` could be more meaningful. |
@@ -948,6 +947,38 @@ TABLE: sensor_data
 | `--pooled` | Use connection pooling (default: `false`). |
 | `--role` | Database role (default: `tsdbadmin`). |
 
+### `tiger db extensions list`
+
+List the {C.PG} extensions installed in a {C.SERVICE_SHORT}'s database, with each extension's version, the schema it lives in, and its description. Use it to check what is available before you write SQL, for example whether `timescaledb_toolkit` is installed for [hyperfunctions](/reference/toolkit). Pass a read replica set ID to list the extensions on that replica. The connection is opened in {C.CLOUD_LONG}'s immutable read-only mode. `extensions` has the alias `ext` and `list` has the alias `ls`, so `tiger db ext ls` is the same command.
+
+**Usage**: `tiger db extensions list <name-or-id> [flags]`
+
+```bash
+tiger db extensions list <name-or-id>
+```
+
+You see something like:
+
+```txt
+┌─────────────────────┬─────────┬────────────┬───────────────────────────────────────────────────────────────────────────────────────┐
+│        NAME         │ VERSION │   SCHEMA   │                                      DESCRIPTION                                      │
+├─────────────────────┼─────────┼────────────┼───────────────────────────────────────────────────────────────────────────────────────┤
+│ pg_buffercache      │ 1.6     │ public     │ examine the shared buffer cache                                                       │
+│ pg_stat_statements  │ 1.12    │ public     │ track planning and execution statistics of all SQL statements executed                │
+│ plpgsql             │ 1.0     │ pg_catalog │ PL/pgSQL procedural language                                                          │
+│ postgres_fdw        │ 1.2     │ public     │ foreign-data wrapper for remote PostgreSQL servers                                    │
+│ timescaledb         │ 2.31.0  │ public     │ Enables scalable inserts and complex queries for time-series data (Community Edition) │
+│ timescaledb_toolkit │ 1.26.0  │ public     │ Library of analytical hyperfunctions, time-series pipelining, and other SQL utilities │
+└─────────────────────┴─────────┴────────────┴───────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Flag | Description |
+| --- | --- |
+| `--role` | Database role (default: `tsdbadmin`). |
+| `--output, -o` | Output format: `json`, `yaml`, or `table`. |
+
+The [`db_extensions_list`](/reference/tiger-cloud/tiger-mcp#db_extensions_list) {C.MCP_SHORT} tool is the agent-side equivalent.
+
 ### `tiger db save-password`
 
 Save the password for a {C.SERVICE_SHORT} to the keychain.
@@ -961,7 +992,7 @@ tiger db save-password <name-or-id> --password=<password>
 You see:
 
 ```txt
-Password saved successfully for service <service-id> (role: tsdbadmin)
+Password saved for service 'analytics' (<service-id>), role tsdbadmin
 ```
 
 | Flag | Description |
@@ -1013,9 +1044,11 @@ Install and manage {C.MCP_LONG}, the tool your AI agent uses to work with {C.CLO
 
 ### `tiger mcp install`
 
-Install and configure {C.MCP_LONG} for an AI agent. Supported clients: `claude-code`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `vscode`, `windsurf`, `antigravity`, `kiro-cli`. If no client is given, you are prompted to choose. Alias: `add`.
+Install and configure {C.MCP_LONG} for an AI agent. Supported clients: `claude-code`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `vscode`, `antigravity`, `kiro-cli`. If no client is given, you are prompted to choose. Alias: `add`.
 
-The `copilot` client configures the GitHub Copilot CLI, and the GitHub Copilot desktop app picks up the same configuration.
+The `copilot` client configures the GitHub Copilot CLI, and the GitHub Copilot desktop app picks up the same configuration. The `antigravity` client writes to `~/.gemini/config/`, which Antigravity 2.0, the Antigravity IDE, and the Antigravity CLI all read. Before {C.CLI_LONG} 0.27, it wrote to `~/.gemini/antigravity/mcp_config.json`, which only the IDE reads.
+
+To give your agent the same skills {C.MCP_LONG} serves as local files it loads directly, see [`tiger skills install`](#tiger-skills-install).
 
 **Usage**: `tiger mcp install [client] [flags]`
 
@@ -1054,9 +1087,13 @@ You see something like:
 │ prompt │ postgres                               │
 │ prompt │ postgres-database-migration            │
 │ prompt │ postgres-hybrid-text-search            │
+│ prompt │ schema-exploration                     │
 │ prompt │ setup-timescaledb-hypertables          │
+│ prompt │ timescaledb-hyperfunctions             │
+│ tool   │ db_extensions_list                     │
 │ tool   │ db_query                               │
 │ tool   │ db_schema                              │
+│ tool   │ feedback                               │
 │ tool   │ search_docs                            │
 │ tool   │ service_create                         │
 │ tool   │ service_delete                         │
@@ -1141,7 +1178,56 @@ The server starts listening for JSON-RPC requests on stdio (or HTTP, with the `h
 | Transport | Description |
 | --- | --- |
 | `stdio` | stdio transport (default). |
-| `http` | HTTP transport, with `--port` (default: `8080`) and `--host` (default: `localhost`). If the port is busy, the server picks an available one. |
+| `http` | HTTP transport, with `--port` (default: `8080`) and `--host` (default: `localhost`). If the port is already in use, the server fails to start. |
+
+Before {C.CLI_LONG} 0.27, the `http` transport silently moved to the next free port when the requested one was busy, which left MCP clients configured for that port unable to connect.
+
+## Skills
+
+Install the skills {C.MCP_LONG} serves, such as `setup-timescaledb-hypertables` and `design-postgres-tables`, as local agent skills. Coding agents that support skills then load them natively, without going through {C.MCP_SHORT}. Skills come from the open source [pg-aiguide](https://github.com/timescale/pg-aiguide) project.
+
+### `tiger skills install`
+
+Install agent skills for the current user. Alias: `add`.
+
+**Usage**: `tiger skills install [location...] [flags]`
+
+```bash
+tiger skills install universal claude-code
+```
+
+You see something like:
+
+```txt
+Installed 11 skills:
+  design-postgis-tables
+  design-postgres-tables
+  ...
+
+Installed to:
+  /Users/<user>/.agents/skills
+  /Users/<user>/.claude/skills
+
+Restart your coding agents to load the new skills.
+```
+
+Each argument selects an install location, either by name or by the name of a client that reads it:
+
+| Location | Directory | Read by |
+| --- | --- | --- |
+| `universal` | `~/.agents/skills` | Cursor, Devin, Codex, Gemini CLI, VS Code, GitHub Copilot CLI |
+| `claude-code` | `~/.claude/skills` | Claude Code |
+| `antigravity` | `~/.gemini/config/skills` | Google Antigravity |
+| `kiro-cli` | `~/.kiro/skills` | Kiro CLI |
+
+The client names accepted by [`tiger mcp install`](#tiger-mcp-install) work here too: a client that reads `~/.agents/skills`, such as `cursor`, selects `universal`. With no arguments, you choose locations from an interactive picker, which starts with the locations you installed to before checked (`universal` on a first install).
+
+Re-run the command to update the skills to the current upstream version; skills that are no longer available are removed. Each skill is copied into each location, not symlinked, and `npx skills` can also find, manage, and remove skills installed this way. {C.CLI_LONG} never replaces a skill it did not install unless you pass `--force`.
+
+| Flag | Description |
+| --- | --- |
+| `--skills-dir` | Install into this directory only, instead of a named location. Not remembered for later installs. |
+| `--force` | Replace existing skills that {C.CLI_LONG} did not install. |
 
 ## Shell completion
 
