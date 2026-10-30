@@ -1,6 +1,6 @@
 ---
 title: Branch services
-description: Create lightweight, short-lived copies of a Fluid service for development, CI, and agents
+description: Create a short-lived copy of a Fluid service in about a minute, with its own compute and only the storage that differs
 products: [cloud]
 ---
 
@@ -8,67 +8,77 @@ import * as C from "@constants";
 import ForksVsBranches from "../../../../../../partials/_forks-vs-branches.mdx";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 
-A branch is a lightweight copy of a Fluid {C.SERVICE_SHORT}. It shares the primary {C.SERVICE_SHORT}'s storage and
-stores only the data that changes after it is created, so it is ready in a minute or two whatever the data size,
-and it costs a fraction of a fork. Branches are in public preview, on Fluid {C.SERVICE_SHORT}s only.
+A branch is an isolated copy of a Fluid {C.SERVICE_SHORT}. It starts from the {C.SERVICE_SHORT}'s current data,
+runs on its own compute, and stores only the data that differs from the {C.SERVICE_SHORT} it was created from. It is
+ready in about a minute whatever the data size. Changes on a branch never reach the {C.SERVICE_SHORT}. Branches are in
+public preview, on Fluid {C.SERVICE_SHORT}s only.
 
-A branch is a complete running {C.SERVICE_SHORT} with its own compute. Branch a production {C.SERVICE_SHORT} to give
-each developer or agent an isolated copy of real data, or to test every pull request against production data in CI.
-A branch of a production {C.SERVICE_SHORT} is writable. Changes on a branch never reach the primary.
+## Branches compared with forks
 
-Branches are built to be short-lived: create one, use it, delete it. For a long-lived, fully independent copy with
-high availability, backups, and point-in-time recovery, [fork the {C.SERVICE_SHORT}](../service-management/fork-services)
-instead.
+A [fork](../service-management/fork-services) is a full, independent {C.SERVICE_SHORT}. A branch is a lighter copy
+with fewer operations:
 
 <ForksVsBranches />
 
-## What a branch includes
-
-A branch runs on its own compute, with its own IOPS setting. You choose and change both the same way as for a
-{C.SERVICE_SHORT}: see [Manually change compute resources](../service-management/change-resources) and
-[Manage storage and tiering](/build/data-management/storage/manage-storage#configure-iops). It starts with the
-primary {C.SERVICE_SHORT}'s data as it is at creation, or as it was at a point in time within the last 30 days.
-
-A branch has no high-availability replicas, backups, or point-in-time recovery, and no environment setting: it is
-always treated as a development {C.SERVICE_SHORT}. It has its own connection string, shown on the branch's page in
-{C.CONSOLE}.
+A branch has three tabs in {C.CONSOLE}: `Overview`, `Explorer`, and `Operations`. Its `Operations` tab has two
+sections, `Compute and storage` and `Branch management`. Everything else a {C.SERVICE_SHORT} offers, such as high
+availability, read replicas, backups and point-in-time recovery, connectors, monitoring, exporters, database
+parameters, and upgrades, is not available on a branch. Create a fork when you need any of them.
 
 ## Create a branch
 
 <NumberedList>
 
-<NumberedItem title="Open the Branching page">
+<NumberedItem title="Open the Branches tab">
 
-In {C.CONSOLE}, select your Fluid {C.SERVICE_SHORT}, then click `Operations` > `Branching` > `Create a branch`.
+In {C.CONSOLE}, select your Fluid {C.SERVICE_SHORT}, click `Branches`, then click `Create new branch`.
 
 </NumberedItem>
 
-<NumberedItem title="Name the branch and choose the branch point">
+<NumberedItem title="Name the branch and choose its compute">
 
-Enter a name. Under `Branch point`, select `Use current data`, or `Point in time` and pick a date and time within
-the last 30 days.
+Enter a `Branch name`. It must be unique within the {C.SERVICE_SHORT}. Under `Compute / Memory`, choose the compute
+size for the branch. Under `I/O boost`, the IOPS are fixed at the base for that size; choose a larger size to get
+more.
 
 </NumberedItem>
 
 <NumberedItem title="Click `Create branch`">
 
-The branch is ready in a minute or two and appears in the list.
+The branch appears in the `Branches` table as `Queued`, then `Ready`, in about a minute. {C.CONSOLE} opens the
+branch's `Overview`.
 
 </NumberedItem>
 
 </NumberedList>
 
+## Connect to a branch
+
+The branch's `Overview` shows its connection string, compute, and IOPS under `Branch info`. The branch has its own
+host. To set a password for the branch without touching the {C.SERVICE_SHORT}'s credentials, click `Operations` >
+`Branch management` > `Reset password`.
+
 ## Manage branches
 
-`Operations` > `Branching` lists the {C.SERVICE_SHORT}'s branches with their diverged storage and status. The menu
-on each branch lets you rename it, delete it, or catch it up with the primary {C.SERVICE_SHORT}, which resets the
-branch to the primary's current data.
+To move between the {C.SERVICE_SHORT} and its branches, use the switcher next to the {C.SERVICE_SHORT} name at the
+top of the page. The {C.SERVICE_SHORT} is listed as `Main`; the switcher also lets you create a branch or a read
+replica set.
 
-To move between the primary {C.SERVICE_SHORT} and its branches, use the branch switcher next to the
-{C.SERVICE_SHORT} name at the top of the page.
+The `Branches` tab lists every branch with its status, `Compute / Memory`, `IOPS`, `Total storage`,
+`Pricing est. /mo`, and `Created` date. The menu on each row shows the project, {C.SERVICE_SHORT}, and branch IDs and
+lets you `Stop branch` or `Delete branch`.
+
+On the branch itself, `Operations` offers:
+
+- `Compute and storage`: change the branch's compute size and I/O boost, as for a {C.SERVICE_SHORT}.
+- `Branch management`:
+  - `Reset password`: resets the password for this branch only. Not available while the branch is stopped.
+  - `Stop branch`: turns the branch off until you start it again. The {C.SERVICE_SHORT} keeps running.
+  - `Delete branch`: deletes the branch and its data permanently. The {C.SERVICE_SHORT} and its data are
+    unaffected.
 
 ## Billing
 
-A running branch is billed by the minute for its compute, and for the storage that diverges from the primary
-{C.SERVICE_SHORT}. Stopping a branch stops the compute charge; the storage charge continues until you delete the
-branch.
+A branch's compute is billed by the minute while the branch is running. Storage is billed for the data that differs
+between the branch and the {C.SERVICE_SHORT}, not for a full copy, and that charge ends when you delete the branch.
+The `Branches` table shows a pricing estimate per month for each branch.
