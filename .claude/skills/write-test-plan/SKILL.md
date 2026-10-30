@@ -12,8 +12,9 @@ effort: high
 A plan is a bot-facing script of the flow the page documents. The tool runs it against the live
 Tiger Console and a real service, or, for a self-hosted page, against a throwaway EC2 box with
 TimescaleDB installed (see [Self-hosted pages](#self-hosted-pages)), or both when the page is tagged
-with both products (see [Pages tagged with both products](#pages-tagged-with-both-products)). A
-failing step means something on the page is wrong.
+with both products (see [Pages tagged with both products](#pages-tagged-with-both-products)). An
+install guide runs on a bare box that the plan's own steps install (see
+[Install-guide pages](#install-guide-pages)). A failing step means something on the page is wrong.
 
 **Read `src/components/TestPlan.astro` before writing anything.** It is the authoritative verb set
 and is kept current. This skill is the method, not the grammar.
@@ -245,8 +246,166 @@ reports one verdict per product.
   depends on the box's TimescaleDB. Runs are sequential; two collide on one Terraform state and one
   local port. Every SQL step red with no error text while shell steps pass is a stale tunnel holding
   the port: `lsof -nP -iTCP:55432`.
-- **Install, uninstall and upgrade pages get no plan here.** They need a bare box, which is a
-  separate flow.
+- **Install pages are a different substrate.** They need a bare box with nothing installed, and
+  the plan's own steps are the install: see [Install-guide pages](#install-guide-pages).
+
+## Install-guide pages
+
+An install guide is tested on a **bare box**: a fresh EC2 instance with nothing but the OS, where
+the plan's own steps install the database by running the guide's commands verbatim, as the box's
+default user, over a pseudo-terminal. There is no browser, no pre-installed TimescaleDB, and no
+tunnel until the install has produced a database. The method above still applies; this section is
+what changes. The tool's ADRs 0007 to 0011 in `doc-testing-tool/docs/adr` are the source of the
+rules below.
+
+### Where the plans live and how they are headed
+
+- **One block per unit, on the install page itself**, after the tabs, never in a distro partial.
+  The page imports the shared steps once, after the nested tabs, so no partial holds everything its
+  plan has to run. A unit is `(target, os, path)`, and two blocks may not claim the same unit.
+- **Header lines, before step 1:**
+  ```
+  target: self-hosted
+  machine: bare
+  os: ubuntu
+  path: docker-ha
+  needs: docker, psql
+  ```
+  `machine: bare` says the box has only the OS. `os:` is required with it and illegal without it,
+  and names the box only; the values are `ubuntu`, `debian`, `rocky`, `fedora`, `redhat`, `arch`.
+  `path:` is optional and names the reader's path when it is not "Linux, then the distro's tab":
+  `docker-ha`, `docker-light`, `kubernetes`. A Docker or Kubernetes block runs on `os: ubuntu`.
+  `needs:` is optional and names what the guide says you need and does not script: `docker`,
+  `psql`, `kubernetes`. The harness installs each before step 1 and the report lists the versions.
+  A distro plan declares nothing, so a guide that forgets to install the client still fails.
+- **Step 1 is `fork the service`**, as on every self-hosted plan. It means nothing extra on a bare
+  box, which is throwaway by itself.
+- **One version per distro.** The guide's branch for another release (`apt-key` for older
+  Ubuntu) is declared with `skip`, below, not run.
+
+### The contract: the reader's path, verbatim
+
+The lint cuts the reader's path out of the page after partials are inlined: the outer tab, the
+plan's tab, and the shared steps around them. Then it holds the plan to an exact contract, and
+`test-page` refuses the plan before any box is provisioned when it drifts.
+
+- **Every command in a `bash`, `sh` or `shell` fence on the path is run or skipped.** `run command:`
+  carries the command exactly as the page prints it, in the page's order. Equality is on the text:
+  a missing `sudo`, a changed flag, a reordered step, and an added command the page does not give
+  are each a finding. A `<placeholder>` on the page matches any value in the plan, because the
+  reader substitutes too.
+- **`skip \`<command>\`: <reason>` is the only way to leave a guide command out.** It is legal only
+  in a bare plan. Use it for an alternative to a step already run (a `docker run` variant that
+  reuses the container name, `docker exec … psql` for hosts without `psql`) and for another
+  version's branch. The lint reports a skip whose command is no longer on the page, or that the
+  plan also runs. Copy the command from the page, placeholders included.
+- **A line typed at the `postgres=#` prompt is a command.** It must trace to the page: inline code,
+  a line of a `sql` fence, or a shell fence. `answer \`postgres=#\` with \`\dx\`` is fine when the
+  page shows `\dx`; a `\q` the page never gives is `command not on page`. End a session the guide
+  never ends with `answer \`postgres=#\` with \`<Ctrl-D>\``, a key reply the lint does not check.
+- **Replies to other prompts are not commands.** `y`, `<Enter>`, a password: declared, not checked.
+- **A fence not tagged as shell is not read**, and a command inside one (`kubectl apply` in a `yaml`
+  fence, a `docker run` in an untagged fence) is a finding whose fix is on the page: tag the fence.
+  Fix the docs in the same PR as the plan.
+- **A heredoc's terminator must sit in column 0 as the reader copies it.** The lint dedents the
+  fence by its own opening indent and then reports a terminator that is still indented, because a
+  pasted command that never ends is a guide bug, whatever the plan's copy does. Fix the fence.
+- **The plan goes red on a guide bug, on purpose.** A missing `apt update`, a data folder the guide
+  never says to create, a stale CA path: do not add a step to work around it, because the step is
+  not on the page and the lint refuses it, and because a green run would hide the finding. The
+  red run is the finding. A workaround lives only in a dev fixture in the tool repo, labelled.
+
+### Transcribing a guide
+
+- **Read every tab of the page and pick the path first.** The lint names a tab label the page no
+  longer has as an error, so the plan's `os:` or `path:` must map to a label that exists.
+- **One `run command:` per logical command.** The lint joins `\` continuations and keeps a heredoc
+  through its terminator, so a multi-line page command is one step. Write a heredoc or a manifest
+  as `run command:` with a trailing colon and the body indented under the step; the body keeps its
+  lines' relative indentation, and the lint compares a heredoc body the same way. The redhat,
+  fedora and rocky blocks on the install page show the repo-file heredoc; the kubernetes block
+  shows YAML manifests.
+- **Follow every interactive command with its `answer` steps**, in the order the prompts appear.
+  The prompt text is the distro's, not the family's: apt on Debian asks `Continue? [Y/n]`, on
+  Ubuntu `Do you want to continue? [Y/n]`; `yum` and `dnf` without `-y` ask `Is this ok [y/N]:`
+  once per key import and once for the transaction, so the reply is `y` `each time`; `pacman` asks
+  `Proceed with installation? [Y/n]`. `timescaledb-tune` asks four prompts, and the last one,
+  `Is this okay? [(y)es/(s)kip/(q)uit]:`, repeats per settings category, so it is `each time`.
+  Interactive `psql` is a `run command:` followed by one `answer` per line typed at `postgres=#`.
+  The password dance is `\password postgres`, then `<PASSWORD>` twice, then `\q`; `<PASSWORD>` is
+  the one placeholder the box fills itself. A prompt nothing declared stalls the step and the
+  report names the text, so a first run on a new distro tells you what to declare.
+- **Model reader latency with `wait`, never a pause or a retry.** A reader takes seconds between
+  `docker run -d` and `psql`; a bot does not, and gets `connection refused` or `container not found`
+  for a reason no reader sees. The forms, bare only, limit 1 to 600 s, no default:
+  - `wait up to 120s for postgres in container \`timescaledb\`` polls `pg_isready` inside the
+    container and fails at once with the container's log if it exited.
+  - `wait up to 300s for postgres in pod \`timescaledb-0\`` does the same through `kubectl exec`.
+    Pod Ready is not postgres up when the manifest has no readiness probe.
+  - `wait up to 120s for pod \`test-pod\` ready` waits for the Ready condition of a pod that runs
+    no postgres, before the plan `exec`s into it.
+  The name must be a word on the reader's path; a pod is named `NAME-N` where the page names the
+  StatefulSet `NAME`. Put a `wait` right after the command that starts the thing and before the
+  first command that uses it. Size the limit from observed times with headroom: an image pull of
+  40 to 80 s wants 300 s, a container that is ready in 2 s wants 120 s.
+- **Prerequisites are `needs:` tokens, never plan steps.** Their install commands are not on the
+  page, so steps for them fail the lint. If the harness has no token for what the guide assumes,
+  that is a tool issue, not a plan workaround. A folder or file the guide's command needs and never
+  says to create is a guide gap, not a prerequisite: leave it red and fix the page.
+
+### Assertions on a bare box
+
+- **A distro plan asserts from the catalog** once the install has produced a database the tunnel
+  can reach: `expect rows: \`SELECT 1 FROM pg_extension WHERE extname = 'timescaledb'\`` as the last
+  step. It runs through the tunnel with the password the plan set.
+- **A container or pod plan asserts on the transcript** with `expect output contains \`text\``: a
+  plain case-sensitive substring of the output of the `run command:` above it, checked after that
+  command exits. The lint ties the text to the page two ways: it must appear in a non-shell fence
+  on the reader's path, and it must not be text the plan itself types for that command, since a
+  terminal echoes input. A substring is satisfied by a longer string that contains it, so assert on
+  a line only one row prints: the extension's description, not the name `timescaledb`, which the
+  toolkit row also contains. `expect rows:` does not fit here: the container's password is the
+  guide's literal and the tunnel's is the box's, and the reader's route is the transcript.
+- **A procedure that promises nothing gets no assertion**, and that is recorded. A Kubernetes tab
+  that never shows `\dx` or its output cannot carry either; its check is that the session reaches
+  `postgres=#`, then `<Ctrl-D>`. A pod that crashes after a step the page says nothing about is
+  invisible to the plan; it is a docs finding to raise, not something to assert.
+
+### Lint and run
+
+```bash
+cd ../doc-testing-tool
+node scripts/lint-plan.mjs "<install page url>"
+node scripts/slot.mjs status
+node scripts/test-page.mjs "<install page url>" --os ubuntu
+```
+
+- The lint on a bare plan reports: a plan command not on the page, a guide command neither run
+  nor skipped, a changed or reordered command, a stale skip, a command in a non-shell fence, an
+  indented heredoc terminator, a `wait` or `expect output` the path does not support, and
+  `procedure not covered` for a tab no block drives. Clean means the plan is the guide; it says
+  nothing about whether the guide works.
+- `--os <distro>` narrows the run to the blocks on that distro; there is no filter by `path:`, so
+  `--os ubuntu` runs the Ubuntu distro block and every Docker and Kubernetes block in turn, one box
+  each. A unit left out is "not run", never a pass.
+- The EC2 target is one slot. Check `slot.mjs status` first; a second run waits, then refuses.
+  A unit costs five to ten minutes, most of it boot, `needs:` installs and image pulls. Run it in
+  the background and read the report.
+- Before the first run on a machine: `terraform init` in `infra/`, `psql` on `PATH`, and the AWS
+  profile the tool expects. The tool refuses a stale provider lock before it provisions.
+- **Read the run as a reader would read the terminal.** The report carries each command's
+  transcript, the prompts answered, how long each `wait` waited, and what `needs:` installed. A red
+  step is the guide, the plan or the harness, and the transcript says which: a prompt nobody
+  declared is the plan, `container not found` straight after `kubectl run` is a missing `wait`,
+  `Unable to locate package` on a fresh image is the guide.
+
+### What is not scripted on an install page
+
+The page's other tabs are not gaps in a bare plan: each tab is its own block, and a tab whose
+`NumberedList` procedure no block drives is reported as `procedure not covered` until it has one.
+A sub-tab with no commands at all is nothing to test, and the tool lists it as such. A platform the
+harness cannot provision is a tool issue in the tool repo, not a plan workaround and not a
+`Not scripted:` entry; the install page carries no such list.
 
 ## Declaring what is not scripted
 
