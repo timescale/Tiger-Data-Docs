@@ -29,7 +29,7 @@ For more information, see [Kubernetes Namespaces](https://kubernetes.io/docs/con
 
 To manually set up a persistent volume and claim for self-hosted Kubernetes, run the following command:
 
-```yaml
+```shell
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -52,7 +52,7 @@ By default, the [{C.TIMESCALE_DB} HA Docker image](https://hub.docker.com/r/time
 default {C.PG} database, user and password. This image includes {C.TIMESCALE_DB} and {C.TOOLKIT_LONG}.
 To deploy {C.TIMESCALE_DB} on Kubernetes, run the following command:
 
- ```yaml
+ ```shell
  kubectl apply -f - <<EOF
  apiVersion: apps/v1
  kind: StatefulSet
@@ -97,7 +97,7 @@ To deploy {C.TIMESCALE_DB} on Kubernetes, run the following command:
 
 <NumberedItem title={`Allow applications to connect by exposing ${C.TIMESCALE_DB} within Kubernetes`}>
 
-```yaml
+```shell
 kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Service
@@ -132,28 +132,29 @@ kubectl create secret generic tigerdata-secret \
 <NumberedItem title={`Deploy an application that connects to ${C.TIMESCALE_DB}`}>
 
 ```shell
-   kubectl apply -f - <<EOF
-   apiVersion: apps/v1
-   kind: Deployment
-   metadata:
-     name: tigerdata-app
-   spec:
-     replicas: 1
-     selector:
-       matchLabels:
-         app: tigerdata-app
-     template:
-       metadata:
-         labels:
-           app: tigerdata-app
-       spec:
-         containers:
-         - name: tigerdata-container
-           image: postgres:latest
-           envFrom:
-             - secretRef:
-                 name: tigerdata-secret
-   EOF
+kubectl apply -f - <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tigerdata-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tigerdata-app
+  template:
+    metadata:
+      labels:
+        app: tigerdata-app
+    spec:
+      containers:
+      - name: tigerdata-container
+        image: postgres:latest
+        command: ["sleep", "infinity"]
+        envFrom:
+          - secretRef:
+              name: tigerdata-secret
+EOF
    ```
 
 </NumberedItem>

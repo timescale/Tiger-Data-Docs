@@ -460,3 +460,124 @@ needs: docker, psql
 11. skip `docker exec -it timescaledb psql -U postgres`: an alternative to step 6 for hosts without psql
 12. skip `docker run -d --name timescaledb -p 5432:5432 -v </your/data/dir>:/pgdata -e PGDATA=/pgdata -e POSTGRES_PASSWORD=password timescale/timescaledb:latest-pg18`: an alternative to step 4 that reuses the container name
 </TestPlan>
+
+<TestPlan>
+target: self-hosted
+machine: bare
+os: ubuntu
+path: kubernetes
+needs: kubernetes
+1. fork the service
+2. run command: `kubectl create namespace tigerdata`
+3. run command: `kubectl config set-context --current --namespace=tigerdata`
+4. run command:
+     kubectl apply -f - <<EOF
+     apiVersion: v1
+     kind: PersistentVolumeClaim
+     metadata:
+       name: tigerdata-pvc
+     spec:
+       accessModes:
+         - ReadWriteOnce
+       resources:
+         requests:
+           storage: 10Gi
+     EOF
+5. run command:
+     kubectl apply -f - <<EOF
+     apiVersion: apps/v1
+     kind: StatefulSet
+     metadata:
+       name: timescaledb
+     spec:
+       serviceName: timescaledb
+       replicas: 1
+       selector:
+         matchLabels:
+           app: timescaledb
+       template:
+         metadata:
+           labels:
+             app: timescaledb
+         spec:
+           containers:
+             - name: timescaledb
+               image: 'timescale/timescaledb-ha:pg18'
+               env:
+                 - name: POSTGRES_USER
+                   value: postgres
+                 - name: POSTGRES_PASSWORD
+                   value: postgres
+                 - name: POSTGRES_DB
+                   value: postgres
+                 - name: PGDATA
+                   value: /var/lib/postgresql/data/pgdata
+               ports:
+                 - containerPort: 5432
+               volumeMounts:
+                 - mountPath: /var/lib/postgresql/data
+                   name: tigerdata-storage
+           volumes:
+             - name: tigerdata-storage
+               persistentVolumeClaim:
+                 claimName: tigerdata-pvc
+     EOF
+6. wait up to 300s for postgres in pod `timescaledb-0`
+7. run command:
+     kubectl apply -f - <<EOF
+     apiVersion: v1
+     kind: Service
+     metadata:
+      name: timescaledb
+     spec:
+      selector:
+        app: timescaledb
+      ports:
+        - protocol: TCP
+          port: 5432
+          targetPort: 5432
+      type: ClusterIP
+     EOF
+8. run command:
+     kubectl create secret generic tigerdata-secret \
+     --from-literal=PGHOST=timescaledb \
+     --from-literal=PGPORT=5432 \
+     --from-literal=PGDATABASE=postgres \
+     --from-literal=PGUSER=postgres \
+     --from-literal=PGPASSWORD=postgres
+9. run command:
+     kubectl apply -f - <<EOF
+     apiVersion: apps/v1
+     kind: Deployment
+     metadata:
+       name: tigerdata-app
+     spec:
+       replicas: 1
+       selector:
+         matchLabels:
+           app: tigerdata-app
+       template:
+         metadata:
+           labels:
+             app: tigerdata-app
+         spec:
+           containers:
+           - name: tigerdata-container
+             image: postgres:latest
+             command: ["sleep", "infinity"]
+             envFrom:
+               - secretRef:
+                   name: tigerdata-secret
+     EOF
+10. run command:
+     kubectl run test-pod --image=postgres --restart=Never \
+     --env="PGHOST=$(kubectl get secret tigerdata-secret -o=jsonpath='{.data.PGHOST}' | base64 --decode)" \
+     --env="PGPORT=$(kubectl get secret tigerdata-secret -o=jsonpath='{.data.PGPORT}' | base64 --decode)" \
+     --env="PGDATABASE=$(kubectl get secret tigerdata-secret -o=jsonpath='{.data.PGDATABASE}' | base64 --decode)" \
+     --env="PGUSER=$(kubectl get secret tigerdata-secret -o=jsonpath='{.data.PGUSER}' | base64 --decode)" \
+     --env="PGPASSWORD=$(kubectl get secret tigerdata-secret -o=jsonpath='{.data.PGPASSWORD}' | base64 --decode)" \
+     -- sleep infinity
+11. wait up to 120s for pod `test-pod` ready
+12. run command: `kubectl exec -it test-pod -- bash -c "psql -h \$PGHOST -U \$PGUSER -d \$PGDATABASE"`
+13. answer `postgres=#` with `<Ctrl-D>`
+</TestPlan>
