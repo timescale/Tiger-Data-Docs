@@ -1,0 +1,111 @@
+---
+title: "Integrate DBine with Tiger Cloud"
+description: "Query, browse, and administer your database from a free, open-source desktop database manager"
+products: [cloud, self_hosted]
+integrationCategory: "query-administration"
+integrationPlatforms: ["aws", "azure", "self-hosted"]
+keywords: ["dbine integration","sql editor","database administration","query tool","desktop client","database management","open-source"]
+pageLabels: ["Vendor-provided"]
+sidebar:
+  label: "DBine"
+---
+
+import * as C from "@constants";
+
+import IntegrationPrereqs from '@partials/_prereqs-cloud-and-self.mdx';
+import ConnectionDetails from '@partials/_prereqs-connection-details.mdx';
+import { Prerequisites } from "@components/Prerequisites";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+
+import { Image } from "astro:assets";
+import imgDbineConnection from "../../../../assets/images/integrate/query-administration/integrations-dbine-connection.png";
+import imgDbineQueryResults from "../../../../assets/images/integrate/query-administration/integrations-dbine-query-results.png";
+
+[DBine](https://dbine.com) is a free, open-source (Apache 2.0) desktop database manager for Windows, macOS, and Linux. It has a SQL editor, an object explorer, query plans, schema compare, and a server monitor, and it works with 130+ databases and cloud services in the same window.
+
+This page explains how to integrate DBine with your {C.SERVICE_LONG}.
+
+In this integration guide, you:
+
+- Connect DBine to your {C.SERVICE_SHORT} with its {C.TIMESCALE_DB} connection type.
+- Browse your schema and run queries from the DBine editor.
+- See your {C.HYPERTABLE}s and background jobs in the DBine server monitor.
+
+<Prerequisites context="integration">
+<IntegrationPrereqs />
+<ConnectionDetails />
+
+- DBine installed. Download it from the [releases page](https://github.com/addlayer-io/dbine/releases).
+</Prerequisites>
+
+## Connect DBine to your service
+
+To connect to {C.CLOUD_LONG}:
+
+<NumberedList>
+  <NumberedItem title="Open the connection form">
+
+    In DBine, click `New connection` in the `Explorer`, then select `TimescaleDB` from the list of engines.
+
+  </NumberedItem>
+  <NumberedItem title="Configure the connection">
+
+    Fill in the connection name and use your [connection details](/integrate/find-connection-details) for the server, port, database, user, and password. New connections verify the server's certificate by default: the `SSL/TLS` tab sets `sslmode` to `verify-full`, which works with {C.CLOUD_LONG} as is.
+
+  </NumberedItem>
+  <NumberedItem title="Click `Test connection`, then `Save and connect`">
+
+    A successful test shows `Connection successful` and the server version. `Save and connect` saves the connection and opens it in the `Explorer`.
+
+    <Image src={imgDbineConnection} alt="DBine new connection form for TimescaleDB with the server, port, database, user, and password filled in, and Connection successful shown next to the Test connection button" />
+
+  </NumberedItem>
+</NumberedList>
+
+You have successfully integrated DBine with {C.CLOUD_LONG}.
+
+## Verify the integration
+
+<NumberedList>
+  <NumberedItem title="Browse the schema">
+
+    In the `Explorer`, expand the connection and the database, and then the `public` schema if your database has more than one. Your {C.HYPERTABLE}s are listed under `Tables` like regular tables, and continuous aggregates are listed under `Views`. The internal `_timescaledb_*` schemas are not shown. Expand a table to see its columns and their types, and its indexes.
+
+  </NumberedItem>
+  <NumberedItem title="Run a query against a hypertable">
+
+    Right-click the database and choose `New query`. Write a `SELECT` against one of your {C.HYPERTABLE}s, for example:
+
+    ```sql
+    SELECT time_bucket('1 day', c.time) AS day,
+           d.site,
+           round(avg(c.temperature)::numeric, 2) AS avg_temp,
+           round(max(c.temperature)::numeric, 2) AS max_temp,
+           round(avg(c.humidity)::numeric, 1) AS avg_humidity
+    FROM conditions c
+    JOIN devices d USING (device_id)
+    WHERE c.time >= '2026-10-17'
+    GROUP BY day, d.site
+    ORDER BY day, d.site;
+    ```
+
+    Click `Run`. The results grid shows the rows, and the status bar shows the row count and the execution time.
+
+    <Image src={imgDbineQueryResults} alt="DBine with the Explorer showing the conditions hypertable and its columns, and a time_bucket query with its 12-row result grid" />
+
+  </NumberedItem>
+  <NumberedItem title="Open the server monitor">
+
+    Right-click the connection and choose `Monitor`. Next to the sessions and database sizes, the monitor lists each {C.HYPERTABLE} with its number of chunks, its compression state, and its estimated size, and the background jobs with their schedule and last run.
+
+  </NumberedItem>
+</NumberedList>
+
+## Next steps
+
+<RelatedContentCards>
+  <RelatedContentCard title="DBeaver" description="Manage and query your data with a cross-platform SQL editor and administration tool" href="/integrate/query-administration/dbeaver" />
+  <RelatedContentCard title="pgAdmin" description="Query, visualize, and manage your database with an open-source administration tool" href="/integrate/query-administration/pgadmin" />
+  <RelatedContentCard title="Understand hypertables" description="Learn how TimescaleDB partitions a hypertable into chunks" href="/learn/hypertables/understand-hypertables" />
+</RelatedContentCards>
