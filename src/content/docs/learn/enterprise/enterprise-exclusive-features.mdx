@@ -16,61 +16,61 @@ own network. The sections below cover what it adds on top of {C.TDB_COMMUNITY}.
 
 ## Guided service provisioning
 
-Bringing up a production service is a workflow in the console. You enroll your servers, choose
-between a single-node service and a highly available one, and the console deploys {C.PG} with
-{C.TIMESCALE_DB}, connection pooling, and monitoring across every node. A preflight checks
-each target first, for resources, a supported operating system, and leftovers from an earlier
-install. Every service gets {C.TIMESCALE_DB} and {C.TOOLKIT_LONG}. Other extensions
-ship in the server packages: you pick them in the console, at creation or later, and the
-deploy installs them and holds their versions.
+You enroll your servers and choose a single node or a high-availability cluster. The console
+first checks each server: resources, operating system, and leftovers of an earlier install. Then
+it deploys {C.PG}, {C.TIMESCALE_DB}, {C.TOOLKIT_LONG}, PgBouncer, and monitoring. You can add
+other extensions when you create the service or later. The console keeps their versions until you
+upgrade the service.
 
 ## Automatic failover
 
-{C.PG} has no built-in automatic failover, so self-hosting it means wiring up Patroni yourself.
-A highly available {C.TDB_ENTERPRISE} service has it built in: several nodes behind an etcd
-consensus store, a replica promoted the moment the primary fails, and client traffic on a pooled
-endpoint that follows the primary, so applications carry on without knowing anything happened.
-For planned maintenance you trigger a switchover instead, a controlled promotion with minimal
-downtime.
+A high-availability service runs Patroni and etcd: on three servers, or on two servers and a
+separate etcd cluster. When the primary fails, a replica becomes the primary in about 40 seconds.
+Clients reconnect on the same endpoint. A write in progress fails, so the application must retry
+it. Replication is asynchronous, so the last commits before the failure can be lost.
+
+For planned maintenance, start a switchover. Writes stop for a few seconds.
 
 ## Backups and point-in-time recovery
 
-Backups run on pgBackRest. A single-node service keeps a local copy on its own server, and any
-service can add a remote copy on a dedicated backup server: that is the copy that survives the
-loss of a database server, and the only copy a highly available service has. Full and
-differential backups run on schedules you can change, the remote copy is scheduled by default,
-and a full backup runs as soon as a service is first deployed. Restores run from the console, to
-the latest backup or to any moment inside the verified backup coverage, and you can fork a new
-service from backups without touching the original.
+Backups use pgBackRest: full and differential backups on schedules that you can change.
+
+- A backup server keeps the copy that survives the loss of a database server. It is the only
+  copy of a high-availability service. Its schedules are on by default.
+- A single-node service can also keep a local copy on its own server. Its schedules are off by
+  default.
+- A full backup runs after the first deploy and after each restore.
+- You restore to the latest backup or to a point in time, in place or into a new service (a
+  fork).
 
 ## Networking without inbound ports
 
-The console reaches your servers over an encrypted mesh that each server joins with a single
-enrollment command. The server is the side that dials out, so there are no inbound ports to
-open. In a plant or operational technology network, where inbound access is not something you
-can negotiate, that is often what makes a deployment possible at all. A database server needs no
-internet access either: it gets its mesh agent, its database packages, and its clock from the
-console, which serves signed server packages and time over the mesh. Only the console host
-reaches out, to download the console image and the server packages and to activate a license,
-and an offline package built on another computer removes even that.
+Each server joins the private WireGuard mesh of the console with one enrollment command. The
+server connects out, so you open no inbound management ports on it. Applications connect to the
+database ports as usual.
+
+The database servers need no internet access. The console gives them the mesh agent, the
+database packages, and the time. Only the console host connects out: to download the console
+image and the server packages, to check licenses, and to check for updates. For a site with no
+internet access, see the
+[air-gapped install](https://enterprise.tigerdata.com/installation-airgapped).
 
 ## Built-in monitoring
 
-The console scrapes every database server and charts per-node CPU, memory, storage,
-transactions, disk, and connections, without you standing up a monitoring stack first. You can
-query the metrics engine directly, or federate the whole set into a Prometheus you already run,
-with starter dashboards if you keep your own Grafana on top. Alert rules on the same metrics
-notify Slack, Microsoft Teams, a webhook, or email once you add a destination, and a planned
-operation such as an upgrade, a restart, or a switchover silences the alerts it is expected to
-raise.
+The console collects the metrics of each server, with no monitoring stack to set up: CPU,
+memory, disk, transactions, and connections, kept 30 days by default.
+
+- Run PromQL queries through the console API, or federate the metrics into your own Prometheus.
+  Starter Grafana dashboards are available.
+- Alert rules notify Slack, Microsoft Teams, a webhook, or email. A planned upgrade, restart, or
+  switchover silences the alerts that it causes.
 
 ## Support
 
 {C.TDB_COMMUNITY} leans on community support. {C.TDB_ENTERPRISE} comes with commercial support
-from {C.COMPANY}.
-The console also gives you the evidence to open a ticket with: a diagnostic bundle covering
-service health, backup configuration, recent operations with their logs, and per-server
-hardware.
+from {C.COMPANY}. To open a ticket, download a support report from the console. It holds the
+service health, the backup configuration, the last operations with their logs, and the hardware
+of each server.
 
 ## Where to go next
 
