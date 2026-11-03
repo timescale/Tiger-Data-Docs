@@ -36,18 +36,8 @@ uses license files rather than online activation.
 
 ## Architecture
 
-| Part | Where it runs | What it does |
-|------|---------------|--------------|
-| Console | One Docker container on a Linux host | Web console, HTTP API, metrics (kept 30 days by default), alerts, audit log, and the private mesh of the servers |
-| Database servers | Your Linux servers, bare metal or virtual machines (VMs): Ubuntu 26.04 on x86_64 or aarch64 | {C.PG} with {C.TIMESCALE_DB}, PgBouncer, and pgBackRest. A high-availability service adds Patroni, etcd, and HAProxy |
-| Backup server (optional) | A separate enrolled server | The copy of the backups that survives the loss of a database server |
-
-- Users sign in with a local account (viewer, operator, or admin role, with optional two-factor
-  authentication) or through your identity provider with OpenID Connect (OIDC). The audit log
-  records each change, and you can export it.
-- A service is a single node or a high-availability cluster.
-- The console cannot take over a database that you already run. To move one in, replicate it
-  into a new service with [Livesync](https://enterprise.tigerdata.com/livesync).
+A {C.TDB_ENTERPRISE} install has three parts: the console, the database servers it manages, and an
+optional backup server.
 
 <ThemeImage
   light={systemOverviewLight}
@@ -55,13 +45,25 @@ uses license files rather than online activation.
   alt="System overview: a browser reaches the console container over HTTPS, the console reaches your database servers over the mesh to deploy, monitor and collect logs, and your applications connect to the database servers directly over PostgreSQL"
 />
 
+| Part | Where it runs | What it does |
+|------|---------------|--------------|
+| Console | One Docker container on a Linux host | Web console, HTTP API, metrics (kept 30 days by default), alerts, audit log, and the private mesh of the servers |
+| Database servers | Your Linux servers, bare metal or virtual machines (VMs): Ubuntu 26.04 on x86_64 or aarch64 | {C.PG} with {C.TIMESCALE_DB}, PgBouncer, and pgBackRest. A high-availability service adds Patroni, etcd, and HAProxy |
+| Backup server (optional) | A separate enrolled server | The copy of the backups that survives the loss of a database server |
+
 The console reaches the servers only over its private WireGuard mesh. Each server joins with one
 enrollment command and connects out to the console. The servers need no inbound management
 access and no internet access: a deploy installs from the signed server packages of the console.
 
-From the console, you schedule backups, restore to a point in time, fork a service, upgrade, and
-read metrics and logs. On a high-availability service, a replica becomes the primary
-automatically when the primary fails. For setup and step-by-step guides, see the
+A service is a single node or a high-availability cluster. From the console, you schedule
+backups, restore to a point in time, fork a service, upgrade, and read metrics and logs. On a
+high-availability service, a replica becomes the primary automatically when the primary fails.
+The console cannot take over a database that you already run: to move one in, replicate it into
+a new service with [Livesync](https://enterprise.tigerdata.com/livesync).
+
+Users sign in with a local account (viewer, operator, or admin role, with optional two-factor
+authentication) or through your identity provider with OpenID Connect (OIDC). The audit log
+records each change, and you can export it. For setup and step-by-step guides, see the
 [{C.TDB_ENTERPRISE} documentation](https://enterprise.tigerdata.com/).
 
 ## Licensing

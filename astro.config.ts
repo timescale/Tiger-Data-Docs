@@ -405,6 +405,7 @@ export default defineConfig({
               items: [
                 { label: "Compare Tiger Data products", link: "/get-started/feature-comparison" },
                 { label: "Cloud-exclusive features", link: "/get-started/cloud-exclusive-features" },
+                { label: "Enterprise-exclusive features", link: "/get-started/enterprise-exclusive-features" },
                 { label: "Compare TimescaleDB editions", link: "/get-started/choose-your-path/timescaledb-editions" },
               ],
             },
@@ -489,8 +490,8 @@ export default defineConfig({
               label: "Tiger Cloud",
               collapsed: true,
               items: [
-                { label: "Tiger Cloud", link: "/learn/tiger-cloud" },
-                { label: "Cloud-exclusive features", link: "/learn/tiger-cloud/cloud-exclusive-features" },
+                { label: "Meet Tiger Cloud", link: "/learn/tiger-cloud" },
+                { label: "Key differentiators", link: "/learn/tiger-cloud/cloud-exclusive-features" },
                 { label: "Tiger Cloud essentials", link: "/learn/tiger-cloud/tiger-cloud-essentials" },
               ],
             },
