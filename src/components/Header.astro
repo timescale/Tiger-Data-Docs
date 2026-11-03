@@ -21,6 +21,7 @@ import MobileNavTabLinks from "./MobileNavTabLinks.astro";
 import NavTabsWithDropdown from "./NavTabsWithDropdown.astro";
 import SplashMobileMenuToggle from "./SplashMobileMenuToggle.astro";
 import HeaderSearchBar from "./HeaderSearchBar.astro";
+import Banner from "./Banner.astro";
 
 interface Props {
   /** When false, hides the search bar. Defaults to true so search shows on all pages. */
@@ -33,6 +34,7 @@ const { hasSidebar } = Astro.locals.starlightRoute || { hasSidebar: false };
 const showMobileTabStrip = TABS.length > 0;
 ---
 
+<Banner />
 <div
   class:list={[
     "header",
@@ -450,6 +452,18 @@ const showMobileTabStrip = TABS.length > 0;
       --sl-nav-height: 56px;
     }
 
+    /* stainless-api/docs's page.css grid hard-fixes the header row to --stl-nav-height
+       (NOT --sl-nav-height, despite the name - that one only affects scroll-padding),
+       and the banner shares that same box with the nav row above - without adding its
+       own footprint here, the banner compresses the nav row instead of the box growing
+       to fit both. More specific than the plain :root rule above (two pseudo-classes vs.
+       one), so it wins regardless of source order. Keep in sync with Banner.astro's
+       min-height/margin and the equivalent mobile rule in header.css. */
+    :root:has(.tiger-banner) {
+      --stl-nav-height: calc(56px + 40px + 1rem);
+      --sl-nav-height: calc(56px + 40px + 1rem);
+    }
+
     header.header {
       display: flex;
       flex-direction: row;
@@ -564,6 +578,11 @@ const showMobileTabStrip = TABS.length > 0;
         @media (min-width: 50rem) {
           :root {
             --sl-nav-height: 56px;
+          }
+
+          :root:has(.tiger-banner) {
+            --stl-nav-height: calc(56px + 40px + 1rem);
+            --sl-nav-height: calc(56px + 40px + 1rem);
           }
         }
       `}
