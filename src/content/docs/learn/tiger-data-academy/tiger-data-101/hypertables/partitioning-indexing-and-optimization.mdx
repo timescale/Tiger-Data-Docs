@@ -1,0 +1,121 @@
+---
+title: Partitioning, Indexing & Optimization
+description: Master hypertable performance tuning
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+import { KnowledgeCheck } from '@components/KnowledgeCheck';
+
+<div style="background: #f5f3ff; border-left: 3px solid #4f6bed; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; border-radius: 4px;">
+  **Tiger Data 101** → TimescaleDB | **Section:** Hypertables | **⏱ Time:** ~3 min
+</div>
+
+## Partitioning strategies
+
+### Time-based partitioning (default)
+
+TimescaleDB automatically partitions by time. This is the core optimization: queries with time filters skip irrelevant chunks entirely.
+
+### Space-based partitioning (optional)
+
+For high-cardinality data (thousands of unique devices, sensors, or users), add a second dimension:
+
+```sql
+SELECT create_hypertable(
+  'sensor_readings',
+  by_range('time', INTERVAL '1 day'),
+  by_hash('device_id', 4)  -- 4 sub-partitions per time chunk
+);
+```
+
+This creates a 2D grid: time chunks are further split by device ID, keeping each sub-chunk smaller and more queryable.
+
+---
+
+## Indexing hypertables
+
+Effective indexes dramatically speed up queries. Best practices:
+
+1. **Time + tag index** (most common):
+   ```sql
+   CREATE INDEX ON sensor_readings (device_id, time DESC);
+   ```
+
+2. **Measure column** (for range queries on values):
+   ```sql
+   CREATE INDEX ON sensor_readings (temperature) WHERE temperature > 30;
+   ```
+
+---
+
+## Optimization techniques
+
+- **Chunk exclusion**: Queries automatically skip chunks outside the filter range
+- **Compression**: Older chunks can be compressed to 10–40x smaller
+- **Retention policies**: Automatically drop chunks older than your retention window
+- **Continuous Aggregates**: Pre-compute expensive aggregations
+
+---
+
+## Knowledge check
+
+<KnowledgeCheck client:load
+  questions={[
+    {
+      id: 'hyper-opt-q1',
+      text: 'When you query a hypertable with a time filter (e.g., `WHERE time > NOW() - INTERVAL \'7 days\'`), what optimization does TimescaleDB apply automatically?',
+      answers: [
+        { label: 'It scans all chunks in parallel for maximum throughput', correct: false },
+        { label: 'It only reads the chunks that overlap with the time range (chunk exclusion)', correct: true },
+        { label: 'It decompresses matching rows before returning them', correct: false },
+        { label: 'It routes the query only to the most recently written chunk', correct: false },
+      ],
+      explanation: 'TimescaleDB uses chunk exclusion to skip all chunks whose time range does not overlap the query filter, so only relevant data is scanned.',
+      resources: [
+        { title: 'What is a Hypertable?', url: '/learn/tiger-data-academy/tiger-data-101/hypertables/what-is-a-hypertable', type: 'docs' },
+      ],
+    },
+    {
+      id: 'hyper-opt-q2',
+      text: 'Which function call converts an existing PostgreSQL table into a hypertable?',
+      answers: [
+        { label: 'ALTER TABLE ... ENABLE TIMESCALE', correct: false },
+        { label: 'partition_table_by_time()', correct: false },
+        { label: 'create_hypertable()', correct: true },
+        { label: 'SET timescaledb.hypertable = true', correct: false },
+      ],
+      explanation: '`create_hypertable(\'table_name\', by_range(\'time\'))` converts a regular table into a hypertable.',
+      resources: [
+        { title: 'Creating Your First Hypertable', url: '/learn/tiger-data-academy/tiger-data-101/hypertables/creating-your-first-hypertable', type: 'docs' },
+      ],
+    },
+    {
+      id: 'hyper-opt-q3',
+      text: 'By default, TimescaleDB automatically partitions hypertables along which dimension?',
+      answers: [
+        { label: 'Row count (chunk when N rows are reached)', correct: false },
+        { label: 'Primary key range', correct: false },
+        { label: 'Time', correct: true },
+        { label: 'Alphabetical order of the first indexed column', correct: false },
+      ],
+      explanation: 'Time is the primary partitioning dimension; a second dimension (e.g., device ID) can be added for space partitioning.',
+      resources: [
+        { title: 'What is a Hypertable?', url: '/learn/tiger-data-academy/tiger-data-101/hypertables/what-is-a-hypertable', type: 'docs' },
+      ],
+    },
+  ]}
+/>
+
+---
+
+<div style="background: linear-gradient(135deg, #4f6bed 0%, #667eea 100%); border-radius: 8px; padding: 20px; margin: 28px 0; color: white; box-shadow: 0 4px 12px rgba(79, 107, 237, 0.15);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+    <span style="font-size: 20px;">→</span>
+    <span style="font-weight: 700; font-size: 16px;">NEXT MODULE</span>
+  </div>
+  <a href="/learn/tiger-data-academy/tiger-data-101/hypercore/row-based-vs-columnar-storage" style="color: #e0e7ff; text-decoration: none; font-weight: 500; display: block; font-size: 15px;">
+    **Hypercore** — Learn about columnar storage and compression for dramatic storage savings.
+  </a>
+</div>
+
