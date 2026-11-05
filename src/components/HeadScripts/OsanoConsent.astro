@@ -1,0 +1,79 @@
+---
+/**
+ * Plumbing that lets other non-essential third-party scripts react to the visitor's
+ * Osano consent choice. Osano itself is loaded by the "Osano Consent Manager" tag in
+ * GTM (not by this file) — this only waits for whatever that tag produces:
+ *
+ *  - Exposes `window.__onOsanoConsent(callback)`: calls `callback({analytics, marketing,
+ *    personalization})` once Osano resolves, and again every time the visitor changes
+ *    their choice. PostHogAnalytics.astro and TwitterPixel.astro subscribe to this
+ *    instead of each re-implementing Osano's async init/polling. If Osano never loads
+ *    (GTM tag misconfigured, blocked, etc.) the callback simply never fires — fails
+ *    safe toward less tracking, not more.
+ *  - Mirrors consent into Google Consent Mode v2 (`gtag('consent', 'update', ...)`) so
+ *    GTM-managed tags respect the same choice. The *default* (deny-all) consent state is
+ *    set in astro.config.ts, before GTM's own script tag, so GTM never fires a tag before
+ *    a default exists — this script only updates that state once Osano has an answer.
+ */
+---
+
+<script is:inline>
+  (function () {
+    var listeners = [];
+    var lastState = null;
+    var boundCm = null;
+
+    function notify() {
+      var cm = window.Osano && window.Osano.cm;
+      if (!cm) return;
+      lastState = {
+        analytics: Boolean(cm.analytics),
+        marketing: Boolean(cm.marketing),
+        personalization: Boolean(cm.personalization),
+      };
+      listeners.forEach(function (fn) {
+        fn(lastState);
+      });
+    }
+
+    // Osano.cm isn't available immediately after GTM's tag loads it — it initializes
+    // asynchronously. Worse: `window.Osano.cm` gets replaced with a new object partway
+    // through init (confirmed empirically — a stub, then the real instance), so binding
+    // listeners once and stopping would silently orphan them the moment that swap
+    // happens. Keep checking for a new reference indefinitely instead; the check itself
+    // is a cheap object-identity comparison, re-binding only runs on an actual swap.
+    function ensureBound() {
+      var cm = window.Osano && window.Osano.cm;
+      if (!cm || cm === boundCm) return;
+      if (boundCm) {
+        boundCm.removeEventListener("osano-cm-initialized", notify);
+        boundCm.removeEventListener("osano-cm-consent-saved", notify);
+      }
+      cm.addEventListener("osano-cm-initialized", notify);
+      cm.addEventListener("osano-cm-consent-saved", notify);
+      boundCm = cm;
+      notify();
+    }
+
+    ensureBound();
+    setInterval(ensureBound, 250);
+
+    window.__onOsanoConsent = function (callback) {
+      if (lastState) callback(lastState);
+      listeners.push(callback);
+    };
+
+    window.__onOsanoConsent(function (state) {
+      if (typeof window.gtag !== "function") return;
+      window.gtag("consent", "update", {
+        analytics_storage: state.analytics ? "granted" : "denied",
+        ad_storage: state.marketing ? "granted" : "denied",
+        ad_user_data: state.marketing ? "granted" : "denied",
+        ad_personalization: state.marketing ? "granted" : "denied",
+        functionality_storage: state.personalization ? "granted" : "denied",
+        personalization_storage: state.personalization ? "granted" : "denied",
+        security_storage: "granted",
+      });
+    });
+  })();
+</script>

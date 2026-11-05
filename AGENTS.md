@@ -59,7 +59,7 @@ Key overrides and components in `src/components/`:
 - `Callout.astro`: custom styled callout, exported with other project-owned MDX components from `src/components/docs-components.ts`.
 - `Header.astro`, `Footer.astro`, `PageTitle.astro`, `PageNavigation.astro`: Starlight overrides.
 - `PageSidebar.astro` + `LearnMore.astro`: right-rail "Learn more" card driven by per-page frontmatter (`learnMore:` block). Auto-hides when absent. Full authoring guide: [`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md). Prefer this over one-off "related content" patterns.
-- `NumberedList.astro` / `NumberedList.tsx` / `NumberedItem`: ordered step components for procedures.
+- `NumberedList.ts` (re-exporting `numbered-list/NumberedList.astro` and `numbered-list/NumberedItem.astro`): ordered step components for procedures. Astro, not React, on purpose: a React island strips the Expressive Code stylesheet from code blocks inside it.
 - `AuthorByline.astro`, `SinceRelease.astro`, `ChangelogEntry.astro` (plus `ChangelogFilter`/`ChangelogTag`), `Glossary/`, `IntegrateOverview.astro`, `IntegrateToc/`, `BuildToc/`, `HeaderSearchBar.astro`.
 - React `.tsx` components for interactive pieces: `CopyToClipboard`, `Prerequisites`.
 
@@ -221,5 +221,4 @@ Deeper, authoritative guides in the repo. Prefer these over re-deriving conventi
 - [`.claude/references/deprecated-compression-apis.md`](./.claude/references/deprecated-compression-apis.md): the deprecated-to-current compression API mapping.
 - `src/content/docs/get-started/contributing.mdx`: the human-facing contributor and writing-style guide.
 - [`.github/templates/template-tutorial.mdx`](./.github/templates/template-tutorial.mdx): starting-point MDX for a new tutorial (copy into a content directory). The `write-docs-tutorial` skill builds on it.
-- [`README-statsig.md`](./README-statsig.md): the Statsig analytics integration (inline script in `astro.config.ts` between the `BEGIN STATSIG`/`END STATSIG` markers, `PUBLIC_STATSIG_CLIENT_KEY` env var), and the checklist to remove it. Read this before touching the `head[]` block or analytics env vars.
 - **Changelog**: add an entry by editing `src/content/docs/get-started/news/new.mdx`, following the structure in [`README-changelog.md`](./README-changelog.md). Write product names as literal strings, not `{C.X}` constants (see [Constants system](#constants-system-critical)).

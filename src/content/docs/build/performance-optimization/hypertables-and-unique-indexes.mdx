@@ -9,6 +9,7 @@ import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import CreateHypertablePolicyNote from "../../../../partials/_create-hypertable-columnstore-policy-note.mdx";
+import TestPlan from "@components/TestPlan.astro";
 
 You use unique indexes on a {C.HYPERTABLE} to enforce [constraints](https://www.postgresql.org/docs/current/ddl-constraints.html). If you have a primary key,
 you have a unique index. In {C.PG}, a primary key is a unique index with a `NOT NULL` constraint.
@@ -111,7 +112,7 @@ CREATE TABLE another_hypertable_example(
 For example, on `device_id` and `time`:
 
 ```sql
-CREATE UNIQUE INDEX idx_deviceid_time
+CREATE UNIQUE INDEX idx_another_deviceid_time
   ON another_hypertable_example(device_id, time);
 ```
 
@@ -131,8 +132,42 @@ CREATE UNIQUE INDEX idx_deviceid_time
    SELECT * FROM add_dimension('another_hypertable_example', by_hash('device_id', 4));
    ```
 
-You get an error if you try to turn the relational table into a {C.HYPERTABLE} partitioned by `time` and `user_id`.
+You get an error if you try to turn the relational table into a {C.HYPERTABLE} partitioned by `time` and `user_id`:
+
+```sql
+SELECT * FROM add_dimension('another_hypertable_example', by_hash('user_id', 4));
+```
+
+```
+ERROR:  cannot create a unique index without the column "user_id" (used in partitioning)
+```
+
 This is because `user_id` is not part of the `UNIQUE INDEX`. To fix the error, add `user_id` to your unique index.
 
 </NumberedItem>
 </NumberedList>
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE hypertable_example(time TIMESTAMPTZ, user_id BIGINT, device_id BIGINT, value FLOAT) WITH (tsdb.hypertable, tsdb.segmentby = 'device_id', tsdb.orderby = 'time DESC');`
+5. expect rows: `SELECT 1 FROM timescaledb_information.dimensions WHERE hypertable_name = 'hypertable_example' AND column_name = 'time'`
+6. expect rows: `SELECT 1 FROM timescaledb_information.jobs j WHERE j.proc_name = 'policy_compression' AND j.hypertable_name = 'hypertable_example' AND (j.config->>'compress_after')::interval = (SELECT time_interval FROM timescaledb_information.dimensions WHERE hypertable_name = 'hypertable_example' AND column_name = 'time')`
+7. run SQL: `CREATE UNIQUE INDEX idx_deviceid_time ON hypertable_example(device_id, time);`
+8. run SQL: `CREATE UNIQUE INDEX idx_userid_deviceid_time ON hypertable_example(user_id, device_id, time);`
+9. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'hypertable_example' AND indexname IN ('idx_deviceid_time', 'idx_userid_deviceid_time') AND indexdef LIKE 'CREATE UNIQUE INDEX%' HAVING count(*) = 2`
+10. run SQL: `CREATE TABLE another_hypertable_example(time TIMESTAMPTZ, user_id BIGINT, device_id BIGINT, value FLOAT);`
+11. run SQL: `CREATE UNIQUE INDEX idx_another_deviceid_time ON another_hypertable_example(device_id, time);`
+12. run SQL: `SELECT * from create_hypertable('another_hypertable_example', by_range('time'));`
+13. expect rows: `SELECT 1 FROM timescaledb_information.dimensions WHERE hypertable_name = 'another_hypertable_example' AND column_name = 'time' HAVING count(*) = 1`
+14. run SQL: `DROP TABLE another_hypertable_example;`
+15. run SQL: `CREATE TABLE another_hypertable_example(time TIMESTAMPTZ, user_id BIGINT, device_id BIGINT, value FLOAT);`
+16. run SQL: `CREATE UNIQUE INDEX idx_another_deviceid_time ON another_hypertable_example(device_id, time);`
+17. run SQL: `SELECT * FROM create_hypertable('another_hypertable_example', by_range('time'));`
+18. run SQL: `SELECT * FROM add_dimension('another_hypertable_example', by_hash('device_id', 4));`
+19. expect rows: `SELECT 1 FROM timescaledb_information.dimensions WHERE hypertable_name = 'another_hypertable_example' AND column_name = 'device_id' AND dimension_type = 'Space' AND num_partitions = 4`
+20. expect error containing `unique index`: `SELECT * FROM add_dimension('another_hypertable_example', by_hash('user_id', 4));`
+</TestPlan>
