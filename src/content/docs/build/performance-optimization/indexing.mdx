@@ -18,6 +18,7 @@ learnMore:
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import CreateHypertablePolicyNote from "../../../../partials/_create-hypertable-columnstore-policy-note.mdx";
+import TestPlan from "@components/TestPlan.astro";
 
 Indexes shrink scan work for point lookups and selective filters. {C.TIMESCALE_DB} uses two complementary mechanisms:
 
@@ -90,6 +91,8 @@ CREATE TABLE devices (
      device_type int,
      store_id int,
      value float
+) WITH (
+     tsdb.hypertable
 );
 ```
 
@@ -246,6 +249,7 @@ CREATE TABLE metrics (
   time TIMESTAMPTZ NOT NULL,
   device_id INT NOT NULL,
   region TEXT,
+  host TEXT,
   cpu DOUBLE PRECISION,
   PRIMARY KEY (time, device_id)
 ) WITH (
@@ -262,7 +266,7 @@ CREATE TABLE metrics (
 - **Single-column bloom on a `tsdb.orderby` column**: not allowed. The orderby column gets an implicit sparse index automatically; use that for range filters. A composite `bloom(orderby_col, other_col)` that includes the orderby column **is** allowed.
 - **Minmax on `tsdb.segmentby` columns**: not allowed.
 - **Minmax on a `tsdb.orderby` column**: accepted, but on 2.28.0 and later it replaces the orderby column's automatic `firstlast` index with a legacy `minmax` one. Leave it unset unless you specifically need `minmax` there.
-- **One single-column sparse index per column**: you cannot have two indexes on the same single column (`bloom(region), minmax(region)` is rejected). Composite indexes are not affected by this rule (`bloom(region, dev), bloom(dev)` is valid).
+- **One single-column sparse index per column**: you cannot have two indexes on the same single column (`bloom(cpu), minmax(cpu)` is rejected). Composite indexes are not affected by this rule (`bloom(device_id, host), bloom(device_id)` is valid).
 
 ### Composite bloom filters
 
@@ -272,7 +276,7 @@ For known multi-column query patterns, you can also configure an explicit compos
 
 ```sql
 ALTER TABLE metrics SET (
-  timescaledb.sparse_index = 'bloom(region, device)'
+  timescaledb.sparse_index = 'bloom(device_id, host)'
 );
 ```
 
@@ -280,13 +284,72 @@ You can mix single-column and composite bloom indexes on the same {C.HYPERTABLE}
 
 ### Verify with EXPLAIN
 
-`EXPLAIN ANALYZE` exposes counters for sparse-index pruning. For `SELECT`, `UPDATE`, and `DELETE`:
+`EXPLAIN ANALYZE` shows sparse-index pruning differently for writes and reads.
 
-- **Compressed batches filtered** — batches skipped by sparse indexes without moving them back to the {C.ROWSTORE}.
-- **Batches filtered after decompression** — batches that had to be processed before being filtered out.
+For `UPDATE`, `DELETE`, and `INSERT ... ON CONFLICT`, the `ModifyHypertable` node prints counters. A counter that is zero is left out:
 
-For `UPSERT`, additional bloom-specific counters:
+- **Batches scanned**: the {C.COLUMNSTORE} batches the statement looked at.
+- **Compressed batches filtered**: batches skipped by sparse indexes without moving them back to the {C.ROWSTORE}.
+- **Batches filtered after decompression**: batches that had to be moved back to the {C.ROWSTORE} before being filtered out.
+- **Batches decompressed** and **Tuples decompressed**: what was moved back to the {C.ROWSTORE}.
+- **Batches checked by bloom**, **Batches pruned by bloom**, **Batches without bloom**, **Batches bloom false positives**: how the bloom indexes did.
 
-- **Batches checked by bloom**, **Batches pruned by bloom**, **Batches without bloom**, **Batches bloom false positives**.
+For `SELECT`, pruning shows on the scan of the compressed {C.CHUNK} under the `ColumnarScan` node. Its `Filter` names the sparse-index metadata, such as `_ts_meta_v2_bloomh_device_id` or `_ts_meta_v2_max_cpu`, and its `Rows Removed by Filter` counts the batches it skipped, because each row of a compressed {C.CHUNK} is one batch. With `EXPLAIN (ANALYZE, VERBOSE)`, the `ColumnarScan` node also prints `Batches Removed by Filter`: batches that were moved back to the {C.ROWSTORE} and then rejected whole by the filter, which is the work a sparse index on that column would have saved.
 
-Use these to confirm bloom and minmax indexes are doing useful work for your workload. If `Compressed batches filtered` stays at zero on selective queries, your sparse indexes are not on the right columns.
+Use these to confirm bloom and minmax indexes are doing useful work for your workload. If a selective `UPDATE` or `DELETE` prints no `Compressed batches filtered`, or a selective `SELECT` removes no rows on the compressed {C.CHUNK} scan, your sparse indexes are not on the right columns.
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE devices (time timestamptz, device_id int, device_type int, store_id int, value float) WITH (tsdb.hypertable);`
+5. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'devices' AND indexdef LIKE '%("time" DESC)'`
+6. run SQL: `CREATE INDEX ON devices (store_id, device_id, time DESC);`
+7. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'devices' AND indexdef LIKE '%(store_id, device_id, "time" DESC)'`
+8. run SQL: `CREATE TABLE conditions (time TIMESTAMPTZ NOT NULL, location TEXT, device TEXT, humidity FLOAT) WITH (tsdb.hypertable, tsdb.partition_column = 'time', tsdb.chunk_interval = '1 day');`
+9. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'conditions' AND indexname = 'conditions_time_idx' AND indexdef LIKE '%("time" DESC)'`
+10. run SQL: `CREATE INDEX ON conditions (location, time DESC);`
+11. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'conditions' AND indexdef LIKE '%(location, "time" DESC)'`
+12. run SQL: `CREATE INDEX ON conditions (device) WITH (timescaledb.transaction_per_chunk);`
+13. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'conditions' AND indexdef LIKE '%(device)'`
+14. run SQL: `CREATE INDEX ON conditions (time DESC);`
+15. run SQL: `CREATE INDEX ON conditions (location, time DESC);`
+16. run SQL: `DROP TABLE conditions;`
+17. run SQL: `CREATE TABLE conditions (time TIMESTAMPTZ NOT NULL, location TEXT NOT NULL, device TEXT NOT NULL, temperature DOUBLE PRECISION NULL, humidity DOUBLE PRECISION NULL) WITH (tsdb.hypertable, tsdb.create_default_indexes=false);`
+18. expect no rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'conditions'`
+19. expect rows: `SELECT 1 FROM timescaledb_information.jobs j WHERE j.proc_name = 'policy_compression' AND j.hypertable_name = 'conditions' AND (j.config->>'compress_after')::interval = (SELECT time_interval FROM timescaledb_information.dimensions WHERE hypertable_name = 'conditions' AND column_name = 'time')`
+20. run SQL: `CREATE INDEX ON conditions (time DESC, humidity) WHERE humidity IS NOT NULL;`
+21. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'conditions' AND indexdef LIKE '%("time" DESC, humidity) WHERE (humidity IS NOT NULL)'`
+22. run SQL: `CREATE UNIQUE INDEX ON conditions (time, location);`
+23. expect error containing `used in partitioning`: `CREATE UNIQUE INDEX conditions_location_key ON conditions (location)`
+24. run SQL: `CREATE TABLE metrics (time TIMESTAMPTZ NOT NULL, device_id INT NOT NULL, region TEXT, host TEXT, cpu DOUBLE PRECISION, PRIMARY KEY (time, device_id)) WITH (tsdb.hypertable, tsdb.orderby = 'time DESC', tsdb.segmentby = 'region', tsdb.sparse_index = 'bloom(device_id), minmax(cpu)');`
+25. expect rows: `SELECT 1 FROM timescaledb_information.hypertable_columnstore_settings WHERE hypertable = 'metrics'::regclass AND index @> '[{"type": "bloom", "column": "device_id"}, {"type": "minmax", "column": "cpu"}, {"type": "firstlast", "column": "time"}]'`
+26. expect error containing `segmentby column "region"`: `ALTER TABLE metrics SET (tsdb.sparse_index = 'bloom(region)')`
+27. expect error containing `cannot have a bloom sparse index`: `ALTER TABLE metrics SET (tsdb.sparse_index = 'bloom(time)')`
+28. expect error containing `segmentby column "region"`: `ALTER TABLE metrics SET (tsdb.sparse_index = 'minmax(region)')`
+29. expect error containing `duplicate column name "cpu"`: `ALTER TABLE metrics SET (timescaledb.sparse_index = 'bloom(cpu), minmax(cpu)')`
+30. run SQL: `ALTER TABLE metrics SET (tsdb.sparse_index = 'minmax(time)');`
+31. expect no rows: `SELECT 1 FROM timescaledb_information.hypertable_columnstore_settings WHERE hypertable = 'metrics'::regclass AND index @> '[{"type": "firstlast"}]'`
+32. run SQL: `ALTER TABLE metrics SET (timescaledb.sparse_index = 'bloom(device_id, host), bloom(device_id)');`
+33. expect rows: `SELECT 1 FROM timescaledb_information.hypertable_columnstore_settings WHERE hypertable = 'metrics'::regclass AND index @> '[{"type": "bloom", "column": ["device_id", "host"]}, {"type": "bloom", "column": "device_id"}, {"type": "firstlast", "column": "time"}]'`
+34. run SQL: `ALTER TABLE metrics SET (timescaledb.sparse_index = 'bloom(device_id, host)');`
+35. expect rows: `SELECT 1 FROM timescaledb_information.hypertable_columnstore_settings WHERE hypertable = 'metrics'::regclass AND index @> '[{"type": "bloom", "column": ["device_id", "host"]}]'`
+36. expect no rows: `SELECT 1 FROM timescaledb_information.hypertable_columnstore_settings WHERE hypertable = 'metrics'::regclass AND index @> '[{"type": "bloom", "column": "device_id"}]'`
+37. run SQL: `INSERT INTO metrics SELECT '2026-01-01 00:00:00+00'::timestamptz + i * INTERVAL '1 minute', i % 50, 'eu', 'host-' || (i % 7), i % 100 FROM generate_series(1, 20000) AS i;`
+38. run SQL: `DO $$ DECLARE chunk regclass; BEGIN FOR chunk IN SELECT show_chunks('metrics') LOOP CALL convert_to_columnstore(chunk); END LOOP; END $$;`
+39. expect no rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'metrics' AND NOT is_compressed`
+40. run SQL: `EXPLAIN ANALYZE UPDATE metrics SET cpu = 0 WHERE device_id = 7777 AND host = 'nope';`
+41. run SQL: `EXPLAIN (ANALYZE, VERBOSE) SELECT * FROM metrics WHERE host = 'nope';`
+42. run SQL: `CREATE FUNCTION plan_lines(query TEXT) RETURNS SETOF TEXT LANGUAGE plpgsql AS $f$ BEGIN RETURN QUERY EXECUTE 'EXPLAIN (ANALYZE, VERBOSE, COSTS OFF, TIMING OFF, SUMMARY OFF, BUFFERS OFF) ' || query; END $f$;`
+43. expect rows: `SELECT 1 FROM plan_lines($q$UPDATE metrics SET cpu = 0 WHERE device_id = 7777 AND host = 'nope'$q$) AS line WHERE line LIKE '%Compressed batches filtered: %' AND line NOT LIKE '%: 0'`
+44. expect rows: `SELECT 1 FROM plan_lines($q$UPDATE metrics SET cpu = 0 WHERE device_id = 7777 AND host = 'nope'$q$) AS line WHERE line LIKE '%Batches pruned by bloom: %' AND line NOT LIKE '%: 0'`
+45. expect rows: `SELECT 1 FROM plan_lines($q$SELECT * FROM metrics WHERE device_id = 7777 AND host = 'nope'$q$) AS line WHERE line LIKE '%Filter: %_ts_meta_v2_bloomh_%'`
+46. expect rows: `SELECT 1 FROM plan_lines($q$SELECT * FROM metrics WHERE device_id = 7777 AND host = 'nope'$q$) AS line WHERE line LIKE '%Rows Removed by Filter: %' AND line NOT LIKE '%: 0'`
+47. expect rows: `SELECT 1 FROM plan_lines($q$SELECT * FROM metrics WHERE host = 'nope'$q$) AS line WHERE line LIKE '%Batches Removed by Filter: %' AND line NOT LIKE '%: 0'`
+
+Not scripted:
+- Choose effective index columns: the two blocks picture how an index is ordered; they are not statements.
+- Composite indexes: the four example queries use placeholder values (`x`, `M`, `10`).
+</TestPlan>
