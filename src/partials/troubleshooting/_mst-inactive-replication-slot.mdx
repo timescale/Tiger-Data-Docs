@@ -1,0 +1,79 @@
+{/* Adapted from Aiven's "Manage inactive or lagging replication slots",
+    https://github.com/aiven/aiven-docs/blob/main/docs/products/postgresql/howto/setup-logical-replication.md
+    Apache-2.0. MST runs on Aiven, so the platform behavior described there applies. */}
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+## Manage inactive or lagging replication slots
+
+An inactive or lagging replication slot makes {C.PG} keep write-ahead log (WAL)
+files until the slot's consumer reads them. Disk usage then grows without any
+growth in the data itself. When the disk fills, the {C.MST_SERVICE_SHORT} stops
+serving clients.
+
+<NumberedList>
+
+<NumberedItem title="Check the replication slots">
+
+Connect to the service with `psql` and run:
+
+```sql
+SELECT slot_name, restart_lsn FROM pg_replication_slots;
+```
+
+The output looks like this:
+
+```text
+slot_name     │ restart_lsn
+──────────────┼─────────────
+pghoard_local │ 6E/16000000
+dest_slot     | 5B/8B0
+(2 rows)
+```
+
+</NumberedItem>
+
+<NumberedItem title="Compare the slot with `pghoard_local`">
+
+`pghoard_local` is the slot the platform's own backups use. The hexadecimal
+difference between its `restart_lsn` and the slot you are checking is the
+number of WAL entries that slot still has to consume. In the example,
+`0x6E - 0x5B` is 19 entries behind.
+
+</NumberedItem>
+
+<NumberedItem title="Restart or drop the lagging slot">
+
+- If the consumer is still in use, restart it. Disable and re-enable its
+  subscription with `aiven_extras`:
+
+  ```sql
+  SELECT * FROM aiven_extras.pg_alter_subscription_disable('<SUBSCRIPTION_NAME>');
+  SELECT * FROM aiven_extras.pg_alter_subscription_enable('<SUBSCRIPTION_NAME>');
+  ```
+
+- If the consumer is no longer needed, drop the slot:
+
+  ```sql
+  SELECT pg_drop_replication_slot('<SLOT_NAME>');
+  ```
+
+</NumberedItem>
+
+</NumberedList>
+
+In both cases the reserved WAL space is freed at the next {C.PG} checkpoint.
+A checkpoint runs when 15 minutes have elapsed (`checkpoint_timeout` is 900
+seconds) or when WAL reaches `max_wal_size`, which is set to 5% of the
+service's storage.
+
+<Callout variant="note">
+
+Replication slots are recreated automatically after a maintenance update or a
+failover, but not after a major version upgrade.
+
+</Callout>
+
+For more about WAL and checkpoints, see the
+[{C.PG} documentation](https://www.postgresql.org/docs/current/wal-configuration.html).
