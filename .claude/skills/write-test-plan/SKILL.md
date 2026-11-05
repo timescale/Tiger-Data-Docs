@@ -219,6 +219,12 @@ reports one verdict per product.
   may claim the same product. More than a third of the steps prefixed is the sign to split.
 - **Fixtures run on both sides.** A `CREATE TABLE` the plan owns is a shared step, so one copy
   serves both walks; drop it on both, too.
+- **The Cloud side types each statement into the Console's SQL editor.** Write every statement on
+  one line, `DO` blocks included, and never put a doubled quote (`''`) inside one: the editor
+  auto-closes quotes and brackets and grows with each line, so the text lands wrong or the `Run`
+  click times out. Dollar-quote a nested string instead. The lint collapses whitespace, so a
+  one-line copy of a multi-line page block is still the page's statement. The dry run and psql
+  never exercise this path; only a Cloud run does.
 
 - **The extension is installed, not created.** `CREATE EXTENSION IF NOT EXISTS timescaledb;` is the
   first SQL step of nearly every plan, and it must precede any assertion on a `timescaledb.*`
