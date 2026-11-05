@@ -7,6 +7,7 @@ products: [cloud, self_hosted]
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
 import CreateHypertablePolicyNote from "../../../../partials/_create-hypertable-columnstore-policy-note.mdx";
+import TestPlan from "@components/TestPlan.astro";
 
 import ThemeImage from "@components/ThemeImage.astro";
 import imgColumnstoreSegmentbyLight from "../../../../assets/images/learn/deep-dive/columnstore-segmentby-light.png";
@@ -113,6 +114,17 @@ Time: 29.216 ms
    );
    ```
 
+1. Convert the existing {C.CHUNK}s to the {C.COLUMNSTORE}, so the new layout applies to them now rather than when the columnstore policy next runs:
+
+   ```sql
+   DO $$ DECLARE chunk regclass;
+   BEGIN
+     FOR chunk IN SELECT show_chunks('metrics') LOOP
+       CALL convert_to_columnstore(chunk);
+     END LOOP;
+   END $$;
+   ```
+
 1. Query your data:
 
    ```sql
@@ -144,3 +156,24 @@ vastly improves query speed.
 The number of rows that are compressed together in a single batch (like the ones we see above) is 1000.
 If your {C.CHUNK} does not contain enough data to create big enough batches, your compression ratio will be reduced.
 This needs to be taken into account when you define your {C.COLUMNSTORE} settings.
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE metrics (time TIMESTAMPTZ, user_id INT, device_id INT, cpu DOUBLE PRECISION, disk_io DOUBLE PRECISION) WITH (tsdb.hypertable);`
+5. expect rows: `SELECT 1 FROM timescaledb_information.jobs j WHERE j.proc_name = 'policy_compression' AND j.hypertable_name = 'metrics' AND (j.config->>'compress_after')::interval = (SELECT time_interval FROM timescaledb_information.dimensions WHERE hypertable_name = 'metrics' AND column_name = 'time')`
+6. run SQL: `INSERT INTO metrics SELECT '2024-03-01 00:00:00+01'::timestamptz + i * INTERVAL '1 minute', i % 20, i % 10, random(), random() FROM generate_series(0, 2879) AS i;`
+7. run SQL: `SELECT device_id, AVG(cpu) AS avg_cpu, AVG(disk_io) AS avg_disk_io FROM metrics WHERE time >= '2024-03-01 00:00:00+01' AND time < '2024-03-02 00:00:00+01' AND device_id = 5 GROUP BY device_id;`
+8. expect rows: `SELECT device_id FROM metrics WHERE time >= '2024-03-01 00:00:00+01' AND time < '2024-03-02 00:00:00+01' AND device_id = 5 GROUP BY device_id HAVING count(*) = 144`
+9. run SQL: `ALTER TABLE metrics SET (timescaledb.orderby = 'time', timescaledb.segmentby = 'device_id');`
+10. expect rows: `SELECT 1 FROM timescaledb_information.hypertable_columnstore_settings WHERE hypertable = 'metrics'::regclass AND segmentby = 'device_id' AND orderby = '"time"'`
+11. run SQL: `DO $$ DECLARE chunk regclass; BEGIN FOR chunk IN SELECT show_chunks('metrics') LOOP CALL convert_to_columnstore(chunk); END LOOP; END $$;`
+12. expect no rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'metrics' AND NOT is_compressed`
+13. run SQL: `SELECT device_id, AVG(cpu) AS avg_cpu, AVG(disk_io) AS avg_disk_io FROM metrics WHERE time >= '2024-03-01 00:00:00+01' AND time < '2024-03-02 00:00:00+01' AND device_id = 5 GROUP BY device_id;`
+14. run SQL: `CREATE FUNCTION plan_lines(query TEXT) RETURNS SETOF TEXT LANGUAGE plpgsql AS $f$ BEGIN RETURN QUERY EXECUTE 'EXPLAIN (COSTS OFF) ' || query; END $f$;`
+15. expect rows: `SELECT 1 FROM plan_lines($q$SELECT device_id, AVG(cpu) AS avg_cpu, AVG(disk_io) AS avg_disk_io FROM metrics WHERE time >= '2024-03-01 00:00:00+01' AND time < '2024-03-02 00:00:00+01' AND device_id = 5 GROUP BY device_id$q$) AS line WHERE line LIKE '%Custom Scan (ColumnarScan)%'`
+16. expect rows: `SELECT 1 FROM plan_lines($q$SELECT device_id, AVG(cpu) AS avg_cpu, AVG(disk_io) AS avg_disk_io FROM metrics WHERE time >= '2024-03-01 00:00:00+01' AND time < '2024-03-02 00:00:00+01' AND device_id = 5 GROUP BY device_id$q$) AS line WHERE line LIKE '%device_id = 5%' AND line NOT LIKE '%Vectorized Filter%'`
+</TestPlan>
