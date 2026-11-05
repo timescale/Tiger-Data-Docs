@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Run Vale (Google style guide + custom TigerData rules) on changed docs.
+ * Run Vale (the three TigerData rules in .vale.ini) on changed docs.
  *
  * Mirrors what CI does, but locally and only on the Markdown/MDX you've touched
  * so you can check before pushing. CI reports only on the lines you changed
