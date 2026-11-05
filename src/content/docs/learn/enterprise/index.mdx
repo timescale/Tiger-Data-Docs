@@ -1,0 +1,110 @@
+---
+title: Meet TimescaleDB Enterprise
+description: A cloud-like database experience on infrastructure you control, with high availability, backups, monitoring, and commercial support built in
+keywords: [timescaledb enterprise, on-premises, private cloud, air-gap, edge]
+# products: [enterprise] — add once the "enterprise" product tag is added to content.config.ts
+learnMore:
+  relatedPostsHeading: Related resources
+  relatedPosts:
+    - label: "Building the modern enterprise historian: TimescaleDB Enterprise is now in public beta"
+      href: https://www.tigerdata.com/blog/timescaledb-enterprise-is-in-public-beta
+    - label: "Enterprise Historian in the Ignition 2027 docs"
+      href: https://www.docs.inductiveautomation.com/docs/2027/ignition-modules/tag-historian/tag-history-providers/enterprise-historian
+    - label: "Introducing Ignition 2027, from Inductive Automation"
+      href: https://inductiveautomation.com/blog/introducing-ignition-2027-packed-with-ai-charting-and-a-new-historian
+---
+
+import * as C from "@constants";
+import EnterpriseBeta from "@partials/_enterprise-beta.mdx";
+import { RelatedContentCards, RelatedContentCard } from "@components/RelatedContentCards";
+import ThemeImage from "@components/ThemeImage.astro";
+import systemOverviewLight from "../../../../assets/images/learn/enterprise/system-overview-light.png";
+import systemOverviewDark from "../../../../assets/images/learn/enterprise/system-overview-dark.png";
+
+{C.TDB_ENTERPRISE} gives you the operations of a managed service on infrastructure you control.
+A console on your own network does the work you would otherwise script by hand: high
+availability, backups, upgrades, monitoring, and alerts. Underneath it is the same {C.PG} and
+{C.TIMESCALE_DB} you would install yourself.
+
+{C.TDB_ENTERPRISE} exists for the places a managed database cannot go, whether that is your own
+data center, a cloud account you operate, or the edge. On a factory floor or a remote site in
+energy or manufacturing, a service has to keep working when the network does not. In regulated
+and air-gapped data centers the requirement is stricter still, because a running database can
+never reach outward at all.
+
+{C.TDB_ENTERPRISE} meets that requirement. Once a service is running, its operation does not
+depend on {C.COMPANY} infrastructure: there is no hosted control plane in the path, so queries,
+failover, and backups never wait on anything outside your own network, and an air-gapped install
+uses license files rather than online activation.
+
+{C.TDB_ENTERPRISE} is also one of the deployment options for Ignition Enterprise Historian, the
+historian from Inductive Automation built to work with {C.TIMESCALE_DB}. For the options and how
+they compare, see [TimescaleDB for Ignition](https://www.tigerdata.com/timescaledb-for-ignition).
+
+<EnterpriseBeta />
+
+## Architecture
+
+A {C.TDB_ENTERPRISE} install has three parts: the console, the database servers it manages, and an
+optional backup server.
+
+<ThemeImage
+  light={systemOverviewLight}
+  dark={systemOverviewDark}
+  alt="System overview: a browser reaches the console container over HTTPS, the console reaches your database servers over the mesh to deploy, monitor and collect logs, and your applications connect to the database servers directly over PostgreSQL"
+/>
+
+| Part | Where it runs | What it does |
+|------|---------------|--------------|
+| Console | One Docker container on a Linux host | Web console, HTTP API, metrics (kept 30 days by default), alerts, audit log, and the private mesh of the servers |
+| Database servers | Your Linux servers, bare metal or virtual machines (VMs): Ubuntu 26.04 on x86_64 or aarch64 | {C.PG} with {C.TIMESCALE_DB}, PgBouncer, and pgBackRest. A high-availability service adds Patroni, etcd, and HAProxy |
+| Backup server (optional) | A separate enrolled server | The copy of the backups that survives the loss of a database server |
+
+The console reaches the servers only over its private WireGuard mesh. Each server joins with one
+enrollment command and connects out to the console. The servers need no inbound management
+access and no internet access: a deploy installs from the signed server packages of the console.
+
+A service is a single node or a high-availability cluster. From the console, you schedule
+backups, restore to a point in time, fork a service, upgrade, and read metrics and logs. On a
+high-availability service, a replica becomes the primary automatically when the primary fails.
+The console cannot take over a database that you already run: to move one in, replicate it into
+a new service with [Livesync](https://enterprise.tigerdata.com/docs/livesync).
+
+Users sign in with a local account (viewer, operator, or admin role, with optional two-factor
+authentication) or through your identity provider with OpenID Connect (OIDC). The audit log
+records each change, and you can export it. For setup and step-by-step guides, see the
+[{C.TDB_ENTERPRISE} documentation](https://enterprise.tigerdata.com/docs).
+
+## Licensing
+
+- You need one license for each database service. The console runs without a license.
+- The license tier sets the vCPUs and memory that {C.TIMESCALE_DB} can use on each server. One
+  license covers a service on up to three servers: a primary and two replicas.
+- Backup servers and separate etcd clusters need no license.
+- To get a license, activate a key online or start a 7-day trial. On a console with no internet
+  access, use an air-gapped license file from {C.COMPANY}.
+- A license that you activate with a key is checked online once a day. After 72 hours without a
+  check, you cannot deploy until the check passes.
+- When a license expires, the service keeps running: backups, in-place restores, failover,
+  switchover, and restarts continue. You cannot create, deploy, or fork services.
+- The database becomes read-only at once when a trial expires, and 14 days after a paid license
+  expires. Writes start again within a minute after you renew the license or move the service to
+  another license.
+
+<RelatedContentCards>
+  <RelatedContentCard
+    title="Key differentiators"
+    description="How TimescaleDB Enterprise compares to running TimescaleDB yourself, and when to choose each."
+    href="/learn/enterprise/enterprise-exclusive-features"
+  />
+  <RelatedContentCard
+    title="Feature comparison"
+    description="Compare TimescaleDB Enterprise, self-hosted, and fully managed options side by side."
+    href="/learn/capabilities-and-comparison/feature-comparison"
+  />
+  <RelatedContentCard
+    title="Install and deploy"
+    description="Set up the console, enroll servers, and create your first service."
+    href="https://enterprise.tigerdata.com/docs/installation"
+  />
+</RelatedContentCards>
