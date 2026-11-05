@@ -1,0 +1,98 @@
+name: Plan lint
+
+# Keeps a page and its doc-testing test plan in step. When a PR changes a page that carries a
+# `<TestPlan>`, or a partial such a page imports, the doc-testing tool's `lint-plan` reads the
+# page as the PR leaves it and reports a plan step that no longer matches the page: a statement
+# the page changed but the plan still runs in the old form, a new fenced statement no step runs,
+# a reordered procedure, a control the page no longer names. Any finding fails the check, and the
+# lint's own report (step and fix) goes to the job summary.
+#
+# This is the page-side half of the guardrail; the plan-side half (a run) stays out of CI because it
+# needs a service, a browser and credentials. The lint needs only the two checkouts: no browser, no
+# service, no secret beyond read access to the tool repo. Pages without a plan are reported as
+# "nothing to lint" and never fail.
+#
+# Not caught here: a statement deleted from the page while its plan still runs it. The run still
+# passes, so say in the PR when you remove a documented statement from a page with a plan.
+
+on:
+  pull_request:
+    paths:
+      - "src/content/docs/**/*.mdx"
+      - "src/content/docs/**/*.md"
+      - "src/partials/**/*.mdx"
+      - ".github/workflows/plan-lint.yml"
+      - ".github/scripts/plan_lint_pages.mjs"
+
+permissions:
+  contents: read
+
+env:
+  TOOL_REPO: timescale/doc-testing-tool
+
+jobs:
+  plan-lint:
+    name: Plan lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the docs
+        uses: actions/checkout@v4
+        with:
+          # Full history so the base commit is available for the diff below.
+          fetch-depth: 0
+
+      - name: Check out the doc-testing tool
+        # The tool repo is private: DOC_TESTING_TOOL_TOKEN is a fine-grained token with
+        # read access to its contents, stored as a repository secret here.
+        uses: actions/checkout@v4
+        with:
+          repository: timescale/doc-testing-tool
+          token: ${{ secrets.DOC_TESTING_TOOL_TOKEN }}
+          path: doc-testing-tool
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install the tool's dependencies
+        # The lint imports nothing from Playwright, and --ignore-scripts keeps its
+        # postinstall from running; the package itself is small.
+        working-directory: doc-testing-tool
+        run: npm ci --ignore-scripts
+
+      - name: Find the pages this PR can affect
+        id: pages
+        run: |
+          git diff --name-only --diff-filter=AMR \
+            "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" \
+            -- 'src/content/docs/**/*.mdx' 'src/content/docs/**/*.md' 'src/partials/**/*.mdx' \
+            > /tmp/changed.txt || true
+          node .github/scripts/plan_lint_pages.mjs $(cat /tmp/changed.txt) > /tmp/pages.txt
+          echo "count=$(wc -l < /tmp/pages.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          echo "Pages to lint:"; cat /tmp/pages.txt
+
+      - name: Lint the plans
+        if: steps.pages.outputs.count != '0'
+        working-directory: doc-testing-tool
+        env:
+          DOCS_REPO: ${{ github.workspace }}
+        run: |
+          set +e
+          node scripts/lint-plan.mjs $(cat /tmp/pages.txt) | tee /tmp/lint.txt
+          status=${PIPESTATUS[0]}
+          {
+            echo "## Plan lint"
+            echo
+            echo '```'
+            cat /tmp/lint.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -ne 0 ]; then
+            echo "::error::A test plan no longer matches its page. Update the plan on the page, or the page, so the run and a reader see the same steps. Details in the job summary."
+          fi
+          exit "$status"
+
+      - name: Nothing to lint
+        if: steps.pages.outputs.count == '0'
+        run: echo "No changed page or partial maps to a page; nothing to lint."
