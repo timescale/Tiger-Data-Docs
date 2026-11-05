@@ -6,6 +6,7 @@ products: [cloud, self_hosted]
 
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
+import TestPlan from "@components/TestPlan.astro";
 
 JSON and JSONB fit payloads where the shape changes per tenant or device. Keep identifiers and timestamps as typed columns, and tuck the long tail of optional fields into JSON so you can index what matters.
 
@@ -80,3 +81,22 @@ This expression can also be used with a multi-column index, for example, by
 adding `time DESC` as a leading column. Note, however, that to enable index-only
 scans, you need `data` as a column, not the full expression
 `((data->>'cpu')::double precision)`.
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE metrics (time TIMESTAMPTZ, user_id INT, device_id INT, data JSONB);`
+5. run SQL: `INSERT INTO metrics SELECT '2026-01-01 00:00:00+00'::timestamptz + i * INTERVAL '1 minute', i % 10, i % 5, CASE WHEN i % 2 = 0 THEN jsonb_build_object('cpu', i % 100, 'mem', i) ELSE jsonb_build_object('mem', i) END FROM generate_series(1, 2000) AS i;`
+6. run SQL: `CREATE INDEX idxgin ON metrics USING GIN (data);`
+7. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'metrics' AND indexname = 'idxgin' AND indexdef LIKE '%USING gin (data)'`
+8. run SQL: `CREATE INDEX idxcpu ON metrics(((data->>'cpu')::double precision)) WHERE data ? 'cpu';`
+9. expect rows: `SELECT 1 FROM pg_indexes WHERE tablename = 'metrics' AND indexname = 'idxcpu' AND indexdef LIKE $q$%USING btree%::double precision%WHERE (data ? 'cpu'::text)$q$`
+10. run SQL: `ANALYZE metrics;`
+11. run SQL: `CREATE FUNCTION plan_lines(query TEXT) RETURNS SETOF TEXT LANGUAGE plpgsql AS $f$ BEGIN PERFORM set_config('enable_seqscan', 'off', true); RETURN QUERY EXECUTE 'EXPLAIN (COSTS OFF) ' || query; END $f$;`
+12. expect rows: `SELECT 1 FROM plan_lines($q$SELECT * FROM metrics WHERE data ? 'cpu' AND (data->>'cpu')::double precision > 90$q$) AS line WHERE line LIKE '%Index Scan%idxcpu%'`
+13. expect no rows: `SELECT 1 FROM plan_lines($q$SELECT * FROM metrics WHERE (data->>'cpu')::double precision > 90$q$) AS line WHERE line LIKE '%idxcpu%'`
+14. expect rows: `SELECT 1 FROM plan_lines($q$SELECT * FROM metrics WHERE data @> '{"mem": 7}'$q$) AS line WHERE line LIKE '%Index Scan%idxgin%'`
+</TestPlan>
