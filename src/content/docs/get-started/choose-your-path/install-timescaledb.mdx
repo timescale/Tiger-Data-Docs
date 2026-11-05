@@ -471,6 +471,7 @@ needs: kubernetes
 2. run command: `kubectl create namespace tigerdata`
 3. run command: `kubectl config set-context --current --namespace=tigerdata`
 4. run command:
+     ```
      kubectl apply -f - <<EOF
      apiVersion: v1
      kind: PersistentVolumeClaim
@@ -483,7 +484,9 @@ needs: kubernetes
          requests:
            storage: 10Gi
      EOF
+     ```
 5. run command:
+     ```
      kubectl apply -f - <<EOF
      apiVersion: apps/v1
      kind: StatefulSet
@@ -522,8 +525,10 @@ needs: kubernetes
                persistentVolumeClaim:
                  claimName: tigerdata-pvc
      EOF
+     ```
 6. wait up to 300s for postgres in pod `timescaledb-0`
 7. run command:
+     ```
      kubectl apply -f - <<EOF
      apiVersion: v1
      kind: Service
@@ -538,14 +543,18 @@ needs: kubernetes
           targetPort: 5432
       type: ClusterIP
      EOF
+     ```
 8. run command:
+     ```
      kubectl create secret generic tigerdata-secret \
      --from-literal=PGHOST=timescaledb \
      --from-literal=PGPORT=5432 \
      --from-literal=PGDATABASE=postgres \
      --from-literal=PGUSER=postgres \
      --from-literal=PGPASSWORD=postgres
+     ```
 9. run command:
+     ```
      kubectl apply -f - <<EOF
      apiVersion: apps/v1
      kind: Deployment
@@ -569,7 +578,9 @@ needs: kubernetes
                - secretRef:
                    name: tigerdata-secret
      EOF
+     ```
 10. run command:
+     ```
      kubectl run test-pod --image=postgres --restart=Never \
      --env="PGHOST=$(kubectl get secret tigerdata-secret -o=jsonpath='{.data.PGHOST}' | base64 --decode)" \
      --env="PGPORT=$(kubectl get secret tigerdata-secret -o=jsonpath='{.data.PGPORT}' | base64 --decode)" \
@@ -577,6 +588,7 @@ needs: kubernetes
      --env="PGUSER=$(kubectl get secret tigerdata-secret -o=jsonpath='{.data.PGUSER}' | base64 --decode)" \
      --env="PGPASSWORD=$(kubectl get secret tigerdata-secret -o=jsonpath='{.data.PGPASSWORD}' | base64 --decode)" \
      -- sleep infinity
+     ```
 11. wait up to 120s for pod `test-pod` ready
 12. run command: `kubectl exec -it test-pod -- bash -c "psql -h \$PGHOST -U \$PGUSER -d \$PGDATABASE"`
 13. answer `postgres=#` with `<Ctrl-D>`
