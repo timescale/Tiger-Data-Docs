@@ -242,8 +242,31 @@ async function collectHtmlFiles(dir: string): Promise<string[]> {
   return results;
 }
 
+// `.env` files are NOT exposed via `import.meta.env` inside astro.config (Vite's env
+// handling doesn't apply to this file's own evaluation) — load the local `.env` into
+// process.env explicitly (Node 22+ built-in; no dependency needed) so PUBLIC_OSANO_* can
+// be read below via `process.env`. On Vercel there's no `.env` file — real env vars are
+// already in process.env — so the missing-file case is expected and ignored.
+try {
+  process.loadEnvFile();
+} catch {
+  // No .env file (e.g. CI / Vercel): rely on process.env as-is.
+}
+
 // Base path from env var (e.g. BASE_PATH="/docs"). Falls back to "/" (no subpath).
 const BASE = process.env.BASE_PATH || "/";
+
+// Osano consent management platform (cookie/privacy banner). Loads only when both env
+// vars are set (Osano admin console → domain for this site → Install → copy the user ID
+// and config ID out of the generated <script src="https://cmp.osano.com/{userId}/
+// {configId}/osano.js"> snippet) — no-ops otherwise: no banner, and every script gated on
+// it (see OsanoConsent.astro) simply never runs, failing safe toward less tracking.
+const osanoUserId = process.env.PUBLIC_OSANO_USER_ID;
+const osanoConfigId = process.env.PUBLIC_OSANO_CONFIG_ID;
+const osanoScriptUrl =
+  osanoUserId && osanoConfigId
+    ? `https://cmp.osano.com/${osanoUserId}/${osanoConfigId}/osano.js`
+    : null;
 
 function repoPath(relativePath: string) {
   return fileURLToPath(new URL(relativePath, import.meta.url));
@@ -334,6 +357,21 @@ export default defineConfig({
           tag: "script",
           content: `window.dataLayer=window.dataLayer||[];window.gtag=window.gtag||function(){window.dataLayer.push(arguments)};window.gtag('consent','default',{analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',functionality_storage:'denied',personalization_storage:'denied',security_storage:'granted',wait_for_update:500});`,
         },
+        // Osano must load here: right after the consent-mode defaults above (so a
+        // default exists before anything else runs) and before every other script below
+        // (so Osano's own automatic script/cookie/iframe blocking can actually intercept
+        // them — per Osano's install docs, osano.js "must be the very first script in
+        // the document" relative to everything it needs to be able to block). Loaded as
+        // a plain blocking <script src>, deliberately not async/deferred, so execution
+        // order is guaranteed rather than racing with GTM below.
+        ...(osanoScriptUrl
+          ? [
+              {
+                tag: "script",
+                attrs: { src: osanoScriptUrl },
+              },
+            ]
+          : []),
         {
           // GTM
           tag: "script",
