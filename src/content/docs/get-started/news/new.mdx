@@ -165,6 +165,54 @@ To upgrade, run `tiger upgrade` or use your package manager. For all commands an
 
 </ChangelogEntry>
 
+## TimescaleDB v2.31 now on Tiger Cloud
+
+<ChangelogEntry
+  title="TimescaleDB v2.31 now on Tiger Cloud"
+  date="2026-10-26"
+  tags={["new-feature", "performance", "bug-fix", "breaking-change"]}
+>
+<h2 slot="heading" class="changelog-entry__title">TimescaleDB v2.31 now on Tiger Cloud</h2>
+
+TimescaleDB 2.31.0 makes the columnstore cheaper to write to and faster to read from, gives continuous aggregates the refresh visibility developers have asked for, and fixes several correctness issues on compressed data. TimescaleDB 2.31.0 was released on GitHub on October 20, 2026, and is available on Tiger Cloud as of October 26, 2026.
+
+### Highlighted features in TimescaleDB v2.31
+
+**Faster columnstore writes and lookups**
+
+- **Faster `UPDATE`, `DELETE`, and recompression on compressed data:** These operations now use the same bulk decompression path as `SELECT` queries, so backfills, cleanup deletes, and recompression jobs finish sooner. The `timescaledb.enable_bulk_decompression` setting now covers them too, so check it if write performance changes after upgrade.
+- **Latest-row lookups without decompression:** `LIMIT 1` queries such as "latest reading for this device" can now be answered from compression metadata alone when the requested columns and filters allow it. On by default.
+- **Adaptive Integer Compressor (opt-in preview):** A new compressor for integer, date, and timestamp columns picks the best encoding for each block of values, for up to 20% better compression and up to 2x faster queries where decompression is the bottleneck. Turn it on with `timescaledb.enable_aic_compression` after testing on a staging service: chunks compressed with AIC block downgrade until they are recompressed with the [provided downgrade script](https://github.com/timescale/timescaledb-extras/blob/main/utils/2.31.0-downgrade_aic_compression.sql), which disables AIC for the conversion. AIC will be on by default in 2.32.
+
+**Continuous aggregates you can trust**
+
+- **Refresh statistics:** Set `timescaledb.cagg_refresh_stats_level` to `summary` or `verbose_log`, and `refresh_continuous_aggregate()` reports the batches processed, the time range materialized, and the rows materialized and deleted. You can now tell whether a batched refresh finished the requested range or stopped early, without inspecting internal catalogs. Statistics also go to the server log, so they are visible for background jobs.
+
+    ```sql
+    SET timescaledb.cagg_refresh_stats_level = 'summary';
+    CALL refresh_continuous_aggregate('my_cagg', '2023-01-01', '2023-04-01');
+    ```
+
+- **Faster gapfill aggregation:** `time_bucket_gapfill()` queries now aggregate per chunk, in parallel, before filling gaps. If a gapfill query is slower after upgrade, run `ANALYZE` on the hypertable.
+- **No more stale aggregates after `MERGE` or chunk drops:** `MERGE` statements that update or delete hypertable rows, and dropping a chunk by its unqualified name, now invalidate the affected continuous aggregate ranges.
+
+**Correctness, planning, and operability**
+
+- **Compressed chunk fixes:** `merge_chunks()` no longer marks a merged chunk as ordered when its batches overlap, which could let the planner skip a required sort and return wrong results. Conflict checks on compressed chunks now honor the unique index collation, so case-insensitive collations no longer produce duplicate primary keys through `ON CONFLICT DO UPDATE`.
+- **Smarter planning:** Chunks are excluded at execution time when a hypertable is on the parameterized side of a nested-loop join. Vectorized aggregation now also applies to single-chunk queries that group by an expression such as `time_bucket()`, for up to 6.5x faster results.
+- **Faster chunk creation:** Databases with many constraints create and drop chunks roughly 10x faster.
+- **pgAudit compatibility:** A hypertable `COPY` with pgAudit loaded no longer crashes the backend. On self-hosted deployments, list `pgaudit` after `timescaledb` in `shared_preload_libraries` and restart PostgreSQL to enable the new hook ordering.
+- **Job ownership stays put:** Changing a hypertable's owner no longer changes the owner of user-defined jobs attached to it.
+
+### Backward-incompatible changes
+
+- `timescaledb.enable_columnarscan` is renamed to `timescaledb.debug_enable_columnarscan`. Update any configuration that references the old name.
+- The direct-compress batch sorting GUCs are now available only in debug builds.
+- Chunks compressed with the Adaptive Integer Compressor block downgrade until they are recompressed.
+
+For complete details, refer to the [TimescaleDB 2.31.0 release notes](https://github.com/timescale/timescaledb/releases/tag/2.31.0).
+</ChangelogEntry>
+
 ## pg_textsearch 1.5.1
 
 <ChangelogEntry
