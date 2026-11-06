@@ -50,12 +50,13 @@ FROM t;
 
 #### Parallelism and ordering
 
-Time-weighted average calculations are not strictly parallelizable, as defined by {C.PG}. These calculations require
-inputs to be strictly ordered, but in general, {C.PG} parallelizes by assigning rows randomly to workers.
+Time-weighted average calculations are not parallelizable, as defined by {C.PG}. They require inputs in strict time
+order, but {C.PG} parallelizes an aggregate by handing rows to workers in whatever order it reads them. `time_weight()`
+and its `rollup()` are marked `PARALLEL UNSAFE`, and since {C.TOOLKIT_SHORT} 1.26.0 they have no combine function, so
+{C.PG} does not split them into partial aggregates either.
 
-However, the algorithm can be parallelized if it is guaranteed that all rows within some time range go to the same
-worker. This is the case for both continuous aggregates and distributed hypertables. (Note that the partitioning keys of
-the distributed hypertable must be within the `GROUP BY` clause, but this is usually the case.)
+You can still use `time_weight()` in a {C.CAGG}, and roll the summaries it stores up into larger buckets with
+[`rollup()`](/reference/toolkit/time_weight/rollup).
 
 #### Combining aggregates across measurement series
 
@@ -76,12 +77,6 @@ WITH t as (SELECT measure_id,
 SELECT avg(time_weighted_average) -- use the normal avg function to average the time-weighted averages
 FROM t;
 ```
-
-#### Parallelism in multi-node
-
-The time-weighted average functions are not strictly parallelizable in the {C.PG} sense. {C.PG} requires that
-parallelizable functions accept potentially overlapping input. As explained above, the time-weighted functions do not.
-However, they do support partial aggregation and partition-wise aggregation in multi-node setups.
 
 #### Reducing memory usage
 
