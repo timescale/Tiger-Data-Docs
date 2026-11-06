@@ -13,14 +13,14 @@ List the periods when the system is in a specific state from a state aggregate. 
 and end time.
 
 Unlike [`state_periods`](/reference/toolkit/state-tracking/state_agg/state_periods), you can use this function across multiple state aggregates that cover different
-time buckets. Any missing values at the time bucket boundaries are interpolated from adjacent state aggregates.
+time buckets. Any missing values at the start of a time bucket are interpolated from the previous state aggregate.
 
 ## Samples
 
 Given state aggregates bucketed by 1-minute intervals, interpolate the states at the bucket boundaries and list all time
 periods corresponding to the state `OK`.
 
-To perform the interpolation, the `LAG` and `LEAD` functions are used to get the previous and next state aggregates.
+To perform the interpolation, the `LAG` function is used to get the previous state aggregate.
 
 ```sql
 SELECT
@@ -57,20 +57,20 @@ The syntax is:
 ```sql
 interpolated_state_periods(
   agg StateAgg,
-  state [TEXT | BIGINT],
+  state {TEXT | BIGINT},
   start TIMESTAMPTZ,
   interval INTERVAL,
-  [, prev StateAgg]
+  prev StateAgg
 ) RETURNS (TIMESTAMPTZ, TIMESTAMPTZ)
 ```
 
 | Name | Type | Default | Required | Description |
 |------|------|---------|----------|-------------|
 | agg | StateAgg | - | ✔ | A state aggregate created with [`state_agg`](/reference/toolkit/state-tracking/state_agg/state_agg) |
-| state | TEXT | BIGINT | - | ✔ | The state to query |
+| state | TEXT \| BIGINT | - | ✔ | The state to query |
 | start | TIMESTAMPTZ | - | ✔ | The start of the interval to be calculated |
 | interval | INTERVAL | - | ✔ | The length of the interval to be calculated |
-| prev | StateAgg | - | | The state aggregate from the prior interval, used to interpolate the value at `start`. If `NULL`, the first timestamp in `aggregate` is used as the start of the interval |
+| prev | StateAgg | - | ✔ | The state aggregate from the prior interval, used to interpolate the value at `start`. Pass `NULL` if there is none; the first timestamp in `agg` is then used as the start of the interval |
 
 ## Returns
 
