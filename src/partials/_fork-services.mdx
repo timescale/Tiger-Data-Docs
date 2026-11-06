@@ -5,28 +5,22 @@ import { NumberedList, NumberedItem } from "@components/NumberedList";
 import CLIPrereqs from "./_prereqs-cli.mdx";
 import CLIForks from "./_devops-cli-service-forks.mdx";
 import PITRForks from "./_pitr-forks.mdx";
+import ForksVsBranches from "./_forks-vs-branches.mdx";
 import { Prerequisites } from "@components/Prerequisites";
 import TestPlan from "@components/TestPlan.astro";
 
 import ThemeImage from "@components/ThemeImage.astro";
 
-Modern development is highly iterative. Developers and AI agents need safe spaces to test changes before deploying them
-to production. Forkable {C.SERVICE_SHORT}s make this natural and easy. Spin up a branch, run your test, throw it away, or
-merge it back.
+A fork is a full, independent copy of a {C.SERVICE_SHORT} at a point in time. It has its own compute and storage,
+its own configuration, and its own `tsdbadmin` password. It supports every feature of the primary {C.SERVICE_SHORT}:
+high availability, read replicas, backups, and point-in-time recovery. Changes to a fork never reach the primary,
+and changes to the primary never reach the fork.
 
-A fork is an exact copy of a {C.SERVICE_SHORT} at a specific point in time, with its own independent data and configuration,
-including:
-- The database data and schema
-- Configuration
-- An admin `tsdbadmin` user with a new password
+Forks are built for environments that stay around. Use one for staging on production data, for disaster recovery
+from a known-good state, or to rehearse a major {C.PG} upgrade before you apply it to the live {C.SERVICE_SHORT}.
 
-Forks are fully independent. Changes to the fork don't affect the parent {C.SERVICE_SHORT}. You can query
-them, run migrations, add indexes, or test new features against the fork without affecting the original service.
-
-Forks are a powerful way to share production-scale data safely. Testing, BI and data science teams often need access
-to real datasets to build models or generate insights. With forkable {C.SERVICE_SHORT}s, you easily create fast, zero-copy
-branches of a production {C.SERVICE_SHORT} that are isolated from production, but contain all the data needed for
-analysis. Rapid fork creation dramatically reduces friction getting insights from live data.
+Because a fork copies the whole {C.SERVICE_SHORT}, creation time grows with the amount of data: typically 5 to 20
+minutes, and hours for multi-terabyte {C.SERVICE_SHORT}s.{props.fluid && <> For a short-lived copy that is ready in a minute or two, create a <a href="/deploy/tiger-cloud/tiger-cloud-aws/service-management/branch-services">branch</a> of a Fluid {C.SERVICE_SHORT} instead.</>}
 
 ## Understand {C.SERVICE_SHORT} forks
 
@@ -47,34 +41,21 @@ can automatically test a major {C.PG} upgrade on a fork before applying it to yo
 
 - `timestamp`: fork from a specific point in time within the recovery period for your [{C.PRICING_PLAN}](../pricing-and-account-management#features-included-in-each-pricing-plan).
   Use when:
-  - Disaster recovery from a known-good state
+  - Recovering from a known-good state
   - Investigating issues that occurred at a specific time
   - Testing "what-if" scenarios from historical data
 
-### Fork creation speed
-
-Fork creation speed depends on the type of {C.SERVICE_SHORT} you want to create:
-
-- Free {C.SERVICE_SHORT}s: ~30-90 seconds. Use a Copy-on-Write storage architecture with zero-copy between a fork and the parent.
-- Standard {C.SERVICE_SHORT}s: varies with the size of your {C.SERVICE_SHORT}, typically 5-20+ minutes. Use traditional storage architecture
-   with backup restore + WAL replay.
+{props.fluid && <ForksVsBranches heading />}
 
 ### Billing
 
-You can fork a free {C.SERVICE_SHORT} to a free or a standard {C.SERVICE_SHORT}. However, you cannot fork a standard
-{C.SERVICE_SHORT} to a free {C.SERVICE_SHORT}.
+A fork is billed as a {C.SERVICE_SHORT} of its own: its compute, and the full high-performance storage it holds.
+[Tiered data](/build/data-management/storage/manage-storage) is shared across forks: chunks in the object storage
+tier are billed once, regardless of the number of forks, and only new or modified chunks in a fork incur additional
+costs. For details, see [Replicas and forks with tiered data](/build/data-management/storage/tiered-data-replicas-forks).
 
-Billing on storage works in the following way:
-
-- High-performance storage:
-  - Copy-on-Write: you are only billed for storage for the chunks that diverge from the parent {C.SERVICE_SHORT}.
-  - Traditional: you are billed for storage for the whole {C.SERVICE_SHORT}.
-- Object storage tier:
-  - [Tiered data](/build/data-management/storage/manage-storage) is shared across forks using copy-on-write and traditional storage:
-  - Chunks in tiered storage are only billed once, regardless of the number of forks
-  - Only new or modified chunks in a fork incur additional costs
-
-For details, see [Replicas and forks with tiered data](/build/data-management/storage/tiered-data-replicas-forks).
+You can fork a free {C.SERVICE_SHORT} to a free or a Standard {C.SERVICE_SHORT}, but not a Standard {C.SERVICE_SHORT}
+to a free one.
 
 ## Manage forks
 

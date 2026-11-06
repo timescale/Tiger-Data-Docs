@@ -1088,6 +1088,7 @@ export default defineConfig({
                         { label: "Manually change compute resources", link: "/deploy/tiger-cloud/tiger-cloud-aws/service-management/change-resources" },
                         { label: "Connection pooling", link: "/deploy/tiger-cloud/tiger-cloud-aws/service-management/connection-pooling" },
                         { label: "Fork services", link: "/deploy/tiger-cloud/tiger-cloud-aws/service-management/fork-services" },
+                        { label: "Branch services", link: "/deploy/tiger-cloud/tiger-cloud-aws/service-management/branch-services" },
                       ],
                     },
                     {

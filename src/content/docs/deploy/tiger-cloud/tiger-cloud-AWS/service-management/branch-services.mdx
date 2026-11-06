@@ -1,0 +1,83 @@
+---
+title: Branch services
+description: Create a lightweight copy of a Fluid service for development, CI, and agent workflows
+products: [cloud]
+---
+
+import * as C from "@constants";
+import ForksVsBranches from "../../../../../../partials/_forks-vs-branches.mdx";
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+import { Callout } from "@stainless-api/docs/components";
+
+A branch is an isolated copy of a Fluid {C.SERVICE_SHORT}. It starts from the {C.SERVICE_SHORT}'s current data,
+runs on its own compute, and stores only the data that differs from the {C.SERVICE_SHORT} it was created from. It is
+ready in about a minute whatever the data size. Changes on a branch never reach the {C.SERVICE_SHORT}.
+
+<Callout variant="note">
+Branches are in public preview, on Fluid {C.SERVICE_SHORT}s only.
+</Callout>
+
+## Branches compared with forks
+
+A [fork](/deploy/tiger-cloud/tiger-cloud-aws/service-management/fork-services) is a full, independent {C.SERVICE_SHORT}. A branch is a lighter copy
+with fewer operations:
+
+<ForksVsBranches />
+
+## Create a branch
+
+You create a branch of a Fluid {C.SERVICE_SHORT} in {C.CONSOLE}:
+
+<NumberedList>
+
+<NumberedItem title={`Check that the ${C.SERVICE_SHORT} is ready`}>
+
+Check that the {C.SERVICE_SHORT} is marked `Ready` on the <a href={C.CONSOLE_URL}>`Services` page</a>.
+
+</NumberedItem>
+
+<NumberedItem title="Open the Branches tab">
+
+Click `Branches`, then `Create new branch`.
+
+</NumberedItem>
+
+<NumberedItem title="Name the branch and choose its compute">
+
+1. Enter a `Branch name`, or keep the suggested one. A branch name follows the rules for a {C.SERVICE_SHORT} name and must be unique within the project.
+1. Under `Compute / Memory`, choose the compute size for the branch.
+1. Under `I/O boost`, keep the base IOPS for that size or raise them. See
+   [Available IOPS](/build/data-management/storage/manage-storage#available-iops).
+
+</NumberedItem>
+
+<NumberedItem title="Click `Create branch`">
+
+The branch appears in the `Branches` table as `Queued`, then `Ready`, in about a minute. {C.CONSOLE} opens the
+branch's `Overview` with its connection string, including the branch's own `tsdbadmin` password. The password is
+available only in this browser session. Copy it, or reset it later under `Operations` > `Branch management`.
+
+</NumberedItem>
+
+</NumberedList>
+
+## Manage branches
+
+You can query a branch, change its compute and IOPS, reset its password, stop and start it, and delete it. None of
+these affect the {C.SERVICE_SHORT}.
+
+In {C.CONSOLE}, select the branch in the `Branches` tab of its {C.SERVICE_SHORT}, then:
+
+- To query it, click `Explorer`.
+- To change its compute or IOPS, click `Operations` > `Compute and storage`.
+- To reset its password, to stop, start, or delete it, click `Operations` > `Branch management`.
+
+## Billing
+
+A branch is billed by the minute, for its compute and its storage:
+
+- **Compute**: the branch's own compute size, while the branch is running. A stopped branch costs no compute.
+- **Storage**: copy-on-write. When you create a branch, it shares every byte with the {C.SERVICE_SHORT}, so it adds
+  nothing to your bill. As the branch writes, only the changed and added data is stored separately and charged. The
+  data the branch still shares with the {C.SERVICE_SHORT} is charged once, on the {C.SERVICE_SHORT}. Deleting the
+  branch ends its storage charge.
