@@ -20,11 +20,11 @@ Given a table called `liveness` containing weekly heartbeat aggregates in column
 use this command to get the total interpolated downtime of the system during the week of Jan 9, 2022.
 
 ```sql
-SELECT interpolated_downtime(
-  health,
-  LAG(health) OVER (ORDER BY date)
-)
-FROM liveness
+SELECT interpolated_downtime(health, pred)
+FROM (
+  SELECT date, health, LAG(health) OVER (ORDER BY date) AS pred
+  FROM liveness
+) s
 WHERE date = '01-9-2022 UTC'
 ```
 
@@ -42,15 +42,15 @@ The syntax is:
 
 ```sql
 interpolated_downtime(
-    agg HEARTBEATAGG,
-    pred HEARTBEATAGG
+    agg HeartbeatAgg,
+    pred HeartbeatAgg
 ) RETURNS INTERVAL
 ```
 
 | Name | Type | Default | Required | Description |
 |------|------|---------|----------|-------------|
 | agg | HeartbeatAgg | - | ✔ | A heartbeat aggregate to get the liveness data from |
-| pred | HeartbeatAgg | - | | The heartbeat aggregate for the interval before the one being measured, if one exists |
+| pred | HeartbeatAgg | - | ✔ | The heartbeat aggregate for the interval before the one being measured. It must end at or before the start of `agg`. Pass `NULL` if there is none |
 
 ## Returns
 
