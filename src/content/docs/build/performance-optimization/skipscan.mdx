@@ -13,6 +13,7 @@ learnMore:
 
 import * as C from "@constants";
 import SinceRelease from "@components/SinceRelease.astro";
+import TestPlan from "@components/TestPlan.astro";
 
 <SinceRelease version="2.2.0" product="tsdb" />
 
@@ -50,7 +51,7 @@ SELECT DISTINCT ON (region, device, metric_type) *
 FROM   metrics
 WHERE region IN ('UK','EU','JP') AND device > 1 AND metric_type IS NOT NULL
 ORDER  BY region, device, metric_type, time DESC;
--- Distinct columns are declared NOT NULL: can use SkipScan with index on (region, device)
+-- Distinct columns are declared NOT NULL: can use SkipScan with an index on (region, device, time DESC)
 CREATE TABLE metrics(region TEXT NOT NULL, device INT NOT NULL, ...);
 SELECT DISTINCT ON (region, device) *
 FROM   metrics
@@ -80,11 +81,43 @@ ANALYZE` output shows one or more `Custom Scan (SkipScan)` nodes, like this:
 ```sql
 ->  Unique
   ->  Merge Append
-    Sort Key: _hyper_8_79_chunk.tags_id, _hyper_8_79_chunk."time" DESC
-     ->  Custom Scan (SkipScan) on _hyper_8_79_chunk
-      ->  Index Only Scan using _hyper_8_79_chunk_cpu_tags_id_time_idx on _hyper_8_79_chunk
-          Index Cond: (tags_id > NULL::integer)
-     ->  Custom Scan (SkipScan) on _hyper_8_80_chunk
-      ->  Index Only Scan using _hyper_8_80_chunk_cpu_tags_id_time_idx on _hyper_8_80_chunk
-         Index Cond: (tags_id > NULL::integer)
+        Sort Key: readings.customer_id, readings.tags_id
+        ->  Custom Scan (SkipScan) on _hyper_8_79_chunk
+              ->  Index Only Scan using _hyper_8_79_chunk_cpu_customer_tags_id_time_idx on _hyper_8_79_chunk
+                    Index Cond: ((customer_id > NULL::integer) AND (tags_id > NULL::integer))
+        ->  Custom Scan (SkipScan) on _hyper_8_80_chunk
+              ->  Index Only Scan using _hyper_8_80_chunk_cpu_customer_tags_id_time_idx on _hyper_8_80_chunk
+                    Index Cond: ((customer_id > NULL::integer) AND (tags_id > NULL::integer))
 ```
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE metrics (time TIMESTAMPTZ NOT NULL, region TEXT, device INT, metric_type TEXT, value DOUBLE PRECISION) WITH (tsdb.hypertable);`
+5. run SQL: `INSERT INTO metrics SELECT '2026-01-01'::timestamptz + i * INTERVAL '10 seconds', (ARRAY['UK', 'EU', 'JP', 'US'])[1 + i % 4], 1 + i % 20, (ARRAY['cpu', 'mem', 'disk'])[1 + i % 3], random() FROM generate_series(1, 200000) AS i;`
+6. run SQL: `CREATE INDEX ON metrics(region, device, metric_type, time DESC);`
+7. run SQL: `ANALYZE metrics;`
+8. run SQL: `SELECT DISTINCT ON (region, device, metric_type) * FROM metrics WHERE region IN ('UK','EU','JP') AND device > 1 AND metric_type IS NOT NULL ORDER BY region, device, metric_type, time DESC;`
+9. run SQL: `CREATE FUNCTION plan_lines(query TEXT) RETURNS SETOF TEXT LANGUAGE plpgsql AS $f$ BEGIN RETURN QUERY EXECUTE 'EXPLAIN (COSTS OFF) ' || query; END $f$;`
+10. expect rows: `SELECT 1 FROM plan_lines($q$SELECT DISTINCT ON (region, device, metric_type) * FROM metrics WHERE region IN ('UK','EU','JP') AND device > 1 AND metric_type IS NOT NULL ORDER BY region, device, metric_type, time DESC$q$) AS line WHERE line LIKE '%Custom Scan (SkipScan)%'`
+11. run SQL: `DROP TABLE metrics;`
+12. run SQL: `CREATE TABLE metrics(region TEXT NOT NULL, device INT NOT NULL, metric_type TEXT, time TIMESTAMPTZ NOT NULL, value DOUBLE PRECISION) WITH (tsdb.hypertable);`
+13. run SQL: `INSERT INTO metrics SELECT (ARRAY['UK', 'EU', 'JP', 'US'])[1 + i % 4], 1 + i % 20, (ARRAY['cpu', 'mem', 'disk'])[1 + i % 3], '2026-01-01'::timestamptz + i * INTERVAL '10 seconds', random() FROM generate_series(1, 200000) AS i;`
+14. run SQL: `CREATE INDEX metrics_region_device_time_idx ON metrics USING btree (region, device, time DESC) INCLUDE (value);`
+15. run SQL: `ANALYZE metrics;`
+16. run SQL: `SELECT DISTINCT ON (region, device) * FROM metrics ORDER BY region, device, time DESC;`
+17. expect rows: `SELECT 1 FROM plan_lines($q$SELECT DISTINCT ON (region, device) * FROM metrics ORDER BY region, device, time DESC$q$) AS line WHERE line LIKE '%Custom Scan (SkipScan)%'`
+18. run SQL: `CREATE TABLE readings (time TIMESTAMPTZ NOT NULL, customer_id INT NOT NULL, tags_id INT NOT NULL, cpu DOUBLE PRECISION) WITH (tsdb.hypertable, tsdb.segmentby = 'customer_id, tags_id', tsdb.orderby = 'time DESC');`
+19. run SQL: `INSERT INTO readings SELECT '2026-01-01'::timestamptz + i * INTERVAL '10 seconds', 1 + i % 5, 1 + i % 50, random() FROM generate_series(1, 200000) AS i;`
+20. run SQL: `CREATE INDEX "cpu_customer_tags_id_time_idx" ON readings (customer_id, tags_id, time DESC);`
+21. run SQL: `ANALYZE readings;`
+22. expect rows: `SELECT 1 FROM plan_lines($q$SELECT DISTINCT customer_id, tags_id FROM readings ORDER BY customer_id, tags_id$q$) AS line WHERE line LIKE '%Custom Scan (SkipScan)%'`
+23. expect rows: `SELECT 1 FROM plan_lines($q$SELECT DISTINCT customer_id, tags_id FROM readings ORDER BY customer_id, tags_id$q$) AS line WHERE line LIKE '%Index Only Scan using %cpu_customer_tags_id_time_idx%'`
+24. run SQL: `DO $$ DECLARE chunk regclass; BEGIN FOR chunk IN SELECT show_chunks('readings') LOOP CALL convert_to_columnstore(chunk); END LOOP; END $$;`
+25. expect no rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'readings' AND NOT is_compressed`
+26. expect rows: `SELECT 1 FROM plan_lines($q$SELECT DISTINCT customer_id, tags_id FROM readings ORDER BY customer_id, tags_id$q$) AS line WHERE line LIKE '%Custom Scan (SkipScan)%'`
+27. expect rows: `SELECT 1 FROM plan_lines($q$SELECT DISTINCT customer_id, tags_id FROM readings ORDER BY customer_id, tags_id$q$) AS line WHERE line LIKE '%Custom Scan (ColumnarScan)%'`
+</TestPlan>
