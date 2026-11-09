@@ -45,6 +45,10 @@ RULE_HELP = {
         "in TimescaleDB 2.18.0 and must not appear in new docs. See the mapping in "
         "`.claude/references/deprecated-compression-apis.md` and use the current name."
     ),
+    "TigerData.TigerLakeSpelling": (
+        "The product name is two words: write `Tiger Lake` (or `{C.LAKE}` outside "
+        "the changelog), never `TigerLake`."
+    ),
 }
 
 
