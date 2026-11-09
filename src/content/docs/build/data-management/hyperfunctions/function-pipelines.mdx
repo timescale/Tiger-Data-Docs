@@ -39,7 +39,8 @@ FROM (
  SELECT device_id,
 abs(val - lag(val) OVER last_day) as abs_delta
 FROM measurements
-WHERE ts >= now()-'1 day'::interval) calc_delta
+WHERE ts >= now()-'1 day'::interval
+WINDOW last_day AS (PARTITION BY device_id ORDER BY ts)) calc_delta
 GROUP BY device_id;
 ```
 
@@ -47,11 +48,11 @@ You can express the same query with a function pipeline like this:
 
 ```sql
 SELECT device_id,
-    toolkit_experimental.timevector(ts, val)
+    timevector(ts, val)
         -> toolkit_experimental.sort()
-        -> toolkit_experimental.delta()
+        -> delta()
         -> toolkit_experimental.abs()
-        -> toolkit_experimental.sum() as volatility
+        -> sum() as volatility
 FROM measurements
 WHERE ts >= now()-'1 day'::interval
 GROUP BY device_id;
@@ -89,7 +90,7 @@ a dataset that contains temperatures, the SQL looks like this:
 
 ```sql
 SELECT device_id,
- toolkit_experimental.timevector(ts, val)
+ timevector(ts, val)
 FROM measurements
 WHERE ts >= now() - '1 day'::interval
 GROUP BY device_id;
@@ -106,11 +107,11 @@ A typical function pipeline could look something like this:
 
 ```sql
 SELECT device_id,
-  toolkit_experimental.timevector(ts, val)
+  timevector(ts, val)
         -> toolkit_experimental.sort()
-        -> toolkit_experimental.delta()
+        -> delta()
         -> toolkit_experimental.abs()
-        -> toolkit_experimental.sum() as volatility
+        -> sum() as volatility
 FROM measurements
 WHERE ts >= now() - '1 day'::interval
 GROUP BY device_id;
@@ -149,12 +150,13 @@ For example:
 
 ```sql
 SELECT device_id,
- toolkit_experimental.timevector(ts, val)
+ timevector(ts, val)
      -> toolkit_experimental.sort()
-        -> toolkit_experimental.delta()
+        -> delta()
         -> toolkit_experimental.map($$ ($value^3 + $value^2 + $value * 2) $$)
         -> toolkit_experimental.lttb(100)
 FROM measurements
+GROUP BY device_id
 ```
 
 Finalizer elements end the `timevector` portion of a pipeline. They can produce
@@ -165,22 +167,24 @@ For example, a finalizer element that produces an output:
 
 ```sql
 SELECT device_id,
- toolkit_experimental.timevector(ts, val)
+ timevector(ts, val)
     -> toolkit_experimental.sort()
-    -> toolkit_experimental.delta()
+    -> delta()
     -> toolkit_experimental.unnest()
 FROM measurements
+GROUP BY device_id
 ```
 
 Or a finalizer element that produces an aggregate:
 
 ```sql
 SELECT device_id,
- toolkit_experimental.timevector(ts, val)
+ timevector(ts, val)
     -> toolkit_experimental.sort()
-    -> toolkit_experimental.delta()
-    -> toolkit_experimental.time_weight()
+    -> delta()
+    -> toolkit_experimental.counter_agg()
 FROM measurements
+GROUP BY device_id
 ```
 
 The third type of pipeline elements are aggregate accessors and mutators. These
@@ -188,7 +192,7 @@ work on a `timevector` in a pipeline, but they also work in regular aggregate
 queries. An example of using these in a pipeline:
 
 ```sql
-SELECT percentile_agg(val) -> toolkit_experimental.approx_percentile(0.5)
+SELECT percentile_agg(val) -> approx_percentile(0.5)
 FROM measurements
 ```
 
@@ -249,7 +253,7 @@ floating point representation of the integer. For example:
 ```sql
 -- NOTE: the (pipeline -> unnest()).* allows for time, value columns to be produced without a subselect
 SELECT (
-    toolkit_experimental.timevector(time, value)
+    timevector(time, value)
     -> toolkit_experimental.abs()
     -> toolkit_experimental.unnest()).*
 FROM (VALUES (TimestampTZ '2021-01-06 UTC',   0.0 ),
@@ -294,7 +298,7 @@ and `vector -> logn(3)` gives the log-base-3 of each `value`. For example:
 
 ```sql
 SELECT (
-    toolkit_experimental.timevector(time, value)
+    timevector(time, value)
     -> toolkit_experimental.power(2)
     -> toolkit_experimental.unnest()).*
 FROM (VALUES (TimestampTZ '2021-01-06 UTC',   0.0 ),
@@ -332,14 +336,14 @@ compound transforms can produce larger or smaller `timevectors` as an output.
 
 A `delta()` transform calculates the difference between consecutive `values` in
 the `timevector`. The first point in the `timevector` is omitted as there is no
-previous value and it cannot have a `delta()`. Data should be sorted using the
+previous value and it cannot have a `delta()`. Data must be sorted using the
 `sort()` element before passing into `delta()`. For example:
 
 ```sql
 SELECT (
-    toolkit_experimental.timevector(time, value)
+    timevector(time, value)
     -> toolkit_experimental.sort()
-    -> toolkit_experimental.delta()
+    -> delta()
     -> toolkit_experimental.unnest()).*
 FROM (VALUES (TimestampTZ '2021-01-06 UTC',   0.0 ),
              (            '2021-01-01 UTC',  25.0 ),
@@ -384,7 +388,7 @@ For example:
 
 ```sql
 SELECT (
-    toolkit_experimental.timevector(time, value)
+    timevector(time, value)
     -> toolkit_experimental.sort()
     -> toolkit_experimental.fill_to('1 day', 'LOCF')
     -> toolkit_experimental.unnest()).*
@@ -423,7 +427,7 @@ transform is ignored if the `timevector` is already sorted. For example:
 
 ```sql
 SELECT (
-    toolkit_experimental.timevector(time, value)
+    timevector(time, value)
     -> toolkit_experimental.sort()
     -> toolkit_experimental.unnest()).*
 FROM (VALUES (TimestampTZ '2021-01-06 UTC',   0.0 ),
@@ -510,7 +514,7 @@ times and values are changed. An example of the `map()` Lambda with a
 
 ```sql
 SELECT (
-   toolkit_experimental.timevector(time, value)
+   timevector(time, value)
    -> toolkit_experimental.map($$ $value + 1 $$)
    -> toolkit_experimental.unnest()).*
 FROM (VALUES (TimestampTZ '2021-01-06 UTC',   0.0 ),
@@ -539,7 +543,7 @@ return:
 
 ```sql
 SELECT (
-   toolkit_experimental.timevector(time, value)
+   timevector(time, value)
    -> toolkit_experimental.map($$ ($time + '1day'i, $value * 2) $$)
    -> toolkit_experimental.unnest()).*
 FROM (VALUES (TimestampTZ '2021-01-06 UTC',   0.0 ),
@@ -571,7 +575,7 @@ and `false` for every point that should be removed. For example:
 
 ```sql
 SELECT (
-   toolkit_experimental.timevector(time, value)
+   timevector(time, value)
    -> toolkit_experimental.filter($$ $time != '2021-01-01't AND $value > 0 $$)
    -> toolkit_experimental.unnest()).*
 FROM (VALUES (TimestampTZ '2021-01-06 UTC',   0.0 ),
@@ -613,7 +617,6 @@ These elements take a `timevector` and run the corresponding aggregate over it
 to produce a result. The possible elements are:
 
 - `average()`
-- `integral()`
 - `counter_agg()`
 - `hyperloglog()`
 - `stats_agg()`
@@ -623,7 +626,7 @@ to produce a result. The possible elements are:
 An example of an aggregate output using `num_vals()`:
 
 ```sql
-SELECT toolkit_experimental.timevector(time, value) -> toolkit_experimental.num_vals()
+SELECT timevector(time, value) -> num_vals()
 FROM (VALUES (TimestampTZ '2021-01-06 UTC',   0.0 ),
              (            '2021-01-01 UTC',  25.0 ),
              (            '2021-01-02 UTC',   0.10),
@@ -645,9 +648,9 @@ An example of an aggregate output using `stats_agg()`:
 
 ```sql
 SELECT
-    toolkit_experimental.timevector(time, value)
+    timevector(time, value)
     -> toolkit_experimental.stats_agg()
-    -> toolkit_experimental.stddev()
+    -> stddev()
 FROM (VALUES (TimestampTZ '2021-01-06 UTC',   0.0 ),
              (            '2021-01-01 UTC',  25.0 ),
              (            '2021-01-02 UTC',   0.10),
@@ -673,8 +676,9 @@ part of a function pipeline. For example:
 
 ```sql
 SELECT device_id,
-timevector(ts, val) -> sort() -> delta() -> stats_agg() -> variance()
+timevector(ts, val) -> toolkit_experimental.sort() -> delta() -> toolkit_experimental.stats_agg() -> variance()
 FROM measurements
+GROUP BY device_id
 ```
 
 When you use them in a pipeline instead of standard function accessors and
@@ -773,7 +777,7 @@ This is an approximation for distinct counts. The `distinct_count()` accessor
 can be called on the output of a `hyperloglog()`. For example:
 
 ```sql
-SELECT hyperloglog(device_id) -> distinct_count() FROM measurements;
+SELECT hyperloglog(8192, device_id) -> distinct_count() FROM measurements;
 ```
 
 ## Formatting timevectors
@@ -840,7 +844,7 @@ SELECT toolkit_experimental.to_text(
 ```
 
 ```
-{"times": ["2020-01-01 00:00:00+00","2020-01-02 00:00:00+00","2020-01-03 00:00:00+00","2020-01-04 00:00:00+00","2020-01-05 00:00:00+00"], "vals": ["30","45","null","55.5","10"]}
+{"times": [2020-01-01 00:00:00+00, 2020-01-02 00:00:00+00, 2020-01-03 00:00:00+00, 2020-01-04 00:00:00+00, 2020-01-05 00:00:00+00], "vals": [30, 45, null, 55.5, 10]}
 ```
 
 ### `to_plotly`
@@ -883,7 +887,7 @@ This table lists all function pipeline elements in alphabetical order:
 | `average()` | Aggregate Finalizer | DOUBLE PRECISION |
 | `cbrt()` | Unary Mathematical | `timevector` pipeline |
 | `ceil()` | Unary Mathematical | `timevector` pipeline |
-| `counter_agg()` | Aggregate Finalizer | `CounterAgg` |
+| `counter_agg()` | Aggregate Finalizer | `CounterSummary` |
 | `delta()` | Compound | `timevector` pipeline |
 | `div` | Binary Mathematical | `timevector` pipeline |
 | `fill_to` | Compound | `timevector` pipeline |
@@ -906,6 +910,6 @@ This table lists all function pipeline elements in alphabetical order:
 | `sqrt` | Unary Mathematical | `timevector` pipeline |
 | `stats_agg` | Aggregate Finalizer | StatsSummary1D |
 | `sub` | Binary Mathematical | `timevector` pipeline |
-| `sum` | Aggregate Finalizer | `timevector` pipeline |
+| `sum` | Aggregate Finalizer | DOUBLE PRECISION |
 | `trunc` | Unary Mathematical | `timevector` pipeline |
 | `unnest` | Output | `TABLE (time TIMESTAMPTZ, value DOUBLE PRECISION)` |
