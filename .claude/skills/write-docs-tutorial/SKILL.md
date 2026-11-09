@@ -2,7 +2,8 @@
 name: write-docs-tutorial
 description: Write a tutorial for the Tiger Data Docs site following established conventions. Use when creating a new tutorial, cookbook, or step-by-step guide for the /learn/tutorials section — especially for database, search, AI, or data engineering topics.
 user-invocable: true
-allowed-tools: Read Grep Glob Edit Write Bash Agent
+disable-model-invocation: true
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash(pnpm build:*), Bash(pnpm lint:prose:*), Bash(vale:*)
 argument-hint: "[topic or source URL]"
 effort: high
 ---

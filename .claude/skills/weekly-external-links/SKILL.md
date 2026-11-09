@@ -2,7 +2,8 @@
 name: weekly-external-links
 description: Pull recent content from Tiger Den (Tiger Data's marketing content hub), match it to docs pages, and draft learnMore right-rail cards on a review branch. Use for the recurring "add new external links to the docs" task, or when asked to refresh learnMore cards from recent blog/video/customer content.
 user-invocable: true
-allowed-tools: Read Grep Glob Edit Write Bash
+disable-model-invocation: true
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash(python3 .claude/skills/weekly-external-links/scripts/:*), Bash(pnpm build:*), Bash(pnpm lint:prose:*)
 argument-hint: "[--days N] (default 7)"
 effort: high
 ---
