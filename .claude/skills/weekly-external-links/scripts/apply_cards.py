@@ -27,7 +27,11 @@ import sys
 
 def dq(s):
     """Double-quote a YAML scalar, escaping backslashes and quotes."""
+    s = re.sub(r"[\r\n\t]+", " ", s)
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+HREF_OK = re.compile(r"^(https?://|/)")
 
 
 def frontmatter_bounds(lines):
@@ -45,9 +49,12 @@ def item_lines(links, indent):
     pad = " " * indent
     out = []
     for ln in links:
+        if not HREF_OK.match(ln["href"]):
+            print(f"SKIP (href is not http(s) or site-relative): {ln['href']!r}", file=sys.stderr)
+            continue
         prefix = "Video: " if ln["kind"] == "video" and not ln["label"].lower().startswith("video:") else ""
         out.append(f"{pad}- label: {dq(prefix + ln['label'])}")
-        out.append(f"{pad}  href: {ln['href']}")
+        out.append(f"{pad}  href: {dq(ln['href'])}")
     return out
 
 
@@ -70,7 +77,7 @@ def apply_card(path, card):
 
     if lm_idx is None:
         # No card yet: insert a full learnMore block before the closing '---'.
-        block = ["learnMore:", f"  relatedPostsHeading: {heading}", "  relatedPosts:"]
+        block = ["learnMore:", f"  relatedPostsHeading: {dq(heading)}", "  relatedPosts:"]
         block += item_lines(links, 4)
         lines[fm_end:fm_end] = block
         verb = "added new card"
@@ -102,7 +109,7 @@ def apply_card(path, card):
             verb = "replaced card links"
         else:
             # learnMore exists but has no relatedPosts (e.g. only tutorials).
-            block = [f"  relatedPostsHeading: {heading}", "  relatedPosts:"]
+            block = [f"  relatedPostsHeading: {dq(heading)}", "  relatedPosts:"]
             block += item_lines(links, 4)
             abs_at = fm_start + 1 + lm_end
             lines[abs_at:abs_at] = block

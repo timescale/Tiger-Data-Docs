@@ -34,7 +34,7 @@ def parse_related(fm):
             continue
         h = re.match(r"\s*href:\s*(\S+)", l)
         if h and label is not None:
-            out.append({"label": label, "href": h.group(1)})
+            out.append({"label": label, "href": h.group(1).strip("\"'")})
             label = None
     return out
 
