@@ -405,6 +405,7 @@ export default defineConfig({
               items: [
                 { label: "Compare Tiger Data products", link: "/get-started/feature-comparison" },
                 { label: "Cloud-exclusive features", link: "/get-started/cloud-exclusive-features" },
+                { label: "Enterprise-exclusive features", link: "/get-started/enterprise-exclusive-features" },
                 { label: "Compare TimescaleDB editions", link: "/get-started/choose-your-path/timescaledb-editions" },
               ],
             },
@@ -483,14 +484,16 @@ export default defineConfig({
                 { label: "Visualize financial tick data with Grafana", link: "/learn/tutorials/analyze-financial-tick-data" },
                 { label: "Visualize transport and geospatial data with Grafana", link: "/learn/tutorials/analyze-transport-data" },
                 { label: "Tiger Data cookbook", link: "/learn/tutorials/cookbook" },
+                { label: "Diagnose and fix a slow hypertable query", link: "learn/tutorials/diagnose-and-fix-a-slow-hypertable-query" },
+                { label: "Migrate a large production table to a hypertable while it receives writes", link: "learn/tutorials/migrate-a-table-to-a-hypertable" },
               ],
             },
             {
               label: "Tiger Cloud",
               collapsed: true,
               items: [
-                { label: "Tiger Cloud", link: "/learn/tiger-cloud" },
-                { label: "Cloud-exclusive features", link: "/learn/tiger-cloud/cloud-exclusive-features" },
+                { label: "Meet Tiger Cloud", link: "/learn/tiger-cloud" },
+                { label: "Key differentiators", link: "/learn/tiger-cloud/cloud-exclusive-features" },
                 { label: "Tiger Cloud essentials", link: "/learn/tiger-cloud/tiger-cloud-essentials" },
               ],
             },
@@ -499,6 +502,14 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { label: "Tiger CLI and Tiger MCP", link: "/learn/tiger-cli-mcp" },
+              ],
+            },
+            {
+              label: "TimescaleDB Enterprise",
+              collapsed: true,
+              items: [
+                { label: "Meet TimescaleDB Enterprise", link: "/learn/enterprise" },
+                { label: "Key differentiators", link: "/learn/enterprise/enterprise-exclusive-features" },
               ],
             },
             {
@@ -956,6 +967,7 @@ export default defineConfig({
                     { label: "Overview", link: "/integrate/query-administration" },
                     { label: "Azure Data Studio", link: "/integrate/query-administration/azure-data-studio" },
                     { label: "DBeaver", link: "/integrate/query-administration/dbeaver" },
+                    { label: "DBine", link: "/integrate/query-administration/dbine" },
                     { label: "LibreDB Studio", link: "/integrate/query-administration/libredb-studio" },
                     { label: "pgAdmin", link: "/integrate/query-administration/pgadmin" },
                     { label: "PostgreSQL", link: "/integrate/query-administration/postgresql" },

@@ -2,7 +2,8 @@
 name: pr
 description: Run this repo's checks (build, prose lint) and open a draft PR using the repo's PR template. Use when the user says "create a PR", "open a PR", "let's PR this", "submit this", or any variation of wanting to submit doc changes for review.
 user-invocable: true
-allowed-tools: Read Grep Glob Bash
+disable-model-invocation: true
+allowed-tools: Read, Grep, Glob, Bash(pnpm build:*), Bash(pnpm lint:prose:*), Bash(git status:*), Bash(git diff:*), Bash(git ls-files:*), Bash(git log:*)
 argument-hint: "[optional one-line summary of the change]"
 effort: medium
 ---

@@ -8,6 +8,7 @@ keywords: [hypertables, chunks, chunk_interval, performance, migration]
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 
 Selecting the optimal `chunk_interval` before your system reaches production scale is a hard
 architectural decision. As a rule of thumb, it is safer to provision larger {C.CHUNK}s than
@@ -62,7 +63,7 @@ CREATE TABLE temperature_readings (
 ```
 
 Each sensor emits a reading every 5 minutes, creating tiny {C.CHUNK}s holding merely 300 tuples
-each. Three months in, the {C.HYPERTABLE} has accumulated nearly 3,000 {C.CHUNK}s, causing
+each. A month in, the {C.HYPERTABLE} has accumulated nearly 3,000 {C.CHUNK}s, causing
 noticeable performance degradation:
 
 ```sql
@@ -116,7 +117,9 @@ BEGIN
             pg_get_constraintdef(oid) AS constraint_definition
         FROM pg_constraint
         WHERE conrelid = source_table::regclass
-        -- No contype filter: captures 'p', 'u', 'c', 'f', and 'x' constraint types
+          -- Captures 'p', 'u', 'c', 'f', and 'x' constraint types. On PostgreSQL 18 and later,
+          -- NOT NULL constraints are also rows here ('n'); the new table already has them
+          AND contype <> 'n'
     LOOP
         drop_stmt := format('ALTER TABLE %I DROP CONSTRAINT %I;', source_table, constraint_record.constraint_name);
         EXECUTE drop_stmt;
@@ -222,9 +225,20 @@ See [`show_chunks()`](/reference/timescaledb/hypertables/show_chunks) and
 <NumberedItem title="Clean up the legacy table">
 
 Once you have verified that all data is present and the application is functioning as expected,
-drop the legacy temporary table to reclaim disk space:
+drop the legacy table to reclaim disk space. Dropping a {C.HYPERTABLE} locks every one of its
+{C.CHUNK}s in one transaction, and with thousands of {C.CHUNK}s that exceeds the lock table of a
+default {C.PG} configuration (`max_locks_per_transaction = 64`) with `ERROR: out of shared memory`.
+Drop the {C.CHUNK}s first, one transaction each, then the empty {C.HYPERTABLE}:
 
 ```sql
+DO $$ DECLARE chunk regclass;
+BEGIN
+  FOR chunk IN SELECT show_chunks('temperature_readings_temp') LOOP
+    EXECUTE format('DROP TABLE %s', chunk);
+    COMMIT;
+  END LOOP;
+END $$;
+
 DROP TABLE temperature_readings_temp;
 ```
 
@@ -237,7 +251,7 @@ DROP TABLE temperature_readings_temp;
 To rehearse this migration in a staging environment, use the following scripts to generate a
 mock dataset.
 
-### Generate 3 months of historical data
+### Generate a month of historical data
 
 ```sql
 INSERT INTO temperature_readings (time, sensor_id, temperature)
@@ -247,9 +261,9 @@ SELECT
   -- Generates a random temperature between 10.0 and 40.0
   random() * 30 + 10 AS temperature
 FROM
-  -- Generate a timestamp every 5 minutes for the last 3 months
+  -- Generate a timestamp every 5 minutes for the last month
   generate_series(
-    NOW() - INTERVAL '3 month',
+    NOW() - INTERVAL '1 month',
     NOW(),
     INTERVAL '5 minutes'
   ) AS t(time)
@@ -301,3 +315,49 @@ done
   change the {C.CHUNK} interval for newly created {C.CHUNK}s.
 - [`show_chunks()`](/reference/timescaledb/hypertables/show_chunks): inspect existing
   {C.CHUNK}s and their ranges.
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE temperature_readings (time TIMESTAMPTZ NOT NULL, sensor_id INTEGER NOT NULL, temperature DOUBLE PRECISION NULL) WITH (tsdb.hypertable, tsdb.segmentby='sensor_id', tsdb.chunk_interval='15 minutes');`
+5. run SQL: `INSERT INTO temperature_readings SELECT ts, id, 25 + 15 * sin(id) FROM generate_series(now() - INTERVAL '31 days', now() - INTERVAL '23 days', INTERVAL '5 minutes') ts, generate_series(1, 100) id;`
+6. run SQL: `INSERT INTO temperature_readings SELECT ts, id, 25 + 15 * sin(id) FROM generate_series(now() - INTERVAL '23 days' + INTERVAL '5 minutes', now() - INTERVAL '15 days', INTERVAL '5 minutes') ts, generate_series(1, 100) id;`
+7. run SQL: `INSERT INTO temperature_readings SELECT ts, id, 25 + 15 * sin(id) FROM generate_series(now() - INTERVAL '15 days' + INTERVAL '5 minutes', now() - INTERVAL '7 days', INTERVAL '5 minutes') ts, generate_series(1, 100) id;`
+8. run SQL: `INSERT INTO temperature_readings SELECT ts, id, 25 + 15 * sin(id) FROM generate_series(now() - INTERVAL '7 days' + INTERVAL '5 minutes', now(), INTERVAL '5 minutes') ts, generate_series(1, 100) id;`
+9. expect rows: `SELECT 1 FROM show_chunks('temperature_readings') HAVING count(*) BETWEEN 2800 AND 3100`
+10. run SQL: `SELECT show_chunks('temperature_readings');`
+11. run SQL: `DO $$ DECLARE j INTEGER; BEGIN SELECT job_id INTO j FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression' AND hypertable_name = 'temperature_readings'; CALL run_job(j); END $$;`
+12. expect rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'temperature_readings' AND is_compressed HAVING count(*) > 2700`
+13. run SQL: `ALTER TABLE temperature_readings ADD CONSTRAINT temperature_range CHECK (temperature BETWEEN -50 AND 100);`
+14. run SQL: `CREATE TABLE temperature_readings_new (time TIMESTAMPTZ NOT NULL, sensor_id INTEGER NOT NULL, temperature DOUBLE PRECISION NULL) WITH (tsdb.hypertable, tsdb.segmentby='sensor_id', tsdb.chunk_interval='1 day');`
+15. run SQL: `DO $$ DECLARE constraint_record RECORD; drop_stmt TEXT; add_stmt TEXT; source_table TEXT := 'temperature_readings'; target_table TEXT := 'temperature_readings_new'; BEGIN FOR constraint_record IN SELECT conname AS constraint_name, pg_get_constraintdef(oid) AS constraint_definition FROM pg_constraint WHERE conrelid = source_table::regclass AND contype <> 'n' LOOP drop_stmt := format('ALTER TABLE %I DROP CONSTRAINT %I;', source_table, constraint_record.constraint_name); EXECUTE drop_stmt; RAISE NOTICE 'Dropped: %', drop_stmt; add_stmt := format('ALTER TABLE %I ADD CONSTRAINT %I %s;', target_table, constraint_record.constraint_name, constraint_record.constraint_definition); EXECUTE add_stmt; RAISE NOTICE 'Added: %', add_stmt; END LOOP; END $$;`
+16. expect rows: `SELECT 1 FROM pg_constraint WHERE conrelid = 'temperature_readings_new'::regclass AND conname = 'temperature_range'`
+17. expect no rows: `SELECT 1 FROM pg_constraint WHERE conrelid = 'temperature_readings'::regclass AND conname = 'temperature_range'`
+18. run SQL:
+    BEGIN;
+    ALTER TABLE temperature_readings RENAME TO temperature_readings_temp;
+    ALTER TABLE temperature_readings_new RENAME TO temperature_readings;
+    COMMIT;
+19. expect no rows: `SELECT 1 FROM temperature_readings`
+20. expect rows: `SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'temperature_readings_temp'`
+21. run SQL: `DO $$ DECLARE start_time timestamptz; end_time timestamptz; batch_interval interval := INTERVAL '1 day'; min_time timestamptz; max_time timestamptz; BEGIN SELECT min(time), max(time) INTO min_time, max_time FROM temperature_readings_temp; start_time := min_time; WHILE start_time <= max_time LOOP end_time := start_time + batch_interval; RAISE NOTICE 'Moving data from % to %', start_time, end_time; INSERT INTO temperature_readings SELECT * FROM temperature_readings_temp WHERE time >= start_time AND time < end_time ORDER BY time ASC; COMMIT; start_time := end_time; END LOOP; END $$;`
+22. expect rows: `SELECT 1 WHERE (SELECT count(*) FROM temperature_readings) = (SELECT count(*) FROM temperature_readings_temp)`
+23. run SQL: `SELECT show_chunks('temperature_readings');`
+24. expect rows: `SELECT 1 FROM show_chunks('temperature_readings') HAVING count(*) BETWEEN 30 AND 33`
+25. run SQL: `DO $$ DECLARE chunk regclass; BEGIN FOR chunk IN SELECT show_chunks('temperature_readings', older_than => INTERVAL '1 day') LOOP CALL convert_to_columnstore(chunk); END LOOP; END $$;`
+26. expect rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'temperature_readings' AND is_compressed HAVING count(*) >= 29`
+27. run SQL: `DO $$ DECLARE chunk regclass; BEGIN FOR chunk IN SELECT show_chunks('temperature_readings_temp') LOOP EXECUTE format('DROP TABLE %s', chunk); COMMIT; END LOOP; END $$;`
+28. expect no rows: `SELECT 1 FROM show_chunks('temperature_readings_temp')`
+29. run SQL: `DROP TABLE temperature_readings_temp;`
+30. expect no rows: `SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'temperature_readings_temp'`
+31. run SQL: `INSERT INTO temperature_readings (time, sensor_id, temperature) SELECT t.time, s.sensor_id, random() * 30 + 10 AS temperature FROM generate_series(NOW() - INTERVAL '1 month', NOW(), INTERVAL '5 minutes') AS t(time) CROSS JOIN generate_series(1, 100) AS s(sensor_id);`
+32. run SQL: `DO $$ DECLARE chunk regclass; BEGIN FOR chunk IN SELECT show_chunks('temperature_readings', older_than => INTERVAL '1 day') LOOP CALL convert_to_columnstore(chunk); END LOOP; END $$;`
+33. expect rows: `SELECT 1 FROM temperature_readings HAVING count(*) > 1700000`
+34. expect rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'temperature_readings' AND is_compressed HAVING count(*) >= 29`
+
+Not scripted:
+- Simulate continuous ingestion: an endless bash loop against a connection string the page leaves open.
+</TestPlan>

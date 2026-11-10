@@ -17,7 +17,6 @@
  *
  * Environment:
  *   LINKCHECK_BASE_URL   default base (falls back to https://www.tigerdata.com/docs)
- *   VERCEL_BYPASS_SECRET sent as x-vercel-protection-bypass on every request
  *
  * Exit codes: 0 clean, 1 broken links (or redirects with --fail-on-redirects),
  * 2 could not run (sitemap unreachable, lychee missing).
@@ -49,7 +48,6 @@ const EXTERNAL_EXCLUDE = [
   "^https?://(www\\.)?inductiveautomation\\.com/",
   "^https?://github\\.com/.*/(edit|blob)/.*\\.mdx?$",
 ];
-const BYPASS = process.env.VERCEL_BYPASS_SECRET ?? "";
 const origin = new URL(BASE).origin;
 // The sitemap and canonical links name the production host and base path; map them onto the deployment.
 const onDeployment = (u) => u.replace(/^https?:\/\/[^/]+\/docs/, BASE).replace(/^https?:\/\/[^/]+/, origin);
@@ -88,7 +86,6 @@ const OLD_HOSTS = ["https://docs.timescale.com", "https://docs.tigerdata.com"];
 const CANONICAL = "https://www.tigerdata.com/docs";
 
 const headers = { "user-agent": "Mozilla/5.0 (Tiger-Data-Docs link check)" };
-if (BYPASS) headers["x-vercel-protection-bypass"] = BYPASS;
 
 async function fetchText(url, attempts = 5) {
   for (let i = 0; i < attempts; i++) {
@@ -149,8 +146,6 @@ function internalHrefs(html, pageUrl) {
     }
     if (u.origin !== origin) continue;
     if (basePath && !u.pathname.startsWith(basePath + "/") && u.pathname !== basePath) continue;
-    u.searchParams.delete("x-vercel-protection-bypass");
-    u.searchParams.delete("x-vercel-set-bypass-cookie");
     out.add(u.toString());
   }
   return out;
@@ -227,7 +222,6 @@ await writeFile(
 const lycheeArgs = [
   "--config", "lychee.toml", "--no-progress", "--format", "json", "--output", `${OUT}/lychee.json`,
 ];
-if (BYPASS) lycheeArgs.push("--header", `x-vercel-protection-bypass: ${BYPASS}`);
 lycheeArgs.push(`${OUT}/links.html`);
 const run = spawnSync("lychee", lycheeArgs, { stdio: ["ignore", "inherit", "inherit"] });
 if (run.error) {
