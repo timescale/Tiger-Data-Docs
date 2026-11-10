@@ -2,7 +2,7 @@
 name: apply-constants
 description: Apply the constants from src/constants.ts to a docs page — scan the page, swap every literal that matches a constant value (PostgreSQL, Tiger Cloud, TimescaleDB, hypertable, chunk, columnstore, service, and so on) for its {C.X} constant in the correct MDX/JSX syntax, add the import if missing, then verify the page renders. Use when asked to "apply constants/variables", "use the constants", or "swap literals for C.X" on an existing .md/.mdx page.
 user-invocable: true
-allowed-tools: Read Grep Glob Edit Bash
+allowed-tools: Read, Grep, Glob, Edit, Bash(pnpm build:*)
 argument-hint: "[path to the .md/.mdx page]"
 effort: medium
 ---
