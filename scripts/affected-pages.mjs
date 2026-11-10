@@ -77,8 +77,9 @@ function findConsumers(partialPath, visited = new Set()) {
 
   const name = path.basename(partialPath, ".mdx");
   // The name is interpolated into a regex; only accept the characters real
-  // partial names use.
+  // partial names use, and escape the one of them that is a regex operator.
   if (!/^[\w.-]+$/.test(name)) return [];
+  const pattern = name.replace(/\./g, "\\.");
   let lines = [];
   try {
     // Anchor on the exact filename followed by the closing quote, not a bare
@@ -87,7 +88,7 @@ function findConsumers(partialPath, visited = new Set()) {
     // a non-word character and satisfies \b right after "hypertable".
     const out = execFileSync(
       "grep",
-      ["-rlE", `from ['"].*/${name}\\.mdx['"]`, "src/content", "src/partials", "--include=*.mdx"],
+      ["-rlE", `from ['"].*/${pattern}\\.mdx['"]`, "src/content", "src/partials", "--include=*.mdx"],
       { encoding: "utf8" },
     );
     lines = out.split("\n").filter(Boolean);
