@@ -3,7 +3,7 @@ name: write-test-plan
 description: Draft or update the <TestPlan> block on a docs page for the doc-testing tool. Use when a page needs a test plan, when a page's procedure changed and its plan is stale, or when asked to "write a test plan" or "make this page testable".
 user-invocable: true
 disable-model-invocation: true
-allowed-tools: Read, Grep, Glob, Edit, Write, Bash(node scripts/:*), Bash(tiger db connect:*), Bash(psql:*)
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash(node scripts/*), Bash(tiger db connect:*)
 argument-hint: "[page path or docs URL]"
 effort: high
 ---

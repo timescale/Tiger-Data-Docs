@@ -3,7 +3,7 @@ name: write-docs-integration-guide
 description: Write an integration guide for the Tiger Data Docs site following established conventions. Use when documenting how to connect a third-party tool (database client, BI tool, streaming platform, observability stack, ETL connector, etc.) to Tiger Cloud or self-hosted TimescaleDB.
 user-invocable: true
 disable-model-invocation: true
-allowed-tools: Read, Grep, Glob, Edit, Write, Bash(pnpm build:*), Bash(pnpm lint:prose:*), Bash(vale:*)
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash(pnpm build:*), Bash(pnpm lint:prose:*)
 argument-hint: "[product name or source URL]"
 effort: high
 ---
