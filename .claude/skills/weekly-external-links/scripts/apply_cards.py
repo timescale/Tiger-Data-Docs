@@ -26,12 +26,32 @@ import sys
 
 
 def dq(s):
-    """Double-quote a YAML scalar, escaping backslashes and quotes."""
-    s = re.sub(r"[\r\n\t]+", " ", s)
+    """Double-quote a YAML scalar, escaping backslashes and quotes.
+
+    Whitespace control characters collapse to one space; any other control
+    character is dropped, since YAML parsers reject them inside a scalar.
+    """
+    s = re.sub(r"[\r\n\t\v\f]+", " ", s)
+    s = re.sub(r"[\x00-\x1f\x7f]", "", s)
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-HREF_OK = re.compile(r"^(https?://|/)")
+# Absolute http(s), or site-relative starting with a single slash. A second
+# slash or a backslash would make it protocol-relative, so another host.
+HREF_OK = re.compile(r"^(https?://|/(?![/\\]))", re.I)
+
+
+def usable_links(card):
+    """The card's links with hrefs trimmed, minus any whose href is not a URL
+    this site should link to. Each rejection is reported on stderr."""
+    out = []
+    for ln in card.get("links") or []:
+        href = (ln.get("href") or "").strip()
+        if not HREF_OK.match(href):
+            print(f"SKIP link (href is not http(s) or site-relative): {href!r}", file=sys.stderr)
+            continue
+        out.append({**ln, "href": href})
+    return out
 
 
 def frontmatter_bounds(lines):
@@ -49,9 +69,6 @@ def item_lines(links, indent):
     pad = " " * indent
     out = []
     for ln in links:
-        if not HREF_OK.match(ln["href"]):
-            print(f"SKIP (href is not http(s) or site-relative): {ln['href']!r}", file=sys.stderr)
-            continue
         prefix = "Video: " if ln["kind"] == "video" and not ln["label"].lower().startswith("video:") else ""
         out.append(f"{pad}- label: {dq(prefix + ln['label'])}")
         out.append(f"{pad}  href: {dq(ln['href'])}")
@@ -68,9 +85,9 @@ def apply_card(path, card):
     fm_start, fm_end = b
     fm = lines[fm_start + 1 : fm_end]
 
-    links = card.get("links", [])
+    links = usable_links(card)
     if not links:
-        return f"skip (no links): {card['page_path']}"
+        return f"skip (no usable links): {card['page_path']}"
     heading = card.get("heading") or "Related resources"
 
     lm_idx = next((i for i, l in enumerate(fm) if re.match(r"^learnMore:\s*$", l)), None)

@@ -13,6 +13,16 @@ import argparse, json, os, re, sys
 ROOT = "src/content/docs"
 
 
+def unquote(s):
+    """Undo YAML scalar quoting as apply_cards.py writes it, so a label or
+    href reads back exactly as it was given (no escape growth week on week)."""
+    s = s.strip()
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in "\"'":
+        inner = s[1:-1]
+        return re.sub(r"\\(.)", r"\1", inner) if s[0] == '"' else inner.replace("''", "'")
+    return s
+
+
 def parse_related(fm):
     """Extract existing relatedPosts links ({label, href}) from frontmatter text.
 
@@ -30,11 +40,11 @@ def parse_related(fm):
             break  # dedented to a sibling key; list is done
         m = re.match(r"\s*-\s*label:\s*(.+)$", l)
         if m:
-            label = m.group(1).strip().strip("\"'")
+            label = unquote(m.group(1))
             continue
-        h = re.match(r"\s*href:\s*(\S+)", l)
+        h = re.match(r"\s*href:\s*(.+)$", l)
         if h and label is not None:
-            out.append({"label": label, "href": h.group(1).strip("\"'")})
+            out.append({"label": label, "href": unquote(h.group(1))})
             label = None
     return out
 
