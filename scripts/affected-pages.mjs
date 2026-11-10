@@ -6,9 +6,6 @@
 //   PREVIEW_URL     Optional URL prefix (a Vercel preview origin, no trailing slash).
 //                   When set, every emitted URL becomes a clickable markdown link
 //                   pointing at "<PREVIEW_URL><path>".
-//   BYPASS_SECRET   Optional Vercel deployment-protection bypass token. Combined
-//                   with PREVIEW_URL, the link becomes
-//                   "<PREVIEW_URL><path>?x-vercel-protection-bypass=<secret>&x-vercel-set-bypass-cookie=true".
 //
 // Output:
 //   pages-comment.md  Markdown bullet list (created only when there are URLs).
@@ -28,25 +25,17 @@ const changed = (process.env.CHANGED_FILES || "")
   .filter(Boolean);
 
 const previewBase = (process.env.PREVIEW_URL || "").replace(/\/$/, "");
-const bypassSecret = process.env.BYPASS_SECRET || "";
 
 // The component kitchen sink is served at /kitchen-sink on the preview origin
 // (Vercel previews serve the site at root, without the production /docs base).
 const KITCHEN_SINK_PATH = "/kitchen-sink";
 
-// Turn a site-relative path into a clickable preview URL, appending the Vercel
-// deployment-protection bypass query when a secret is available. Returns null
-// when there is no preview origin (local runs), so callers can fall back to
-// plain text.
+// Turn a site-relative path into a clickable preview URL. Returns null when
+// there is no preview origin (local runs), so callers can fall back to plain
+// text.
 function withPreview(urlPath) {
   if (!previewBase) return null;
-  let target = `${previewBase}${urlPath}`;
-  if (bypassSecret) {
-    target += `?x-vercel-protection-bypass=${encodeURIComponent(
-      bypassSecret,
-    )}&x-vercel-set-bypass-cookie=true`;
-  }
-  return target;
+  return `${previewBase}${urlPath}`;
 }
 
 // A standing reminder line pointing at this PR's own kitchen-sink preview.
