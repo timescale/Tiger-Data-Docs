@@ -2,7 +2,7 @@
 name: write-test-plan
 description: Draft or update the <TestPlan> block on a docs page for the doc-testing tool. Use when a page needs a test plan, when a page's procedure changed and its plan is stale, or when asked to "write a test plan" or "make this page testable".
 user-invocable: true
-allowed-tools: Read Grep Glob Edit Write Bash
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash(node scripts/lint-plan.mjs:*), Bash(node scripts/plan-sql.mjs:*), Bash(node scripts/test-page.mjs:*), Bash(node scripts/slot.mjs:*), Bash(tiger db connect:*)
 argument-hint: "[page path or docs URL]"
 effort: high
 ---
