@@ -53,10 +53,11 @@ Logs (WAL) by enabling the `timescaledb.enable_merge_on_cagg_refresh`
 refresh to use `MERGE` instead of deleting old materialized data and re-inserting.
 This parameter only works for finalized {C.CAGG}s
 that don't have {C.COLUMNSTORE} enabled. It is disabled by default. The merge compares every column of the
-materialized view, and the refresh runs with `search_path` restricted to `pg_catalog`, so it finds equality operators
-only for types defined there. A {C.CAGG} that stores a {C.TOOLKIT_SHORT} aggregate fails to refresh with this
-parameter on once it has materialized rows, with `operator does not exist: public.statssummary1d = public.statssummary1d`
-or the equivalent for the aggregate's type.
+materialized view, and the refresh runs with `search_path` restricted to `pg_catalog`, so it finds only equality
+operators that are in `pg_catalog`. A {C.CAGG} that stores a {C.TOOLKIT_LONG} aggregate fails to refresh with this
+parameter on when the refresh has to update buckets that are already materialized, for example after existing data
+changes or late data arrives in them. The error is `operator does not exist: public.statssummary1d = public.statssummary1d`, or the
+equivalent for the aggregate's type.
 
 To enable this parameter for your session:
 
