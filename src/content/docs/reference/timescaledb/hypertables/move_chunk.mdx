@@ -23,15 +23,17 @@ The `move_chunk` function acts like a combination of the
 [{C.PG} ALTER TABLE...SET TABLESPACE](https://www.postgresql.org/docs/13/sql-altertable.html) commands. Unlike
 these {C.PG} commands, however, the `move_chunk` function uses lower lock
 levels so that the {C.CHUNK} and {C.HYPERTABLE} are able to be read for most of the
-process. This comes at a cost of slightly higher disk usage during the
+process. Writes to the {C.CHUNK} are blocked until the move completes. This comes at a cost of slightly higher disk usage during the
 operation. For a more detailed discussion of this capability, see the
 documentation on [managing storage with tablespaces](/build/performance-optimization/manage-tablespaces).
 
-If the {C.CHUNK} is compressed, `move_chunk` instead takes a full exclusive lock for the
-entire operation, blocking all reads and writes on the {C.CHUNK} until it completes.
+If the {C.CHUNK} is in the {C.COLUMNSTORE}, `move_chunk` does not reorder it and ignores `reorder_index`.
+It takes an exclusive lock for the whole operation, so the {C.CHUNK} cannot be read or written
+until the move completes.
 
 <Callout variant="important">
-  You must own the {C.HYPERTABLE}, or have the privileges of its owner, to use the `move_chunk()` call.
+  To use `move_chunk()`, you must own the {C.HYPERTABLE}, or have the privileges of its owner,
+  and have the `CREATE` privilege on both destination tablespaces.
 </Callout>
 
 ## Samples
