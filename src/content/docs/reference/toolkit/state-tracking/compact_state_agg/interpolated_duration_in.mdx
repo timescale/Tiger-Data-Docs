@@ -10,18 +10,31 @@ import SinceRelease from '@components/SinceRelease.astro';
 <SinceRelease version="1.8.0" product="toolkit" mode="early_access" />
 
 Calculate the total duration in the given state. Unlike [`duration_in`](/reference/toolkit/state-tracking/compact_state_agg/duration_in), you can use this function across
-multiple state aggregates that cover multiple time buckets. Any missing values at the time bucket boundaries are
-interpolated from adjacent state aggregates.
+multiple state aggregates that cover different time buckets. Any missing values at the start of a time bucket are
+interpolated from the previous state aggregate.
+
+`start` must not be after the first timestamp in `agg`, and `start + interval` must not be before the last timestamp
+in `agg`. Otherwise the function raises an error.
 
 ## Samples
 
 Create a test table that tracks when a system switches between `starting`, `running`, and `error` states. Query the
-table for the time spent in the `running` state. Use `LAG` and `LEAD` to get the neighboring aggregates for
-interpolation.
+table for the time spent in the `running` state. To perform the interpolation, the `LAG` function is used to get the
+previous state aggregate.
 
 If you prefer to see the result in seconds, [`EXTRACT`](https://www.postgresql.org/docs/current/functions-datetime.html#FUNCTIONS-DATETIME-EXTRACT) the epoch from the returned result.
 
 ```sql
+SET timezone TO 'UTC';
+CREATE TABLE states(time TIMESTAMPTZ, state TEXT);
+INSERT INTO states VALUES
+  ('2020-01-01 10:00', 'starting'),
+  ('2020-01-01 10:30', 'running'),
+  ('2020-01-02 16:00', 'error'),
+  ('2020-01-03 18:30', 'starting'),
+  ('2020-01-03 19:30', 'running'),
+  ('2020-01-04 12:00', 'stopping');
+
 SELECT
   time,
   toolkit_experimental.interpolated_duration_in(
@@ -60,18 +73,18 @@ interpolated_duration_in(
   agg CompactStateAgg,
   state {TEXT | BIGINT},
   start TIMESTAMPTZ,
-  interval INTERVAL
-  [, prev CompactStateAgg]
+  interval INTERVAL,
+  prev CompactStateAgg
 ) RETURNS INTERVAL
 ```
 
 | Name | Type | Default | Required | Description |
 |------|------|---------|----------|-------------|
-| agg | CompactStateAgg | - | ✔ | A state aggregate created with [`compact_state_agg`](/reference/toolkit/state-tracking/compact_state_agg/compact_state_agg) |
-| state | TEXT | BIGINT | - | ✔ | The state to query |
+| agg | CompactStateAgg | - | ✔ | A state aggregate created with [`compact_state_agg`](/reference/toolkit/state-tracking/compact_state_agg/compact_state_agg). Must not be `NULL` |
+| state | TEXT \| BIGINT | - | ✔ | The state to query |
 | start | TIMESTAMPTZ | - | ✔ | The start of the interval to be calculated |
 | interval | INTERVAL | - | ✔ | The length of the interval to be calculated |
-| prev | CompactStateAgg | - | | The state aggregate from the prior interval, used to interpolate the value at `start`. If `NULL`, the first timestamp in `aggregate` is used as the start of the interval |
+| prev | CompactStateAgg | - | ✔ | The state aggregate from the prior interval, used to interpolate the value at `start`. Pass `NULL` if there is none; nothing before the first timestamp in `agg` is then counted. `start` must be at or after the last timestamp in `prev` |
 
 ## Returns
 
