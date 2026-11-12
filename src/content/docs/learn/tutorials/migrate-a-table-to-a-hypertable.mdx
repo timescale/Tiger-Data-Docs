@@ -1,0 +1,1117 @@
+---
+title: Migrate a large production table to a hypertable while it receives writes
+description: Move a regular PostgreSQL table into a hypertable while an application keeps writing to it, using ten years of factory sensor data
+---
+
+import { NumberedList, NumberedItem } from "@components/NumberedList";
+
+This tutorial shows you how to move a regular PostgreSQL table into a hypertable while an application keeps writing to it. It uses a sample manufacturing dataset that has hourly readings from ten sensors on each of five factory machines, over ten years, with about 4.4 million records in total. This tutorial's migration method also works for other time-ordered data, such as application logs, audit trails, infrastructure metrics, and event streams.
+
+If you want an overview of hypertables first, see [Understand hypertables](https://www.tigerdata.com/docs/learn/hypertables/understand-hypertables).
+
+## What you learn
+
+- How to decide whether a table is a good candidate for a hypertable.
+- How to create a hypertable from an existing table's definition, and how to fix a primary key and a unique index that leave out the time column.
+- How to keep a new hypertable current with a trigger while you copy the table's history in batches.
+- How to estimate how long the copy takes on a much larger table.
+- How to check a migration with row counts and query plans, then switch tables in one short transaction.
+- How to turn on the columnstore and a retention policy for the migrated table.
+
+## Decide whether to migrate
+
+A hypertable is a PostgreSQL table that TimescaleDB stores as a set of chunks, each holding one time range. A query that filters on time reads only the chunks that cover that range. A [data retention policy](https://www.tigerdata.com/docs/reference/timescaledb/data-retention/add_retention_policy) removes old data by dropping whole chunks, which takes far less work than deleting rows one by one. The [columnstore](https://www.tigerdata.com/docs/learn/columnar-storage/understand-hypercore) compresses older chunks, which reduces storage and speeds up queries that read many rows.
+
+Migrating to a hypertable is a good idea when the original table has the following properties:
+
+- Rows arrive roughly in time order.
+- Rows rarely change after the application writes them.
+- Most queries filter on a time range.
+- The table keeps growing, or you need to remove data older than a set age.
+
+Migration is a poor idea in these cases:
+
+- The application updates or deletes many rows long after it writes them. The trigger in this tutorial copies inserts only, and the columnstore works best on data that no longer changes.
+- Many other tables reference it through foreign keys. Those foreign keys keep pointing to the original table after the switch, so you have to rebuild each one, which makes the switch longer and harder to reverse.
+- Few queries filter on time.
+
+An index may be all you need. If the table's indexes fit in memory, your slow queries filter on a column other than time, and you don't need to remove old data on a schedule, run [`EXPLAIN (ANALYZE, BUFFERS)`](https://www.postgresql.org/docs/current/sql-explain.html) on the slow queries first. If a new index fixes them, add the index and keep the table as it is.
+
+## Set up the data
+
+<NumberedList>
+<NumberedItem title="Create a Tiger Cloud service">
+
+Create a Tiger Cloud service by following [our previous guide](https://www.tigerdata.com/docs/get-started/quickstart/create-service). Download the configuration file when you create it, and keep it for the next step. The file holds your connection string.
+
+> **Note:** You can also follow this tutorial with a self-hosted TimescaleDB database instead.
+
+</NumberedItem>
+<NumberedItem title="Connect to your service">
+
+Save your connection string in the `DATABASE_URL` environment variable and connect to your database with these commands:
+
+```bash
+export DATABASE_URL="<connection string>"
+psql "$DATABASE_URL"
+```
+
+Initializing `DATABASE_URL` is required for the loading script in Step 4.
+
+</NumberedItem>
+<NumberedItem title="Create the table">
+
+Create the `sensor_data` table and add an index for queries that filter on a machine, a sensor, and a time range by running this SQL in your `psql` session:
+
+```sql
+CREATE TABLE sensor_data (
+    id          bigserial PRIMARY KEY,
+    reading_id  bigserial UNIQUE,
+    time        timestamptz NOT NULL,
+    device_id   text NOT NULL,
+    tag         text NOT NULL,
+    value       double precision,
+    unit        text,
+    description text
+);
+
+CREATE INDEX sensor_data_device_tag_time_idx
+    ON sensor_data (device_id, tag, time);
+```
+
+Both `id` and `reading_id` take their default values from a sequence, so the application can insert a reading without either one.
+
+</NumberedItem>
+<NumberedItem title="Load the manufacturing dataset">
+
+Type `\q` to quit `psql`. Stay in the same terminal, so `DATABASE_URL` keeps its value, and download `manufacturing.zip`.
+
+Unzip the dataset and install `psycopg`, the PostgreSQL driver for Python, by running these commands:
+
+```bash
+unzip manufacturing.zip
+pip install "psycopg[binary]"
+```
+
+Save this script as `load_data.py` and run it in the same directory. It may take a minute or two, depending on your internet connection.
+
+```python
+"""
+Load manufacturing.csv into the sensor_data hypertable.
+
+The script numbers each reading in file order, which is time order,
+and shifts every timestamp forward so the newest reading falls in
+the current hour.
+"""
+import csv
+import os
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+import psycopg
+
+CSV_PATH = Path(__file__).resolve().parent / "manufacturing.csv"
+COPY_SQL = """
+    COPY sensor_data
+        (reading_id, time, device_id, tag, value, unit, description)
+    FROM STDIN
+"""
+
+
+def read_rows():
+    with CSV_PATH.open(newline="", encoding="utf-8") as f:
+        yield from csv.DictReader(f)
+
+
+def main():
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        sys.exit("Set DATABASE_URL to your service connection string.")
+    if not CSV_PATH.exists():
+        sys.exit(f"Can't find {CSV_PATH}. Unzip manufacturing.zip first.")
+
+    print("Finding the newest reading in the file...")
+    newest = max(datetime.fromisoformat(r["time"]) for r in read_rows())
+    this_hour = datetime.now(timezone.utc).replace(
+        minute=0, second=0, microsecond=0
+    )
+    shift = this_hour - newest
+    print(f"Shifting timestamps forward by {shift.days} days.")
+
+    with psycopg.connect(url) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM sensor_data")
+            if cur.fetchone()[0] > 0:
+                sys.exit("sensor_data already has rows. Nothing loaded.")
+
+            with cur.copy(COPY_SQL) as copy:
+                for reading_id, r in enumerate(read_rows(), start=1):
+                    copy.write_row((
+                        reading_id,
+                        datetime.fromisoformat(r["time"]) + shift,
+                        r["device_id"],
+                        r["tag"],
+                        r["value"],
+                        r["unit"],
+                        r["description"],
+                    ))
+                    if reading_id % 500_000 == 0:
+                        print(f"Sent {reading_id:,} rows...")
+
+    print(f"Loaded {reading_id:,} rows into sensor_data.")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+The loading script does three things:
+
+- It reads the file once to find the newest reading, then shifts every timestamp forward by the same amount so the newest reading falls in the current hour. The shift makes the queries about recent days and the retention policy at the end of the tutorial work on the day you run them.
+- It numbers the readings in the order they appear in the file, which is time order, and stores the number in `reading_id`. PostgreSQL fills `id` from its sequence.
+- It streams the rows into `sensor_data` with the PostgreSQL `COPY` command, which is much faster than inserting rows one at a time.
+
+Verify the script loaded about 4.4 million rows into the table.
+
+```
+Finding the newest reading in the file...
+Shifting timestamps forward by 34 days.
+Sent 500,000 rows...
+Sent 1,000,000 rows...
+Sent 1,500,000 rows...
+Sent 2,000,000 rows...
+Sent 2,500,000 rows...
+Sent 3,000,000 rows...
+Sent 3,500,000 rows...
+Sent 4,000,000 rows...
+Loaded 4,380,050 rows into sensor_data.
+```
+
+</NumberedItem>
+<NumberedItem title="Verify the data loaded correctly">
+
+Reconnect to your database with `psql`. Update the planner statistics with `ANALYZE`, move the `reading_id` sequence past the highest loaded value, and count the rows by running this SQL:
+
+```sql
+ANALYZE sensor_data;
+
+SELECT setval(pg_get_serial_sequence('sensor_data', 'reading_id'),
+              max(reading_id)) AS last_reading_id
+FROM sensor_data;
+
+SELECT count(*) AS readings,
+       min(time) AS first_reading,
+       max(time) AS last_reading
+FROM sensor_data;
+```
+
+Verify the output shows about 4.4 million readings and a time range of about ten years that ends in the current hour.
+
+```
+ last_reading_id
+-----------------
+         4380050
+(1 row)
+
+ readings |     first_reading      |      last_reading
+----------+------------------------+------------------------
+  4380050 | 2016-10-03 05:00:00+00 | 2026-10-01 05:00:00+00
+(1 row)
+```
+
+</NumberedItem>
+</NumberedList>
+
+## Choose a chunk interval
+
+The chunk interval sets how much time each chunk covers. The [chunk sizing guide](https://www.tigerdata.com/docs/learn/hypertables/sizing-hypertable-chunks) says to set the interval so that the indexes of the chunks currently receiving data fit in about 25% of main memory, which is the `shared_buffers` setting. A shorter interval makes more chunks, and every extra chunk adds planning work to queries that cover a long time range.
+
+Run this SQL to count rows arriving each day, show the table’s total size, estimate how much the table’s indexes grow in one week, and show `shared_buffers`.
+
+```sql
+SELECT count(*) FILTER (
+           WHERE time >= now() - interval '30 days') / 30
+           AS rows_per_day,
+       pg_size_pretty(pg_total_relation_size('sensor_data'))
+           AS table_size,
+       pg_size_pretty((pg_indexes_size('sensor_data')
+           / extract(day FROM max(time) - min(time))
+           * 7)::bigint) AS index_growth_per_week,
+       current_setting('shared_buffers') AS shared_buffers
+FROM sensor_data;
+```
+
+Verify that one week of index growth is a small fraction of `shared_buffers`.
+
+```
+ rows_per_day | table_size | index_growth_per_week | shared_buffers 
+--------------+------------+-----------------------+----------------
+         1200 | 1084 MB    | 1153 kB               | 8GB
+(1 row)
+```
+
+A week of data fits in memory many times over, so the memory guideline allows a longer interval. This tutorial uses weekly chunks for three reasons:
+
+- A one-day query reads exactly one chunk, because weekly chunk boundaries fall at midnight UTC.
+- The retention policy removes data one week at a time.
+- Weekly chunks are the TimescaleDB default.
+
+On your own table, run the same query and choose an interval whose index growth fits in a quarter of `shared_buffers`.
+
+## Create the hypertable
+
+In this section, you will create `sensor_data_new`, the hypertable that replaces `sensor_data`. It will take its columns and defaults from `sensor_data`. Then, you will add its indexes yourself, because a hypertable needs every primary key and unique index to include the time column.
+
+<NumberedList>
+<NumberedItem title="Copy the table definition with its indexes">
+
+Try to create `sensor_data_new` from the definition of `sensor_data`, including its indexes, with [`CREATE TABLE ... WITH`](https://www.tigerdata.com/docs/reference/timescaledb/hypertables/create_table) by running this SQL.
+
+```sql
+CREATE TABLE sensor_data_new (
+    LIKE sensor_data INCLUDING DEFAULTS INCLUDING INDEXES
+) WITH (
+    tsdb.hypertable,
+    tsdb.partition_column = 'time',
+    tsdb.chunk_interval = '7 days'
+);
+```
+
+Verify that the statement fails with this error.
+
+```
+ERROR:  cannot create a unique index without the column "time" (used in partitioning)
+HINT:  If you're creating a hypertable on a table with a primary key, ensure the partitioning column is part of the primary or composite key.
+```
+
+TimescaleDB enforces uniqueness separately in each chunk. A unique index on `id` alone can't guarantee that an `id` value appears only once across every chunk, so TimescaleDB requires every primary key and unique index to include the partitioning column. For more detail, see [Primary keys, time columns, and uniqueness](https://www.tigerdata.com/docs/learn/data-model/primary-keys-time-and-uniqueness).
+
+</NumberedItem>
+<NumberedItem title="Create the hypertable and add the indexes">
+
+Create the hypertable from the column definitions and defaults only, then add the indexes, by running this SQL. It adds a primary key on `id` and `time`, a unique index on `reading_id` and `time`, and the same index on `device_id`, `tag`, and `time` as the original table.
+
+```sql
+CREATE TABLE sensor_data_new (
+    LIKE sensor_data INCLUDING DEFAULTS
+) WITH (
+    tsdb.hypertable,
+    tsdb.partition_column = 'time',
+    tsdb.chunk_interval = '7 days',
+    tsdb.columnstore = false
+);
+
+ALTER TABLE sensor_data_new
+    ADD PRIMARY KEY (id, time);
+
+CREATE UNIQUE INDEX sensor_data_new_reading_id_time_idx
+    ON sensor_data_new (reading_id, time);
+
+CREATE INDEX sensor_data_new_device_tag_time_idx
+    ON sensor_data_new (device_id, tag, time);
+```
+
+The `tsdb.columnstore = false` option leaves the columnstore off, so every chunk stays uncompressed while you copy and check the data. You will turn on the columnstore after the switch.
+
+> **Note:** `INCLUDING DEFAULTS` copies the defaults for `id` and `reading_id`, so both tables draw new values from the same two sequences. That keeps `id` values unique across both tables while writes go to the original table, and it lets the application keep inserting without an `id` after the switch.
+
+</NumberedItem>
+<NumberedItem title="Check the indexes">
+
+List the indexes on the new hypertable by running this SQL.
+
+```sql
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename = 'sensor_data_new'
+ORDER BY indexname;
+```
+
+Verify the output shows the three indexes you added, plus an index on `time` that TimescaleDB creates by default.
+
+```
+              indexname              |                                                      indexdef                                                      
+-------------------------------------+--------------------------------------------------------------------------------------------------------------------
+ sensor_data_new_device_tag_time_idx | CREATE INDEX sensor_data_new_device_tag_time_idx ON public.sensor_data_new USING btree (device_id, tag, "time")
+ sensor_data_new_pkey                | CREATE UNIQUE INDEX sensor_data_new_pkey ON public.sensor_data_new USING btree (id, "time")
+ sensor_data_new_reading_id_time_idx | CREATE UNIQUE INDEX sensor_data_new_reading_id_time_idx ON public.sensor_data_new USING btree (reading_id, "time")
+ sensor_data_new_time_idx            | CREATE INDEX sensor_data_new_time_idx ON public.sensor_data_new USING btree ("time" DESC)
+(4 rows)
+```
+
+</NumberedItem>
+</NumberedList>
+
+## Capture new writes
+
+Here, you will start a script that inserts readings into `sensor_data` every two seconds to mimic a production application. Then you will add a trigger on `sensor_data` that copies every new row into `sensor_data_new`, so the hypertable stays current while you copy the history.
+
+<NumberedList>
+<NumberedItem title="Start the insert script (in a second terminal)">
+
+Open a second terminal and start a new `psql` session. Turn on timing and insert one vibration reading for each of the five machines every two seconds with this SQL:
+
+```sql
+\timing on
+INSERT INTO sensor_data
+    (time, device_id, tag, value, unit, description)
+SELECT now(), 'machine' || m, 'vibration',
+       5 + random() * 10, 'mm/s', 'Bearing vibration level'
+FROM generate_series(1, 5) AS m
+\watch 2
+```
+
+The `\watch` command repeats the insert. Leave it running for the rest of the tutorial.
+
+Verify each insert is printed.
+
+```
+Timing is on.
+INSERT 0 5
+Time: 10.481 ms
+INSERT 0 5
+Time: 6.209 ms
+INSERT 0 5
+Time: 5.965 ms
+```
+
+</NumberedItem>
+<NumberedItem title="Add the trigger (in the first terminal)">
+
+Back in the first terminal, create a trigger function that inserts each new `sensor_data` row into `sensor_data_new`, and a [trigger](https://www.postgresql.org/docs/current/sql-createtrigger.html) that runs it after every insert, with this SQL.
+
+```sql
+CREATE FUNCTION copy_to_sensor_data_new()
+RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO sensor_data_new VALUES (NEW.*);
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER sensor_data_copy_to_new
+    AFTER INSERT ON sensor_data
+    FOR EACH ROW
+    EXECUTE FUNCTION copy_to_sensor_data_new();
+```
+
+> **Note:** The trigger runs inside the application's own transaction. If the insert into `sensor_data_new` fails, the application's insert into `sensor_data` fails with it. Watch the second terminal for errors after you add the trigger. The trigger also copies inserts only. If your application updates or deletes rows, add triggers for those operations too.
+
+</NumberedItem>
+<NumberedItem title="Confirm the trigger works">
+
+Compare the newest `id` in each table and count the rows in the hypertable by running this SQL.
+
+```sql
+SELECT (SELECT max(id) FROM sensor_data) AS newest_in_old,
+       (SELECT max(id) FROM sensor_data_new) AS newest_in_new,
+       (SELECT count(*) FROM sensor_data_new) AS rows_in_new;
+```
+
+Verify that the output shows the same newest `id` in both tables. The hypertable only holds the rows that the insert script wrote since you added the trigger.
+
+```
+ newest_in_old | newest_in_new | rows_in_new 
+---------------+---------------+-------------
+       4380085 |       4380085 |          15
+(1 row)
+```
+
+</NumberedItem>
+</NumberedList>
+
+## Copy the history in batches
+
+Next, copy the rows that existed before you added the trigger. The copy runs in batches, and each batch commits on its own, so no single transaction holds locks or builds up write-ahead log (WAL) for long. If the copy stops partway, you can run it again, and it will automatically resume after the last finished batch.
+
+During the copy, your service stores the original table, the uncompressed copy and its indexes, and extra WAL. Make sure it has room for a little more than twice the table's current size.
+
+Each batch needs to find its rows quickly. Compare how PostgreSQL finds one year of rows by `time` and 100,000 rows by `id`. Run `EXPLAIN` on a query for one year of rows by running this SQL.
+
+```sql
+EXPLAIN
+SELECT * FROM sensor_data
+WHERE time >= now() - interval '9 years'
+  AND time <  now() - interval '8 years';
+```
+
+Compare your plan with this example. No index on `sensor_data` starts with `time`, so PostgreSQL can't go straight to one year of rows. Depending on your PostgreSQL version, the plan may show a sequential scan that reads the whole table or a bitmap scan that searches the whole index on `device_id`, `tag`, and `time`.
+
+```
+                                                  QUERY PLAN                                                  
+--------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on sensor_data  (cost=14344.95..88835.15 rows=439448 width=81)
+   Recheck Cond: (("time" >= (now() - '9 years'::interval)) AND ("time" < (now() - '8 years'::interval)))
+   ->  Bitmap Index Scan on sensor_data_device_tag_time_idx  (cost=0.00..14235.09 rows=439448 width=0)
+         Index Cond: (("time" >= (now() - '9 years'::interval)) AND ("time" < (now() - '8 years'::interval)))
+(5 rows)
+```
+
+Run `EXPLAIN` on a query for 100,000 rows by `id` by running this SQL.
+
+```sql
+EXPLAIN
+SELECT * FROM sensor_data
+WHERE id BETWEEN 1 AND 100000;
+```
+
+Compare your plan with this example that shows an index scan on the primary key.
+
+```
+                                         QUERY PLAN                                          
+---------------------------------------------------------------------------------------------
+ Index Scan using sensor_data_pkey on sensor_data  (cost=0.43..4086.79 rows=102118 width=81)
+   Index Cond: ((id >= 1) AND (id <= 100000))
+(3 rows)
+```
+
+Searching the whole table or the whole index for every batch costs little on this dataset. On a table of several terabytes, every batch would repeat that search, and each batch would take longer as the table grows. In contrast, batches by `id` read only their own rows, so the time per batch doesn't increase as the table grows.
+
+<NumberedList>
+<NumberedItem title="Create the copy log and the copy procedure">
+
+Create a `copy_log` table that records each batch, and a `copy_history` [procedure](https://www.postgresql.org/docs/current/sql-createprocedure.html) that copies one range of `id` values at a time with this SQL.
+
+```sql
+CREATE TABLE copy_log (
+    batch       int PRIMARY KEY,
+    first_id    bigint NOT NULL,
+    last_id     bigint NOT NULL,
+    rows_copied bigint NOT NULL,
+    started_at  timestamptz NOT NULL,
+    finished_at timestamptz NOT NULL
+);
+
+CREATE PROCEDURE copy_history(batch_size bigint)
+LANGUAGE plpgsql AS $$
+DECLARE
+    max_id   bigint;
+    from_id  bigint;
+    batch_no int;
+    copied   bigint;
+    started  timestamptz;
+BEGIN
+    SELECT max(id) INTO max_id FROM sensor_data;
+    SELECT coalesce(max(last_id), 0) + 1,
+           coalesce(max(batch), 0)
+      INTO from_id, batch_no
+      FROM copy_log;
+
+    WHILE from_id <= max_id LOOP
+        started := clock_timestamp();
+
+        INSERT INTO sensor_data_new
+        SELECT * FROM sensor_data
+        WHERE id BETWEEN from_id
+                     AND from_id + batch_size - 1
+        ON CONFLICT DO NOTHING;
+        GET DIAGNOSTICS copied = ROW_COUNT;
+
+        batch_no := batch_no + 1;
+        INSERT INTO copy_log
+        VALUES (batch_no, from_id,
+                from_id + batch_size - 1, copied,
+                started, clock_timestamp());
+        COMMIT;
+
+        from_id := from_id + batch_size;
+    END LOOP;
+END;
+$$;
+```
+
+The procedure does several things that let the copy run alongside the application.
+
+- `ON CONFLICT DO NOTHING` skips rows that the trigger already added.
+- `COMMIT` after each batch keeps every transaction short.
+- The procedure starts after the last batch in `copy_log`, so you can run it again after an interruption.
+
+</NumberedItem>
+<NumberedItem title="Run and monitor the copy">
+
+Copy the history in batches of 100,000 rows by running this SQL. On a table of many terabytes, pick a batch size that finishes each batch in a few seconds.
+
+```sql
+CALL copy_history(100000);
+```
+
+While the copy runs, verify:
+
+- The insert script in the second terminal keeps printing results with no errors.
+- The batch count in `copy_log` keeps rising.
+- No session waits on a lock for long.
+- The database size stays within your service's storage.
+
+Open a third terminal, and start another `psql` session. Run this SQL to show the copy's progress, the active sessions and what each one waits on, and the database size.
+
+```sql
+SELECT max(batch) AS batches, sum(rows_copied) AS rows_copied
+FROM copy_log;
+
+SELECT pid, state, wait_event_type, wait_event,
+       now() - query_start AS running_for,
+       left(query, 40) AS query
+FROM pg_stat_activity
+WHERE datname = current_database()
+  AND state <> 'idle'
+  AND pid <> pg_backend_pid();
+
+SELECT pg_size_pretty(pg_database_size(current_database()))
+    AS database_size;
+```
+
+Compare your output with this example, taken partway through the copy.
+
+```
+ batches | rows_copied 
+---------+-------------
+       3 |      300000
+(1 row)
+
+   pid   | state  | wait_event_type | wait_event |   running_for   |           query            
+---------+--------+-----------------+------------+-----------------+----------------------------
+ 1705497 | active |                 |            | 00:00:03.352257 | CALL copy_history(100000);
+(1 row)
+
+ database_size 
+---------------
+ 1795 MB
+(1 row)
+```
+
+</NumberedItem>
+<NumberedItem title="Confirm the copy finished">
+
+Back in the first terminal, after `CALL` returns, count the batches, the rows copied, and the chunks in the hypertable with this SQL.
+
+```sql
+SELECT (SELECT count(*) FROM copy_log) AS batches,
+       (SELECT sum(rows_copied) FROM copy_log) AS rows_copied,
+       (SELECT count(*) FROM show_chunks('sensor_data_new'))
+           AS chunks;
+```
+
+Verify the output shows about one chunk for each week in the ten years of data.
+
+```
+ batches | rows_copied | chunks 
+---------+-------------+--------
+      44 |     4380070 |    523
+(1 row)
+```
+
+</NumberedItem>
+<NumberedItem title="Estimate the copy time for a larger table">
+
+Estimate how long the copy would take on a 1 TB table and a 100 TB table by running this SQL.
+
+```sql
+WITH rate AS (
+    SELECT sum(rows_copied) / extract(epoch FROM
+           sum(finished_at - started_at)) AS rows_per_second
+    FROM copy_log
+), source AS (
+    SELECT pg_total_relation_size(oid) / reltuples
+           AS bytes_per_row
+    FROM pg_class
+    WHERE oid = 'sensor_data'::regclass
+)
+SELECT round(rows_per_second) AS rows_per_second,
+       round(bytes_per_row) AS bytes_per_row,
+       round((rows_per_second * bytes_per_row / 1e6)::numeric, 2)
+           AS mb_per_second,
+       round((1e12 / (rows_per_second * bytes_per_row)
+           / 3600)::numeric, 1) AS hours_for_1_tb,
+       round((1e14 / (rows_per_second * bytes_per_row)
+           / 86400)::numeric, 1) AS days_for_100_tb
+FROM rate, source;
+```
+
+It divides the source table's total size, including indexes, by its row count to get the bytes per row. It multiplies that by the rows copied per second to get the copy rate in MB per second, then divides 1 TB and 100 TB by that rate.
+
+This is an example output from the Tiger Cloud test service.
+
+```
+ rows_per_second | bytes_per_row | mb_per_second | hours_for_1_tb | days_for_100_tb 
+-----------------+---------------+---------------+----------------+-----------------
+           91099 |           259 |         23.63 |           11.8 |            49.0
+(1 row)
+```
+
+On the test service, the copy moved about 91,000 rows per second, which is about 23.6 MB of source table per second. At that rate, a 1 TB table would take about 12 hours to copy, and a 100 TB table would take about 49 days. The estimate assumes the copy rate stays level from the first batch to the last, and it applies only to a service of the same size. It also doesn't account for [validation](#validate-the-migration) time.
+
+The memory the copy needs depends on the indexes of the few chunks it writes to at a time, so it doesn't grow with table size. The check in [Choose a chunk interval](#choose-a-chunk-interval) applies to a table of any size.
+
+</NumberedItem>
+</NumberedList>
+
+## Validate the migration
+
+<NumberedList>
+<NumberedItem title="Compare the row count for each day">
+
+Count the rows for each day in both tables and return only the days where the counts differ by running this SQL.
+
+```sql
+WITH old AS (
+    SELECT time::date AS day, count(*) AS n
+    FROM sensor_data GROUP BY 1
+), new AS (
+    SELECT time::date AS day, count(*) AS n
+    FROM sensor_data_new GROUP BY 1
+)
+SELECT day, old.n AS old_rows, new.n AS new_rows
+FROM old FULL JOIN new USING (day)
+WHERE old.n IS DISTINCT FROM new.n;
+```
+
+Both counts come from the same snapshot, and the trigger writes to both tables in the same transaction, so rows that arrive during the check don't cause a difference.
+
+Verify the output shows no rows, which means every day matches.
+
+```
+ day | old_rows | new_rows 
+-----+----------+----------
+(0 rows)
+```
+
+</NumberedItem>
+<NumberedItem title="Save yesterday's start and end as psql variables">
+
+Save the start of yesterday and the start of today, both at midnight UTC, as `psql` variables by running this SQL.
+
+```sql
+SELECT date_trunc('day', now(), 'UTC') - INTERVAL '1 day'
+           AS yesterday_start,
+       date_trunc('day', now(), 'UTC') AS today_start
+\gset
+\echo :yesterday_start :today_start
+```
+
+Verify the output shows two timestamps one day apart.
+
+```
+2026-09-30 00:00:00+00 2026-10-01 00:00:00+00
+```
+
+When a query uses `:'yesterday_start'`, `psql` replaces it with the saved value as a fixed timestamp before it sends the query. TimescaleDB can then skip chunks while it plans the query. A start time calculated from `now()` inside the query is unknown until the query runs, so TimescaleDB plans every chunk and removes the extra ones only when the query starts.
+
+> **Note:** `psql` forgets these variables when you disconnect. If you reconnect, run this block again.
+
+</NumberedItem>
+
+<NumberedItem title="Check the plan for a one-day query">
+
+Run `EXPLAIN (ANALYZE, BUFFERS)` on a query for yesterday's average temperature for each machine against the hypertable by running this SQL.
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT device_id, avg(value)
+FROM sensor_data_new
+WHERE tag = 'temperature'
+  AND time >= :'yesterday_start'
+  AND time <  :'today_start'
+GROUP BY device_id;
+```
+
+Compare your plan with this example. Verify the plan reads only one chunk and `Planning Time` is short.
+
+```
+                                                                                QUERY PLAN                                                                                
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=40.32..40.34 rows=1 width=40) (actual time=0.341..0.359 rows=5.00 loops=1)
+   Group Key: _hyper_35_13992_chunk.device_id
+   Buffers: shared hit=28
+   ->  Sort  (cost=40.32..40.32 rows=1 width=40) (actual time=0.331..0.337 rows=120.00 loops=1)
+         Sort Key: _hyper_35_13992_chunk.device_id
+         Sort Method: quicksort  Memory: 29kB
+         Buffers: shared hit=28
+         ->  Bitmap Heap Scan on _hyper_35_13992_chunk  (cost=2.54..40.31 rows=1 width=40) (actual time=0.142..0.288 rows=120.00 loops=1)
+               Recheck Cond: (("time" >= '2026-09-30 00:00:00+00'::timestamp with time zone) AND ("time" < '2026-10-01 00:00:00+00'::timestamp with time zone))
+               Filter: (tag = 'temperature'::text)
+               Rows Removed by Filter: 1080
+               Heap Blocks: exact=22
+               Buffers: shared hit=25
+               ->  Bitmap Index Scan on _hyper_35_13992_chunk_sensor_data_new_time_idx  (cost=0.00..2.54 rows=26 width=0) (actual time=0.063..0.063 rows=1200.00 loops=1)
+                     Index Cond: (("time" >= '2026-09-30 00:00:00+00'::timestamp with time zone) AND ("time" < '2026-10-01 00:00:00+00'::timestamp with time zone))
+                     Index Searches: 1
+                     Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=956
+ Planning Time: 2.276 ms
+ Execution Time: 0.439 ms
+(22 rows)
+```
+
+Run the same query against the original table for comparison.
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT device_id, avg(value)
+FROM sensor_data
+WHERE tag = 'temperature'
+  AND time >= :'yesterday_start'
+  AND time <  :'today_start'
+GROUP BY device_id;
+```
+
+This is an example query plan.
+
+```
+                                                                                       QUERY PLAN                                                                                       
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=0.56..197.98 rows=5 width=17) (actual time=0.303..0.519 rows=5.00 loops=1)
+   Group Key: device_id
+   Buffers: shared hit=137
+   ->  Index Scan using sensor_data_device_tag_time_idx on sensor_data  (cost=0.56..197.45 rows=92 width=17) (actual time=0.142..0.493 rows=120.00 loops=1)
+         Index Cond: ((tag = 'temperature'::text) AND ("time" >= '2026-09-30 00:00:00+00'::timestamp with time zone) AND ("time" < '2026-10-01 00:00:00+00'::timestamp with time zone))
+         Index Searches: 11
+         Buffers: shared hit=137
+ Planning:
+   Buffers: shared hit=572
+ Planning Time: 1.202 ms
+ Execution Time: 0.579 ms
+(12 rows)
+```
+
+On PostgreSQL 18 and later, the index on `device_id`, `tag`, and `time` finds one day of rows quickly in the original table too, by skipping from one machine to the next, so a one-day query runs fast on both tables. On earlier versions, PostgreSQL reads the whole original table for this query. The difference between the two tables shows up in storage and in queries that read many rows, which you will compare after you turn on the columnstore.
+
+</NumberedItem>
+</NumberedList>
+
+## Switch to the hypertable
+
+After you validate your hypertable, you can safely switch over the application's writes in one transaction. The transaction locks `sensor_data`, drops the trigger, renames the two tables, and moves ownership of the two sequences to the hypertable. The insert script waits while the transaction holds the lock, then writes to the hypertable.
+
+Before you switch, make sure your service has a recent backup.
+
+<NumberedList>
+
+<NumberedItem title="Switch the tables">
+
+Switch the tables by running this SQL in the first terminal.
+
+```sql
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+LOCK TABLE sensor_data IN ACCESS EXCLUSIVE MODE;
+DROP TRIGGER sensor_data_copy_to_new ON sensor_data;
+ALTER TABLE sensor_data RENAME TO sensor_data_old;
+ALTER TABLE sensor_data_new RENAME TO sensor_data;
+ALTER SEQUENCE sensor_data_id_seq
+    OWNED BY sensor_data.id;
+ALTER SEQUENCE sensor_data_reading_id_seq
+    OWNED BY sensor_data.reading_id;
+COMMIT;
+```
+
+ `SET LOCAL lock_timeout` makes the transaction give up after five seconds if another session is holding a lock on `sensor_data`.
+
+> **Note:** A sequence belongs to the table that created it, and dropping that table drops the sequence. Moving the ownership to the hypertable lets you drop `sensor_data_old` later without breaking inserts into the hypertable.
+
+</NumberedItem>
+<NumberedItem title="Check the pause in the insert script">
+
+The switch holds its lock for as long as its transaction runs. An insert that arrives during that time waits for the lock, and its time in the second terminal is longer than the others. The switch is short, so an insert every two seconds may miss it.
+
+Check the second terminal's output around the switch time.
+
+```
+INSERT 0 5
+Time: 6.297 ms
+INSERT 0 5
+Time: 6.611 ms
+INSERT 0 5
+Time: 7.105 ms
+INSERT 0 5
+Time: 6.546 ms
+```
+
+On the test service, the switch transaction held its lock for 42 milliseconds, and the longest insert around the switch took 7 milliseconds.
+
+</NumberedItem>
+<NumberedItem title="Confirm new rows land in the hypertable">
+
+Wait a few seconds after the switch. Then, show which table is a hypertable now and compare the newest `id` in each table by running this SQL.
+
+```sql
+SELECT hypertable_name, num_chunks
+FROM timescaledb_information.hypertables
+WHERE hypertable_name LIKE 'sensor_data%';
+
+SELECT (SELECT max(id) FROM sensor_data) AS newest_in_hypertable,
+       (SELECT max(id) FROM sensor_data_old) AS newest_in_old;
+```
+
+Verify `sensor_data` is now the hypertable, and that its newest `id` is higher than the newest `id` in `sensor_data_old`, which stopped at the switch.
+
+```
+ hypertable_name | num_chunks 
+-----------------+------------
+ sensor_data     |        523
+(1 row)
+
+ newest_in_hypertable | newest_in_old 
+----------------------+---------------
+              4380235 |       4380220
+(1 row)
+```
+
+</NumberedItem>
+</NumberedList>
+
+### Switch back
+
+Keep `sensor_data_old` until you're sure the hypertable works for your application. To switch back, copy the rows written since the switch into `sensor_data_old`, then reverse the renames and the sequence ownership with the SQL below.
+
+```sql
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+LOCK TABLE sensor_data IN ACCESS EXCLUSIVE MODE;
+INSERT INTO sensor_data_old
+SELECT * FROM sensor_data
+WHERE id > (SELECT max(id) FROM sensor_data_old);
+ALTER TABLE sensor_data RENAME TO sensor_data_new;
+ALTER TABLE sensor_data_old RENAME TO sensor_data;
+ALTER SEQUENCE sensor_data_id_seq
+    OWNED BY sensor_data.id;
+ALTER SEQUENCE sensor_data_reading_id_seq
+    OWNED BY sensor_data.reading_id;
+COMMIT;
+```
+
+## Turn on the columnstore and retention
+
+### Compress older chunks
+
+<NumberedList>
+<NumberedItem title="Turn on the columnstore">
+
+Turn on the columnstore for `sensor_data` and add a policy that converts chunks older than one week using [`add_columnstore_policy()`](https://www.tigerdata.com/docs/reference/timescaledb/hypercore/add_columnstore_policy) with this code. It groups compressed rows by machine and sensor, and sorts them by time within each group.
+
+```sql
+ALTER TABLE sensor_data SET (
+    tsdb.enable_columnstore = true,
+    tsdb.segmentby = 'device_id, tag',
+    tsdb.orderby = 'time DESC'
+);
+
+CALL add_columnstore_policy('sensor_data',
+    after => INTERVAL '7 days');
+```
+
+Verify the output has two warnings about `id` and `reading_id`.
+
+```
+WARNING:  column "id" should be used for segmenting or ordering
+WARNING:  column "reading_id" should be used for segmenting or ordering
+ALTER TABLE
+CALL
+```
+
+TimescaleDB has these warnings because the unique indexes include `id` and `reading_id`, and checking uniqueness on a compressed chunk runs faster when those columns are part of the ordering. New readings go into the newest chunk, which stays uncompressed, so the warnings don't affect this workload.
+
+</NumberedItem>
+<NumberedItem title="Run the columnstore job once">
+
+The policy runs on a schedule. Use this SQL to look up the policy's job and run it once with [`run_job()`](https://www.tigerdata.com/docs/reference/timescaledb/jobs-automation/run_job). The conversion may take a minute or two.
+
+```sql
+DO $$
+DECLARE
+    job int;
+BEGIN
+    SELECT job_id INTO job
+    FROM timescaledb_information.jobs
+    WHERE hypertable_name = 'sensor_data'
+      AND proc_name = 'policy_compression';
+    CALL run_job(job);
+END;
+$$;
+```
+
+</NumberedItem>
+<NumberedItem title="Compare storage">
+
+Compare the original table's size with the hypertable's size after compression by running this SQL. Both tables have the same ten years of readings.
+
+```sql
+SELECT pg_size_pretty(pg_total_relation_size('sensor_data_old'))
+           AS original_table,
+       pg_size_pretty(hypertable_size('sensor_data'))
+           AS hypertable;
+```
+
+Verify the hypertable uses much less space than the original table.
+
+```
+ original_table | hypertable 
+----------------+------------
+ 1084 MB        | 173 MB
+(1 row)
+```
+
+</NumberedItem>
+<NumberedItem title="Compare a query over a year of data">
+
+Turn on timing and calculate the average of every sensor across all five machines over the past year, first on the original table and then on the hypertable, by running this SQL. 
+
+```sql
+\timing on
+SELECT tag, round(avg(value)::numeric, 2) AS avg_value
+FROM sensor_data_old
+WHERE time >= now() - INTERVAL '1 year'
+GROUP BY tag
+ORDER BY tag;
+
+SELECT tag, round(avg(value)::numeric, 2) AS avg_value
+FROM sensor_data
+WHERE time >= now() - INTERVAL '1 year'
+GROUP BY tag
+ORDER BY tag;
+```
+
+Each query reads about 438,000 readings. In the hypertable, all but the newest week live in the columnstore.
+
+Verify both queries return the same averages. A single run's time depends on what's already in memory and on the network between you and your service, so run each query a few times before you compare them.
+
+```
+Timing is on.
+         tag         | avg_value 
+---------------------+-----------
+ bearing_temperature |     79.42
+ humidity            |     52.99
+ hydraulic_oil_temp  |     52.55
+ machine_status      |      0.56
+ motor_speed         |   1656.87
+ power_consumption   |     24.06
+ pressure            |    183.93
+ production_rate     |    316.81
+ temperature         |     52.56
+ vibration           |      9.81
+(10 rows)
+
+Time: 70.307 ms
+         tag         | avg_value 
+---------------------+-----------
+ bearing_temperature |     79.42
+ humidity            |     52.99
+ hydraulic_oil_temp  |     52.55
+ machine_status      |      0.56
+ motor_speed         |   1656.87
+ power_consumption   |     24.06
+ pressure            |    183.93
+ production_rate     |    316.81
+ temperature         |     52.56
+ vibration           |      9.81
+(10 rows)
+
+Time: 66.644 ms
+```
+
+On the test service, the median planning and execution time over five runs was 61 ms on the original table and 35 ms on the hypertable.
+
+</NumberedItem>
+</NumberedList>
+
+### Remove old readings
+
+Add a retention policy that drops chunks whose data is older than five years, then run the policy's job once.
+
+```sql
+SELECT add_retention_policy('sensor_data',
+    drop_after => INTERVAL '5 years');
+
+DO $$
+DECLARE
+    job int;
+BEGIN
+    SELECT job_id INTO job
+    FROM timescaledb_information.jobs
+    WHERE hypertable_name = 'sensor_data'
+      AND proc_name = 'policy_retention';
+    CALL run_job(job);
+END;
+$$;
+```
+
+Count the compressed and uncompressed chunks and show the oldest and newest chunk in each group from the [chunks](https://www.tigerdata.com/docs/reference/timescaledb/informational-views/chunks) view.
+
+```sql
+SELECT is_compressed,
+       count(*) AS chunks,
+       min(range_start)::date AS oldest_chunk,
+       max(range_start)::date AS newest_chunk
+FROM timescaledb_information.chunks
+WHERE hypertable_name = 'sensor_data'
+GROUP BY is_compressed
+ORDER BY is_compressed;
+```
+
+Verify the output shows about five years of chunks, of which all but one or two are compressed.
+
+```
+ is_compressed | chunks | oldest_chunk | newest_chunk 
+---------------+--------+--------------+--------------
+ f             |      2 | 2026-09-24   | 2026-10-01
+ t             |    260 | 2021-09-30   | 2026-09-17
+(2 rows)
+```
+
+## Troubleshooting
+
+These problems can come up while you follow the tutorial.
+
+- **The loading script reports that `sensor_data` already has rows.** An earlier load finished or stopped partway. Run `TRUNCATE sensor_data;` in `psql`, then run the script again.
+- **The loading script fails on the degree symbol in the `unit` column.** The `unit` column holds `°C` for the temperature sensors. The script opens `manufacturing.csv` as UTF-8, so a `UnicodeDecodeError` means that someone saved the file in another encoding, which can happen when a spreadsheet program opens and saves it. Unzip `manufacturing.zip` again to get the original file.
+- **The insert script fails with `duplicate key value violates unique constraint "sensor_data_reading_id_key"`.** The `reading_id` sequence still starts at 1. Run the `setval` query in [Set up the data](#set-up-the-data), then start the insert script again.
+- **`CREATE TABLE` still fails with `cannot create a unique index without the column "time"`.** The statement still copies a primary key or unique index that leaves out `time`. Check that it uses `INCLUDING DEFAULTS` alone, with no `INCLUDING INDEXES`, `INCLUDING CONSTRAINTS`, or `INCLUDING ALL`. Any primary key or unique index you add afterward needs `time` in its column list.
+- **The insert script stops with an error after you add the trigger.** The trigger's insert into `sensor_data_new` failed, which also failed the application's insert. The error message names the cause, which is often a column that exists in one table and not the other. Drop the trigger with `DROP TRIGGER sensor_data_copy_to_new ON sensor_data;`, fix the cause, recreate the trigger, and run `CALL copy_history(100000);` again. `ON CONFLICT DO NOTHING` skips the rows that are already there.
+- **The daily row counts differ.** The copy didn't cover every row. This happens when the copy stopped before its last batch, or when you added the trigger after the copy started. Run `TRUNCATE copy_log;` and then `CALL copy_history(100000);` to copy every range again. The procedure skips rows that are already in the hypertable, so this adds only the missing ones.
+- **A query fails with a syntax error at or near `:`.** The `psql` variables from [Validate the migration](#validate-the-migration) are missing, usually after a reconnect. Run the `\gset` block again.
+- **The copy slows down with each batch.** Compare `finished_at - started_at` for the first and last batches in `copy_log`. If later batches take longer, run `EXPLAIN` on one batch's `SELECT`. If the plan scans all of `sensor_data`, the batches select rows by a column with no index, and each batch reads the whole table. Select batches by a column with an index, such as the primary key.
+- **The copy slows down partway through.** The indexes of the chunks receiving data have outgrown memory. Run the query in [Choose a chunk interval](#choose-a-chunk-interval) and use a shorter chunk interval if a week of index growth is larger than a quarter of `shared_buffers`.
+- **The copy rate changes along with the insert script.** The application's writes and the copy share the same service. Measure the rate while the application runs at its normal write load, so the estimate matches production.
+- **The switch fails with `canceling statement due to lock timeout`.** Another session held a lock on `sensor_data` for more than five seconds, often due to a long-running query. Find the session with the `pg_stat_activity` query in [Copy the history in batches](#copy-the-history-in-batches). Wait for it to finish, or end it, and then run the switch again.
+
+## Recap
+
+In this tutorial, you moved a table that received writes into a hypertable, pausing the writes only during one short transaction. Use this table as a reference for each step of the migration.
+
+| Section | Technique | Why it matters |
+|---|---|---|
+| Create the hypertable | A primary key and unique indexes that include `time` | A hypertable enforces uniqueness in each chunk |
+| Capture new writes | A trigger on the original table | The new table stays current while the history copies |
+| Copy the history in batches | Batches selected by primary key, logged and committed one at a time | Each batch stays fast, the copy restarts where it stopped, and the log gives a copy-time estimate for larger tables |
+| Validate the migration | Row counts by day and query plans | Checks the copy before the switch |
+| Switch to the hypertable | One transaction with a lock timeout | Keeps the pause short and the switch back simple |
+
+These measurements were collected from a test Tiger Cloud service with 8 CPUs and 32 GiB of memory, running PostgreSQL 18.6 and TimescaleDB 2.29.2.
+
+| Measurement | Original table | Hypertable | Change |
+|---|---|---|---|
+| Storage for ten years of readings | 1084 MB | 173 MB | 6.3 times smaller |
+| One-day query | 0.3 ms | 0.5 ms | About the same, both under 1 ms |
+| One-year query across all sensors | 61 ms | 35 ms | 1.7 times faster |
+| Insert speed, rows per second | 136,922 | 126,962 | About the same |
+| Time the switch held its lock | | 42 ms | |
+
+Query times are the planning time plus the execution time that `EXPLAIN ANALYZE` reports, as the median of five runs. The insert speed comes from inserting one year of readings into each table inside a transaction that ended with `ROLLBACK`.
+
+A one-day query is fast on both tables, because each one reads a small part of an index. On a table this size, the original table's indexes still fit in memory, so insert speed also stays close between the two. When a regular table exceeds the service's memory capacity, its inserts slow down, while a hypertable's inserts keep going to a chunk whose indexes stay small.
+
+For your next step, choose a table in your own database that grows over time and [decide whether to migrate it to a hypertable](#decide-whether-to-migrate). If it's a good candidate, run the chunk interval query with your own table and column names. Then, create a hypertable from the table's definition, start `copy_history`, and stop it with Ctrl+C after a few batches. Run the copy-time estimate on the finished batches to predict how long the full copy would take.
+
+### Learn more
+
+- [Understand hypertables](https://www.tigerdata.com/docs/learn/hypertables/understand-hypertables)
+- [Sizing hypertable chunks](https://www.tigerdata.com/docs/learn/hypertables/sizing-hypertable-chunks)
+- [Hypertable indexes](https://www.tigerdata.com/docs/learn/hypertables/hypertable-indexes)
+- [Primary keys, time columns, and uniqueness](https://www.tigerdata.com/docs/learn/data-model/primary-keys-time-and-uniqueness)
+- [`CREATE TABLE ... WITH`](https://www.tigerdata.com/docs/reference/timescaledb/hypertables/create_table)
+- [Understand hypercore](https://www.tigerdata.com/docs/learn/columnar-storage/understand-hypercore), the columnstore in TimescaleDB
+- [`add_retention_policy()`](https://www.tigerdata.com/docs/reference/timescaledb/data-retention/add_retention_policy)
+- [`chunks_detailed_size()`](https://www.tigerdata.com/docs/reference/timescaledb/hypertables/chunks_detailed_size)
+- [Explicit locking](https://www.postgresql.org/docs/current/explicit-locking.html) in the PostgreSQL documentation, which lists the lock modes and the statements they block

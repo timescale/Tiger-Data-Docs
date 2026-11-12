@@ -59,7 +59,7 @@ Key overrides and components in `src/components/`:
 - `Callout.astro`: custom styled callout, exported with other project-owned MDX components from `src/components/docs-components.ts`.
 - `Header.astro`, `Footer.astro`, `PageTitle.astro`, `PageNavigation.astro`: Starlight overrides.
 - `PageSidebar.astro` + `LearnMore.astro`: right-rail "Learn more" card driven by per-page frontmatter (`learnMore:` block). Auto-hides when absent. Full authoring guide: [`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md). Prefer this over one-off "related content" patterns.
-- `NumberedList.astro` / `NumberedList.tsx` / `NumberedItem`: ordered step components for procedures.
+- `NumberedList.ts` (re-exporting `numbered-list/NumberedList.astro` and `numbered-list/NumberedItem.astro`): ordered step components for procedures. Astro, not React, on purpose: a React island strips the Expressive Code stylesheet from code blocks inside it.
 - `AuthorByline.astro`, `SinceRelease.astro`, `ChangelogEntry.astro` (plus `ChangelogFilter`/`ChangelogTag`), `Glossary/`, `IntegrateOverview.astro`, `IntegrateToc/`, `BuildToc/`, `HeaderSearchBar.astro`.
 - React `.tsx` components for interactive pieces: `CopyToClipboard`, `Prerequisites`.
 
@@ -168,12 +168,13 @@ House prose style follows the Google developer documentation style guide, enforc
 - **Use constants for product names.** `TigerData.ProductConstants` nudges literal product/brand names toward their constant (suggestion). It covers only product/brand-name constants (the `// General` and `// Products` sections of `src/constants.ts`). Feature/service/project common-nouns (hypertable, chunk, service, job, columnstore, and the like) are accepted in the Vale vocabulary instead. The rule is hand-maintained at `.github/styles/TigerData/ProductConstants.yml`. When you add or rename a product/brand name in `constants.ts`, update the swap list there too. Enforced terms must never be added to the Vale vocabulary, or the nudge is globally suppressed.
 - **No em dashes.** `TigerData.NoEmDash` flags em dashes in prose (warning); rewrite the sentence. Prefer commas, semicolons, colons, parentheses, or two sentences. For label-and-description lines, use a colon: `**Label**: description`.
 - **UI elements in code font, not bold.** `TigerData.UIElementsCodeFont` flags `**Bold**` UI labels after action verbs (warning).
+- **Tiger Lake is two words.** Write `Tiger Lake` (or `{C.LAKE}`), never `TigerLake`. `TigerData.TigerLakeSpelling` enforces this (gating error, including in the changelog).
 - **Partials use underscore prefix:** `_partial-name.mdx`.
 - **No deprecated compression APIs.** TimescaleDB 2.18.0 renamed the compression API to columnstore/hypercore (`compress_chunk` to `convert_to_columnstore`, `*_compression_policy` to `*_columnstore_policy`, `timescaledb.compress` to `timescaledb.enable_columnstore`, and so on). Old names still work as backwards-compat aliases but must not appear in new docs. `TigerData.CompressionAPIs` enforces this (gating error, scans SQL too). Full mapping, carve-outs, and verification grep: [`.claude/references/deprecated-compression-apis.md`](./.claude/references/deprecated-compression-apis.md).
 
 ## CI checks
 
-- **vale.yml**: lints prose against the Google style guide plus custom `TigerData` rules. Only the lines a PR changes are checked, and only errors gate. `TigerData.CompressionAPIs` is the only rule set to error (everything else is advisory). Failures are explained in the run's step summary plus inline annotations. See `.github/scripts/vale_pr_lint.py`.
+- **vale.yml**: lints prose against the Google style guide plus custom `TigerData` rules. Only the lines a PR changes are checked, and only errors gate. `TigerData.CompressionAPIs`, `TigerData.UIElementsCodeFont`, `TigerData.Headings`, and `TigerData.TigerLakeSpelling` are the only rules set to error (everything else is advisory). Failures are explained in the run's step summary plus inline annotations. See `.github/scripts/vale_pr_lint.py`.
 - **pr-checklist-check.yml**: ensures PR checklist items are addressed.
 - **affected-pages.yml**: posts preview links for changed pages on successful deploy.
 - **weekly-external-links.yml** (scheduled, Mondays): runs the `weekly-external-links` skill to draft `learnMore` right-rail cards from content published in [Tiger Den](https://den.tigerdata.com) and opens a draft review PR. Reads from Tiger Den with `TIGER_DEN_TOKEN` and matches to pages with `ANTHROPIC_API_KEY` (both repo secrets). Full guide and tuning knobs: [`.claude/skills/weekly-external-links/SKILL.md`](./.claude/skills/weekly-external-links/SKILL.md).
@@ -221,5 +222,4 @@ Deeper, authoritative guides in the repo. Prefer these over re-deriving conventi
 - [`.claude/references/deprecated-compression-apis.md`](./.claude/references/deprecated-compression-apis.md): the deprecated-to-current compression API mapping.
 - `src/content/docs/get-started/contributing.mdx`: the human-facing contributor and writing-style guide.
 - [`.github/templates/template-tutorial.mdx`](./.github/templates/template-tutorial.mdx): starting-point MDX for a new tutorial (copy into a content directory). The `write-docs-tutorial` skill builds on it.
-- [`README-statsig.md`](./README-statsig.md): the Statsig analytics integration (inline script in `astro.config.ts` between the `BEGIN STATSIG`/`END STATSIG` markers, `PUBLIC_STATSIG_CLIENT_KEY` env var), and the checklist to remove it. Read this before touching the `head[]` block or analytics env vars.
 - **Changelog**: add an entry by editing `src/content/docs/get-started/news/new.mdx`, following the structure in [`README-changelog.md`](./README-changelog.md). Write product names as literal strings, not `{C.X}` constants (see [Constants system](#constants-system-critical)).

@@ -3,7 +3,7 @@ name: Doc correction or change
 about: Propose a documentation change (often used when you plan to open a PR)
 title: '[Docs] '
 labels: documentation, triage
-assignees: ''
+assignees: atovpeko
 ---
 
 ## Page or section

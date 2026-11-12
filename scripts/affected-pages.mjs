@@ -6,9 +6,6 @@
 //   PREVIEW_URL     Optional URL prefix (a Vercel preview origin, no trailing slash).
 //                   When set, every emitted URL becomes a clickable markdown link
 //                   pointing at "<PREVIEW_URL><path>".
-//   BYPASS_SECRET   Optional Vercel deployment-protection bypass token. Combined
-//                   with PREVIEW_URL, the link becomes
-//                   "<PREVIEW_URL><path>?x-vercel-protection-bypass=<secret>&x-vercel-set-bypass-cookie=true".
 //
 // Output:
 //   pages-comment.md  Markdown bullet list (created only when there are URLs).
@@ -18,7 +15,7 @@
 //   - src/partials/_*.mdx         → recursively resolve consumer files via grep,
 //                                   then map the consumer paths to URLs.
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 
@@ -28,25 +25,17 @@ const changed = (process.env.CHANGED_FILES || "")
   .filter(Boolean);
 
 const previewBase = (process.env.PREVIEW_URL || "").replace(/\/$/, "");
-const bypassSecret = process.env.BYPASS_SECRET || "";
 
 // The component kitchen sink is served at /kitchen-sink on the preview origin
 // (Vercel previews serve the site at root, without the production /docs base).
 const KITCHEN_SINK_PATH = "/kitchen-sink";
 
-// Turn a site-relative path into a clickable preview URL, appending the Vercel
-// deployment-protection bypass query when a secret is available. Returns null
-// when there is no preview origin (local runs), so callers can fall back to
-// plain text.
+// Turn a site-relative path into a clickable preview URL. Returns null when
+// there is no preview origin (local runs), so callers can fall back to plain
+// text.
 function withPreview(urlPath) {
   if (!previewBase) return null;
-  let target = `${previewBase}${urlPath}`;
-  if (bypassSecret) {
-    target += `?x-vercel-protection-bypass=${encodeURIComponent(
-      bypassSecret,
-    )}&x-vercel-set-bypass-cookie=true`;
-  }
-  return target;
+  return `${previewBase}${urlPath}`;
 }
 
 // A standing reminder line pointing at this PR's own kitchen-sink preview.
@@ -76,14 +65,19 @@ function findConsumers(partialPath, visited = new Set()) {
   visited.add(partialPath);
 
   const name = path.basename(partialPath, ".mdx");
+  // The name is interpolated into a regex; only accept the characters real
+  // partial names use, and escape the one of them that is a regex operator.
+  if (!/^[\w.-]+$/.test(name)) return [];
+  const pattern = name.replace(/\./g, "\\.");
   let lines = [];
   try {
     // Anchor on the exact filename followed by the closing quote, not a bare
     // \b word boundary — "_create-hypertable.mdx" would otherwise also match
     // imports of "_create-hypertable-nyctaxis.mdx" and similar, since "-" is
     // a non-word character and satisfies \b right after "hypertable".
-    const out = execSync(
-      `grep -rlE "from ['\\"].*/${name}\\.mdx['\\"]" src/content src/partials --include="*.mdx"`,
+    const out = execFileSync(
+      "grep",
+      ["-rlE", `from ['"].*/${pattern}\\.mdx['"]`, "src/content", "src/partials", "--include=*.mdx"],
       { encoding: "utf8" },
     );
     lines = out.split("\n").filter(Boolean);

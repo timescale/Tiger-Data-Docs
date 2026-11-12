@@ -7,6 +7,7 @@ products: [cloud, self_hosted]
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 
 Schema changes on a {C.HYPERTABLE} use normal {C.PG} `ALTER TABLE` syntax, and {C.TIMESCALE_DB} propagates those changes to every underlying {C.CHUNK}.
 
@@ -50,14 +51,15 @@ Most common schema modifications work on {C.HYPERTABLE}s with {C.COLUMNSTORE} en
 columns, renaming columns, dropping columns, adding constraints, setting NOT NULL,
 and changing defaults. However, some operations are blocked, the most common of them being:
 
-- **Changing column data type** (`ALTER COLUMN ... TYPE`)
-- **Changing column storage** (`ALTER COLUMN ... SET STORAGE`)
-- **Dropping orderby or segmentby columns**
-- **Row-level security operations** (`ENABLE/DISABLE ROW SECURITY`)
+- **Changing column data type** (`ALTER COLUMN ... TYPE`): blocked while any {C.CHUNK} is in the {C.COLUMNSTORE}
+- **Changing column storage** (`ALTER COLUMN ... SET STORAGE`): blocked while {C.COLUMNSTORE} is enabled
+- **Dropping orderby or segmentby columns**: blocked while {C.COLUMNSTORE} is enabled
+- **Row-level security operations** (`ENABLE/DISABLE ROW SECURITY`): blocked while {C.COLUMNSTORE} is enabled
 
-When you attempt a blocked operation, you receive an error:
+When you attempt a blocked operation, you receive an error such as:
 
 ```
+ERROR: operation not supported on hypertables with compressed chunks
 ERROR: operation not supported on hypertables that have columnstore enabled
 ```
 
@@ -65,14 +67,14 @@ If you encounter this error, you need to:
 
 1. Stop any {C.COLUMNSTORE} policy
 2. Convert the affected {C.CHUNK}s back into {C.ROWSTORE}
-3. Disable {C.COLUMNSTORE}
+3. For an operation blocked while {C.COLUMNSTORE} is enabled, disable {C.COLUMNSTORE}
 4. Perform the schema change
 5. Re-enable {C.COLUMNSTORE} and restart the policy
 
 ### Example: change the column type on a {C.HYPERTABLE} with {C.COLUMNSTORE} enabled
 
 This example shows how to change a column's data type on a {C.HYPERTABLE} with
-{C.COLUMNSTORE} enabled, which requires conversion to {C.ROWSTORE}:
+{C.COLUMNSTORE} enabled, which requires every {C.CHUNK} to be in the {C.ROWSTORE}:
 
 <NumberedList>
 
@@ -113,33 +115,11 @@ END $$;
 
 </NumberedItem>
 
-<NumberedItem title={`Disable ${C.COLUMNSTORE}`}>
-
-Some operations, such as changing a column type, require {C.COLUMNSTORE} to be fully disabled:
-
-```sql
-ALTER TABLE conditions SET (timescaledb.columnstore = false);
-```
-
-</NumberedItem>
-
 <NumberedItem title="Perform the schema modification">
 
 ```sql
 ALTER TABLE conditions
   ALTER COLUMN temperature TYPE double precision;
-```
-
-</NumberedItem>
-
-<NumberedItem title={`Re-enable ${C.COLUMNSTORE} with original settings`}>
-
-```sql
-ALTER TABLE conditions SET (
-  timescaledb.columnstore = true,
-  timescaledb.orderby = 'time DESC',
-  timescaledb.segmentby = 'device_id'
-);
 ```
 
 </NumberedItem>
@@ -172,3 +152,35 @@ END $$;
 
 For more information about {C.PG} `ALTER TABLE` operations, see the
 [{C.PG} `ALTER TABLE` documentation](https://www.postgresql.org/docs/current/sql-altertable.html).
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE distributors (time TIMESTAMPTZ NOT NULL, name TEXT, zipcode TEXT) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+5. run SQL: `ALTER TABLE distributors ADD COLUMN address varchar(30);`
+6. expect rows: `SELECT 1 FROM information_schema.columns WHERE table_name = 'distributors' AND column_name = 'address' AND data_type = 'character varying' AND character_maximum_length = 30`
+7. run SQL: `ALTER TABLE distributors ADD CONSTRAINT zipchk CHECK (char_length(zipcode) = 5);`
+8. expect rows: `SELECT 1 FROM pg_constraint WHERE conrelid = 'distributors'::regclass AND conname = 'zipchk' AND contype = 'c'`
+9. expect error containing `zipchk`: `INSERT INTO distributors VALUES (now(), 'Acme', '1234')`
+10. run SQL: `CREATE TABLE conditions (time TIMESTAMPTZ NOT NULL, device_id INTEGER, temperature REAL) WITH (tsdb.hypertable, tsdb.partition_column = 'time', tsdb.orderby = 'time DESC', tsdb.segmentby = 'device_id');`
+11. run SQL: `INSERT INTO conditions SELECT now() - INTERVAL '20 days' + i * INTERVAL '1 hour', i % 3, i FROM generate_series(1, 48) AS i;`
+12. run SQL: `DO $$ DECLARE compression_job INTEGER; BEGIN SELECT j.job_id INTO compression_job FROM timescaledb_information.jobs AS j WHERE j.hypertable_name = 'conditions' AND j.proc_name = 'policy_compression'; CALL run_job(compression_job); END $$;`
+13. expect rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'conditions' AND is_compressed`
+14. expect no rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'conditions' AND NOT is_compressed`
+15. expect error containing `operation not supported on hypertables that have columnstore enabled`: `ALTER TABLE conditions ALTER COLUMN temperature SET STORAGE PLAIN`
+16. run SQL: `SELECT job_id, config FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression' AND hypertable_name = 'conditions';`
+17. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression' AND hypertable_name = 'conditions' AND scheduled`
+18. run SQL: `SELECT alter_job((SELECT job_id FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression' AND hypertable_name = 'conditions'), scheduled => false);`
+19. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression' AND hypertable_name = 'conditions' AND NOT scheduled`
+20. run SQL: `DO $$ DECLARE chunk regclass; BEGIN FOR chunk IN SELECT show_chunks('conditions') LOOP CALL convert_to_rowstore(chunk); END LOOP; END $$;`
+21. expect no rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'conditions' AND is_compressed`
+22. run SQL: `ALTER TABLE conditions ALTER COLUMN temperature TYPE double precision;`
+23. expect rows: `SELECT 1 FROM information_schema.columns WHERE table_name = 'conditions' AND column_name = 'temperature' AND data_type = 'double precision'`
+24. run SQL: `SELECT alter_job((SELECT job_id FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression' AND hypertable_name = 'conditions'), scheduled => true);`
+25. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression' AND hypertable_name = 'conditions' AND scheduled`
+26. run SQL: `DO $$ DECLARE chunk regclass; BEGIN FOR chunk IN SELECT show_chunks('conditions') LOOP CALL convert_to_columnstore(chunk); END LOOP; END $$;`
+27. expect no rows: `SELECT 1 FROM timescaledb_information.chunks WHERE hypertable_name = 'conditions' AND NOT is_compressed`
+</TestPlan>

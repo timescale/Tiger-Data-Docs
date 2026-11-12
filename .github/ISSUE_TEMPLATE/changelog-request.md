@@ -3,7 +3,7 @@ name: Changelog request
 about: Propose a new changelog entry (new feature, release, or announcement)
 title: 'Changelog request: '
 labels: changelog, documentation
-assignees: ''
+assignees: atovpeko
 ---
 
 ## Changelog entry details

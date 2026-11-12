@@ -7,11 +7,12 @@ keywords: [hyperfunctions, Toolkit, time-weighted]
 
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 
 When samples land at uneven intervals, a simple mean can overweight short spikes or underweight long plateaus. **Time-weighted averages** and integrals assign each reading weight proportional to how long it was in effect, so irregular sampling still reflects duration correctly. Evenly spaced series (for example every 30 seconds) rarely need this; irregular bursts or adaptive sampling do.
 
 For example, if you have a lot of ice cream in freezers, you need to make sure
-the ice cream stays within a 0-10℉ (-20 to -12℃) temperature range. The
+the ice cream stays within a 0-10℉ (-18 to -12℃) temperature range. The
 temperature in the freezer can vary if folks are opening and closing the door,
 but the ice cream only has a problem if the temperature is out of range
 for a long time. You can set your sensors in the freezer to sample every five
@@ -28,10 +29,8 @@ irregularly sampled CPU usage, you need to find the total area under the graph
 of their CPU usage. You can use a time-weighted integral to find the total
 CPU-hours used by a user over a given time period.
 
-- For more information about how time-weighted averages work, read the
-  [time-weighted averages blog](https://www.tigerdata.com/blog/what-time-weighted-averages-are-and-why-you-should-care).
-- For more information about time-weighted average API calls, see the
-  [hyperfunction API documentation](/reference/toolkit/time_weight/time_weight).
+For more information about how time-weighted averages work, read the
+[time-weighted averages blog](https://www.tigerdata.com/blog/what-time-weighted-averages-are-and-why-you-should-care).
 
 ## Run a time-weighted average query
 
@@ -41,7 +40,11 @@ interpolation. The aggregate is not parallelizable, but it is supported with
 [{C.CAGG}s](/build/continuous-aggregates/create-a-continuous-aggregate).
 
 In this procedure, we use an example table called `freezer_temps` that
-contains data about internal freezer temperatures.
+contains data about internal freezer temperatures:
+
+```sql
+CREATE TABLE freezer_temps (freezer_id INTEGER NOT NULL, ts TIMESTAMPTZ NOT NULL, temperature DOUBLE PRECISION) WITH (tsdb.hypertable, tsdb.partition_column = 'ts');
+```
 
 <NumberedList>
 <NumberedItem title="Find the average and the time-weighted average">
@@ -71,3 +74,26 @@ ORDER BY freezer_id, ts;
 
 For more information about time-weighted average API calls, see the
 [hyperfunction API documentation](/reference/toolkit/time_weight/time_weight).
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run command: `echo 'APT::Get::Assume-Yes "true";' > /etc/apt/apt.conf.d/90doctest`
+4. [self-hosted] run command: `apt update`
+5. [self-hosted] run command: `apt install timescaledb-toolkit-postgresql-18`
+6. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+7. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb_toolkit;`
+8. run SQL: `CREATE TABLE freezer_temps (freezer_id INTEGER NOT NULL, ts TIMESTAMPTZ NOT NULL, temperature DOUBLE PRECISION) WITH (tsdb.hypertable, tsdb.partition_column = 'ts');`
+9. run SQL: `INSERT INTO freezer_temps SELECT 1, '2026-01-01 00:00+00'::timestamptz + (m || ' minutes')::interval, 5 FROM generate_series(0, 50, 5) AS m;`
+10. run SQL: `INSERT INTO freezer_temps SELECT 1, '2026-01-01 00:50:30+00'::timestamptz + (s || ' seconds')::interval, 20 FROM generate_series(0, 90, 30) AS s;`
+11. run SQL: `INSERT INTO freezer_temps VALUES (1, '2026-01-01 00:55+00', 5), (1, '2026-01-01 01:00+00', 5);`
+12. run SQL: `INSERT INTO freezer_temps SELECT 2, '2026-01-01 00:00+00'::timestamptz + (m || ' minutes')::interval, 5 FROM generate_series(0, 60, 5) AS m;`
+13. expect rows: `SELECT 1 FROM pg_proc WHERE proname = 'time_weight' AND prokind = 'a' AND proparallel = 'u'`
+14. run SQL: `SELECT freezer_id, avg(temperature), average(time_weight('Linear', ts, temperature)) as time_weighted_average FROM freezer_temps GROUP BY freezer_id;`
+15. expect rows: `SELECT 1 FROM (SELECT freezer_id, avg(temperature) AS mean, average(time_weight('Linear', ts, temperature)) AS twa FROM freezer_temps GROUP BY freezer_id) t WHERE freezer_id = 1 AND mean > 8 AND twa BETWEEN 5.5 AND 6.5`
+16. expect rows: `SELECT 1 FROM (SELECT freezer_id, avg(temperature) AS mean, average(time_weight('Linear', ts, temperature)) AS twa FROM freezer_temps GROUP BY freezer_id) t WHERE freezer_id = 2 AND mean = 5 AND abs(twa - 5) < 1e-9`
+17. run SQL: `SELECT *, average(time_weight('Linear', ts, temperature) OVER (PARTITION BY freezer_id ORDER BY ts RANGE '15 minutes'::interval PRECEDING)) as rolling_twa FROM freezer_temps ORDER BY freezer_id, ts;`
+18. expect rows: `SELECT 1 FROM (SELECT freezer_id, ts, average(time_weight('Linear', ts, temperature) OVER (PARTITION BY freezer_id ORDER BY ts RANGE '15 minutes'::interval PRECEDING)) AS rolling_twa FROM freezer_temps) t HAVING count(*) = 30 AND count(rolling_twa) = 28 AND max(rolling_twa) FILTER (WHERE freezer_id = 1) BETWEEN 8 AND 9 AND max(rolling_twa) FILTER (WHERE freezer_id = 2) < 5.000001`
+</TestPlan>

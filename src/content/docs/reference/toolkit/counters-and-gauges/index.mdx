@@ -51,15 +51,15 @@ Analyze gauge metrics to understand trends and variability:
 WITH hourly_gauges AS (
     SELECT
         time_bucket('1 hour'::interval, ts) AS hour,
-        toolkit_experimental.gauge_agg(ts, memory_usage) AS gauge_summary
+        gauge_agg(ts, memory_usage) AS gauge_summary
     FROM system_metrics
     WHERE host = 'web-01'
     GROUP BY hour
 )
 SELECT
     hour,
-    toolkit_experimental.delta(gauge_summary) AS memory_change,
-    toolkit_experimental.rate(gauge_summary) AS memory_change_rate
+    delta(gauge_summary) AS memory_change,
+    rate(gauge_summary) AS memory_change_rate
 FROM hourly_gauges
 ORDER BY hour;
 ```
@@ -85,8 +85,8 @@ daily AS (
 )
 SELECT
     day,
-    extrapolated_delta(daily_cs, '1 day'::interval) AS estimated_total_bytes,
-    extrapolated_rate(daily_cs, '1 day'::interval) AS estimated_avg_bytes_per_sec
+    extrapolated_delta(daily_cs, 'prometheus') AS estimated_total_bytes,
+    extrapolated_rate(daily_cs, 'prometheus') AS estimated_avg_bytes_per_sec
 FROM daily;
 ```
 
