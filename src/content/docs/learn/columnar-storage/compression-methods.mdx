@@ -10,9 +10,7 @@ import SinceRelease from "@components/SinceRelease.astro";
 Depending on the data type that is compressed when your data is converted from the {C.ROWSTORE} to the
 {C.COLUMNSTORE}, {C.TIMESCALE_DB} uses the following compression algorithms:
 
-- **Integers, timestamps, boolean and other integer-like types**: a combination of the following compression
-  methods is used: [delta encoding](#delta-encoding), [delta-of-delta](#delta-of-delta-encoding), [simple-8b](#simple-8b), and
-  [run-length encoding](#run-length-encoding).
+- **Integers, dates, and timestamps**: the [Adaptive Integer Compressor](#adaptive-integer-compression).
 - **Columns that do not have a high amount of repeated values**: [XOR-based](#xor-based-compression) compression with
   some [dictionary compression](#dictionary-compression).
 - **All other types**: [dictionary compression](#dictionary-compression).
@@ -21,21 +19,20 @@ This page gives an in-depth explanation of the compression methods used in {C.HY
 
 ## Integer compression
 
-For integers, timestamps, and other integer-like types {C.TIMESCALE_DB} uses a
-combination of delta encoding, delta-of-delta, simple 8-b, and run-length
-encoding.
+For integer, date, and timestamp columns, {C.TIMESCALE_DB} uses the Adaptive Integer Compressor (AIC).
+Before AIC, these columns used a combination of delta encoding, delta-of-delta, simple-8b, and
+run-length encoding, described in the sections that follow.
 
-The simple-8b compression method has been extended so that data can be
-decompressed in reverse order. Backward scanning queries are common in
-time-series workloads. This means that these types of queries run much faster.
+### Adaptive integer compression
 
-<SinceRelease version="2.31.0" product="tsdb" /> The Adaptive Integer Compressor (AIC) compresses
-integer, date, and timestamp columns block by block, encoding each block with whichever of six methods
-gives the smallest result: run-length, delta run-length, frame-of-reference, delta frame-of-reference,
-dictionary, or bit-packing with exceptions. AIC is off by default. Set
-`timescaledb.enable_aic_compression` to `on` before converting chunks to the {C.COLUMNSTORE}; chunks
-converted earlier keep delta-of-delta until they are recompressed. Data compressed with AIC stays
-readable with the setting off.
+<SinceRelease version="2.31.0" product="tsdb" /> AIC splits a column into blocks and encodes each block
+with the cheapest of six methods: run-length, delta run-length, frame-of-reference, delta
+frame-of-reference, dictionary, or patched frame-of-reference.
+
+AIC is the default since {C.TIMESCALE_DB} 2.32.0. To use delta-of-delta instead, set
+`timescaledb.enable_aic_compression` to `off` before you convert {C.CHUNK}s to the {C.COLUMNSTORE}. A
+{C.CHUNK} keeps the method it was converted with, and data compressed with AIC stays readable with the
+setting off.
 
 ### Delta encoding
 
@@ -154,6 +151,10 @@ by 3.
 Simple-8b works in this way, except it uses binary numbers instead of decimal,
 and it usually uses 64-bit blocks. In general, the longer the integer, the fewer
 number of integers that can be stored in each block.
+
+The simple-8b compression method has been extended so that data can be
+decompressed in reverse order. Backward scanning queries are common in
+time-series workloads. This means that these types of queries run much faster.
 
 ### Run-length encoding
 
