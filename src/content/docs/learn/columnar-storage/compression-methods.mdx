@@ -5,7 +5,6 @@ products: [cloud, self_hosted]
 ---
 
 import * as C from "@constants";
-import SinceRelease from "@components/SinceRelease.astro";
 
 Depending on the data type that is compressed when your data is converted from the {C.ROWSTORE} to the
 {C.COLUMNSTORE}, {C.TIMESCALE_DB} uses the following compression algorithms:
@@ -19,20 +18,20 @@ This page gives an in-depth explanation of the compression methods used in {C.HY
 
 ## Integer compression
 
-For integer, date, and timestamp columns, {C.TIMESCALE_DB} uses the Adaptive Integer Compressor (AIC).
-Before AIC, these columns used a combination of [delta encoding](#delta-encoding),
+Since {C.TIMESCALE_DB} 2.32.0, integer, date, and timestamp columns are compressed with the Adaptive
+Integer Compressor (AIC). Earlier versions use a combination of [delta encoding](#delta-encoding),
 [delta-of-delta](#delta-of-delta-encoding), [simple-8b](#simple-8b), and
-[run-length encoding](#run-length-encoding).
+[run-length encoding](#run-length-encoding) by default. Data that is already compressed keeps its
+encoding until it is rewritten.
 
 ### Adaptive integer compression
 
-<SinceRelease version="2.31.0" product="tsdb" /> AIC splits a column into blocks and encodes each block
-with the cheapest of six methods: run-length, delta run-length, frame-of-reference, delta
-frame-of-reference, dictionary, or patched frame-of-reference.
+AIC splits a column into blocks and encodes each block with the cheapest of six methods: run-length,
+delta run-length, frame-of-reference, delta frame-of-reference, dictionary, or patched
+frame-of-reference.
 
-AIC is the default since {C.TIMESCALE_DB} 2.32.0. To use delta-of-delta instead, set
-`timescaledb.enable_aic_compression` to `off` for the database, so that it also applies to
-{C.COLUMNSTORE} policy jobs.
+To use delta-of-delta instead, set `timescaledb.enable_aic_compression` to `off` for the database, so
+that it also applies to {C.COLUMNSTORE} policy jobs.
 
 The setting applies when data is compressed or recompressed. Changing it does not rewrite data that is
 already compressed, and data compressed with AIC stays readable with the setting off.
