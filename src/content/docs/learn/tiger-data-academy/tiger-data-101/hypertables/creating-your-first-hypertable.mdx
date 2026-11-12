@@ -1,0 +1,60 @@
+---
+title: Creating Your First Hypertable
+description: Hands-on guide to creating and configuring hypertables
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+
+<div style="background: #f5f3ff; border-left: 3px solid #4f6bed; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; border-radius: 4px;">
+  **Tiger Data 101** → TimescaleDB | **Section:** Hypertables | **⏱ Time:** ~2 min
+</div>
+
+## Creating a hypertable from Scratch
+
+The recommended approach is to use the modern `CREATE TABLE` syntax with the `tsdb.hypertable` option:
+
+```sql
+CREATE TABLE sensor_readings (
+  time       TIMESTAMPTZ NOT NULL,
+  device_id  TEXT NOT NULL,
+  temperature FLOAT,
+  humidity   FLOAT
+) WITH (tsdb.hypertable, tsdb.partition_column = 'time');
+```
+
+Or, if you already have a regular table, convert it:
+
+```sql
+SELECT create_hypertable('sensor_readings', by_range('time'));
+```
+
+---
+
+## Configuring chunk intervals
+
+TimescaleDB automatically chooses chunk intervals (typically 7 days for new data), but you can customize:
+
+```sql
+ALTER TABLE sensor_readings SET (
+  timescaledb.chunk_time_interval = INTERVAL '1 day'
+);
+```
+
+**Guidelines:**
+- **Smaller intervals (1 hour – 1 day)**: For high-cardinality or very high write volume
+- **Medium intervals (1 week)**: Good default for most use cases
+- **Larger intervals (1 month+)**: For lower cardinality or sparse data
+
+---
+
+<div style="background: linear-gradient(135deg, #4f6bed 0%, #667eea 100%); border-radius: 8px; padding: 20px; margin: 28px 0; color: white; box-shadow: 0 4px 12px rgba(79, 107, 237, 0.15);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+    <span style="font-size: 20px;">→</span>
+    <span style="font-weight: 700; font-size: 16px;">NEXT MODULE</span>
+  </div>
+  <a href="/learn/tiger-data-academy/tiger-data-101/hypertables/partitioning-indexing-and-optimization" style="color: #e0e7ff; text-decoration: none; font-weight: 500; display: block; font-size: 15px;">
+    **Partitioning, Indexing & Optimization** — Discover advanced techniques for optimizing your hypertable layout.
+  </a>
+</div>
+
