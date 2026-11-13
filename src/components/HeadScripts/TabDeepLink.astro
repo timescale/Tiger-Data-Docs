@@ -6,6 +6,10 @@
    * we synthesize a click on every matching tab — Starlight's own click handler then
    * switches its panel. On user tab clicks we replace the URL hash so the current
    * selection is shareable.
+   *
+   * A plain `#<id>` hash whose target sits inside a hidden tab panel (a heading in a
+   * tab that is not the default) gets the same treatment: the browser cannot scroll to
+   * an element under `hidden`, so we open the enclosing tabs and scroll to it ourselves.
    */
   (function () {
     function slugify(s) {
@@ -58,9 +62,20 @@
         });
       }
     }
+    function revealTarget(id) {
+      var el = id ? document.getElementById(id) : null;
+      var panel = el && el.closest ? el.closest('starlight-tabs [role="tabpanel"]') : null;
+      if (!panel || !el.closest("[hidden]")) return;
+      var tab = document.getElementById(panel.getAttribute("aria-labelledby") || "");
+      if (!tab) return;
+      activateTab(tab, false);
+      requestAnimationFrame(function () {
+        el.scrollIntoView();
+      });
+    }
     function activateFromHash() {
       var hash = decodeURIComponent(location.hash.slice(1));
-      if (hash.indexOf("tab=") !== 0) return;
+      if (hash.indexOf("tab=") !== 0) return revealTarget(hash);
       var slug = hash.slice(4);
       if (!slug) return;
       var tabs = document.querySelectorAll('starlight-tabs [role="tab"]');
@@ -69,8 +84,17 @@
       });
     }
     function onTabClick(e) {
+      // Clicks we synthesize in activateTab must not rewrite the hash: for a `#<id>`
+      // deep link that would replace the heading's id with the tab slug.
+      if (!e.isTrusted) return;
       var t = e.target && e.target.closest ? e.target.closest('starlight-tabs [role="tab"]') : null;
-      if (!t) return;
+      if (!t) {
+        // A same-hash click on an in-page link fires no hashchange, so handle it here.
+        var a = e.target && e.target.closest ? e.target.closest('a[href^="#"]') : null;
+        var plain = !(e.metaKey || e.ctrlKey || e.shiftKey || e.defaultPrevented);
+        if (a && plain && a.hash === location.hash) revealTarget(decodeURIComponent(location.hash.slice(1)));
+        return;
+      }
       var slug = slugify(t.textContent);
       if (!slug) return;
       history.replaceState(null, "", "#tab=" + slug);
