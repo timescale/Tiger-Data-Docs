@@ -24,12 +24,16 @@ The `move_chunk` function acts like a combination of the
 these {C.PG} commands, however, the `move_chunk` function uses lower lock
 levels so that the {C.CHUNK} and {C.HYPERTABLE} are able to be read for most of the
 process. This comes at a cost of slightly higher disk usage during the
-operation. For a more detailed discussion of this capability, see the
+operation. Writes to the {C.CHUNK} are blocked until the move completes. For a more detailed discussion of this capability, see the
 documentation on [managing storage with tablespaces](/build/performance-optimization/manage-tablespaces).
 
+If the {C.CHUNK} is in the {C.COLUMNSTORE}, `move_chunk` does not reorder it and ignores `reorder_index`.
+It takes an `ACCESS EXCLUSIVE` lock for the whole operation, so queries that read or write the {C.CHUNK},
+including queries on the {C.HYPERTABLE} that are not limited to other {C.CHUNK}s, wait until the move completes.
+
 <Callout variant="important">
-  You must be logged in as a super user, such as the `postgres` user,
-  to use the `move_chunk()` call.
+  To use `move_chunk()`, you must own the {C.HYPERTABLE}, or have the privileges of its owner,
+  and have the `CREATE` privilege on each destination tablespace that is not the database default.
 </Callout>
 
 ## Samples
@@ -63,7 +67,7 @@ SELECT move_chunk(
 |`chunk`|REGCLASS| - | ✔ |Name of {C.CHUNK} to be moved|
 |`destination_tablespace`|NAME| - | ✔ |Target tablespace for {C.CHUNK} being moved|
 |`index_destination_tablespace`|NAME| - | ✔ |Target tablespace for index associated with the {C.CHUNK} you are moving|
-|`reorder_index`|REGCLASS| - | ✖ |The name of the index (on either the {C.HYPERTABLE} or {C.CHUNK}) to order by. Required unless the {C.CHUNK} has been clustered before, in which case that index is used|
+|`reorder_index`|REGCLASS| - | ✖ |The name of the index (on either the {C.HYPERTABLE} or {C.CHUNK}) to order by. Required unless the {C.CHUNK} has been clustered before, in which case that index is used. Ignored for a {C.CHUNK} in the {C.COLUMNSTORE}|
 |`verbose`|BOOLEAN| `FALSE` | ✖ |Setting to true displays messages about the progress of the move\_chunk command.|
 
 ## Returns

@@ -20,13 +20,11 @@ use the following to get the intervals where the system was unhealthy during the
 excludes any ranges covered by a heartbeat at the end of the Jan 2 week.
 
 ```sql
-SELECT dead_ranges(
-  interpolate(
-    health,
-    LAG(health) OVER (ORDER BY date)
-  )
-)
-FROM liveness
+SELECT dead_ranges(interpolate(health, pred))
+FROM (
+  SELECT date, health, LAG(health) OVER (ORDER BY date) AS pred
+  FROM liveness
+) s
 WHERE date = '01-9-2022 UTC'
 ```
 
@@ -44,18 +42,18 @@ The syntax is:
 
 ```sql
 interpolate(
-    agg HEARTBEATAGG,
-    pred HEARTBEATAGG
-) RETURNS HEARTBEATAGG
+    agg HeartbeatAgg,
+    pred HeartbeatAgg
+) RETURNS HeartbeatAgg
 ```
 
 | Name | Type | Default | Required | Description |
 |------|------|---------|----------|-------------|
 | agg | HeartbeatAgg | - | ✔ | A heartbeat aggregate containing liveness data for a particular interval |
-| pred | HeartbeatAgg | - | | The heartbeat aggregate for the preceding interval, if one exists |
+| pred | HeartbeatAgg | - | ✔ | The heartbeat aggregate for the preceding interval. It must end at or before the start of `agg`. Pass `NULL` if there is none |
 
 ## Returns
 
 | Column | Type | Description |
 |--------|------|-------------|
-| interpolate | HeartbeatAgg | A copy of `agg` which has been update to include any heartbeat intervals extending past the end of `pred`. |
+| interpolate | HeartbeatAgg | A copy of `agg` which has been updated to include any heartbeat intervals extending past the end of `pred`. |
