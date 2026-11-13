@@ -1,6 +1,7 @@
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
 import { Tabs, Tab } from '@stainless-api/docs/stainless-docs/mintlify-compat';
+import { NumberedList, NumberedItem } from "@components/NumberedList";
 
 import LivesyncConsole from "./_livesync-console.mdx";
 import LivesyncTerminal from "./_livesync-terminal.mdx";
@@ -57,3 +58,152 @@ You use the {C.PG_CONNECTOR} for data synchronization, rather than migration. Th
     <LivesyncTerminal />
   </Tab>
 </Tabs>
+
+## Advanced topics
+
+### Upgrade the source database
+
+This guidance applies to both the hosted {C.PG_CONNECTOR} and the self-hosted connector. The source remains the primary database, and {C.CLOUD_LONG} remains its logical replica.
+
+The procedure depends on whether the upgrade supports logical replication slot migration and preserves source table object identifiers (OIDs).
+
+#### Upgrades that preserve the replication slot
+
+If the upgrade supports logical slot migration and preserves source table OIDs, you do not need a Livesync subscription reset. No initial data copy is necessary. A slot with the same name alone does not prove that replication can resume safely.
+
+`pg_upgrade` supports logical replication slot migration when the **old source cluster** runs {C.PG} 17 or later. An upgrade from {C.PG} 16 to 18 does not qualify. Confirm that your database provider preserves logical slots for your upgrade method. For example, [Amazon RDS supports slot retention from source version 17](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_UpgradeDBInstance.PostgreSQL.MajorVersion.Process.html), but not for slots on read replicas.
+
+Follow the [{C.PG} publisher upgrade requirements](https://www.postgresql.org/docs/18/logical-replication-upgrade.html#PREPARE-PUBLISHER-UPGRADES). Before the upgrade, stop source writes. Wait for the connector to apply all changes.
+
+<Tabs>
+  <Tab title={C.CONSOLE}>
+
+In {C.CONSOLE}, select `Connectors` > `Source connectors`. Open the connector's three-dot menu and select `Pause`. Keep the existing connector: do not delete or recreate it. After the source upgrade, select `Resume` for the same connector. If the source connection details must change, [contact support](mailto:support@tigerdata.com) before the upgrade.
+
+  </Tab>
+  <Tab title={`Self-hosted ${C.PG} connector`}>
+
+Stop the Livesync container without `drop`. After the upgrade, restart Livesync with the same subscription. If the source endpoint changes, update `--source`.
+
+  </Tab>
+</Tabs>
+
+Verify that replication resumes before normal use.
+
+#### Upgrades through logical replication
+
+Some low-downtime upgrades use logical replication to copy the source database into a new cluster, then switch application connections. This method does not preserve the original Livesync replication slot. Table OIDs on the new source can differ. Log sequence numbers (LSNs) identify positions in each cluster's own WAL, not equivalent changes across independent clusters. A connection string change alone cannot preserve the Livesync replication state.
+
+<Callout variant="important">
+The hosted {C.PG_CONNECTOR} currently has no option to skip the initial data copy for a new subscription. It does not support the no-copy reset procedure below. Before an upgrade that replaces the source slot, [contact support](mailto:support@tigerdata.com) to plan connector recovery and a new initial copy. Do not run the self-hosted cleanup commands against a hosted connector.
+</Callout>
+
+##### Self-hosted connector: reset without another initial copy
+
+For the self-hosted connector, recreate the Livesync subscription without another initial data copy. Test this procedure on a non-production copy before the production cutover.
+
+Create equivalent publications on the new source. Preserve the original publication names, table schemas, and replica identities. Keep the existing data and schemas on the {C.CLOUD_LONG} target. Do not add tables to the publications during this procedure. Do not use `--copy-data=false` if the target lacks any replicated data.
+
+Keep separate connection strings for the old and new sources. Keep `TARGET` set to the existing {C.CLOUD_LONG} target:
+
+```bash
+export OLD_SOURCE="$SOURCE"
+export NEW_SOURCE="postgres://<user>:<password>@<new_source_host>:<port>/<db_name>"
+```
+
+In each `run` command below, reuse the original subscription name, publication flags, and any `--table-map` flags.
+
+<NumberedList>
+<NumberedItem title="Stop writes to the old source">
+
+Stop all writes to the old source, including writes from background jobs. Wait until both the new source and Livesync apply all changes from the old source. Verify that the new source and target contain all replicated data from the old source.
+
+Check Livesync progress:
+
+```bash
+docker run --rm timescale/live-sync:latest status \
+  --subscription <subscription_name> \
+  --target "$TARGET" \
+  --all
+```
+
+Use the table state and replication lag queries in the self-hosted tab's `Monitor the sync` step. Table readiness alone does not prove that Livesync applied all changes.
+
+Keep writes stopped on both sources until the new Livesync subscription is ready.
+
+</NumberedItem>
+
+<NumberedItem title="Stop Livesync and remove the old subscription state">
+
+Keep the old source reachable until `drop` completes. Point `--source` at the **old source**, not the new source:
+
+```bash
+docker stop livesync
+
+docker run -it --rm --name livesync-cleanup \
+  timescale/live-sync:latest drop \
+  --subscription <subscription_name> \
+  --source "$OLD_SOURCE" \
+  --target "$TARGET"
+```
+
+This removes the old replication slot, replication origin, and Livesync catalog state. It does not remove the replicated data from the target. Do not truncate the target tables.
+
+</NumberedItem>
+
+<NumberedItem title="Start Livesync against the new source without an initial copy">
+
+```bash
+docker run -d --rm --name livesync timescale/live-sync:latest run \
+  --publication <publication_name> \
+  --subscription <subscription_name> \
+  --source "$NEW_SOURCE" \
+  --target "$TARGET" \
+  --copy-data=false
+```
+
+On the new source, confirm that the Livesync logical slot exists in `pg_replication_slots`. Run the status command again. Confirm that all expected subscription tables show `cdc` (state `r`), with no subscription or table errors.
+
+<Callout variant="warning">
+Keep writes stopped until the new slot exists and all expected tables are ready. The new slot cannot capture earlier writes.
+</Callout>
+
+</NumberedItem>
+
+<NumberedItem title="Restore the default data copy option">
+
+Stop Livesync and start it again with `--copy-data=true`, the default:
+
+```bash
+docker stop livesync
+
+docker run -d --rm --name livesync timescale/live-sync:latest run \
+  --publication <publication_name> \
+  --subscription <subscription_name> \
+  --source "$NEW_SOURCE" \
+  --target "$TARGET" \
+  --copy-data=true
+```
+
+Livesync retains the new subscription state and does not copy tables that are already ready.
+
+<Callout variant="warning">
+Do not leave Livesync with `--copy-data=false`. A refresh with this option marks newly discovered tables ready without a data copy. Later changes can replicate, but the target lacks the existing rows. A later restart with `--copy-data=true` does not copy tables that already have state `r`.
+</Callout>
+
+</NumberedItem>
+
+<NumberedItem title="Resume writes on the new source">
+
+Confirm that Livesync runs against the new source and all subscription tables remain ready. Complete your source upgrade checks before the application cutover. In particular, synchronize sequence values on the new source. [Native logical replication does not copy sequence state](https://www.postgresql.org/docs/18/logical-replication-restrictions.html). For later maintenance commands, update `SOURCE`:
+
+```bash
+export SOURCE="$NEW_SOURCE"
+```
+
+Point the application connections at the new source. Resume writes on the new source only.
+
+</NumberedItem>
+</NumberedList>
+
+To add tables later, first create each table on the target. Then add it to the source publication. Run `refresh-publication` with `--copy-data=true`, or restart Livesync with `--copy-data=true`. Livesync copies only the new tables.
