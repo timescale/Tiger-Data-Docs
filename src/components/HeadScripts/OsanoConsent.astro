@@ -1,23 +1,9 @@
 ---
-/**
- * Plumbing that lets other non-essential third-party scripts react to the visitor's
- * Osano consent choice. Osano itself is loaded by the "Osano Consent Manager" tag in
- * GTM (not by this file) — this only waits for whatever that tag produces:
- *
- *  - Exposes `window.__onOsanoConsent(callback)`: calls `callback({analytics, marketing,
- *    personalization})` once Osano resolves, and again every time the visitor changes
- *    their choice. PostHogAnalytics.astro and TwitterPixel.astro subscribe to this
- *    instead of each re-implementing Osano's async init/polling. If Osano never loads
- *    (GTM tag misconfigured, blocked, etc.) the callback simply never fires — fails
- *    safe toward less tracking, not more.
- *  - Mirrors consent into Google Consent Mode v2 (`gtag('consent', 'update', ...)`) so
- *    GTM-managed tags respect the same choice. The *default* (deny-all) consent state is
- *    set in astro.config.ts, before GTM's own script tag, so GTM never fires a tag before
- *    a default exists — this script only updates that state once Osano has an answer.
- */
 ---
 
 <script is:inline>
+  // Osano itself is loaded directly in astro.config.ts's head[] array, not here — this
+  // only reacts to window.Osano.cm however it got there.
   (function () {
     var listeners = [];
     var lastState = null;
@@ -36,12 +22,9 @@
       });
     }
 
-    // Osano.cm isn't available immediately after GTM's tag loads it — it initializes
-    // asynchronously. Worse: `window.Osano.cm` gets replaced with a new object partway
-    // through init (confirmed empirically — a stub, then the real instance), so binding
-    // listeners once and stopping would silently orphan them the moment that swap
-    // happens. Keep checking for a new reference indefinitely instead; the check itself
-    // is a cheap object-identity comparison, re-binding only runs on an actual swap.
+    // window.Osano.cm gets replaced with a new object partway through init (confirmed
+    // empirically, despite Osano's docs saying not to expect this) — keep rechecking the
+    // reference rather than binding once.
     function ensureBound() {
       var cm = window.Osano && window.Osano.cm;
       if (!cm || cm === boundCm) return;
@@ -58,8 +41,13 @@
     ensureBound();
     setInterval(ensureBound, 250);
 
+    // Calls back immediately with a deny-by-default state if Osano hasn't resolved yet
+    // (matching Osano's own default-deny Consent Mode state) rather than leaving
+    // subscribers with no call at all until it does — PostHog in particular must not
+    // sit in its own default (full) capture mode during that window.
+    // Consumed by PostHogAnalytics.astro and TwitterPixel.astro.
     window.__onOsanoConsent = function (callback) {
-      if (lastState) callback(lastState);
+      callback(lastState || { analytics: false, marketing: false, personalization: false });
       listeners.push(callback);
     };
 
