@@ -5,6 +5,7 @@ products: [cloud, self_hosted]
 ---
 
 import * as C from "@constants";
+import TestPlan from "@components/TestPlan.astro";
 
 Every {C.HYPERTABLE} has a **partitioning column**, usually **time**. That choice drives {C.CHUNK}
 boundaries, retention, {C.COLUMNSTORE}, and which **unique** and **primary key** constraints are
@@ -111,3 +112,25 @@ for tuning and edge cases.
 - [Enforce constraints with unique indexes](/build/performance-optimization/hypertables-and-unique-indexes):
   Unique index rules and limitations.
 - [CREATE TABLE reference](/reference/timescaledb/hypertables/create_table): Full API reference.
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE sensor_data (time TIMESTAMPTZ NOT NULL, device_id INT NOT NULL, temperature DOUBLE PRECISION, humidity DOUBLE PRECISION, PRIMARY KEY (device_id, time)) WITH (timescaledb.hypertable);`
+5. expect rows: `SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'sensor_data'`
+6. run SQL: `INSERT INTO sensor_data VALUES ('2026-01-01 00:00:00+00', 1, 20.5, 40);`
+7. expect error containing `duplicate key`: `INSERT INTO sensor_data VALUES ('2026-01-01 00:00:00+00', 1, 21.0, 41)`
+8. run SQL: `CREATE TABLE order_events (time TIMESTAMPTZ NOT NULL, order_id BIGINT NOT NULL, status TEXT, UNIQUE (order_id, time)) WITH (timescaledb.hypertable);`
+9. expect rows: `SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'order_events'`
+10. run SQL: `INSERT INTO order_events VALUES ('2026-01-01 00:00:00+00', 1001, 'created');`
+11. expect error containing `duplicate key`: `INSERT INTO order_events VALUES ('2026-01-01 00:00:00+00', 1001, 'paid')`
+12. expect error containing `cannot create a unique index without the column "time"`: `CREATE TABLE bad_example (id SERIAL PRIMARY KEY, time TIMESTAMPTZ NOT NULL, value DOUBLE PRECISION) WITH (timescaledb.hypertable)`
+13. run SQL: `CREATE TABLE site_readings (time TIMESTAMPTZ NOT NULL, site INT NOT NULL, device_id INT NOT NULL, PRIMARY KEY (site, time)) WITH (tsdb.hypertable);`
+14. expect error containing `cannot create a unique index without the column "device_id"`: `SELECT add_dimension('site_readings', by_hash('device_id', 4))`
+15. run SQL: `CREATE TABLE null_check (time TIMESTAMPTZ, reading DOUBLE PRECISION) WITH (tsdb.hypertable);`
+16. expect rows: `SELECT 1 FROM pg_attribute WHERE attrelid = 'null_check'::regclass AND attname = 'time' AND attnotnull`
+17. expect error containing `not-null constraint`: `INSERT INTO null_check VALUES (NULL, 1.0)`
+</TestPlan>

@@ -5,6 +5,7 @@ products: [cloud, self_hosted]
 ---
 
 import * as C from "@constants";
+import TestPlan from "@components/TestPlan.astro";
 
 The `time_bucket` function helps you group data in a [{C.HYPERTABLE}](/learn/hypertables/understand-hypertables) so you can
 perform aggregate calculations over arbitrary time intervals. It is usually used
@@ -105,3 +106,27 @@ the Monday of that week, at midnight.
   Full API reference with all parameters.
 - [Troubleshoot {C.TIME_BUCKET}s](/build/tips-and-tricks/troubleshoot-time-buckets): Common
   issues and solutions.
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE weather_conditions (time TIMESTAMPTZ NOT NULL, city TEXT, temperature DOUBLE PRECISION) WITH (tsdb.hypertable);`
+5. run SQL: `INSERT INTO weather_conditions SELECT '2016-11-15 00:00:00+00'::timestamptz + i * INTERVAL '30 minutes', 'Oslo', 60 + i % 15 FROM generate_series(0, 95) AS i;`
+6. run SQL: `SELECT time_bucket('1 day', time) AS bucket, avg(temperature) AS avg_temp FROM weather_conditions GROUP BY bucket ORDER BY bucket ASC;`
+7. expect rows: `SELECT 1 FROM (SELECT min(time_bucket('1 day', time)) AS first_bucket, count(DISTINCT time_bucket('1 day', time)) AS buckets FROM weather_conditions) AS b WHERE first_bucket = '2016-11-15 00:00:00+00' AND buckets = 2`
+8. run SQL: `CREATE TABLE metrics (time TIMESTAMPTZ NOT NULL, host TEXT, cpu DOUBLE PRECISION) WITH (tsdb.hypertable);`
+9. run SQL: `INSERT INTO metrics SELECT '2026-01-01 00:00:00+00'::timestamptz + i * INTERVAL '1 minute', 'host-1', 10 + i % 80 FROM generate_series(0, 1439) AS i;`
+10. run SQL: `SELECT time_bucket('5 min', time) + '5 min' AS bucket, min(cpu), max(cpu) FROM metrics GROUP BY bucket ORDER BY bucket DESC;`
+11. expect rows: `SELECT 1 FROM (SELECT time_bucket('5 min', time) + '5 min' AS bucket_end, max(time) AS newest FROM metrics GROUP BY bucket_end) AS b WHERE newest = bucket_end - INTERVAL '1 minute'`
+12. expect no rows: `SELECT 1 FROM (SELECT time_bucket('5 min', time) + '5 min' AS bucket_end, min(time) AS oldest, max(time) AS newest FROM metrics GROUP BY bucket_end) AS b WHERE newest >= bucket_end OR oldest < bucket_end - INTERVAL '5 minutes'`
+13. run SQL: `SELECT time_bucket('5 hours', time, '1 hour'::INTERVAL) AS bucket, avg(cpu) FROM metrics GROUP BY bucket ORDER BY bucket DESC;`
+14. expect rows: `SELECT 1 FROM metrics WHERE time_bucket('5 hours', time, '1 hour'::INTERVAL) = time_bucket('5 hours', time) + INTERVAL '1 hour'`
+15. expect no rows: `SELECT 1 FROM metrics WHERE time_bucket('5 hours', time, '1 hour'::INTERVAL) NOT IN (time_bucket('5 hours', time) + INTERVAL '1 hour', time_bucket('5 hours', time) - INTERVAL '4 hours')`
+16. expect rows: `SELECT 1 FROM metrics WHERE time_bucket('5 hours', time, '-1 hour'::INTERVAL) = time_bucket('5 hours', time) - INTERVAL '1 hour'`
+17. expect no rows: `SELECT 1 FROM metrics WHERE time_bucket('5 hours', time, '-1 hour'::INTERVAL) NOT IN (time_bucket('5 hours', time) - INTERVAL '1 hour', time_bucket('5 hours', time) + INTERVAL '4 hours')`
+18. run SQL: `SELECT time_bucket(INTERVAL '1 week', TIMESTAMP '2021-01-05');`
+19. expect rows: `SELECT 1 WHERE time_bucket(INTERVAL '1 week', TIMESTAMP '2021-01-05') = TIMESTAMP '2021-01-04 00:00:00' AND extract(isodow FROM time_bucket(INTERVAL '1 week', TIMESTAMP '2021-01-05')) = 1`
+</TestPlan>
