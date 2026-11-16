@@ -26,8 +26,32 @@ import sys
 
 
 def dq(s):
-    """Double-quote a YAML scalar, escaping backslashes and quotes."""
+    """Double-quote a YAML scalar, escaping backslashes and quotes.
+
+    Whitespace control characters collapse to one space; any other control
+    character is dropped, since YAML parsers reject them inside a scalar.
+    """
+    s = re.sub(r"[\r\n\t\v\f]+", " ", s)
+    s = re.sub(r"[\x00-\x1f\x7f]", "", s)
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+# Absolute http(s), or site-relative starting with a single slash. A second
+# slash or a backslash would make it protocol-relative, so another host.
+HREF_OK = re.compile(r"^(https?://|/(?![/\\]))", re.I)
+
+
+def usable_links(card):
+    """The card's links with hrefs trimmed, minus any whose href is not a URL
+    this site should link to. Each rejection is reported on stderr."""
+    out = []
+    for ln in card.get("links") or []:
+        href = (ln.get("href") or "").strip()
+        if not HREF_OK.match(href):
+            print(f"SKIP link (href is not http(s) or site-relative): {href!r}", file=sys.stderr)
+            continue
+        out.append({**ln, "href": href})
+    return out
 
 
 def frontmatter_bounds(lines):
@@ -47,7 +71,7 @@ def item_lines(links, indent):
     for ln in links:
         prefix = "Video: " if ln["kind"] == "video" and not ln["label"].lower().startswith("video:") else ""
         out.append(f"{pad}- label: {dq(prefix + ln['label'])}")
-        out.append(f"{pad}  href: {ln['href']}")
+        out.append(f"{pad}  href: {dq(ln['href'])}")
     return out
 
 
@@ -61,16 +85,16 @@ def apply_card(path, card):
     fm_start, fm_end = b
     fm = lines[fm_start + 1 : fm_end]
 
-    links = card.get("links", [])
+    links = usable_links(card)
     if not links:
-        return f"skip (no links): {card['page_path']}"
+        return f"skip (no usable links): {card['page_path']}"
     heading = card.get("heading") or "Related resources"
 
     lm_idx = next((i for i, l in enumerate(fm) if re.match(r"^learnMore:\s*$", l)), None)
 
     if lm_idx is None:
         # No card yet: insert a full learnMore block before the closing '---'.
-        block = ["learnMore:", f"  relatedPostsHeading: {heading}", "  relatedPosts:"]
+        block = ["learnMore:", f"  relatedPostsHeading: {dq(heading)}", "  relatedPosts:"]
         block += item_lines(links, 4)
         lines[fm_end:fm_end] = block
         verb = "added new card"
@@ -102,7 +126,7 @@ def apply_card(path, card):
             verb = "replaced card links"
         else:
             # learnMore exists but has no relatedPosts (e.g. only tutorials).
-            block = [f"  relatedPostsHeading: {heading}", "  relatedPosts:"]
+            block = [f"  relatedPostsHeading: {dq(heading)}", "  relatedPosts:"]
             block += item_lines(links, 4)
             abs_at = fm_start + 1 + lm_end
             lines[abs_at:abs_at] = block

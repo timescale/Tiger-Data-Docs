@@ -6,6 +6,7 @@ products: [cloud, self_hosted]
 
 import * as C from "@constants";
 import { Callout } from "@stainless-api/docs/components";
+import TestPlan from "@components/TestPlan.astro";
 
 Constraints reject invalid rows at insert or update time. On {C.HYPERTABLE}s, {C.TIMESCALE_DB} mirrors those rules to underlying {C.CHUNK}s and keeps related indexes consistent when you add, change, or drop a constraint.
 
@@ -44,3 +45,27 @@ Time columns used for partitioning must not allow `NULL` values. A
 </Callout>
 
 For more information on how to manage constraints, see the [{C.PG} docs](https://www.postgresql.org/docs/current/ddl-constraints.html).
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE locations (id INTEGER PRIMARY KEY, city TEXT);`
+5. run SQL: `INSERT INTO locations VALUES (1, 'Oslo');`
+6. run SQL: `CREATE TABLE conditions (time TIMESTAMPTZ, temp FLOAT NOT NULL, device_id INTEGER CHECK (device_id > 0), location INTEGER REFERENCES locations (id), PRIMARY KEY(time, device_id)) WITH (tsdb.hypertable);`
+7. expect rows: `SELECT 1 FROM timescaledb_information.hypertables WHERE hypertable_name = 'conditions'`
+8. expect rows: `SELECT 1 FROM pg_constraint WHERE conrelid = 'conditions'::regclass AND contype IN ('c', 'f', 'p') HAVING count(*) = 3`
+9. run SQL: `INSERT INTO conditions VALUES ('2026-01-01 00:00:00+00', 20.5, 1, 1);`
+10. expect error containing `conditions_device_id_check`: `INSERT INTO conditions VALUES ('2026-01-01 00:00:00+00', 20.5, 0, 1)`
+11. expect error containing `not-null constraint`: `INSERT INTO conditions VALUES ('2026-01-01 00:00:00+00', NULL, 2, 1)`
+12. expect error containing `conditions_pkey`: `INSERT INTO conditions VALUES ('2026-01-01 00:00:00+00', 21.0, 1, 1)`
+13. expect error containing `conditions_location_fkey`: `INSERT INTO conditions VALUES ('2026-01-01 00:00:00+00', 20.5, 3, 99)`
+14. run SQL: `CREATE TABLE condition_notes (time TIMESTAMPTZ, device_id INTEGER, note TEXT, FOREIGN KEY (time, device_id) REFERENCES conditions (time, device_id));`
+15. run SQL: `INSERT INTO condition_notes VALUES ('2026-01-01 00:00:00+00', 1, 'calibrated');`
+16. expect error containing `condition_notes_time_device_id_fkey`: `INSERT INTO condition_notes VALUES ('2026-01-02 00:00:00+00', 5, 'orphan')`
+17. expect error containing `foreign key references of hypertables`: `CREATE TABLE condition_events (time TIMESTAMPTZ, device_id INTEGER, event TEXT, FOREIGN KEY (time, device_id) REFERENCES conditions (time, device_id)) WITH (tsdb.hypertable)`
+18. run SQL: `CREATE TABLE readings (time TIMESTAMPTZ, reading INTEGER) WITH (tsdb.hypertable);`
+19. expect rows: `SELECT 1 FROM information_schema.columns WHERE table_name = 'readings' AND column_name = 'time' AND is_nullable = 'NO'`
+</TestPlan>

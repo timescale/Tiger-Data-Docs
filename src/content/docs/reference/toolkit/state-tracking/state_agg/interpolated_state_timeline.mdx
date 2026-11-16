@@ -12,15 +12,15 @@ import SinceRelease from '@components/SinceRelease.astro';
 Get a timeline of all states, showing each time a state is entered and exited.
 
 Unlike [`state_timeline`](/reference/toolkit/state-tracking/state_agg/state_timeline), you can use this function across multiple state aggregates that cover
-different time buckets. Any missing values at the time bucket boundaries are interpolated from adjacent state
-aggregates.
+different time buckets. Any missing values at the start of a time bucket are interpolated from the previous state
+aggregate.
 
 ## Samples
 
 Given state aggregates bucketed by 1-minute intervals, interpolate the states at the bucket boundaries and get the
 history of all states.
 
-To perform the interpolation, the `LAG` and `LEAD` functions are used to get the previous and next state aggregates.
+To perform the interpolation, the `LAG` function is used to get the previous state aggregate.
 
 ```sql
 SELECT
@@ -60,29 +60,29 @@ The syntax is:
 interpolated_state_timeline(
     agg StateAgg,
     start TIMESTAMPTZ,
-    interval INTERVAL
-    [, prev StateAgg]
+    interval INTERVAL,
+    prev StateAgg
 ) RETURNS (TEXT, TIMESTAMPTZ, TIMESTAMPTZ)
 
 interpolated_state_int_timeline(
     agg StateAgg,
     start TIMESTAMPTZ,
-    interval INTERVAL
-    [, prev StateAgg]
+    interval INTERVAL,
+    prev StateAgg
 ) RETURNS (BIGINT, TIMESTAMPTZ, TIMESTAMPTZ)
 ```
 
 | Name | Type | Default | Required | Description |
 |------|------|---------|----------|-------------|
-| agg | StateAgg | - | ✔ | A state aggregate created with [`state_agg`](/reference/toolkit/state-tracking/state_agg/state_agg) |
+| agg | StateAgg | - | ✔ | A state aggregate created with [`state_agg`](/reference/toolkit/state-tracking/state_agg/state_agg). Must not be `NULL` |
 | start | TIMESTAMPTZ | - | ✔ | The start of the interval to be calculated |
 | interval | INTERVAL | - | ✔ | The length of the interval to be calculated |
-| prev | StateAgg | - | | The state aggregate from the prior interval, used to interpolate the value at `start`. If `NULL`, the first timestamp in `aggregate` is used as the start of the interval |
+| prev | StateAgg | - | ✔ | The state aggregate from the prior interval, used to interpolate the value at `start`. Pass `NULL` if there is none; the first period then begins at the first timestamp in `agg` |
 
 ## Returns
 
 | Column | Type | Description |
 |--------|------|-------------|
-| state | TEXT | BIGINT | A state found in the state aggregate |
+| state | TEXT \| BIGINT | A state found in the state aggregate |
 | start\_time | TIMESTAMPTZ | The time when the state started (inclusive) |
 | end\_time | TIMESTAMPTZ | The time when the state ended (exclusive) |
