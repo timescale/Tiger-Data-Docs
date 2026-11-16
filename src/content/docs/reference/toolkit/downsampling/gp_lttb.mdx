@@ -60,13 +60,13 @@ gp_lttb(
 
 | Name | Type | Default | Required | Description |
 |------|------|---------|----------|-------------|
-| ts | TIMESTAMPTZ | - | ✔ | Timestamps for each data point |
-| value | DOUBLE PRECISION | - | ✔ | The value at each timestamp |
-| gapsize | INTERVAL | - | | Minimum gap size to divide input on |
-| resolution | INT | - | ✔ | The approximate number of points to return. Determines the horizontal resolution of the resulting graph. |
+| ts | TIMESTAMPTZ | - | ✔ | Timestamps for each data point. Must not be `NULL`. |
+| value | DOUBLE PRECISION | - | ✔ | The value at each timestamp. Rows with a `NULL` value are skipped. |
+| gapsize | INTERVAL | - | | A gap between consecutive points larger than `gapsize` splits the input into segments that are downsampled separately. A gap equal to `gapsize` does not split. If omitted, `gapsize` is the time range of the input divided by `resolution`. |
+| resolution | INT | - | ✔ | The target number of points to return. Must be greater than 2. Every segment keeps at least its first and last point, so the result can have more points than `resolution`. |
 
 ## Returns
 
 | Column | Type | Description |
 |--------|------|-------------|
-| gp\_lttb | Timevector | An object representing a series of values occurring at set intervals from a starting time. It can be unpacked with `unnest`. For more information, see the documentation on [timevectors](/reference/toolkit/timevector). |
+| gp\_lttb | Timevector | A timevector of the selected input points, sorted by time. Unpack it with `unnest`. For more information, see the documentation on [timevectors](/reference/toolkit/timevector). |

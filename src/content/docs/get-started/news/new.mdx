@@ -129,6 +129,90 @@ import imgBackupsExtendedRetention from "../../../../assets/images/get-started/n
 
 <div class="changelog-page-toc">
 
+## AWS eu-west-3 region (Paris)
+
+<ChangelogEntry 
+  title="Tiger Cloud now available in AWS Paris (eu-west-3)"
+  date="2026-10-29"
+  tags={["region"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Tiger Cloud now available in AWS Paris (eu-west-3)</h2>
+
+Starting today, you can create Tiger Cloud services in the AWS eu-west-3 (Paris) region. Data stays in France, and applications hosted in the same region get low-latency access to their database. This also reduces cross-region data transfer costs.
+
+To create your first service, see [Get started with Tiger Data](/get-started). For a complete list of regional availability, see [available regions](/get-started/supported-regions).
+</ChangelogEntry>
+
+## Tiger CLI 0.27: install agent skills and list database extensions
+
+<ChangelogEntry
+  title="Tiger CLI 0.27: install agent skills and list database extensions"
+  date="2026-10-27"
+  tags={["new-feature", "cli-mcp"]}
+>
+<h2 slot="heading" class="changelog-entry__title">Tiger CLI 0.27: install agent skills and list database extensions</h2>
+
+Tiger CLI 0.27 installs Tiger MCP's PostgreSQL and TimescaleDB skills straight into your coding agent, and lets you and your agent see which extensions a service has.
+
+- **Install agent skills**: the new [`tiger skills install`](/reference/tiger-cloud/tiger-cli#tiger-skills-install) command installs the skills Tiger MCP serves, such as `setup-timescaledb-hypertables` and `design-postgres-tables`, as local skills that your agent loads natively. Skills go to `~/.agents/skills`, which most agents read, or to the Claude Code, Antigravity, and Kiro CLI skills directories. Re-run the command to update them.
+- **List database extensions**: [`tiger db extensions list`](/reference/tiger-cloud/tiger-cli#tiger-db-extensions-list) and the matching [`db_extensions_list`](/reference/tiger-cloud/tiger-mcp#db_extensions_list) MCP tool show the PostgreSQL extensions installed in a service, with each one's version, schema, and description, so you can check that `timescaledb_toolkit` is there before you reach for hyperfunctions. Both connect in read-only mode.
+- **Tidier configuration list**: `tiger config list` no longer shows the endpoint URLs (`api_url`, `console_url`, `docs_mcp_url`, `gateway_url`, and `releases_url`), which only matter when developing against other environments. `--with-env --no-defaults` now also lists keys set only by an environment variable.
+- **Predictable MCP HTTP port**: `tiger mcp start http` now fails if its port is in use, instead of silently moving to another port that your MCP client is not configured for.
+- **Antigravity configuration location**: `tiger mcp install antigravity` now writes to `~/.gemini/config/`, which Antigravity 2.0, the IDE, and the CLI all read.
+- **Structured empty results**: with `-o json` or `-o yaml`, `tiger service list` and `tiger service metrics series` print `[]` when there is nothing to show, instead of no output.
+
+To upgrade, run `tiger upgrade` or use your package manager. For all commands and flags, see the [Tiger CLI reference](/reference/tiger-cloud/tiger-cli) and the [Tiger MCP reference](/reference/tiger-cloud/tiger-mcp).
+
+</ChangelogEntry>
+
+## TimescaleDB v2.31 now on Tiger Cloud
+
+<ChangelogEntry
+  title="TimescaleDB v2.31 now on Tiger Cloud"
+  date="2026-10-26"
+  tags={["new-feature", "performance", "bug-fix", "breaking-change"]}
+>
+<h2 slot="heading" class="changelog-entry__title">TimescaleDB v2.31 now on Tiger Cloud</h2>
+
+TimescaleDB 2.31.0 makes the columnstore cheaper to write to and faster to read from, gives continuous aggregates the refresh visibility developers have asked for, and fixes several correctness issues on compressed data. TimescaleDB 2.31.0 was released on GitHub on October 20, 2026, and is available on Tiger Cloud as of October 26, 2026.
+
+### Highlighted features in TimescaleDB v2.31
+
+**Faster columnstore writes and lookups**
+
+- **Faster `UPDATE`, `DELETE`, and recompression on compressed data:** These operations now use the same bulk decompression path as `SELECT` queries, so backfills, cleanup deletes, and recompression jobs finish sooner. The `timescaledb.enable_bulk_decompression` setting now covers them too, so check it if write performance changes after upgrade.
+- **Latest-row lookups without decompression:** `LIMIT 1` queries such as "latest reading for this device" can now be answered from compression metadata alone when the requested columns and filters allow it. On by default.
+- **Adaptive Integer Compressor (opt-in preview):** A new compressor for integer, date, and timestamp columns picks the best encoding for each block of values, for up to 20% better compression and up to 2x faster queries where decompression is the bottleneck. Turn it on with `timescaledb.enable_aic_compression` after testing on a staging service: chunks compressed with AIC block downgrade until they are recompressed with the [provided downgrade script](https://github.com/timescale/timescaledb-extras/blob/main/utils/2.31.0-downgrade_aic_compression.sql), which disables AIC for the conversion. AIC will be on by default in 2.32.
+
+**Continuous aggregates you can trust**
+
+- **Refresh statistics:** Set `timescaledb.cagg_refresh_stats_level` to `summary` or `verbose_log`, and `refresh_continuous_aggregate()` reports the batches processed, the time range materialized, and the rows materialized and deleted. You can now tell whether a batched refresh finished the requested range or stopped early, without inspecting internal catalogs. Statistics also go to the server log, so they are visible for background jobs.
+
+    ```sql
+    SET timescaledb.cagg_refresh_stats_level = 'summary';
+    CALL refresh_continuous_aggregate('my_cagg', '2023-01-01', '2023-04-01');
+    ```
+
+- **Faster gapfill aggregation:** `time_bucket_gapfill()` queries now aggregate per chunk, in parallel, before filling gaps. If a gapfill query is slower after upgrade, run `ANALYZE` on the hypertable.
+- **No more stale aggregates after `MERGE` or chunk drops:** `MERGE` statements that update or delete hypertable rows, and dropping a chunk by its unqualified name, now invalidate the affected continuous aggregate ranges.
+
+**Correctness, planning, and operability**
+
+- **Compressed chunk fixes:** `merge_chunks()` no longer marks a merged chunk as ordered when its batches overlap, which could let the planner skip a required sort and return wrong results. Conflict checks on compressed chunks now honor the unique index collation, so case-insensitive collations no longer produce duplicate primary keys through `ON CONFLICT DO UPDATE`.
+- **Smarter planning:** Chunks are excluded at execution time when a hypertable is on the parameterized side of a nested-loop join. Vectorized aggregation now also applies to single-chunk queries that group by an expression such as `time_bucket()`, for up to 6.5x faster results.
+- **Faster chunk creation:** Databases with many constraints create and drop chunks roughly 10x faster.
+- **pgAudit compatibility:** A hypertable `COPY` with pgAudit loaded no longer crashes the backend. On self-hosted deployments, list `pgaudit` after `timescaledb` in `shared_preload_libraries` and restart PostgreSQL to enable the new hook ordering.
+- **Job ownership stays put:** Changing a hypertable's owner no longer changes the owner of user-defined jobs attached to it.
+
+### Backward-incompatible changes
+
+- `timescaledb.enable_columnarscan` is renamed to `timescaledb.debug_enable_columnarscan`. Update any configuration that references the old name.
+- The direct-compress batch sorting GUCs are now available only in debug builds.
+- Chunks compressed with the Adaptive Integer Compressor block downgrade until they are recompressed.
+
+For complete details, refer to the [TimescaleDB 2.31.0 release notes](https://github.com/timescale/timescaledb/releases/tag/2.31.0).
+</ChangelogEntry>
+
 ## pg_textsearch 1.5.1
 
 <ChangelogEntry
@@ -441,16 +525,16 @@ For complete details, refer to the [TimescaleDB 2.29.0 release notes](https://gi
 
 </ChangelogEntry>
 
-## Generic Iceberg REST catalog support in TigerLake
+## Generic Iceberg REST catalog support in Tiger Lake
 
 <ChangelogEntry
-  title="Generic Iceberg REST catalog support in TigerLake"
+  title="Generic Iceberg REST catalog support in Tiger Lake"
   date="2026-08-05"
   tags={["new-feature", "integration"]}
 >
-<h2 slot="heading" class="changelog-entry__title">Generic Iceberg REST catalog support in TigerLake</h2>
+<h2 slot="heading" class="changelog-entry__title">Generic Iceberg REST catalog support in Tiger Lake</h2>
 
-TigerLake can now write to any Iceberg REST-compatible catalog, including Snowflake Open Catalog, Apache Polaris, and Snowflake Horizon Catalog. This is for customers who already run an external Iceberg catalog and want TigerLake to write into it directly, rather than migrating to a new destination.
+Tiger Lake can now write to any Iceberg REST-compatible catalog, including Snowflake Open Catalog, Apache Polaris, and Snowflake Horizon Catalog. This is for customers who already run an external Iceberg catalog and want Tiger Lake to write into it directly, rather than migrating to a new destination.
 
 Amazon S3 Tables remains the recommended managed Iceberg destination and includes automatic compaction and table maintenance.
 
@@ -463,22 +547,22 @@ Amazon S3 Tables remains the recommended managed Iceberg destination and include
 - Secure client-secret handling
 - Catalog connectivity and permission validation before you sync
 
-REST catalogs use the same TigerLake snapshot and continuous CDC pipeline as S3 Tables. See the [TigerLake destination connector documentation](/integrate/connectors/destination/tigerlake) for setup details.
+REST catalogs use the same Tiger Lake snapshot and continuous CDC pipeline as S3 Tables. See the [Tiger Lake destination connector documentation](/integrate/connectors/destination/tigerlake) for setup details.
 
 </ChangelogEntry>
 
-## More reliable TigerLake replication slots with the Slot Keep Controller
+## More reliable Tiger Lake replication slots with the Slot Keep Controller
 
 <ChangelogEntry
-  title="More reliable TigerLake replication slots with the Slot Keep Controller"
+  title="More reliable Tiger Lake replication slots with the Slot Keep Controller"
   date="2026-08-05"
   tags={["improvement"]}
 >
-<h2 slot="heading" class="changelog-entry__title">More reliable TigerLake replication slots with the Slot Keep Controller</h2>
+<h2 slot="heading" class="changelog-entry__title">More reliable Tiger Lake replication slots with the Slot Keep Controller</h2>
 
-All TigerLake-enabled services now run with the Slot Keep Controller (SKC), which manages replication-slot retention automatically. New TigerLake connectors are enrolled at creation, so no setup is required.
+All Tiger Lake-enabled services now run with the Slot Keep Controller (SKC), which manages replication-slot retention automatically. New Tiger Lake connectors are enrolled at creation, so no setup is required.
 
-Previously, a fixed, instance-wide WAL retention limit could invalidate a replication slot without warning once WAL lag grew too large, forcing TigerLake's CDC pipeline to fully re-bootstrap. SKC replaces that fixed limit with retention that scales with each service's available disk space, and prioritizes dropping TigerData-owned slots (which recreate automatically) over customer slots if a service ever comes under disk pressure.
+Previously, a fixed, instance-wide WAL retention limit could invalidate a replication slot without warning once WAL lag grew too large, forcing Tiger Lake's CDC pipeline to fully re-bootstrap. SKC replaces that fixed limit with retention that scales with each service's available disk space, and prioritizes dropping TigerData-owned slots (which recreate automatically) over customer slots if a service ever comes under disk pressure.
 
 Every SKC action is recorded in an audit log, so any slot change can be traced after the fact.
 
@@ -1414,16 +1498,16 @@ Tiered Storage is now available for Tiger Cloud services running on Microsoft Az
 Azure Tiered Storage works just like the AWS version: enable it in Tiger Console, set tiering policies on your hypertables, and Tiger Cloud handles the rest. With this release, Tiger Cloud Services on Azure offer the same powerful data lifecycle management capabilities as those running on AWS.
 </ChangelogEntry>
 
-## Europe (Zurich) is now available
+## AWS eu-central-2 (Zurich) is now available
 
 <ChangelogEntry 
-  title="Europe (Zurich) is now available"
+  title="AWS eu-central-2 (Zurich) is now available"
   date="2026-02-11"
   tags={["region"]}
 >
-<h2 slot="heading" class="changelog-entry__title">Europe (Zurich) is now available</h2>
+<h2 slot="heading" class="changelog-entry__title">AWS eu-central-2 (Zurich) is now available</h2>
 
-Starting today, you can use Tiger Cloud in the AWS Europe (Zurich) Region. This enables applications to have low-latency access to Tiger Cloud services while meeting data residency requirements.
+Starting today, you can use Tiger Cloud in the AWS eu-central-2 (Zurich) region. This enables applications to have low-latency access to Tiger Cloud services while meeting data residency requirements.
 To create your first service, see [Get started with Tiger Data](/get-started). For a complete list of regional availability, see [available regions](/get-started/timescaledb-supported-platforms).
 </ChangelogEntry>
 
@@ -1531,21 +1615,21 @@ We have updated the design of the navigation in Console to improve consistency, 
 
 </ChangelogEntry>
 
-## S3 connector GA and TigerLake public beta
+## S3 connector GA and Tiger Lake public beta
 
 <ChangelogEntry 
-  title="S3 connector GA and TigerLake public beta"
+  title="S3 connector GA and Tiger Lake public beta"
   date="2025-11-28"
   tags={["ga", "beta"]}
 >
-<h2 slot="heading" class="changelog-entry__title">S3 connector GA and TigerLake public beta</h2>
+<h2 slot="heading" class="changelog-entry__title">S3 connector GA and Tiger Lake public beta</h2>
 ### S3 source connector general availability
 
 The S3 source connector is now production-ready, delivering major improvements in reliability, performance, and correctness across the entire ingestion pipeline.
 
-### TigerLake public beta
+### Tiger Lake public beta
 
-TigerLake is now available in public beta with full DML support, high-performance ingestion, enhanced resilience and self-healing, and improved deployment experience.
+Tiger Lake is now available in public beta with full DML support, high-performance ingestion, enhanced resilience and self-healing, and improved deployment experience.
 
 Read the [documentation](/integrate/connectors/destination/tigerlake) to get started.
 </ChangelogEntry>
@@ -1825,11 +1909,11 @@ View catalog objects in the Console Explorer to understand database inner workin
 ## Iceberg destination connector (Tiger lake)
 
 <ChangelogEntry 
-  title="Iceberg Destination Connector (TigerLake)"
+  title="Iceberg Destination Connector (Tiger Lake)"
   date="2025-07-18"
   tags={["beta", "integration"]}
 >
-<h2 slot="heading" class="changelog-entry__title">Iceberg Destination Connector (TigerLake)</h2>
+<h2 slot="heading" class="changelog-entry__title">Iceberg Destination Connector (Tiger Lake)</h2>
 ### Beta availability
 
 Beta Iceberg destination connector enables Scale and Enterprise users to integrate Tiger Cloud with Amazon S3 tables. For setup details, see the [Iceberg destination connector documentation](/integrate/connectors/destination/tigerlake).

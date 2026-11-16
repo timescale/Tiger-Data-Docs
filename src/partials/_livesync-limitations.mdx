@@ -1,6 +1,7 @@
 import * as C from "@constants";
 
-* Using {C.TIMESCALE_DB} as the source has limited support (no CAGGs).
+* For continuous aggregates on the source, add the materialization {C.HYPERTABLE} to the publication, not the view.
+  Follow [Migrate continuous aggregates](/migrate/livesync-replication-advanced#migrating-continuous-aggregates).
 
 * The source must be running {C.PG} 13 or later.
 
@@ -32,25 +33,6 @@ import * as C from "@constants";
 
 * Continuous aggregate invalidation
 
-  The connector uses `session_replication_role=replica` during data replication,
-  which prevents table triggers from firing. This includes the internal
-  triggers that mark continuous aggregates as invalid when underlying data
-  changes.
-
-  If you have continuous aggregates on your target database, they do not
-  automatically refresh for data inserted during the migration. This limitation
-  only applies to data below the continuous aggregate's materialization
-  watermark. For example, backfilled data. New rows synced above the continuous
-  aggregate watermark are used correctly when refreshing.
-
-  This can lead to:
-
-  - Missing data in continuous aggregates for the migration period.
-  - Stale aggregate data.
-  - Queries returning incomplete results.
-
-  If the continuous aggregate exists in the source database, best
-  practice is to add it to the {C.PG} connector publication. If it only exists on the
-  target database, manually refresh the continuous aggregate using the `force`
-  option of [refresh_continuous_aggregate](/reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate#samples).
+  On targets older than [{C.TIMESCALE_DB} 2.23.0](https://github.com/timescale/timescaledb/releases/tag/2.23.0), changes replicated below a continuous aggregate's materialization watermark do not invalidate it.
+  Refresh affected ranges with the `force` option of [refresh_continuous_aggregate](/reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate#samples).
 

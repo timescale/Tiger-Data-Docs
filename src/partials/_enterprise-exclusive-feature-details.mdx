@@ -1,0 +1,87 @@
+import * as C from "@constants";
+import EnterpriseBeta from "@partials/_enterprise-beta.mdx";
+
+{C.TDB_COMMUNITY} is free and open source: the full extension, on whatever {C.PG} and
+infrastructure you choose, with your own operating system and tooling. You build and run
+replication, backups, and upgrades yourself.
+
+{C.TDB_ENTERPRISE} ships those pieces already built and operates them from a console on your
+own network. The sections below cover what it adds on top of {C.TDB_COMMUNITY}.
+
+<EnterpriseBeta />
+
+## Guided service provisioning
+
+You enroll your servers and choose a single node or a high-availability cluster. The console
+first checks each server: resources, operating system, and leftovers of an earlier install. Then
+it deploys {C.PG}, {C.TIMESCALE_DB}, {C.TOOLKIT_LONG}, PgBouncer, and monitoring. You can add
+other extensions when you create the service or later. The console keeps their versions until you
+upgrade the service.
+
+## Automatic failover
+
+A high-availability service runs Patroni and etcd: on three servers, or on two servers and a
+separate etcd cluster. When the primary fails, a replica becomes the primary in about 40 seconds.
+Clients reconnect on the same endpoint. A write in progress fails, so the application must retry
+it. Replication is asynchronous, so the last commits before the failure can be lost.
+
+For planned maintenance, start a switchover. Writes stop for a few seconds.
+
+## Backups and point-in-time recovery
+
+Backups use pgBackRest: full and differential backups on schedules that you can change. A backup
+server keeps the copy that survives the loss of a database server, and for a high-availability
+service it is the only copy; its schedules are on by default. A single-node service can also keep
+a local copy on its own server, with schedules that are off by default.
+
+A full backup runs after the first deploy and after each restore. You restore to the latest backup
+or to a point in time, either in place or into a new service, a fork.
+
+## Networking without inbound ports
+
+Each server joins the private WireGuard mesh of the console with one enrollment command. The
+server connects out, so you open no inbound management ports on it. Applications connect to the
+database ports as usual.
+
+The database servers need no internet access. The console gives them the mesh agent, the
+database packages, and the time. Only the console host connects out: to download the console
+image and the server packages, to check licenses, and to check for updates. For a site with no
+internet access, see the
+[air-gapped install](https://enterprise.tigerdata.com/docs/installation-airgapped).
+
+## Built-in monitoring
+
+The console collects the metrics of each server, with no monitoring stack to set up: CPU,
+memory, disk, transactions, and connections, kept 30 days by default.
+
+- Run PromQL queries through the console API, or federate the metrics into your own Prometheus.
+  Starter Grafana dashboards are available.
+- Alert rules notify Slack, Microsoft Teams, a webhook, or email. A planned upgrade, restart, or
+  switchover silences the alerts that it causes.
+
+## Data replication with Livesync
+
+[Livesync](https://enterprise.tigerdata.com/docs/livesync) copies the existing rows of the tables that
+you select to a target database, then streams the changes with {C.PG} logical replication.
+Applications can write to the source while you query the target.
+
+A Livesync session connects one source to one target, and at least one of them is a
+{C.TDB_ENTERPRISE} service. You can replicate from one service to another, from an external
+{C.PG} database into a service, or from a service to a {C.CLOUD_LONG} service. The console
+creates and monitors the session.
+
+## Support
+
+{C.TDB_COMMUNITY} leans on community support. {C.TDB_ENTERPRISE} comes with commercial support
+from {C.COMPANY}. To open a ticket, download a support report from the console. It holds the
+service health, the backup configuration, the last operations with their logs, and the hardware
+of each server.
+
+## Where to go next
+
+- [Start a free trial](https://www.tigerdata.com/timescaledb-enterprise#form) of {C.TDB_ENTERPRISE}.
+- To install the console and deploy your first service, see the
+  [{C.TDB_ENTERPRISE} documentation](https://enterprise.tigerdata.com/docs).
+- To run {C.TDB_COMMUNITY} yourself, start with [{C.SELF_LONG_CAP}](/deploy/self-hosted).
+- If a fully managed database is also on the table, compare all the options in the
+  [feature comparison](/learn/capabilities-and-comparison/feature-comparison).
