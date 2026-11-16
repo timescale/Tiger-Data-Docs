@@ -42,16 +42,13 @@ You use the {C.PG_CONNECTOR} for data synchronization, rather than migration. Th
 - Enable features such as [{C.HYPERTABLE}s](/learn/hypertables/understand-hypertables), [{C.COLUMNSTORE}](/learn/columnar-storage/understand-hypercore), and [{C.CAGG}s](/learn/continuous-aggregates) on your logical replica.
 
 - Indexes, primary key, unique constraints, and sequences are **not** migrated. Create needed indexes on the target for your queries.
-- {C.TIMESCALE_DB} as source has limited support (for example, no continuous aggregates).
+- For continuous aggregates on the source, add the materialization {C.HYPERTABLE} to the publication, not the view.
+  Follow [Migrate continuous aggregates](/migrate/livesync-replication-advanced#migrating-continuous-aggregates).
 - Compressed {C.HYPERTABLE} chunks are copied in uncompressed form: the connector copies logical data by decompressing chunks on the fly. Copying compressed chunks as-is is on the roadmap but not yet available.
 - Schema changes must be coordinated: apply compatible changes on the target first, then on the source.
 - WAL volume on the source increases during large table copy.
-- **Continuous aggregates:** On targets with [{C.TIMESCALE_DB} 2.23.0](https://github.com/timescale/timescaledb/releases/tag/2.23.0) or later, replicated rows invalidate continuous aggregates without triggers.
-  The connector's `session_replication_role=replica` does not suppress this invalidation.
-  A [refresh policy](/build/continuous-aggregates/refresh-policies) or manual refresh updates affected buckets within its refresh window.
-  On older targets that use trigger-based invalidation, `session_replication_role=replica` suppresses the invalidation triggers.
-  Replicated changes below the materialization watermark can leave aggregate results stale.
-  On these targets, refresh affected ranges with the `force` option of [refresh_continuous_aggregate](/reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate).
+- **Continuous aggregates:** on targets older than [{C.TIMESCALE_DB} 2.23.0](https://github.com/timescale/timescaledb/releases/tag/2.23.0), changes replicated below a continuous aggregate's materialization watermark do not invalidate it.
+  Refresh affected ranges with the `force` option of [refresh_continuous_aggregate](/reference/timescaledb/continuous-aggregates/refresh_continuous_aggregate).
 
 <Tabs>
   <Tab title={C.CONSOLE}>
