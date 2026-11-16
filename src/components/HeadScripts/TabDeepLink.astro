@@ -9,7 +9,9 @@
    *
    * A plain `#<id>` hash whose target sits inside a hidden tab panel (a heading in a
    * tab that is not the default) gets the same treatment: the browser cannot scroll to
-   * an element under `hidden`, so we open the enclosing tabs and scroll to it ourselves.
+   * an element under `hidden`, so we open the enclosing tabs. On load and hashchange
+   * we then scroll to it ourselves; on a link click the tabs open before the browser
+   * follows the link, so it scrolls there itself.
    */
   (function () {
     function slugify(s) {
@@ -19,6 +21,9 @@
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
     }
+    // True while this script clicks a tab itself, so onTabClick can tell that click
+    // from a reader's. A script click runs its handlers before the next line.
+    var activating = false;
     function activateTab(target, scroll) {
       // Build the ancestor chain: target tab, then every enclosing tabpanel's tab.
       // Activate outermost first so each inner tablist is visible (and has a real
@@ -33,8 +38,13 @@
         if (!owner) break;
         cur = document.getElementById(owner);
       }
-      for (var i = chain.length - 1; i >= 0; i--) {
-        if (chain[i].getAttribute("aria-selected") !== "true") chain[i].click();
+      activating = true;
+      try {
+        for (var i = chain.length - 1; i >= 0; i--) {
+          if (chain[i].getAttribute("aria-selected") !== "true") chain[i].click();
+        }
+      } finally {
+        activating = false;
       }
       // Starlight's switchTab calls .focus() on every clicked tab. For URL-driven
       // activation the user didn't keyboard-focus anything, and :focus-visible treats
@@ -69,20 +79,30 @@
         return s;
       }
     }
+    // Open the tabs around the element with this id. Returns the element when it was
+    // in a closed tab, so a caller that the browser has already tried to scroll can
+    // scroll to it.
     function revealTarget(id) {
       var el = id ? document.getElementById(id) : null;
       var panel = el && el.closest ? el.closest('starlight-tabs [role="tabpanel"]') : null;
-      if (!panel || !el.closest("[hidden]")) return;
+      if (!panel || !el.closest("[hidden]")) return null;
       var tab = document.getElementById(panel.getAttribute("aria-labelledby") || "");
-      if (!tab) return;
+      if (!tab) return null;
       activateTab(tab, false);
-      requestAnimationFrame(function () {
-        el.scrollIntoView();
-      });
+      return el;
     }
     function activateFromHash() {
       var hash = decode(location.hash.slice(1));
-      if (hash.indexOf("tab=") !== 0) return revealTarget(hash);
+      if (hash.indexOf("tab=") !== 0) {
+        // The browser looked for the fragment while its tab was closed, so scroll now.
+        var el = revealTarget(hash);
+        if (el) {
+          requestAnimationFrame(function () {
+            el.scrollIntoView();
+          });
+        }
+        return;
+      }
       var slug = hash.slice(4);
       if (!slug) return;
       var tabs = document.querySelectorAll('starlight-tabs [role="tab"]');
@@ -91,22 +111,17 @@
       });
     }
     function onTabClick(e) {
-      // Clicks we synthesize in activateTab must not rewrite the hash: for a `#<id>`
-      // deep link that would replace the heading's id with the tab slug.
-      if (!e.isTrusted) return;
+      // The clicks activateTab makes must not rewrite the hash: for a `#<id>` deep
+      // link that would replace the heading's id with the tab slug.
+      if (activating) return;
       var t = e.target && e.target.closest ? e.target.closest('starlight-tabs [role="tab"]') : null;
       if (!t) {
-        // In-page links: the contents list changes the URL without a hashchange, and a
-        // click on a link whose hash is already in the URL fires none either. Check the
-        // target once the click has been handled.
+        // A link to a heading in a closed tab: open the tab before the browser follows
+        // the link, so its own scroll to the fragment finds the heading. This also
+        // covers a link whose hash is already in the URL, which fires no hashchange.
         var a = e.target && e.target.closest ? e.target.closest('a[href^="#"]') : null;
-        // No defaultPrevented check: the contents list cancels the click itself.
-        var plain = !(e.metaKey || e.ctrlKey || e.shiftKey);
-        if (a && plain) {
-          setTimeout(function () {
-            revealTarget(decode(a.hash.slice(1)));
-          }, 0);
-        }
+        var plain = !(e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey);
+        if (a && plain) revealTarget(decode(a.hash.slice(1)));
         return;
       }
       var slug = slugify(t.textContent);

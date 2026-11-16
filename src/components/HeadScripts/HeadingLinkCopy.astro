@@ -9,6 +9,17 @@
    */
   (function () {
     var live;
+    // The one link showing "Copied", and the timer that clears it.
+    var copied = null;
+    var copiedTimer;
+    function showCopied(a) {
+      clearTimeout(copiedTimer);
+      if (copied) copied.removeAttribute("data-copied");
+      copied = a;
+      if (!a) return;
+      a.setAttribute("data-copied", "");
+      copiedTimer = setTimeout(showCopied, 1500, null);
+    }
     function announce(text) {
       if (!live) {
         live = document.createElement("div");
@@ -32,12 +43,8 @@
       if (a.hash !== location.hash) history.replaceState(null, "", a.hash);
       navigator.clipboard.writeText(a.href).then(
         function () {
-          a.setAttribute("data-copied", "");
+          showCopied(a);
           announce("Link copied");
-          clearTimeout(a._copiedTimer);
-          a._copiedTimer = setTimeout(function () {
-            a.removeAttribute("data-copied");
-          }, 1500);
         },
         function () {
           var h = a.parentElement && a.parentElement.querySelector("[id]");
