@@ -251,7 +251,6 @@ export const glossaryTerms: GlossaryTerm[] = [
   { term: "Tiered storage", definition: "a storage strategy that automatically moves data between different storage classes based on access patterns and age.", category: "Storage" },
   { term: "Tiger Cloud", definition: "Tiger Data ‘s managed cloud platform that provides TimescaleDB as a fully managed solution with additional features.", category: "Cloud" },
   { term: "Tiger Lake", definition: "Tiger Data ‘s service for integrating operational databases with data lake architectures.", category: "Cloud" },
-  { term: "Tiger Cloud service", definition: "an optimized PostgreSQL instance extended with database engine innovations such as TimescaleDB, in a cloud infrastructure that delivers speed without sacrifice.", category: "Cloud" },
   { term: "Time series", definition: "data points indexed and ordered by time, typically representing how values change over time.", category: "Time-series" },
   { term: "Time-weighted average", definition: "a statistical calculation that gives more weight to values based on the duration they were held.", category: "Time-series" },
   { term: "Time bucketing", definition: "grouping timestamps into uniform intervals for analysis, commonly used with hyperfunctions.", category: "Time-series" },

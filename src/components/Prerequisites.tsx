@@ -65,6 +65,12 @@ export interface PrerequisitesProps {
   context?: PrerequisitesContext;
   /** Full heading text override; replaces the context-derived title. Use only if no `context` fits. */
   title?: string;
+  /**
+   * `id` of the heading, which makes the box linkable and lists it in "On this page".
+   * Default: "prerequisites". Pass a distinct value for every box after the first when
+   * a page has more than one, for example one per tab: `id="prerequisites-python"`.
+   */
+  id?: string;
   /** Intro sentence above the list; default "To follow these steps, you'll need:". Set to false to hide. */
   intro?: string | false;
   children?: ReactNode;
@@ -96,6 +102,7 @@ function SuccessCheckIcon() {
 export function Prerequisites({
   context = "procedure",
   title,
+  id = "prerequisites",
   intro = "To follow these steps, you'll need:",
   children,
 }: PrerequisitesProps) {
@@ -104,7 +111,7 @@ export function Prerequisites({
     <div className="prerequisites">
       <div className="prerequisites__header">
         <SuccessCheckIcon />
-        <h2 className="prerequisites__title">{heading}</h2>
+        <h2 id={id} className="prerequisites__title">{heading}</h2>
       </div>
       <div className="prerequisites__body">
         {intro !== false && <p className="prerequisites__intro">{intro}</p>}

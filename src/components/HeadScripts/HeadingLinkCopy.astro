@@ -1,0 +1,49 @@
+<script is:inline>
+  /**
+   * Clicking the link icon next to a heading copies that heading's full URL to the
+   * clipboard and puts it in the address bar without scrolling the page. header.css shows
+   * a check mark and "Copied" while `data-copied` is set, and a live region announces the
+   * copy to screen readers. The handler is delegated, so it also covers the icons
+   * PartialHeadingAnchors adds after load. Without the Clipboard API, or when the write
+   * is refused, the icon behaves as the plain link it is.
+   */
+  (function () {
+    var live;
+    function announce(text) {
+      if (!live) {
+        live = document.createElement("div");
+        live.className = "sr-only";
+        live.setAttribute("aria-live", "polite");
+        document.body.appendChild(live);
+      }
+      live.textContent = "";
+      setTimeout(function () {
+        live.textContent = text;
+      }, 50);
+    }
+    document.addEventListener("click", function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      var a = e.target && e.target.closest ? e.target.closest("a.sl-anchor-link") : null;
+      if (!a || !a.hash || !navigator.clipboard) return;
+      // Following the link would scroll the heading to the top of the page. Put the
+      // hash in the address bar without moving the page or adding a history entry,
+      // so Back still leaves the page instead of replaying old hashes.
+      e.preventDefault();
+      if (a.hash !== location.hash) history.replaceState(null, "", a.hash);
+      navigator.clipboard.writeText(a.href).then(
+        function () {
+          a.setAttribute("data-copied", "");
+          announce("Link copied");
+          clearTimeout(a._copiedTimer);
+          a._copiedTimer = setTimeout(function () {
+            a.removeAttribute("data-copied");
+          }, 1500);
+        },
+        function () {
+          var h = a.parentElement && a.parentElement.querySelector("[id]");
+          if (h) h.scrollIntoView();
+        }
+      );
+    });
+  })();
+</script>

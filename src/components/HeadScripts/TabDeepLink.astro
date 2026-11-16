@@ -62,6 +62,13 @@
         });
       }
     }
+    function decode(s) {
+      try {
+        return decodeURIComponent(s);
+      } catch (e) {
+        return s;
+      }
+    }
     function revealTarget(id) {
       var el = id ? document.getElementById(id) : null;
       var panel = el && el.closest ? el.closest('starlight-tabs [role="tabpanel"]') : null;
@@ -74,7 +81,7 @@
       });
     }
     function activateFromHash() {
-      var hash = decodeURIComponent(location.hash.slice(1));
+      var hash = decode(location.hash.slice(1));
       if (hash.indexOf("tab=") !== 0) return revealTarget(hash);
       var slug = hash.slice(4);
       if (!slug) return;
@@ -89,10 +96,17 @@
       if (!e.isTrusted) return;
       var t = e.target && e.target.closest ? e.target.closest('starlight-tabs [role="tab"]') : null;
       if (!t) {
-        // A same-hash click on an in-page link fires no hashchange, so handle it here.
+        // In-page links: the contents list changes the URL without a hashchange, and a
+        // click on a link whose hash is already in the URL fires none either. Check the
+        // target once the click has been handled.
         var a = e.target && e.target.closest ? e.target.closest('a[href^="#"]') : null;
-        var plain = !(e.metaKey || e.ctrlKey || e.shiftKey || e.defaultPrevented);
-        if (a && plain && a.hash === location.hash) revealTarget(decodeURIComponent(location.hash.slice(1)));
+        // No defaultPrevented check: the contents list cancels the click itself.
+        var plain = !(e.metaKey || e.ctrlKey || e.shiftKey);
+        if (a && plain) {
+          setTimeout(function () {
+            revealTarget(decode(a.hash.slice(1)));
+          }, 0);
+        }
         return;
       }
       var slug = slugify(t.textContent);
