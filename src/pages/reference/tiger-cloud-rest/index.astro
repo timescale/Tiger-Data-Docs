@@ -1,0 +1,244 @@
+---
+/**
+ * Custom overview page for the Tiger Cloud REST reference.
+ *
+ * Replaces Stainless's auto-generated overview with a page that:
+ * 1. Describes what the API provides
+ * 2. Explains how to authenticate (API key setup)
+ * 3. Lists the resource groups with links to their topic pages
+ *
+ * File-system routes take priority over Stainless's injected `Overview.astro`,
+ * so this page wins at `/reference/tiger-cloud-rest`.
+ */
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import { getRestTopics, REST_REFERENCE_PATH } from "../../../lib/rest-topics";
+
+const topics = getRestTopics();
+
+// Descriptions for each topic, keyed by slug. Sourced from the OpenAPI tags.
+const topicDescriptions: Record<string, string> = {
+  auth: "Retrieve caller identity and revoke refresh tokens.",
+  projects: "List the projects accessible to the authenticated caller.",
+  vpcs: "Create, list, rename, and delete VPCs within a project.",
+  peerings: "Create, list, and delete VPC peering connections.",
+  services:
+    "Full lifecycle management for services: create, resize, fork, rename, start, stop, and configure networking, poolers, and maintenance windows.",
+  "replica-sets":
+    "Create, resize, and delete read replica sets, and manage their connection poolers.",
+  metrics: "List available metric series and retrieve time-series data points for a service.",
+};
+---
+
+<StarlightPage
+  frontmatter={{
+    title: "Tiger Cloud REST API",
+    description:
+      "A RESTful API for managing Tiger Cloud resources — projects, services, VPCs, replicas, and metrics.",
+    pagefind: false,
+    prev: false,
+    next: false,
+  }}
+>
+  <div class="rest-overview">
+    <p>
+      The Tiger Cloud REST API gives you programmatic access to every Tiger Cloud
+      resource. Use it to create and resize services, manage VPCs and peering
+      connections, configure read replicas, and retrieve metrics — from any
+      language or tool that speaks HTTP.
+    </p>
+    <p>
+      The <a href="/reference/tiger-cloud/tiger-cli">Tiger CLI</a> and <a
+        href="/reference/tiger-cloud/tiger-mcp">Tiger MCP</a
+      > are convenience layers built on top of this API. When you need the full surface
+      or want to integrate Tiger Cloud into your own application, call the REST API
+      directly.
+    </p>
+
+    <h2 id="authentication">Authentication</h2>
+    <p>
+      Every request requires an access key and secret key, sent as HTTP Basic
+      Authentication credentials. To set up your keys:
+    </p>
+    <ol>
+      <li>
+        Sign in to the <a href="https://console.cloud.tigerdata.com/">Tiger Cloud console</a>.
+      </li>
+      <li>
+        <a href="/integrate/find-connection-details#create-client-credentials"
+          >Create client credentials</a
+        > for your project.
+      </li>
+      <li>
+        Store the access key and secret key securely — for example, as
+        environment variables:
+      </li>
+    </ol>
+    <pre><code>export TIGERDATA_ACCESS_KEY="your-access-key"
+export TIGERDATA_SECRET_KEY="your-secret-key"</code></pre>
+    <p>
+      Pass them in every request with <code>-u "$TIGERDATA_ACCESS_KEY:$TIGERDATA_SECRET_KEY"</code>.
+      For a full walkthrough, see <a href="/get-started/quickstart/rest-api">Get started with the REST API</a>.
+    </p>
+
+    <h2 id="base-url">Base URL</h2>
+    <pre><code>https://console.cloud.tigerdata.com/public/api/v1</code></pre>
+
+    <h2 id="resources">Resources</h2>
+    <div class="rest-overview-resources">
+      {
+        topics.map((topic) => (
+          <div class="rest-overview-resource">
+            <h3>
+              <a href={`${REST_REFERENCE_PATH}/${topic.slug}`}>{topic.label}</a>
+            </h3>
+            {topicDescriptions[topic.slug] && (
+              <p>{topicDescriptions[topic.slug]}</p>
+            )}
+            <ul class="rest-overview-endpoints">
+              {topic.endpoints.map((ep) => (
+                <li>
+                  <a href={`${REST_REFERENCE_PATH}/${topic.slug}#${ep.id}`}>
+                    <span class={`rest-verb rest-verb-${ep.verb}`}>
+                      {ep.verb.toUpperCase()}
+                    </span>
+                    {ep.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</StarlightPage>
+
+<style>
+  .rest-overview p {
+    max-width: 70ch;
+  }
+
+  .rest-overview h2 {
+    margin-top: var(--tiger-space-xl, 2rem);
+  }
+
+  .rest-overview pre {
+    max-width: 70ch;
+  }
+
+  .rest-overview-resources {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tiger-space-lg, 1.5rem);
+  }
+
+  .rest-overview-resource h3 {
+    margin-bottom: var(--tiger-space-xs, 0.25rem);
+  }
+
+  .rest-overview-resource h3 a {
+    text-decoration: none;
+  }
+
+  .rest-overview-resource h3 a:hover {
+    text-decoration: underline;
+  }
+
+  .rest-overview-resource > p {
+    color: var(--sl-color-gray-3, #888);
+    margin-top: 0;
+    margin-bottom: var(--tiger-space-sm, 0.5rem);
+  }
+
+  .rest-overview-endpoints {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--tiger-space-2xs, 0.125rem);
+  }
+
+  .rest-overview-endpoints a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    text-decoration: none;
+    font-size: var(--sl-text-sm, 0.875rem);
+  }
+
+  .rest-overview-endpoints a:hover {
+    text-decoration: underline;
+  }
+
+  .rest-verb {
+    display: inline-block;
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 0.7em;
+    font-weight: 600;
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+    min-width: 3.2em;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  .rest-verb-get {
+    background: var(--sl-color-green-low, #d1fae5);
+    color: var(--sl-color-green-high, #065f46);
+  }
+  .rest-verb-post {
+    background: var(--sl-color-blue-low, #dbeafe);
+    color: var(--sl-color-blue-high, #1e40af);
+  }
+  .rest-verb-put {
+    background: var(--sl-color-orange-low, #ffedd5);
+    color: var(--sl-color-orange-high, #9a3412);
+  }
+  .rest-verb-patch {
+    background: var(--sl-color-orange-low, #ffedd5);
+    color: var(--sl-color-orange-high, #9a3412);
+  }
+  .rest-verb-delete {
+    background: var(--sl-color-red-low, #fee2e2);
+    color: var(--sl-color-red-high, #991b1b);
+  }
+
+  :root[data-theme="dark"] .rest-verb-get {
+    background: color-mix(in srgb, var(--sl-color-green-high, #065f46) 20%, transparent);
+    color: var(--sl-color-green-low, #d1fae5);
+  }
+  :root[data-theme="dark"] .rest-verb-post {
+    background: color-mix(in srgb, var(--sl-color-blue-high, #1e40af) 20%, transparent);
+    color: var(--sl-color-blue-low, #dbeafe);
+  }
+  :root[data-theme="dark"] .rest-verb-put,
+  :root[data-theme="dark"] .rest-verb-patch {
+    background: color-mix(in srgb, var(--sl-color-orange-high, #9a3412) 20%, transparent);
+    color: var(--sl-color-orange-low, #ffedd5);
+  }
+  :root[data-theme="dark"] .rest-verb-delete {
+    background: color-mix(in srgb, var(--sl-color-red-high, #991b1b) 20%, transparent);
+    color: var(--sl-color-red-low, #fee2e2);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .rest-verb-get {
+      background: color-mix(in srgb, var(--sl-color-green-high, #065f46) 20%, transparent);
+      color: var(--sl-color-green-low, #d1fae5);
+    }
+    :root:not([data-theme="light"]) .rest-verb-post {
+      background: color-mix(in srgb, var(--sl-color-blue-high, #1e40af) 20%, transparent);
+      color: var(--sl-color-blue-low, #dbeafe);
+    }
+    :root:not([data-theme="light"]) .rest-verb-put,
+    :root:not([data-theme="light"]) .rest-verb-patch {
+      background: color-mix(in srgb, var(--sl-color-orange-high, #9a3412) 20%, transparent);
+      color: var(--sl-color-orange-low, #ffedd5);
+    }
+    :root:not([data-theme="light"]) .rest-verb-delete {
+      background: color-mix(in srgb, var(--sl-color-red-high, #991b1b) 20%, transparent);
+      color: var(--sl-color-red-low, #fee2e2);
+    }
+  }
+</style>
