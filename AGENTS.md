@@ -77,6 +77,7 @@ Defined in `src/content.config.ts`. Extends Starlight's `docsSchema` with custom
 - `overviewDescription`: dropdown descriptions.
 - `integrationSchema`: metadata for the Integrate section.
 - `learnMoreSchema`: the right-rail card (see [Custom components](#custom-components)).
+- `widePage` (optional): hides the right rail at desktop widths and gives the page its space, for reference pages built around a wide table. The page loses its "On this page" list and any `learnMore` card. Styles are in `src/styles/utilities.css`; the marker is rendered by `PageTitle.astro`.
 - `seoDescription` (optional): a summary for SEO and social cards that doesn't affect the sidebar subtitle. If both `description` and `seoDescription` are set, `description` wins for meta and sidebar. Implemented in `src/components/Head.astro`.
 
 ### Theming
