@@ -7,11 +7,13 @@ keywords: [continuous aggregates, time, timezones]
 
 import * as C from "@constants";
 import { NumberedList, NumberedItem } from "@components/NumberedList";
+import TestPlan from "@components/TestPlan.astro";
 import OldCreateHypertable from "../../../../partials/_old-api-create-hypertable.mdx";
 
-Functions that depend on a local timezone setting inside a {C.CAGG}
-are not supported. You cannot adjust to a local time because the timezone setting
-changes from user to user.
+In {C.TIMESCALE_DB} v2.20.0 and higher, a {C.CAGG} that uses a function depending
+on the session timezone is created with a warning. Its results can change on
+rematerialization, because the setting changes from user to user. Inside
+`time_bucket`, and in earlier versions, such a function is an error.
 
 To manage this, you can use explicit timezones in the view definition.
 Alternatively, you can create your own custom aggregation scheme for tables that
@@ -20,10 +22,8 @@ use an integer time column.
 ## Declare an explicit timezone
 
 The most common method of working with timezones is to declare an explicit
-timezone in the view query.
+timezone in the view query:
 
-<NumberedList>
-<NumberedItem title="Create the view with an explicit timezone">
 ```sql
 CREATE MATERIALIZED VIEW device_summary
 WITH (timescaledb.continuous)
@@ -38,16 +38,26 @@ FROM
   device_readings
 GROUP BY bucket, device_id;
 ```
-</NumberedItem>
 
-<NumberedItem title="Cast to a timestamp after the view">
-Alternatively, you can cast to a timestamp using `SELECT`:
+Alternatively, store the `timestamptz` value and convert it when you query the
+view:
 
 ```sql
-SELECT min_time::timestamp FROM device_summary;
+CREATE MATERIALIZED VIEW device_summary_tz
+WITH (timescaledb.continuous)
+AS
+SELECT
+  time_bucket('1 hour', observation_time) AS bucket,
+  min(observation_time) AS min_time,
+  device_id
+FROM
+  device_readings
+GROUP BY bucket, device_id;
+
+SELECT min_time::timestamp FROM device_summary_tz;
 ```
-</NumberedItem>
-</NumberedList>
+
+The cast uses the timezone of the session that runs the query.
 
 ## Integer-based time
 
@@ -62,21 +72,21 @@ possible.
 These examples use a {C.HYPERTABLE} called `devices` that contains CPU and disk
 usage information. The devices measure time using the Unix epoch.
 
-To create a {C.HYPERTABLE} that uses an integer-based column as time, you need to
-provide the {C.CHUNK} time interval. In this case, each {C.CHUNK} is 10 minutes.
+For an integer-based time column, set `tsdb.chunk_interval` in the units of the
+column. In this case, each {C.CHUNK} covers one day.
 
 Define the integer-based time column and {C.CHUNK} time interval:
 
 ```sql
 CREATE TABLE devices(
-  time BIGINT,        -- Time in minutes since epoch
+  time BIGINT,        -- Time in seconds since epoch
   cpu_usage INTEGER,  -- Total CPU usage
   disk_usage INTEGER, -- Total disk usage
   PRIMARY KEY (time)
 ) WITH (
   tsdb.hypertable,
   tsdb.partition_column='time',
-  tsdb.chunk_interval='10'
+  tsdb.chunk_interval='86400'
 );
 ```
 
@@ -103,18 +113,6 @@ SELECT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::bigint;$$;
  ```
 </NumberedItem>
 
-<NumberedItem title={`Create the ${C.CAGG} for the devices table`}>
-```sql
-CREATE MATERIALIZED VIEW devices_summary
-WITH (timescaledb.continuous) AS
-SELECT time_bucket('500', time) AS bucket,
-   avg(cpu_usage) AS avg_cpu,
-   avg(disk_usage) AS avg_disk
-FROM devices
-GROUP BY bucket;
-```
-</NumberedItem>
-
 <NumberedItem title="Insert some rows">
 ```sql
 CREATE EXTENSION tablefunc;
@@ -131,21 +129,38 @@ distribution, and uses the `row_number` function to turn it into a
 cumulative sequence.
 </NumberedItem>
 
+<NumberedItem title={`Create the ${C.CAGG} for the devices table`}>
+```sql
+CREATE MATERIALIZED VIEW devices_summary
+WITH (timescaledb.continuous) AS
+SELECT time_bucket('500', time) AS bucket,
+   avg(cpu_usage) AS avg_cpu,
+   avg(disk_usage) AS avg_disk
+FROM devices
+GROUP BY bucket;
+```
+</NumberedItem>
+
 <NumberedItem title="Check the view data">
 ```sql
-postgres=# SELECT * FROM devices_summary ORDER BY bucket LIMIT 10;
-bucket |       avg_cpu       |       avg_disk
---------+---------------------+----------------------
-     0 | 63.0000000000000000 |   6.0000000000000000
-     5 | 69.8000000000000000 |   9.6000000000000000
-    10 | 70.8000000000000000 |  24.0000000000000000
-    15 | 75.8000000000000000 |  37.6000000000000000
-    20 | 71.6000000000000000 |  26.8000000000000000
-    25 | 67.6000000000000000 |  56.0000000000000000
-    30 | 68.8000000000000000 |  90.2000000000000000
-    35 | 71.6000000000000000 |  88.8000000000000000
-    40 | 66.4000000000000000 |  81.2000000000000000
-    45 | 68.2000000000000000 | 106.0000000000000000
+SELECT * FROM devices_summary ORDER BY bucket LIMIT 10;
+```
+
+You see something like:
+
+```text
+ bucket |       avg_cpu       |       avg_disk
+--------+---------------------+-----------------------
+      0 | 69.8977955911823647 |  510.9739478957915832
+    500 | 69.6340000000000000 | 1586.3920000000000000
+   1000 | 70.4360000000000000 | 2489.7040000000000000
+   1500 | 69.5820000000000000 | 3424.7480000000000000
+   2000 | 69.7120000000000000 | 4382.1320000000000000
+   2500 | 69.7220000000000000 | 5596.9300000000000000
+   3000 | 69.6380000000000000 | 6453.6740000000000000
+   3500 | 70.6200000000000000 | 7260.8820000000000000
+   4000 | 70.1320000000000000 | 8611.2260000000000000
+   4500 | 69.7580000000000000 | 9362.2100000000000000
 (10 rows)
 ```
 </NumberedItem>
@@ -163,3 +178,32 @@ bucket |       avg_cpu       |       avg_disk
   {C.TIME_BUCKET} origins and timezones work.
 - [`CREATE MATERIALIZED VIEW` reference](/reference/timescaledb/continuous-aggregates/create_materialized_view):
   Full API reference.
+
+<TestPlan>
+target: cloud, self-hosted
+
+1. fork the service
+2. [cloud] select the service
+3. [self-hosted] run SQL: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+4. run SQL: `CREATE TABLE device_readings (observation_time TIMESTAMPTZ NOT NULL, device_id INT NOT NULL, metric DOUBLE PRECISION) WITH (tsdb.hypertable);`
+5. run SQL: `INSERT INTO device_readings SELECT '2026-01-01 00:00:00+00'::timestamptz + i * INTERVAL '10 minutes', 1 + i % 3, 20 + i % 7 FROM generate_series(0, 287) AS i;`
+6. run SQL: `CREATE MATERIALIZED VIEW device_summary WITH (timescaledb.continuous) AS SELECT time_bucket('1 hour', observation_time) AS bucket, min(observation_time AT TIME ZONE 'EST') AS min_time, device_id, avg(metric) AS metric_avg, max(metric) - min(metric) AS metric_spread FROM device_readings GROUP BY bucket, device_id;`
+7. expect rows: `SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'device_summary'`
+8. expect rows: `SELECT 1 FROM device_summary WHERE device_id = 1 AND min_time = TIMESTAMP '2025-12-31 19:00:00'`
+9. run SQL: `CREATE MATERIALIZED VIEW device_summary_tz WITH (timescaledb.continuous) AS SELECT time_bucket('1 hour', observation_time) AS bucket, min(observation_time) AS min_time, device_id FROM device_readings GROUP BY bucket, device_id;`
+10. run SQL: `SELECT min_time::timestamp FROM device_summary_tz;`
+11. expect rows: `SELECT 1 FROM device_summary_tz WHERE device_id = 1 AND pg_typeof(min_time) = 'timestamptz'::regtype AND min_time = TIMESTAMPTZ '2026-01-01 00:00:00+00' AND CASE WHEN set_config('TimeZone', 'Asia/Tokyo', true) = 'Asia/Tokyo' THEN min_time::timestamp END = TIMESTAMP '2026-01-01 09:00:00'`
+12. run SQL: `CREATE TABLE devices(time BIGINT, cpu_usage INTEGER, disk_usage INTEGER, PRIMARY KEY (time)) WITH (tsdb.hypertable, tsdb.partition_column='time', tsdb.chunk_interval='86400');`
+13. expect rows: `SELECT 1 FROM timescaledb_information.dimensions WHERE hypertable_name = 'devices' AND column_name = 'time' AND integer_interval = 86400`
+14. run SQL: `CREATE FUNCTION current_epoch() RETURNS BIGINT LANGUAGE SQL STABLE AS $$ SELECT EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::bigint;$$;`
+15. run SQL: `SELECT set_integer_now_func('devices', 'current_epoch');`
+16. expect rows: `SELECT 1 FROM timescaledb_information.dimensions WHERE hypertable_name = 'devices' AND integer_now_func = 'current_epoch'`
+17. run SQL: `CREATE EXTENSION tablefunc;`
+18. run SQL: `INSERT INTO devices(time, cpu_usage, disk_usage) SELECT time, normal_rand(1,70,10) AS cpu_usage, normal_rand(1,2,1) * (row_number() over()) AS disk_usage FROM generate_series(1,10000) AS time;`
+19. expect rows: `SELECT 1 FROM devices HAVING count(*) = 10000`
+20. run SQL: `CREATE MATERIALIZED VIEW devices_summary WITH (timescaledb.continuous) AS SELECT time_bucket('500', time) AS bucket, avg(cpu_usage) AS avg_cpu, avg(disk_usage) AS avg_disk FROM devices GROUP BY bucket;`
+21. expect rows: `SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'devices_summary'`
+22. run SQL: `SELECT * FROM devices_summary ORDER BY bucket LIMIT 10;`
+23. expect rows: `SELECT 1 FROM devices_summary HAVING count(*) = 21`
+24. expect no rows: `SELECT 1 FROM devices_summary WHERE bucket % 500 <> 0`
+</TestPlan>
