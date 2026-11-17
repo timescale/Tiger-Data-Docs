@@ -72,7 +72,12 @@ export function getRestTopics(): RestTopic[] {
 
   const endpointsOf = (resource: StainlessResource, keys: string[], idPrefix = ""): RestEndpoint[] =>
     Object.entries(resource.methods ?? {}).map(([method, value]) => {
-      const [verb, path] = (typeof value === "string" ? value : value.endpoint).split(" ");
+      const endpoint = typeof value === "string" ? value : value.endpoint;
+      if (!endpoint) {
+        throw new Error(`stainless.yml: method ${[...keys, method].join(".")} has no endpoint`);
+      }
+      const [rawVerb, path] = endpoint.split(" ");
+      const verb = rawVerb.toLowerCase();
       const summary = paths[path]?.[verb]?.summary?.trim();
       return {
         id: idPrefix + kebab(method),
@@ -99,6 +104,14 @@ export function getRestTopics(): RestTopic[] {
       }
     }
     if (endpoints.length > 0) {
+      const ids = endpoints.map((endpoint) => endpoint.id);
+      const repeated = ids.find((id, i) => ids.indexOf(id) !== i);
+      if (repeated) {
+        throw new Error(`REST topic ${keys.join(".")}: two endpoints share the anchor "${repeated}"`);
+      }
+      if (topics.some((topic) => topic.slug === kebab(key))) {
+        throw new Error(`REST topics: two resources named "${key}" would share one page`);
+      }
       topics.push({
         slug: kebab(key),
         label: sentenceCase(key.replaceAll("_", " ")),

@@ -21,18 +21,30 @@ const spec = await getSDKJSONInSSR("http");
 const resourceAt = (keys: string[]) =>
   keys.reduce((parent: any, key) => parent.subresources[key], { subresources: spec.resources });
 
-const endpoints = topic.endpoints.map((endpoint) => ({
-  ...endpoint,
-  stainlessPath: resourceAt(endpoint.resource).methods[endpoint.method].stainlessPath as string,
-}));
+const endpoints = topic.endpoints.map((endpoint) => {
+  const method = resourceAt(endpoint.resource)?.methods?.[endpoint.method];
+  if (!method) {
+    throw new Error(`REST topic ${topic.slug}: ${endpoint.method} is in stainless.yml but not in the generated spec`);
+  }
+  return { ...endpoint, stainlessPath: method.stainlessPath as string };
+});
+
+// A resource without its own tag in the spec inherits its parent's description
+// (metrics shows the services text): show a description only when it is the topic's own.
+const description: string | undefined = resourceAt(topic.resource).description;
+const inherited = topic.resource
+  .slice(0, -1)
+  .some((_, i) => resourceAt(topic.resource.slice(0, i + 1)).description === description);
 
 Astro.locals.language = "http";
+// These pages have no Markdown version, so the Copy Markdown control is not offered.
+Astro.locals._stlStarlightPage = { skipRenderingStarlightTitle: false, hasMarkdownRoute: false };
 ---
 
 <StarlightPage
   frontmatter={{
     title: topic.label,
-    description: resourceAt(topic.resource).description,
+    description: inherited ? undefined : description,
     widePage: true,
     pagefind: false,
     prev: false,
@@ -67,7 +79,6 @@ Astro.locals.language = "http";
 
   .rest-topic-endpoint {
     --stl-typography-text-h1: var(--stl-typography-text-h2);
-    scroll-margin-top: calc(var(--sl-nav-height) + var(--tiger-space-md));
   }
 
   .rest-topic-endpoint + .rest-topic-endpoint {
@@ -78,27 +89,52 @@ Astro.locals.language = "http";
 </style>
 
 <script>
-  // Mark the sidebar entry of the endpoint in view.
+  // Mark the sidebar entry of the endpoint in view, and close the mobile menu after a jump.
+  const samePath = (a: string, b: string) => a.replace(/\/$/, "") === b.replace(/\/$/, "");
+
   const entries = new Map<string, HTMLAnchorElement>();
   for (const link of document.querySelectorAll<HTMLAnchorElement>("nav.sidebar a[href*='#']")) {
     const url = new URL(link.href);
-    if (url.pathname === location.pathname) entries.set(url.hash.slice(1), link);
+    if (samePath(url.pathname, location.pathname)) entries.set(url.hash.slice(1), link);
   }
+  const sections = [...document.querySelectorAll<HTMLElement>(".rest-topic-endpoint")];
 
-  const mark = (id: string) => {
-    for (const [key, link] of entries) {
-      if (key === id) link.setAttribute("aria-current", "page");
+  let marked = "";
+  const mark = () => {
+    // A jump lands a section at the page's scroll padding; the section in view is the last one at or above that line.
+    const line = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) + 4;
+    const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+    const passed = sections.filter((section) => section.getBoundingClientRect().top <= line);
+    const current = (atBottom ? sections.at(-1) : passed.at(-1))?.id ?? "";
+    if (current === marked) return;
+    marked = current;
+    for (const [id, link] of entries) {
+      if (id === current) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
     }
   };
 
-  const observer = new IntersectionObserver(
-    (changes) => {
-      for (const change of changes) if (change.isIntersecting) mark(change.target.id);
-    },
-    { rootMargin: "-20% 0px -70% 0px" },
-  );
-  for (const section of document.querySelectorAll(".rest-topic-endpoint")) observer.observe(section);
+  let queued = false;
+  const onScroll = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      mark();
+    });
+  };
+  addEventListener("scroll", onScroll, { passive: true });
+  addEventListener("resize", onScroll);
+  mark();
+
+  type MenuButton = HTMLElement & { setExpanded(expanded: boolean): void };
+  for (const link of entries.values()) {
+    link.addEventListener("click", () => {
+      for (const button of document.querySelectorAll<MenuButton>("starlight-menu-button")) {
+        button.setExpanded(false);
+      }
+    });
+  }
 </script>
 
 <script>

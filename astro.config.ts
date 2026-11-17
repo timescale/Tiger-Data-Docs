@@ -22,7 +22,8 @@ const require = createRequire(import.meta.url);
  * endpoint, linking to the endpoint's anchor on that page.
  */
 const restReferenceSidebar = [
-  { label: "Overview", link: REST_REFERENCE_PATH },
+  // Same attribute Stainless puts on its own overview entry; src/lib/pagination.ts reads it.
+  { label: "Overview", link: REST_REFERENCE_PATH, attrs: { "data-stldocs-overview": "readme" } },
   ...getRestTopics().map((topic) => ({
     label: topic.label,
     collapsed: true,
