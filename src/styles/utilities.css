@@ -12,6 +12,8 @@ table {
   max-width: 100%;
 }
 
+/* GUC reference: names and types stay on one line; long defaults and the
+   description wrap. Below the minimum widths the table scrolls sideways. */
 .guc-parameters-table {
   overflow-x: auto;
   scrollbar-gutter: stable;
@@ -19,44 +21,31 @@ table {
 
 .guc-parameters-table table {
   display: table;
-  table-layout: fixed;
   width: 100%;
 }
 
-.guc-parameters-table th:nth-child(1),
-.guc-parameters-table td:nth-child(1) {
-  width: 25%;
-}
-
-.guc-parameters-table th:nth-child(2),
-.guc-parameters-table td:nth-child(2) {
-  width: 20%;
-}
-
-.guc-parameters-table th:nth-child(3),
-.guc-parameters-table td:nth-child(3) {
-  width: 20%;
-}
-
-.guc-parameters-table th:nth-child(4),
-.guc-parameters-table td:nth-child(4) {
-  width: 35%;
-}
-
 .guc-parameters-table td {
-  overflow-wrap: anywhere;
   vertical-align: top;
 }
 
-.guc-parameters-table td:first-child {
-  overflow-wrap: break-word;
+.guc-parameters-table td:nth-child(2) code {
+  white-space: nowrap;
 }
 
-.guc-parameters-table code {
+.guc-parameters-table td:nth-child(3) {
+  min-width: 9rem;
+}
+
+.guc-parameters-table td:nth-child(3) code {
   white-space: normal;
   overflow-wrap: anywhere;
 }
 
+.guc-parameters-table td:nth-child(4) {
+  min-width: 17rem;
+}
+
+.guc-parameters-table td:first-child code,
 .tiger-lake-metrics-table td:first-child code {
   white-space: nowrap;
   font-size: 0.8em;
@@ -66,20 +55,29 @@ table {
   min-width: 16rem;
 }
 
+/* ---- Wide page (`widePage: true` in frontmatter) ----
+   PageTitle.astro renders `[data-wide-page]` on these pages. The right rail is
+   hidden and the content area takes its space, so tables and code get the full
+   width. Text keeps the standard line length. */
+
 @media (min-width: 64rem) {
-  .page.wide-page .right-sidebar-panel {
+  .page:has(main [data-wide-page]) {
+    --wide-page-text-width: calc(
+      var(--stl-content-max-width) - 2 * var(--stl-content-padding)
+    );
+  }
+
+  .page:has(main [data-wide-page]) .right-sidebar-panel {
     display: none;
   }
 
-  .page.wide-page main {
+  .page:has(main [data-wide-page]) > main {
+    --stl-content-max-width: 100%;
     grid-column: 3 / 6;
-    justify-self: start;
   }
-}
 
-@media (max-width: 40rem) {
-  .guc-parameters-table table {
-    min-width: 42rem;
+  .page:has(main [data-wide-page]) main :is(p, ul, ol, blockquote, .stl-callout) {
+    max-width: var(--wide-page-text-width);
   }
 }
 
