@@ -13,6 +13,10 @@
    * We must mutate the `<ul>` before `<starlight-toc>`'s `init()` (scheduled via
    * `requestIdleCallback`) captures its link list. Running on DOMContentLoaded / astro:page-load
    * lands us well before the idle callback fires.
+   *
+   * Headings in closed tab panels are left out, so the list is rebuilt again whenever a
+   * panel opens or closes. Those later rebuilds replace the links `<starlight-toc>` captured;
+   * `TocScrollSpy` reads the live links for that reason.
    */
   (function () {
     function getScopedClass(list) {
@@ -103,21 +107,24 @@
       rebuildList(document.querySelector("starlight-toc nav > ul"), false);
       rebuildList(document.querySelector("mobile-starlight-toc ul"), true);
     }
-    function onTabClick(e) {
-      // Rebuild on tab change so the TOC tracks the active tab's headings only.
-      // Defer one frame so Starlight has finished toggling `hidden` on the panels.
-      // Hash-driven activation also flows through here (the tab script dispatches a
-      // real click), so we don't need a separate `hashchange` listener.
-      var t = e.target && e.target.closest ? e.target.closest('starlight-tabs [role="tab"]') : null;
-      if (!t) return;
-      requestAnimationFrame(run);
+    // Rebuild when a tab panel is shown or hidden, so the TOC tracks the active tab's
+    // headings however the tab was switched: click, keyboard, or a link into the tab.
+    var panelObserver = new MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        if (mutations[i].target.matches('starlight-tabs [role="tabpanel"]')) return run();
+      }
+    });
+    function start() {
+      run();
+      var main = document.querySelector("main");
+      panelObserver.disconnect();
+      if (main) panelObserver.observe(main, { subtree: true, attributeFilter: ["hidden"] });
     }
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", run);
+      document.addEventListener("DOMContentLoaded", start);
     } else {
-      run();
+      start();
     }
-    document.addEventListener("astro:page-load", run);
-    document.addEventListener("click", onTabClick);
+    document.addEventListener("astro:page-load", start);
   })();
 </script>

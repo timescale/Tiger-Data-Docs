@@ -4,10 +4,12 @@ import CreateHypertablePolicyNote from "./_create-hypertable-columnstore-policy-
 
 ### Dimension info
 
-To create a `_timescaledb_internal.dimension_info` instance, you call [add_dimension](/reference/timescaledb/hypertables/add_dimension) 
-to an existing hypertable. 
+To create a `_timescaledb_internal.dimension_info` instance, you call
+[`by_range()`](/reference/timescaledb/hypertables/add_dimension#by_range) or
+[`by_hash()`](/reference/timescaledb/hypertables/add_dimension#by_hash). Both return an opaque instance that holds the
+dimension information `add_dimension` uses.
 
-#### Samples
+**Samples**
 
 Hypertables must always have a primary range dimension, followed by an arbitrary number of additional
 dimensions that can be either range or hash. Typically, this is just one hash. For example:
@@ -16,9 +18,6 @@ dimensions that can be either range or hash. Typically, this is just one hash. F
 SELECT add_dimension('conditions', by_range('time'));
 SELECT add_dimension('conditions', by_hash('location', 2));
 ```
-
-For incompatible data types such as `jsonb`, you can specify a function to the `partition_func` argument
-of the dimension build to extract a compatible data type. Look in the example section below.
 
 #### Custom partitioning
 
@@ -30,11 +29,14 @@ take a `anyelement` argument as the only parameter and return a positive `intege
 _not_ a partition identifier, but rather the inserted value's position in the dimension's key space, which is then 
 divided across the partitions.
 
+For incompatible data types such as `jsonb`, you can specify a function to the `partition_func` argument
+of the dimension build to extract a compatible data type. Look in the example section below.
+
 #### by_range()
 
 Create a by-range dimension builder. You can partition `by_range` on it's own.
 
-##### Samples
+**Samples**
 
 - Partition on time using `CREATE TABLE`
 
@@ -74,7 +76,7 @@ Create a by-range dimension builder. You can partition `by_range` on it's own.
    SELECT create_hypertable('my_table', by_range('data', '1 day', 'get_time'));
    ```
 
-##### Arguments
+**Arguments**
 
 | Name | Type     | Default | Required | Description                                                                                                                 |
 |-|----------|---------|-|-|
@@ -108,7 +110,32 @@ The main purpose of hash partitioning is to enable parallelization across multip
 Every distinct item in hash partitioning is hashed to one of *N* buckets. By default, {C.TIMESCALE_DB} uses flexible range 
 intervals to manage chunk sizes. 
 
-### Parallelizing disk I/O
+**Samples**
+
+```sql
+CREATE TABLE conditions (
+   "time"      TIMESTAMPTZ       NOT NULL,
+   location    TEXT              NOT NULL,
+   device      TEXT              NOT NULL,
+   temperature DOUBLE PRECISION  NULL,
+   humidity    DOUBLE PRECISION  NULL
+) WITH (
+   tsdb.hypertable
+   tsdb.chunk_interval='1 day'
+);
+
+SELECT add_dimension('conditions', by_hash('location', 2));
+```
+
+**Arguments**
+
+| Name | Type     | Default | Required | Description                                              |
+|-|----------|---------|-|----------------------------------------------------------|
+|`column_name`| `NAME`   | -       |✔| Name of column to partition on.                          |
+|`partition_func`| `REGPROC` | -       |✖| The function to use to calculate the partition of a value. |
+|`number_partitions`|`ANYELEMENT` | - |✔| Number of hash partitions to use for `partitioning_column`. Must be greater than 0. |
+
+##### Parallelizing disk I/O
 
 You use Parallel I/O in the following scenarios:
 
@@ -142,35 +169,3 @@ field.  A very large number of hash partitions leads both to poorer
 per-partition load balancing (the mapping of items to partitions using
 hashing), as well as much increased planning latency for some types of
 queries.
-
-##### Samples
-
-```sql
-CREATE TABLE conditions (
-   "time"      TIMESTAMPTZ       NOT NULL,
-   location    TEXT              NOT NULL,
-   device      TEXT              NOT NULL,
-   temperature DOUBLE PRECISION  NULL,
-   humidity    DOUBLE PRECISION  NULL
-) WITH (
-   tsdb.hypertable
-   tsdb.chunk_interval='1 day'
-);
-
-SELECT add_dimension('conditions', by_hash('location', 2));
-```
-
-##### Arguments
-
-| Name | Type     | Default | Required | Description                                              |
-|-|----------|---------|-|----------------------------------------------------------|
-|`column_name`| `NAME`   | -       |✔| Name of column to partition on.                          |
-|`partition_func`| `REGPROC` | -       |✖| The function to use to calcule the partition of a value. |
-|`number_partitions`|`ANYELEMENT` | - |✔| Number of hash partitions to use for `partitioning_column`. Must be greater than 0. |
-
-
-#### Returns
-
-`by_range` and `by-hash` return an opaque `_timescaledb_internal.dimension_info` instance, holding the 
-dimension information used by this function. 
-
