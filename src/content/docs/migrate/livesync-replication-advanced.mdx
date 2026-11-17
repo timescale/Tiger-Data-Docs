@@ -152,7 +152,7 @@ ALTER TABLE <schema>.<table>
 
 ## Merge many source tables into one hypertable
 
-Some apps partition data themselves, with one table per period: `metrics-001`, `metrics-002`, and so on. Livesync can merge such tables into a single {C.HYPERTABLE} on the target, because the `table` in a `--table-map` source is a [Go regular expression](https://pkg.go.dev/regexp/syntax). The pattern is anchored for you, so `metrics-[0-9]+` matches `metrics-001` but not `app_metrics-001`. When you pass several `--table-map` flags, the first match wins. Tables that match no mapping sync one-to-one:
+Some apps partition data themselves, with one table per period: `metrics-001`, `metrics-002`, and so on. Livesync can merge such tables into a single {C.HYPERTABLE} on the target, because the `table` in a `--table-map` source is a [Go regular expression](https://pkg.go.dev/regexp/syntax). A pattern with no `^` or `$` must match the whole table name, so `metrics-[0-9]+` matches `metrics-001` but not `app_metrics-001`. If you add `^` or `$` yourself, add both. When you pass several `--table-map` flags, the first match wins. Tables that match no mapping sync one-to-one:
 
 ```bash
 --table-map '{"source": {"schema": "public", "table": "metrics-[0-9]+"}, "target": {"schema": "public", "table": "metrics"}}'
@@ -165,7 +165,12 @@ Before you start Livesync, make the three changes below for every table you merg
 Livesync applies `UPDATE` and `DELETE` on the target by matching the source table's [replica identity](/migrate/livesync-replication#replication-identity) columns, by default the primary key. The target doesn't know which source table a row came from.
 
 <Callout variant="warning">
-If the replica identity is only unique within each source table, for example an `id` sequence that restarts at 1 in every monthly table, one `UPDATE` or `DELETE` on the source changes or removes the matching row of **every** merged table, with no error. An `UPDATE` that changes the partition column fails instead, and replication halts for the whole subscription.
+
+If the replica identity is only unique within each source table, for example an `id` sequence that restarts at 1 in every monthly table, a change to one source row reaches the matching row of **every** merged table:
+
+- `DELETE` removes all of them, with no error.
+- `UPDATE` overwrites all of them with the updated source row, partition column included. When the matching rows are in the same chunk, this happens with no error. Otherwise the update fails and replication stops for the whole subscription.
+
 </Callout>
 
 Choose one option for every merged table on the source. Changing the replica identity only affects changes made afterwards, so do it before you create the publication:
@@ -189,7 +194,7 @@ WITH (
 ALTER TABLE public.metrics ALTER COLUMN id DROP DEFAULT;
 ```
 
-`LIKE` doesn't copy the primary key, so the per-table key on `id` stays behind. Don't add a unique constraint on a column that is only unique within each source table: the initial copy of the second table then fails with `duplicate key value violates unique constraint`. Finally, drop the merged source tables from the target, since Livesync doesn't write to them.
+`LIKE` doesn't copy the primary key, so the per-table key on `id` stays behind. A unique constraint on the {C.HYPERTABLE} must include the partition column. Only add one that is unique across all the merged tables, such as `(device_id, time)`. Otherwise the initial copy fails with `duplicate key value violates unique constraint`. Finally, drop the merged source tables from the target, since Livesync doesn't write to them.
 
 ### Publish the tables and check the mapping
 
