@@ -4,93 +4,44 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
 import type { AstroIntegration } from "astro";
-import {
-  fileSystemSDKJSONLoader,
-  generateAPIReferenceItems,
-  stainlessDocs,
-} from "@stainless-api/docs";
-import type { ReferenceSidebarConfigItem } from "@stainless-api/docs";
+import { fileSystemSDKJSONLoader, stainlessDocs } from "@stainless-api/docs";
 import starlightLlmsTxt from "starlight-llms-txt";
 import sitemap from "@astrojs/sitemap";
 import rehypeBasePath from "./src/plugins/rehype-base-path";
 import rehypePagefindWeight from "./src/plugins/rehype-pagefind-weight";
 import remarkResolveConstantsInHeadings from "./src/plugins/remark-resolve-constants-in-headings";
 import { createSitemapSerializer } from "./src/lib/sitemap-lastmod";
+import { getRestTopics, REST_REFERENCE_PATH } from "./src/lib/rest-topics";
 
 import sentry from "@sentry/astro";
 
 const require = createRequire(import.meta.url);
 
 /**
- * Stainless labels sidebar entries by capitalising every word of the
- * stainless.yml key ("Retrieve Replica Sets", "Set Ha", "Vpcs"). House style
- * is sentence case, with product acronyms kept as acronyms.
+ * Tiger Cloud REST reference sidebar: one group per topic page, one entry per
+ * endpoint, linking to the endpoint's anchor on that page.
  */
-const NAV_ACRONYMS: Record<string, string> = {
-  ha: "HA",
-  vpc: "VPC",
-  vpcs: "VPCs",
-};
-
-/** Label a method page by its spec summary ("Stop a service") rather than its key ("Stop"). */
-function labelFor(item: ReferenceSidebarConfigItem): string {
-  const summary = item.kind === "method_page" ? item.metadata?.summary : undefined;
-  return sentenceCase(summary?.trim() || item.label);
-}
-
-function sentenceCase(label: string): string {
-  return label
-    .split(" ")
-    .map((word, i) => {
-      const lower = word.toLowerCase();
-      if (NAV_ACRONYMS[lower]) return NAV_ACRONYMS[lower];
-      return i === 0 ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower;
-    })
-    .join(" ");
-}
-
-/**
- * Flatten the generated REST reference sidebar to one level of groups.
- *
- * Stainless nests resource groups the way `stainless/stainless.yml` nests
- * resources (projects > services > metrics > details), which buries most
- * endpoints two or three levels deep. Hoist every nested group to the top
- * level, and fold a group with a single method into its parent. Page URLs
- * are unaffected: they come from the resource tree, not from the sidebar.
- */
-function flattenApiReferenceSidebar(
-  items: ReferenceSidebarConfigItem[],
-): ReferenceSidebarConfigItem[] {
-  const out: ReferenceSidebarConfigItem[] = [];
-  const visit = (item: ReferenceSidebarConfigItem) => {
-    if (item.kind !== "group") {
-      out.push({ ...item, label: labelFor(item) });
-      return;
-    }
-    const own = item.entries
-      .filter((e) => e.kind !== "group")
-      .map((e) => ({ ...e, label: labelFor(e) }));
-    const nested = item.entries.filter((e) => e.kind === "group");
-    for (const sub of nested) {
-      if (sub.kind === "group" && sub.entries.length === 1 && sub.entries[0].kind !== "group") {
-        own.push({ ...sub.entries[0], label: labelFor(sub.entries[0]) });
-      }
-    }
-    if (own.length > 0) {
-      out.push({ ...item, label: sentenceCase(item.label), entries: own, collapsed: true });
-    }
-    for (const sub of nested) {
-      if (sub.kind === "group" && !(sub.entries.length === 1 && sub.entries[0].kind !== "group")) {
-        visit(sub);
-      }
-    }
-  };
-  items.forEach(visit);
-  return out;
-}
+const restReferenceSidebar = [
+  { label: "Overview", link: REST_REFERENCE_PATH },
+  ...getRestTopics().map((topic) => ({
+    label: topic.label,
+    collapsed: true,
+    items: topic.endpoints.map((endpoint) => ({
+      label: endpoint.label,
+      link: `${REST_REFERENCE_PATH}/${topic.slug}#${endpoint.id}`,
+      // Stainless's sidebar draws the HTTP method badge for entries with this attribute.
+      attrs: { "data-stldocs-method": endpoint.verb },
+    })),
+  })),
+];
 
 // Resolve package subpaths so aliasing the main "components" entry doesn't break ThemeSelect/SDKSelect.
 const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/components/scripts");
+// WORKAROUND: the REST topic page draws endpoints with Stainless's own renderer, which the
+// package does not export. This alias reaches its plugin folder by path, so a Stainless
+// release that moves `react/Routing.tsx` or `globalJs/` fails the build here. Remove it
+// when Stainless exports the renderer or can group endpoints on one page.
+const stainlessPluginPath = join(require.resolve("@stainless-api/docs/plugin"), "..");
 
 /**
  * Vite 7 compat:
@@ -297,6 +248,7 @@ export default defineConfig({
           { find: "@components", replacement: new URL("./src/components", import.meta.url).pathname },
           { find: "@constants", replacement: new URL("./src/constants.ts", import.meta.url).pathname },
           // Resolve scripts subpath to the package so ThemeSelect.astro / SDKSelect.astro keep working.
+          { find: "@stainless-plugin", replacement: stainlessPluginPath },
           {
             find: "@stainless-api/docs/components/scripts",
             replacement: docsComponentsScriptsPath,
@@ -2042,10 +1994,7 @@ export default defineConfig({
                 {
                   label: "Tiger Cloud REST API",
                   collapsed: true,
-                  items: generateAPIReferenceItems(
-                    { excludeResourceOverviewPages: true },
-                    flattenApiReferenceSidebar,
-                  ),
+                  items: restReferenceSidebar,
                 },
                 {
                   label: "Data tiering",

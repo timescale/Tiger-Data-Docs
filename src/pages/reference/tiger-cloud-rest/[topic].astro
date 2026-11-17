@@ -1,0 +1,110 @@
+---
+/**
+ * A topic page of the Tiger Cloud REST reference: every endpoint of one
+ * resource, drawn with Stainless's endpoint renderer. Topics come from
+ * `src/lib/rest-topics.ts`; the sidebar entries in `astro.config.ts` link to
+ * the endpoint anchors on this page.
+ */
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import { getSDKJSONInSSR } from "@stainless-api/docs/specs/fetchSpecSSR";
+import { CONTENT_PANEL_LAYOUT, MIDDLEWARE } from "virtual:stl-starlight-virtual-module";
+import { RenderSpec } from "@stainless-plugin/react/Routing";
+import { getRestTopics, type RestTopic } from "../../../lib/rest-topics";
+
+export function getStaticPaths() {
+  return getRestTopics().map((topic) => ({ params: { topic: topic.slug }, props: { topic } }));
+}
+
+const { topic } = Astro.props as { topic: RestTopic };
+const spec = await getSDKJSONInSSR("http");
+
+const resourceAt = (keys: string[]) =>
+  keys.reduce((parent: any, key) => parent.subresources[key], { subresources: spec.resources });
+
+const endpoints = topic.endpoints.map((endpoint) => ({
+  ...endpoint,
+  stainlessPath: resourceAt(endpoint.resource).methods[endpoint.method].stainlessPath as string,
+}));
+
+Astro.locals.language = "http";
+---
+
+<StarlightPage
+  frontmatter={{
+    title: topic.label,
+    description: resourceAt(topic.resource).description,
+    widePage: true,
+    pagefind: false,
+    prev: false,
+    next: false,
+  }}
+>
+  <div class="not-content rest-topic">
+    {
+      endpoints.map((endpoint) => (
+        <section id={endpoint.id} class="rest-topic-endpoint">
+          <RenderSpec
+            spec={spec}
+            kind="http_method"
+            path={endpoint.stainlessPath}
+            language="http"
+            currentPath={Astro.url.pathname}
+            contentPanelLayout={CONTENT_PANEL_LAYOUT}
+            transformRequestSnippet={MIDDLEWARE.transformRequestSnippet}
+          />
+        </section>
+      ))
+    }
+  </div>
+</StarlightPage>
+
+<style is:global>
+  /* The renderer draws each endpoint as a page of its own: drop its breadcrumbs
+     and size its title as a section heading. */
+  .rest-topic-endpoint .stl-page-nav-container {
+    display: none;
+  }
+
+  .rest-topic-endpoint {
+    --stl-typography-text-h1: var(--stl-typography-text-h2);
+    scroll-margin-top: calc(var(--sl-nav-height) + var(--tiger-space-md));
+  }
+
+  .rest-topic-endpoint + .rest-topic-endpoint {
+    margin-top: var(--tiger-space-2xl);
+    padding-top: var(--tiger-space-xl);
+    border-top: 1px solid var(--table-border);
+  }
+</style>
+
+<script>
+  // Mark the sidebar entry of the endpoint in view.
+  const entries = new Map<string, HTMLAnchorElement>();
+  for (const link of document.querySelectorAll<HTMLAnchorElement>("nav.sidebar a[href*='#']")) {
+    const url = new URL(link.href);
+    if (url.pathname === location.pathname) entries.set(url.hash.slice(1), link);
+  }
+
+  const mark = (id: string) => {
+    for (const [key, link] of entries) {
+      if (key === id) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    }
+  };
+
+  const observer = new IntersectionObserver(
+    (changes) => {
+      for (const change of changes) if (change.isIntersecting) mark(change.target.id);
+    },
+    { rootMargin: "-20% 0px -70% 0px" },
+  );
+  for (const section of document.querySelectorAll(".rest-topic-endpoint")) observer.observe(section);
+</script>
+
+<script>
+  import "@stainless-plugin/globalJs/copy.ts";
+  import "@stainless-plugin/globalJs/tooltip.ts";
+  import "@stainless-plugin/globalJs/code-snippets.ts";
+  import "@stainless-plugin/globalJs/method-descriptions.ts";
+  import "@stainless-plugin/globalJs/summary-selection-tweak.ts";
+</script>
