@@ -67,7 +67,7 @@ yours cannot, use [changelog mode](/integrate/connectors/destination/tigerlake#c
 
 ## Connect using Amazon S3 Tables
 
-To connect a {C.SERVICE_LONG} to Amazon S3 Tables:
+To connect a {C.SERVICE_LONG} to Amazon S3 Tables, first create the table bucket and the IAM role:
 
 <Tabs>
   <Tab title="AWS Management Console">
@@ -92,14 +92,6 @@ To connect a {C.SERVICE_LONG} to Amazon S3 Tables:
         1. In `Configure stack options` check `I acknowledge that AWS CloudFormation might create IAM resources`, then click `Next`.
         1. In `Review and create`, click `Submit`, then wait for the deployment to complete. AWS deploys your stack and creates the S3 table bucket and IAM role.
         1. Click `Outputs`, then copy all four outputs.
-      </NumberedItem>
-      <NumberedItem title={`Connect your ${C.SERVICE_SHORT} to the data lake`}>
-        1. In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select the {C.SERVICE_SHORT} you want to integrate with AWS S3 Tables, then click `Connectors`.
-        1. Select the {C.ICEBERG_CONNECTOR_SHORT} and supply the:
-           - ARN of the S3Table bucket
-           - ARN of a role with permissions to write to the table bucket
-
-        Provisioning takes a couple of minutes.
       </NumberedItem>
     </NumberedList>
   </Tab>
@@ -128,14 +120,6 @@ To connect a {C.SERVICE_LONG} to Amazon S3 Tables:
         ```
 
         Setting up the integration through {C.CONSOLE} in {C.CLOUD_LONG}, provides a convenient copy-paste option with the placeholders populated.
-      </NumberedItem>
-      <NumberedItem title={`Connect your ${C.SERVICE_SHORT} to the data lake`}>
-        1. In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select the {C.SERVICE_SHORT} you want to integrate with AWS S3 Tables, then click `Connectors`.
-        1. Select the {C.ICEBERG_CONNECTOR_SHORT} and supply the:
-           - ARN of the S3Table bucket
-           - ARN of a role with permissions to write to the table bucket
-
-        Provisioning takes a couple of minutes.
       </NumberedItem>
     </NumberedList>
   </Tab>
@@ -210,14 +194,6 @@ To connect a {C.SERVICE_LONG} to Amazon S3 Tables:
         1. Replace `<S3TABLE_BUCKET_ARN>` with the `Amazon Resource Name (ARN)` for the table bucket you just created.
         1. Click `Next`, then give the inline policy a name and click `Create policy`.
       </NumberedItem>
-      <NumberedItem title={`Connect your ${C.SERVICE_SHORT} to the data lake`}>
-        1. In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select the {C.SERVICE_SHORT} you want to integrate with AWS S3 Tables, then click `Connectors`.
-        1. Select the {C.ICEBERG_CONNECTOR_SHORT} and supply the:
-           - ARN of the S3Table bucket
-           - ARN of a role with permissions to write to the table bucket
-
-        Provisioning takes a couple of minutes.
-      </NumberedItem>
     </NumberedList>
   </Tab>
 </Tabs>
@@ -238,6 +214,26 @@ If your table bucket is encrypted with a customer managed AWS KMS key ([SSE-KMS]
 ```
 </Callout>
 
+Then connect your {C.SERVICE_SHORT} to the table bucket:
+
+<NumberedList>
+  <NumberedItem title="Create the connector">
+    1. In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select your {C.SERVICE_SHORT}, then click `Connectors` > `Destination connectors` > `Create a new destination connector`.
+    1. Select `Amazon S3 Tables`, enter the ARN of the IAM role and the ARN of the table bucket, then click `Set up connector`.
+
+    Initialization takes a couple of minutes. {C.CLOUD_LONG} tunes `max_slot_wal_keep_size` on the {C.SERVICE_SHORT} to retain the WAL the connector needs; no restart is required.
+  </NumberedItem>
+  <NumberedItem title="Select the tables to sync">
+    Choose a schema and the tables to sync, then click `Sync tables`. Under `Advanced settings` you can exclude
+    [tiered data](#tiered-data), turn on [changelog mode](#changelog-mode), and choose the
+    [Iceberg format version](#iceberg-format-version). These options apply to every table in the batch and cannot be
+    changed after a table starts syncing.
+
+    To add tables later, open the connector and click `Select more tables`. You can also start a sync
+    [with SQL](#stream-data-from-your-service-to-your-data-lake).
+  </NumberedItem>
+</NumberedList>
+
 ## Connect using an Iceberg REST catalog
 
 Before creating the connector, configure a catalog principal with permission to:
@@ -252,9 +248,9 @@ To connect your {C.SERVICE_LONG} to a generic Iceberg REST catalog:
 
 <NumberedList>
   <NumberedItem title="Select the catalog type">
-    1. In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select the {C.SERVICE_SHORT} you want to integrate with your Iceberg catalog, then click `Connectors`.
-    1. Select the {C.ICEBERG_CONNECTOR_SHORT}, then select `Generic REST catalog`.
-    1. Choose a preset for your catalog provider, or select `Generic REST` to configure the connection manually.
+    1. In [{C.CONSOLE}](https://console.cloud.tigerdata.com/dashboard/services), select your {C.SERVICE_SHORT}, then click `Connectors` > `Destination connectors` > `Create a new destination connector`.
+    1. Select `Generic REST catalog`.
+    1. Choose a preset for your catalog provider (`Snowflake Open Catalog / Polaris`, `Snowflake Horizon`, or `Databricks`), or keep `Generic REST` to configure the connection manually.
   </NumberedItem>
   <NumberedItem title="Configure the catalog connection">
     Enter the catalog connection and authentication settings:
@@ -265,13 +261,24 @@ To connect your {C.SERVICE_LONG} to a generic Iceberg REST catalog:
     | `Warehouse` | Yes | Warehouse, catalog, or external volume identifier expected by the catalog. The exact value depends on the catalog provider. |
     | `Client ID` | No | OAuth 2.0 client identifier. Leave empty when authenticating with a personal access token instead. |
     | `Client secret` | Yes | OAuth 2.0 client secret, or personal access token. {C.CLOUD_LONG} stores this value securely. |
+    | `OAuth2 server URI` | No | Token endpoint of the catalog. Defaults to `<catalog-uri>/v1/oauth/tokens`. |
     | `Scope` | No | OAuth 2.0 scope required by the catalog. |
     | `Vended credentials` | No | Requests temporary object storage credentials from the catalog. Turn this on if your catalog supports it. |
     | `Additional headers` | No | Catalog-specific HTTP headers to include with REST requests. |
+
+    The `Snowflake Horizon` preset asks for the Snowflake database instead of a warehouse and for a programmatic
+    access token instead of a client secret, turns on vended credentials, and syncs every table in
+    [changelog mode](#changelog-mode), because Snowflake cannot read equality deletes. Snowflake creates the schema
+    and the tables with lowercase names, so quote them in queries.
   </NumberedItem>
   <NumberedItem title="Create the connector">
     Click `Set up connector`. {C.CLOUD_LONG} validates the catalog connection, credentials, and warehouse access
-    before creating the connector.
+    before creating the connector. Initialization takes a couple of minutes.
+  </NumberedItem>
+  <NumberedItem title="Select the tables to sync">
+    Choose a schema and the tables to sync, then click `Sync tables`. The connector creates the namespace and the
+    Iceberg tables in the catalog. The `Advanced settings` are the same as for
+    [Amazon S3 Tables](#connect-using-amazon-s3-tables).
   </NumberedItem>
 </NumberedList>
 
@@ -328,13 +335,18 @@ ALTER TABLE <table_name> SET (
 )
 ```
 
-- `tigerlake.iceberg_sync`: `boolean`, set to `true` to start streaming, or `false` to stop the stream. A stream
-  **cannot** resume after being stopped.
+- `tigerlake.iceberg_sync`: `boolean`, set to `true` to start streaming, or `false` to stop the stream. A stopped
+  stream does not resume: setting the property to `true` again starts a new sync. Options you do not set in that
+  statement take their defaults, including the table name, and the Iceberg table from the previous sync stays in
+  the catalog.
 - `tigerlake.iceberg_partitionby`: optional property to define a partition specification in Iceberg. By default the
   Iceberg table is partitioned as `day(<time-column of {HYPERTABLE}>)`. This default behavior is only applicable
-  to {C.HYPERTABLE}s. For more information, see [partitioning](/integrate/connectors/destination/tigerlake#partitioning-intervals).
+  to {C.HYPERTABLE}s. You can only set this property when you start the sync. For more information, see
+  [partitioning](/integrate/connectors/destination/tigerlake#partitioning-intervals).
 - `tigerlake.iceberg_namespace`: optional property to set a namespace, the default is `timescaledb`.
-- `tigerlake.iceberg_table`: optional property to specify a different table name. If no name is specified the {C.PG} table name is used.
+- `tigerlake.iceberg_table`: optional property to specify a different table name. The default is
+  `tigerlake_<database>_<schema>_<table>`, in lowercase. You can only set this property when you start the sync.
+  For more information, see [Sample code](#sample-code).
 - `tigerlake.iceberg_spec_version`: optional `integer`, either `2` or `3`. The default for new syncs is `3`. Set it
   to `2` if the query engine or catalog you read the table with does not support format version 3. You can only set
   this property when you start the sync. For more information, see
@@ -356,13 +368,14 @@ By default, the partition interval for an Iceberg table is one day(time-column) 
 
 | Interval      | Description                                                               | Source types |
 | ------------- |---------------------------------------------------------------------------| --- |
-| `hour`        | Extract a date or timestamp day, as days from epoch. Epoch is 1970-01-01. | `date`, `timestamp`, `timestamptz` |
+| `hour`        | Extract a timestamp hour, as hours from epoch. Epoch is 1970-01-01.       | `timestamp`, `timestamptz` |
 | `day`         | Extract a date or timestamp day, as days from epoch.                      | `date`, `timestamp`, `timestamptz` |
-| `month`       | Extract a date or timestamp day, as days from epoch.                      | `date`, `timestamp`, `timestamptz` |
-| `year`        | Extract a date or timestamp day, as days from epoch.                      | `date`, `timestamp`, `timestamptz` |
-| `truncate[W]` | Value truncated to width W, see [options](https://iceberg.apache.org/spec/#truncate-transform-details)       |
+| `month`       | Extract a date or timestamp month, as months from epoch.                  | `date`, `timestamp`, `timestamptz` |
+| `year`        | Extract a date or timestamp year, as years from epoch.                    | `date`, `timestamp`, `timestamptz` |
+| `truncate(<column>, <width>)` | Value truncated to width `<width>`, see [options](https://iceberg.apache.org/spec/#truncate-transform-details) | integer types |
 
 These partitions define the behavior using the [Iceberg partition specification](https://iceberg.apache.org/spec/#partition-transforms).
+The `week` transform is not supported.
 
 ### Tiered data
 
@@ -457,6 +470,14 @@ Note the following:
   changelog mode.
 - The Iceberg table has no identifier fields and no sort order, because many rows share the same primary key.
 
+### Schema changes
+
+While a table syncs, you can add a column, drop a column, and rename a column. Each change propagates to the Iceberg
+table. The following statements return an error while the sync is active:
+
+- `ADD COLUMN` with a `NOT NULL` constraint or a `DEFAULT` value.
+- `ALTER COLUMN ... TYPE`.
+
 ### Sample code
 
 The following samples show you how to tune data sync from a {C.HYPERTABLE} or a {C.PG} relational table to your
@@ -505,19 +526,8 @@ data lake:
   ALTER TABLE my_hypertable SET (tigerlake.iceberg_sync = false);
   ```
 
-- **Update or add the partitioning scheme of an Iceberg table**
-
-  To change the partitioning scheme of an Iceberg table, you specify the desired partitioning scheme using the `tigerlake.iceberg_partitionby` property.
-  For example. if the `samples` table has an hourly (`hour(ts)`) partition on the `ts` timestamp column,
-  to change to daily partitioning, call the following statement:
-
-  ```sql
-  ALTER TABLE samples SET (tigerlake.iceberg_partitionby = 'day(ts)');
-  ```
-
-  This statement is also correct for Iceberg tables without a partitioning scheme.
-  When you change the partition, you **do not** have to pause the sync to Iceberg.
-  Apache Iceberg handles the partitioning operation in function of the internal implementation.
+  To change the partitioning scheme, the namespace, or the table name of an Iceberg table, stop the sync and start a
+  new one with the new options.
 
 **Specify a different namespace**
 
@@ -532,9 +542,11 @@ ALTER TABLE my_hypertable SET (
 
 **Specify a different Iceberg table name**
 
-The table name in Iceberg is the same as the source table in {C.CLOUD_LONG}.
-Some services do not allow mixed case, or have other constraints for table names.
-To define a different table name for the Iceberg table at sync start,  use the `tigerlake.iceberg_table` property. For example:
+By default, the Iceberg table is named `tigerlake_<database>_<schema>_<table>`, in lowercase. For example, the
+`Mixed_CASE_TableNAME` table in the `public` schema of the `tsdb` database syncs to
+`tigerlake_tsdb_public_mixed_case_tablename`. To define a different table name when you start the sync, use the
+`tigerlake.iceberg_table` property. The name must consist of lowercase letters, digits, and underscores, and must
+not start or end with an underscore. For example:
 
 ```sql
 ALTER TABLE Mixed_CASE_TableNAME SET (
@@ -546,13 +558,14 @@ ALTER TABLE Mixed_CASE_TableNAME SET (
 ## Limitations
 
 - Service requires {C.PG} 17.6 and above is supported.
+- A {C.SERVICE_SHORT} has one connector, which writes to one catalog.
 - [Amazon S3 Tables](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-integrating-open-source.html) and compatible generic Iceberg REST catalogs are supported. Catalog behavior, authentication requirements, and support for vended credentials vary by provider. Amazon S3 Tables is the most thoroughly tested catalog: confirm the support status of a specific REST catalog before using it for a production workload.
 - Generic REST catalogs support OAuth 2.0 client-credentials and personal-access-token authentication. Direct configuration of credentials for the underlying object storage is not available; use catalog-vended credentials instead.
 - Connecting to a REST catalog provides catalog-managed Iceberg tables. It does not provide native ingestion features specific to that catalog's platform (for example, Snowflake Snowpipe or Streams).
 - Throughput figures in [Stream data from your service to your data lake](#stream-data-from-your-service-to-your-data-lake) were measured using Amazon S3 Tables. Generic REST catalog throughput can differ, depending on the catalog's own API latency and table-commit performance.
 - In order to collect deletes made to data in the columstore, certain columnstore optimizations are disabled for {C.HYPERTABLE}s, this includes [Direct Compress](/learn/hypertables/optimize-data-in-hypertables#speed-up-data-ingestion).
 - The `TRUNCATE` statement is not supported, and does not truncate data in the corresponding Iceberg table.
-- You can only choose whether a sync includes [tiered data](/integrate/connectors/destination/tigerlake#tiered-data) when you start the sync. To change it later, stop the sync and start a new one.
+- You can only set the partitioning scheme, the namespace, the table name, the format version, [tiered data](/integrate/connectors/destination/tigerlake#tiered-data), and [changelog mode](/integrate/connectors/destination/tigerlake#changelog-mode) when you start the sync. To change them later, stop the sync and start a new one.
 - Writing to the same S3 table bucket from multiple services is not supported, bucket-to-service mapping is one-to-one.
 - Iceberg snapshots are pruned automatically if the amount exceeds 2500.
 - A {C.HYPERTABLE} with long running continuous aggregates refresh transactions, plus 30 minutes, can cause issues with holding the replication slot too long. Please consider batching in these cases.

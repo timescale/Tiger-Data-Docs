@@ -22,6 +22,7 @@ import { RelatedContentCards, RelatedContentCard } from "@components/RelatedCont
 
 In this integration guide, you:
 
+- Register your S3 Table Bucket with AWS Lake Formation
 - Configure a Snowflake Catalog Integration to connect to your S3 Tables namespace
 - Create a dedicated AWS IAM role that grants Snowflake read-only access to your data
 - Register your synced tables in Snowflake and run queries
@@ -29,13 +30,92 @@ In this integration guide, you:
 <Prerequisites context="integration">
 
 - [{C.ICEBERG_CONNECTOR_LONG}](/integrate/connectors/destination/tigerlake) set up and active in your {C.SERVICE_LONG}, writing to an AWS S3 Tables destination. Note your `S3TableBucketArn` from the CloudFormation stack outputs. You need it throughout this guide.
+- The tables you want to query synced in [changelog mode](/integrate/connectors/destination/tigerlake#changelog-mode). Snowflake cannot read the Iceberg equality deletes that the default mode writes.
 - A [Snowflake](https://docs.snowflake.com/en/user-guide/getting-started-tutorial) account with `ACCOUNTADMIN` privileges. `CREATE CATALOG INTEGRATION` requires `ACCOUNTADMIN` specifically, not just `SYSADMIN`.
-- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and authenticated to the same AWS account as your S3 Table Bucket.
+- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) installed and authenticated to the same AWS account as your S3 Table Bucket, with permission to manage IAM roles and Lake Formation settings.
 </Prerequisites>
 
 <Callout variant="warning">
   Your {C.SERVICE_LONG} and your S3 Table Bucket must be in the same AWS region. Cross-region traffic incurs per-GB transfer fees.
 </Callout>
+
+## Register your table bucket with Lake Formation
+
+Snowflake reads S3 Tables through the AWS Glue Iceberg REST endpoint, and Lake Formation vends the storage credentials. For that, the table bucket must be registered with Lake Formation through a role that Lake Formation can assume.
+
+<NumberedList>
+  <NumberedItem title="Create the Lake Formation access role">
+
+    Replace `<YOUR_AWS_REGION>` and `<YOUR_AWS_ACCOUNT_ID>` with the values from your `S3TableBucketArn`:
+
+    ```shell
+    aws iam create-role \
+      --role-name S3TablesRoleForLakeFormation \
+      --assume-role-policy-document '{
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lakeformation.amazonaws.com"
+            },
+            "Action": [
+              "sts:AssumeRole",
+              "sts:SetContext",
+              "sts:SetSourceIdentity"
+            ],
+            "Condition": {
+              "StringEquals": {
+                "aws:SourceAccount": "<YOUR_AWS_ACCOUNT_ID>"
+              }
+            }
+          }
+        ]
+      }'
+
+    aws iam put-role-policy \
+      --role-name S3TablesRoleForLakeFormation \
+      --policy-name s3tables-access \
+      --policy-document '{
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": "s3tables:*",
+            "Resource": [
+              "arn:aws:s3tables:<YOUR_AWS_REGION>:<YOUR_AWS_ACCOUNT_ID>:bucket/*",
+              "arn:aws:s3tables:<YOUR_AWS_REGION>:<YOUR_AWS_ACCOUNT_ID>:bucket/*/table/*"
+            ]
+          }
+        ]
+      }'
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Register the table bucket">
+
+    ```shell
+    aws lakeformation register-resource \
+      --region <YOUR_AWS_REGION> \
+      --resource-arn arn:aws:s3tables:<YOUR_AWS_REGION>:<YOUR_AWS_ACCOUNT_ID>:bucket/* \
+      --role-arn arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/S3TablesRoleForLakeFormation \
+      --with-federation \
+      --with-privileged-access
+    ```
+
+  </NumberedItem>
+  <NumberedItem title="Verify the Glue catalog">
+
+    ```shell
+    aws glue get-catalog \
+      --region <YOUR_AWS_REGION> \
+      --catalog-id s3tablescatalog
+    ```
+
+    If the command returns `EntityNotFoundException`, create the catalog as described in step 3 of [Query {C.LAKE} S3 Tables with AWS Glue and Athena](/integrate/connectors/destination/athena).
+
+  </NumberedItem>
+</NumberedList>
 
 ## Configure Snowflake
 
@@ -210,9 +290,20 @@ Create a dedicated IAM role so Snowflake can authenticate to your S3 Table Bucke
   </NumberedItem>
   <NumberedItem title="Grant Lake Formation permissions">
 
-    Grant the Snowflake role `SELECT` and `DESCRIBE` access to all tables in your namespace:
+    Grant the Snowflake role `DESCRIBE` on your namespace, and `SELECT` and `DESCRIBE` on all its tables. If a command returns `Invalid principal` right after you created the role, wait a few seconds and run it again:
 
     ```shell
+    aws lakeformation grant-permissions \
+      --region <YOUR_AWS_REGION> \
+      --principal DataLakePrincipalIdentifier=arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/snowflake-s3tables-reader \
+      --resource '{
+        "Database": {
+          "CatalogId": "<YOUR_AWS_ACCOUNT_ID>:s3tablescatalog/<YOUR_BUCKET_NAME>",
+          "Name": "<YOUR_NAMESPACE>"
+        }
+      }' \
+      --permissions "DESCRIBE"
+
     aws lakeformation grant-permissions \
       --region <YOUR_AWS_REGION> \
       --principal DataLakePrincipalIdentifier=arn:aws:iam::<YOUR_AWS_ACCOUNT_ID>:role/snowflake-s3tables-reader \
@@ -324,10 +415,10 @@ You have successfully integrated Snowflake with {C.CLOUD_LONG}.
 
 ## Refresh metadata on demand
 
-New rows inserted in {C.CLOUD_LONG} are visible in Snowflake within the `REFRESH_INTERVAL_SECONDS` window (120 seconds by default). To see changes immediately without waiting:
+After {C.ICEBERG_CONNECTOR_LONG} commits a change to the Iceberg table, Snowflake picks it up within the `REFRESH_INTERVAL_SECONDS` window (120 seconds by default). To see it immediately:
 
 ```sql
-ALTER CATALOG INTEGRATION tiger_s3tables_catalog REFRESH;
+ALTER ICEBERG TABLE tiger_data.<YOUR_NAMESPACE>.<YOUR_TABLE_NAME> REFRESH;
 ```
 
 ## Troubleshooting
@@ -337,13 +428,17 @@ ALTER CATALOG INTEGRATION tiger_s3tables_catalog REFRESH;
 - **`Unable to retrieve credentials from Lake Formation`:** The Snowflake IAM role is missing `lakeformation:GetDataAccess`. Re-run the `aws iam put-role-policy` step.
 - **`Insufficient Lake Formation permission on table`:** The Lake Formation grant is missing. Re-run the `aws lakeformation grant-permissions` step.
 - **`Unmatched catalog api type PUBLIC and authentication type SIGV4`:** `CATALOG_API_TYPE = AWS_GLUE` is missing from `REST_CONFIG`. Re-run the `CREATE OR REPLACE CATALOG INTEGRATION` step.
+- **`Failed to retrieve credentials from the Catalog`:** The table bucket is not registered with Lake Formation. Complete [Register your table bucket with Lake Formation](#register-your-table-bucket-with-lake-formation).
+- **`Unable to assume role. Please verify Lake Formation has access to role`:** The `S3TablesRoleForLakeFormation` trust policy or the registration does not match the `Register your table bucket with Lake Formation` section. Fix the trust policy, run `aws lakeformation deregister-resource --resource-arn <RESOURCE_ARN>`, then run the `register-resource` step again.
+- **`Equality deletes on Iceberg tables are not supported`:** The table was not synced in changelog mode. Stop the sync and start a new one with `tigerlake.iceberg_changelog_mode = true`, or `Include changelog` in {C.CONSOLE}.
 - **Table not visible after `list-tables`:** {C.ICEBERG_CONNECTOR_LONG} has not completed a full sync cycle yet. Check connector status in {C.CONSOLE}.
-- **Stale data in Snowflake:** Run `ALTER CATALOG INTEGRATION tiger_s3tables_catalog REFRESH` to force a metadata refresh.
+- **Stale data in Snowflake:** Run `ALTER ICEBERG TABLE ... REFRESH` on the table to force a metadata refresh.
 - **{C.ICEBERG_CONNECTOR_LONG} write path failing:** The {C.ICEBERG_CONNECTOR_LONG} IAM role and the `snowflake-s3tables-reader` role are completely separate. Check that you have not modified the {C.ICEBERG_CONNECTOR_LONG} IAM role.
 
 ## Limitations
 
 - Snowflake has read-only access to your S3 Tables data. Writing back to S3 via Snowflake is not supported.
+- A table synced in the default mode stops being readable after the first update or delete, because Snowflake cannot read Iceberg equality deletes. Sync tables in changelog mode. Iceberg format version 3 is supported.
 - Tables added by {C.ICEBERG_CONNECTOR_LONG} after initial setup are not automatically visible in Snowflake. Run `CREATE ICEBERG TABLE` for each new table.
 - This integration is not available for Azure deployments of {C.CLOUD_LONG}.
 
