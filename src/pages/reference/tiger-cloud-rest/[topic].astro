@@ -37,8 +37,8 @@ const inherited = topic.resource
   .some((_, i) => resourceAt(topic.resource.slice(0, i + 1)).description === description);
 
 Astro.locals.language = "http";
-// These pages have no Markdown version, so the Copy Markdown control is not offered.
-Astro.locals._stlStarlightPage = { skipRenderingStarlightTitle: false, hasMarkdownRoute: false };
+// The Markdown version is served by `[topic]/index.md.ts`.
+Astro.locals._stlStarlightPage = { skipRenderingStarlightTitle: false, hasMarkdownRoute: true };
 ---
 
 <StarlightPage
@@ -138,9 +138,60 @@ Astro.locals._stlStarlightPage = { skipRenderingStarlightTitle: false, hasMarkdo
 </script>
 
 <script>
+  // Stainless's own handlers for these controls (plugin/globalJs/navigation.ts and
+  // code-snippets.ts) look the targets up page-wide, which assumes one endpoint per
+  // page. The same logic, scoped to the endpoint section the control sits in.
+  const sectionOf = (el: Element) => el.closest<HTMLElement>(".rest-topic-endpoint");
+
+  // Expand and collapse every property of a parameter group.
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const toggle = event.target.closest<HTMLElement>("[data-stldocs-property-toggle-expanded]");
+    if (!toggle) return;
+    const expanded = toggle.dataset.stldocsPropertyToggleExpanded === "true";
+    toggle.dataset.stldocsPropertyToggleExpanded = String(!expanded);
+    const group = sectionOf(toggle)?.querySelector(
+      `[data-stldocs-property-group="${toggle.dataset.stldocsPropertyToggleTarget}"]`
+    );
+    for (const details of group?.getElementsByTagName("details") ?? []) {
+      details.open = details.dataset.stldocsExpanderInitialState === "true" ? true : !expanded;
+    }
+  });
+
+  // Response tabs of a sample.
+  for (const tab of document.querySelectorAll<HTMLElement>(".stldocs-snippet-response-tab-item")) {
+    tab.addEventListener("click", () => {
+      const section = sectionOf(tab);
+      const id = tab.dataset.snippetResponseTabId;
+      if (!section || !id) return;
+      for (const t of section.querySelectorAll<HTMLElement>(".stldocs-snippet-response-tab-item")) {
+        t.classList.toggle("stldocs-snippet-response-tab-item-active", t.dataset.snippetResponseTabId === id);
+      }
+      for (const pane of section.querySelectorAll<HTMLElement>("[data-snippet-response-pane-id]")) {
+        pane.classList.toggle("stldocs-snippet-response-pane-active", pane.dataset.snippetResponsePaneId === id);
+      }
+      tab.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    });
+  }
+
+  // Language radios of a multi-snippet sample.
+  for (const container of document.querySelectorAll<HTMLElement>("[data-stldocs-multi-snippet-container]")) {
+    const panes = container.querySelectorAll<HTMLElement>("[data-stldocs-multi-snippet-id]");
+    for (const radio of container.querySelectorAll<HTMLInputElement>('input[type="radio"]')) {
+      radio.addEventListener("change", () => {
+        if (!radio.checked) return;
+        for (const pane of panes) {
+          pane.classList.toggle("stldocs-snippet-multi-pane-active", pane.dataset.stldocsMultiSnippetId === radio.value);
+        }
+        radio.parentElement?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      });
+    }
+  }
+</script>
+
+<script>
   import "@stainless-plugin/globalJs/copy.ts";
   import "@stainless-plugin/globalJs/tooltip.ts";
-  import "@stainless-plugin/globalJs/code-snippets.ts";
   import "@stainless-plugin/globalJs/method-descriptions.ts";
   import "@stainless-plugin/globalJs/summary-selection-tweak.ts";
 </script>

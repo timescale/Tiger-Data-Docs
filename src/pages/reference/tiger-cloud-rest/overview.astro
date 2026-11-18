@@ -1,0 +1,53 @@
+---
+/**
+ * Overview of the Tiger Cloud REST reference: what the API is for, how to
+ * authenticate, and the topic pages. Stainless's generated overview stays at
+ * the reference root, unlinked; the sidebar points here instead. The text
+ * lives in `src/lib/rest-overview.ts`, shared with the page's Markdown route.
+ */
+import StarlightPage from "@astrojs/starlight/components/StarlightPage.astro";
+import { Code } from "@astrojs/starlight/components";
+import { getSDKJSONInSSR } from "@stainless-api/docs/specs/fetchSpecSSR";
+import { getRestBaseUrl, REST_REFERENCE_PATH } from "../../../lib/rest-topics";
+import * as overview from "../../../lib/rest-overview";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const topics = overview.getRestOverviewTopics(await getSDKJSONInSSR("http"));
+const headings = overview.SECTIONS.map((section) => ({ depth: 2, ...section }));
+
+Astro.locals.language = "http";
+Astro.locals._stlStarlightPage = { skipRenderingStarlightTitle: false, hasMarkdownRoute: true };
+---
+
+<StarlightPage
+  frontmatter={{ title: overview.TITLE, description: overview.DESCRIPTION, prev: false, next: false }}
+  headings={headings}
+>
+  <p>{overview.INTRO}</p>
+
+  <h2 id="authentication">Authentication</h2>
+  <p>
+    {overview.AUTH_INTRO}
+    <a href={`${base}${overview.AUTH_LINK.path}#${overview.AUTH_LINK.anchor}`}>{overview.AUTH_LINK.text}</a>
+    {overview.AUTH_AFTER_LINK}
+  </p>
+  <Code lang="bash" code={overview.AUTH_EXAMPLE} />
+  <p>
+    {overview.WALKTHROUGH.before}
+    <a href={`${base}${overview.WALKTHROUGH.path}`}>{overview.WALKTHROUGH.text}</a>.
+  </p>
+
+  <h2 id="base-url">Base URL</h2>
+  <Code lang="text" code={getRestBaseUrl()} />
+
+  <h2 id="resources">Resources</h2>
+  <ul>
+    {
+      topics.map((topic) => (
+        <li>
+          <a href={`${base}${REST_REFERENCE_PATH}/${topic.slug}`}>{topic.label}</a>{topic.description && `: ${topic.description}`}
+        </li>
+      ))
+    }
+  </ul>
+</StarlightPage>

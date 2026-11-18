@@ -62,6 +62,13 @@ function readYaml(file: string) {
   return parse(readFileSync(resolve(process.cwd(), "stainless", file), "utf8"));
 }
 
+/** The API server from the spec, for the overview page. */
+export function getRestBaseUrl(): string {
+  const url: string | undefined = readYaml("openapi.yml").servers?.[0]?.url;
+  if (!url) throw new Error("openapi.yml: no servers[0].url");
+  return url;
+}
+
 let cached: RestTopic[] | undefined;
 
 export function getRestTopics(): RestTopic[] {

@@ -83,7 +83,8 @@ export async function getPrevNextPage(
       )
       .filter((link) => !link.attrs?.["data-stldocs-method"])
       .map((link) => {
-        if (link.attrs?.["data-stldocs-overview"] && link.label === "Overview") {
+        // A section's "Overview" entry is shown under its section's name.
+        if (link.label === "Overview") {
           const sidebarArr = Array.isArray(currentSidebar) ? currentSidebar : [];
           const parent = findParentOfSidebarEntry(sidebarArr, link);
           if (parent) return { ...link, label: parent.label };
