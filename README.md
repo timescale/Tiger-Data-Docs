@@ -187,3 +187,7 @@ learnMore:
 
 - [Starlight docs](https://starlight.astro.build/getting-started/)
 - [Astro docs](https://docs.astro.build)
+
+## License
+
+The documentation, everything under `src/content` and `src/assets`, is licensed under [CC BY 4.0](LICENSE). The code that builds and serves it, everything else in this repository, is licensed under the [Apache License 2.0](LICENSE-CODE).
