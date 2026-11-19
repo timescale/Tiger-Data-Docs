@@ -124,7 +124,7 @@ To connect a {C.SERVICE_LONG} to Amazon S3 Tables, first create the table bucket
            ParameterKey=ServiceID,ParameterValue="<ServiceID>"
         ```
 
-        Setting up the integration through {C.CONSOLE} in {C.CLOUD_LONG}, provides a convenient copy-paste option with the placeholders populated.
+        {C.CONSOLE} shows this command with the placeholders filled in for your {C.SERVICE_SHORT}.
       </NumberedItem>
     </NumberedList>
   </Tab>
@@ -319,12 +319,11 @@ When you start syncing, all data in the table is streamed to Iceberg in the foll
 - Table snapshot: stream data from a snapshot of the source table to the destination Iceberg table at
   approximately 300,000 records a second. For larger tables, import speeds are approximately 1 billion records
   or 100 GB of data an hour. However, these numbers vary on table width and the complexity of the schema.
-- Table changes: stream changes made to the source table (CDC) after the snapshot is taken to a branch of the
-  destination Iceberg table. This happens at approximately 30,000 events a second. Ingest bursts exceeding this
-  can be handled for a certain amount of time and feathered out over time. This depends on duration of the
-  ingestion burst, and the amount of extra events to be handled.
+- Table changes: changes made to the source table after the snapshot (CDC) stream to a branch of the destination
+  Iceberg table at approximately 30,000 events a second. Bursts above this rate are absorbed and caught up over
+  time, depending on how long the burst lasts and how many extra events it brings.
 
-Once the snapshot is fully imported, the snapshot and CDC Iceberg table branches are merged. Merging takes from a couple of seconds, to ten minutes for larger tables of 5TB or more. During this time, new events are held on the WAL. Once the merge is completed, events in the WAL are CDC'd to Iceberg. This implies eventual consistency of the Iceberg table after you start the sync.
+Once the snapshot is imported, the snapshot and CDC branches are merged. Merging takes from a few seconds to ten minutes for tables of 5 TB or more. During the merge, new events wait in the WAL and are streamed to Iceberg afterwards. The Iceberg table is eventually consistent with the source.
 
 To stream data from a {C.PG} relational table, or a {C.HYPERTABLE} in your {C.SERVICE_LONG} to your data lake, run the following
 statement:
@@ -373,9 +372,9 @@ ALTER TABLE <table_name> SET (
 
 ### Partitioning intervals
 
-By default, the partition interval for an Iceberg table is one day(time-column) for a {C.HYPERTABLE_CAP}.
-{C.PG} table sync does not enable any partitioning in Iceberg for non-hypertables. You can set it using
-[tigerlake.iceberg\_partitionby](/integrate/connectors/destination/tigerlake#sample-code). The following partition intervals and specifications are supported:
+By default, an Iceberg table synced from a {C.HYPERTABLE} is partitioned by `day(<time-column>)`. A table synced
+from a {C.PG} relational table is not partitioned. To set the partitioning, use
+[tigerlake.iceberg\_partitionby](/integrate/connectors/destination/tigerlake#sample-code). The following transforms are supported:
 
 | Interval      | Description                                                               | Source types |
 | ------------- |---------------------------------------------------------------------------| --- |
@@ -686,9 +685,9 @@ Note the following:
 - Generic REST catalogs support OAuth 2.0 client-credentials and personal-access-token authentication. Direct configuration of credentials for the underlying object storage is not available; use catalog-vended credentials instead.
 - Connecting to a REST catalog provides catalog-managed Iceberg tables. It does not provide native ingestion features specific to that catalog's platform (for example, Snowflake Snowpipe or Streams).
 - Throughput figures in [Stream data from your service to your data lake](#stream-data-from-your-service-to-your-data-lake) were measured using Amazon S3 Tables. Generic REST catalog throughput can differ, depending on the catalog's own API latency and table-commit performance.
-- In order to collect deletes made to data in the columnstore, certain columnstore optimizations are disabled for {C.HYPERTABLE}s, this includes [Direct Compress](/learn/hypertables/optimize-data-in-hypertables#speed-up-data-ingestion).
+- To capture deletes in the columnstore, some columnstore optimizations are disabled for {C.HYPERTABLE}s, including [direct compress](/learn/hypertables/optimize-data-in-hypertables#speed-up-data-ingestion).
 - The `TRUNCATE` statement is not supported, and does not truncate data in the corresponding Iceberg table.
 - You can only set the partitioning scheme, the namespace, the table name, the format version, [tiered data](/integrate/connectors/destination/tigerlake#tiered-data), and [changelog mode](/integrate/connectors/destination/tigerlake#changelog-mode) when you start the sync. To change them later, stop the sync and start a new one.
-- Writing to the same S3 table bucket from multiple services is not supported, bucket-to-service mapping is one-to-one.
+- Only one {C.SERVICE_SHORT} can write to an S3 table bucket.
 - Iceberg snapshots are pruned automatically if the amount exceeds 2500.
-- A {C.HYPERTABLE} with long running continuous aggregates refresh transactions, plus 30 minutes, can cause issues with holding the replication slot too long. Please consider batching in these cases.
+- A long continuous aggregate refresh transaction on a syncing {C.HYPERTABLE} can hold the replication slot too long. Batch long refreshes.
