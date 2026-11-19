@@ -1,6 +1,7 @@
 import { defineRouteMiddleware } from "@astrojs/starlight/route-data";
 import type { StarlightRouteData } from "@astrojs/starlight/route-data";
 import { flattenSidebarSingleChildGroups } from "./lib/flatten-sidebar-single-child-groups";
+import { isRestReferencePage, isRestReferencePath } from "./lib/rest-topics";
 
 type SidebarEntry = StarlightRouteData["sidebar"][number];
 
@@ -42,6 +43,12 @@ export const onRequest = defineRouteMiddleware(async (context, next) => {
     if (route) {
       // Set siteTitleHref to point the logo at the main Tiger Data website
       route.siteTitleHref = "https://www.tigerdata.com";
+      // The pages Stainless generates for the REST reference (one per endpoint, one per resource
+      // and the root) are no longer linked; the topic pages carry the same content. Keep the old
+      // URLs working but out of search engines. Head.astro renders the robots meta from this flag.
+      if (isRestReferencePath(context.url.pathname) && !isRestReferencePage(context.url.pathname)) {
+        (route.entry.data as { noindex?: boolean }).noindex = true;
+      }
       // Flatten single-child sidebar groups
       if (route.sidebar?.length) {
         route.sidebar = flattenSidebarSingleChildGroups(route.sidebar);

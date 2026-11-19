@@ -18,7 +18,7 @@ export const GET: APIRoute = async (context) => {
   const { topic } = context.props as { topic: RestTopic };
   const spec = await getSDKJSONInSSR("http");
   const resourceAt = (keys: string[]) =>
-    keys.reduce((parent: any, key) => parent.subresources[key], { subresources: spec.resources });
+    keys.reduce((parent: any, key) => parent?.subresources?.[key], { subresources: spec.resources });
 
   const sections = [`# ${topic.label}`];
   for (const endpoint of topic.endpoints) {

@@ -10,6 +10,7 @@ import { getSDKJSONInSSR } from "@stainless-api/docs/specs/fetchSpecSSR";
 import { CONTENT_PANEL_LAYOUT, MIDDLEWARE } from "virtual:stl-starlight-virtual-module";
 import { RenderSpec } from "@stainless-plugin/react/Routing";
 import { getRestTopics, type RestTopic } from "../../../lib/rest-topics";
+import RestEndpointSection from "../../../components/RestEndpointSection.astro";
 
 export function getStaticPaths() {
   return getRestTopics().map((topic) => ({ params: { topic: topic.slug }, props: { topic } }));
@@ -19,7 +20,7 @@ const { topic } = Astro.props as { topic: RestTopic };
 const spec = await getSDKJSONInSSR("http");
 
 const resourceAt = (keys: string[]) =>
-  keys.reduce((parent: any, key) => parent.subresources[key], { subresources: spec.resources });
+  keys.reduce((parent: any, key) => parent?.subresources?.[key], { subresources: spec.resources });
 
 const endpoints = topic.endpoints.map((endpoint) => {
   const method = resourceAt(endpoint.resource)?.methods?.[endpoint.method];
@@ -31,10 +32,10 @@ const endpoints = topic.endpoints.map((endpoint) => {
 
 // A resource without its own tag in the spec inherits its parent's description
 // (metrics shows the services text): show a description only when it is the topic's own.
-const description: string | undefined = resourceAt(topic.resource).description;
+const description: string | undefined = resourceAt(topic.resource)?.description;
 const inherited = topic.resource
   .slice(0, -1)
-  .some((_, i) => resourceAt(topic.resource.slice(0, i + 1)).description === description);
+  .some((_, i) => resourceAt(topic.resource.slice(0, i + 1))?.description === description);
 
 Astro.locals.language = "http";
 // The Markdown version is served by `[topic]/index.md.ts`.
@@ -54,7 +55,7 @@ Astro.locals._stlStarlightPage = { skipRenderingStarlightTitle: false, hasMarkdo
   <div class="not-content rest-topic">
     {
       endpoints.map((endpoint) => (
-        <section id={endpoint.id} class="rest-topic-endpoint">
+        <RestEndpointSection id={endpoint.id}>
           <RenderSpec
             spec={spec}
             kind="http_method"
@@ -64,7 +65,7 @@ Astro.locals._stlStarlightPage = { skipRenderingStarlightTitle: false, hasMarkdo
             contentPanelLayout={CONTENT_PANEL_LAYOUT}
             transformRequestSnippet={MIDDLEWARE.transformRequestSnippet}
           />
-        </section>
+        </RestEndpointSection>
       ))
     }
   </div>

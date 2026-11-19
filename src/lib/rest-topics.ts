@@ -69,6 +69,24 @@ export function getRestBaseUrl(): string {
   return url;
 }
 
+/**
+ * Whether `pathname` is one of the pages this site builds for the REST reference: the overview or a
+ * topic page. Every other path under the REST reference is a page Stainless generates from the
+ * spec and the site no longer links: the per-endpoint pages, the resource pages and the root.
+ * `pathname` may carry the production base path, so the match is on the tail.
+ */
+export function isRestReferencePage(pathname: string): boolean {
+  const path = pathname.replace(/\/$/, "");
+  const pages = ["overview", ...getRestTopics().map((topic) => topic.slug)];
+  return pages.some((page) => path.endsWith(`${REST_REFERENCE_PATH}/${page}`));
+}
+
+/** Whether `pathname` is under the REST reference at all, the root included. */
+export function isRestReferencePath(pathname: string): boolean {
+  const path = pathname.replace(/\/$/, "");
+  return path.endsWith(REST_REFERENCE_PATH) || path.includes(`${REST_REFERENCE_PATH}/`);
+}
+
 let cached: RestTopic[] | undefined;
 
 export function getRestTopics(): RestTopic[] {
