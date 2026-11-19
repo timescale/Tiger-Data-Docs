@@ -54,7 +54,10 @@ Once set up, you can query that data directly. For example, see
 | Catalog | Use when |
 | --- | --- |
 | Amazon S3 Tables | You want an AWS-managed Iceberg catalog and storage service. {C.ICEBERG_CONNECTOR_SHORT} connects using an IAM role. |
-| Generic Iceberg REST catalog | You already use a compatible Iceberg REST catalog, such as Snowflake Open Catalog, Apache Polaris, or Snowflake Horizon Catalog. {C.ICEBERG_CONNECTOR_SHORT} connects using OAuth 2.0 client credentials or a personal access token. |
+| Generic Iceberg REST catalog | You already use a compatible Iceberg REST catalog, such as Snowflake Open Catalog, Apache Polaris, Snowflake Horizon Catalog, or Databricks Unity Catalog. {C.ICEBERG_CONNECTOR_SHORT} connects using OAuth 2.0 client credentials or a personal access token. |
+
+{C.LAKE} is available for {C.SERVICE_SHORT}s on AWS and Azure. Amazon S3 Tables requires a {C.SERVICE_SHORT} on AWS;
+{C.SERVICE_SHORT}s on Azure connect through a generic Iceberg REST catalog.
 
 Amazon S3 Tables is configured separately because it uses AWS IAM and SigV4 authentication. Generic REST catalogs
 use the Iceberg REST Catalog API, and can provide access to the underlying object storage through vended
@@ -299,19 +302,20 @@ catalog principal, or permissions on your behalf.
 ## Stream data from your service to your data lake
 
 Records are imported in time order, from oldest to newest.
-Your {C.HYPERTABLE} or relational table must have a primary key, or composite primary keys as a prerequisite to sync to Iceberg.
+Your {C.HYPERTABLE} or relational table must have a primary key, or a composite primary key, to sync to Iceberg.
+Continuous aggregates are the exception, see [Continuous aggregates](#continuous-aggregates).
 
 When you start syncing, all data in the table is streamed to Iceberg in the following processes:
 
 - Table snapshot: stream data from a snapshot of the source table to the destination Iceberg table at
-  approximately 300.000 records a second. For larger tables, import speeds are approximately 1 billion records
+  approximately 300,000 records a second. For larger tables, import speeds are approximately 1 billion records
   or 100 GB of data an hour. However, these numbers vary on table width and the complexity of the schema.
 - Table changes: stream changes made to the source table (CDC) after the snapshot is taken to a branch of the
-  destination Iceberg table. This happens at approximately 30.000 events a second. Ingest bursts exceeding this
+  destination Iceberg table. This happens at approximately 30,000 events a second. Ingest bursts exceeding this
   can be handled for a certain amount of time and feathered out over time. This depends on duration of the
   ingestion burst, and the amount of extra events to be handled.
 
-Once the snapshot is fully imported, the snapshot and CDC Iceberg table branches are merged. Merging takes from a couple of seconds, to ten minutes for larger tables of 5TB or more. During this time, new events are held on the WAL. Once the merge is completed, events in the WAL are CDC'd to Iceberg. This implies eventual consistency of the Iceberg table after you started the the sync.
+Once the snapshot is fully imported, the snapshot and CDC Iceberg table branches are merged. Merging takes from a couple of seconds, to ten minutes for larger tables of 5TB or more. During this time, new events are held on the WAL. Once the merge is completed, events in the WAL are CDC'd to Iceberg. This implies eventual consistency of the Iceberg table after you start the sync.
 
 To stream data from a {C.PG} relational table, or a {C.HYPERTABLE} in your {C.SERVICE_LONG} to your data lake, run the following
 statement:
@@ -409,6 +413,8 @@ Note the following:
 - You can only set `tigerlake.iceberg_spec_version` when you start the sync. To change the format version of a table
   that is already syncing, stop the sync and start a new one.
 - Tables that started syncing before this property was available remain on format version 2.
+- Amazon Athena reads format version 2 only. If you query Amazon S3 Tables with Athena, start the sync with
+  `tigerlake.iceberg_spec_version = 2`, or select `Iceberg format v2` in {C.CONSOLE}.
 
 ### Changelog mode
 
@@ -456,6 +462,17 @@ Note the following:
   the preceding columns. Starting the sync returns an error. Rename the column first, or start the sync without
   changelog mode.
 - The Iceberg table has no identifier fields and no sort order, because many rows share the same primary key.
+
+### Continuous aggregates
+
+You can sync a continuous aggregate to Iceberg. Start the sync with `ALTER MATERIALIZED VIEW`:
+
+```sql
+ALTER MATERIALIZED VIEW my_cagg SET (tigerlake.iceberg_sync = true);
+```
+
+A continuous aggregate does not need a primary key. The Iceberg table uses its grouping columns, including the
+time bucket, as the key. Rows that each refresh writes sync to Iceberg like changes to any other table.
 
 ### Sample code
 
@@ -521,7 +538,7 @@ data lake:
 
 **Specify a different namespace**
 
-By default, tables are created in the the `timescaledb` namespace. To specify a different namespace when you start the sync, use the  `tigerlake.iceberg_namespace` property. For example:
+By default, tables are created in the `timescaledb` namespace. To specify a different namespace when you start the sync, use the  `tigerlake.iceberg_namespace` property. For example:
 
 ```sql
 ALTER TABLE my_hypertable SET (
@@ -543,14 +560,33 @@ ALTER TABLE Mixed_CASE_TableNAME SET (
 );
 ```
 
+## Pricing
+
+{C.LAKE} is billed per connector, plus the data the connector delivers:
+
+| Charge | Price |
+| --- | --- |
+| Connector | $0.341 an hour in US AWS regions, about $249 a month. Billed for each hour the connector runs. Hourly rates vary by region. |
+| Initial copy | $0.10 per GB, once, for the existing data in a table when its sync starts. |
+| Continuous changes | $0.20 per GB for the inserts, updates, and deletes synced after the initial copy. |
+
+Note the following:
+
+- Data volumes are measured on the uncompressed size of the rows delivered, not the compressed size in your
+  {C.SERVICE_SHORT}. Only the tables you choose to sync count.
+- A {C.SERVICE_SHORT} has one connector. Each table you sync through it is included in the connector price.
+- There is no data transfer charge when the catalog storage is in the same region as your {C.SERVICE_SHORT}.
+  Cross-region data transfer is charged by region pair.
+- Billing starts on March 1, 2027. Connectors are free until then.
+
 ## Limitations
 
-- Service requires {C.PG} 17.6 and above is supported.
-- [Amazon S3 Tables](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-integrating-open-source.html) and compatible generic Iceberg REST catalogs are supported. Catalog behavior, authentication requirements, and support for vended credentials vary by provider. Amazon S3 Tables is the most thoroughly tested catalog: confirm the support status of a specific REST catalog before using it for a production workload.
+- {C.PG} 17.6 or later is required.
+- [Amazon S3 Tables](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-tables-integrating-open-source.html) and compatible generic Iceberg REST catalogs are supported. Catalog behavior, authentication requirements, and support for vended credentials vary by provider. Check your catalog provider's documentation for its Iceberg REST and credential-vending support.
 - Generic REST catalogs support OAuth 2.0 client-credentials and personal-access-token authentication. Direct configuration of credentials for the underlying object storage is not available; use catalog-vended credentials instead.
 - Connecting to a REST catalog provides catalog-managed Iceberg tables. It does not provide native ingestion features specific to that catalog's platform (for example, Snowflake Snowpipe or Streams).
 - Throughput figures in [Stream data from your service to your data lake](#stream-data-from-your-service-to-your-data-lake) were measured using Amazon S3 Tables. Generic REST catalog throughput can differ, depending on the catalog's own API latency and table-commit performance.
-- In order to collect deletes made to data in the columstore, certain columnstore optimizations are disabled for {C.HYPERTABLE}s, this includes [Direct Compress](/learn/hypertables/optimize-data-in-hypertables#speed-up-data-ingestion).
+- In order to collect deletes made to data in the columnstore, certain columnstore optimizations are disabled for {C.HYPERTABLE}s, this includes [Direct Compress](/learn/hypertables/optimize-data-in-hypertables#speed-up-data-ingestion).
 - The `TRUNCATE` statement is not supported, and does not truncate data in the corresponding Iceberg table.
 - You can only choose whether a sync includes [tiered data](/integrate/connectors/destination/tigerlake#tiered-data) when you start the sync. To change it later, stop the sync and start a new one.
 - Writing to the same S3 table bucket from multiple services is not supported, bucket-to-service mapping is one-to-one.
