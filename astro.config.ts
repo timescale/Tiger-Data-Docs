@@ -348,12 +348,11 @@ export default defineConfig({
           tag: "script",
           content: `(function(){function exp(){var b=document.getElementById("starlight__sidebar");if(!b)return;var a=b.querySelector('[aria-current="page"]');if(!a)return;var e=a.parentElement;while(e&&e!==b){if(e.tagName==="DETAILS")e.open=true;e=e.parentElement;}}if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",exp);}else{exp();}document.addEventListener("astro:page-load",exp);})();`,
         },
-        // PostHog and the Twitter/X ads pixel are consent-gated (and, for PostHog,
-        // read PUBLIC_POSTHOG_KEY), which requires the real Astro env var pipeline —
-        // import.meta.env doesn't expose .env vars inside this config file (see git
-        // history on this file for PUBLIC_POSTHOG_KEY). They live in
-        // src/components/HeadScripts/{PostHogAnalytics,TwitterPixel}.astro instead,
-        // rendered from Head.astro after OsanoConsent.astro.
+        // PostHog is consent-gated (and reads PUBLIC_POSTHOG_KEY), which requires the
+        // real Astro env var pipeline — import.meta.env doesn't expose .env vars inside
+        // this config file (see git history on this file for PUBLIC_POSTHOG_KEY). It
+        // lives in src/components/HeadScripts/PostHogAnalytics.astro instead, rendered
+        // from Head.astro after OsanoConsent.astro.
       ],
       header: {
         layout: "stacked",
