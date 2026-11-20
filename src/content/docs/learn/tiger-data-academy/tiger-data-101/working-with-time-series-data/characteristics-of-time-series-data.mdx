@@ -1,0 +1,90 @@
+---
+title: Characteristics of Time-Series Data
+description: Understand the key traits that define time-series workloads
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+import { Callout } from "@stainless-api/docs/components";
+
+<div style="background: #f5f3ff; border-left: 3px solid #4f6bed; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; border-radius: 4px;">
+  **Tiger Data 101** → TimescaleDB | **Section:** Working with Time-Series Data | **⏱ Time:** ~2 min
+</div>
+
+## Key Characteristics of Time-Series Data
+
+Understanding these traits is essential because they shape every design decision in a time-series database.
+
+### 1. **Append-Only (Rarely Updated or Deleted)**
+
+Once a data point is written, it almost never changes. A sensor reading from 2:15 PM doesn't get corrected to a different value; if there's an error, you typically record a new, corrected reading.
+
+**Why it matters:** Row-based databases optimize for random updates, which wastes space on time-series data. Append-only workloads are a perfect fit for **column-based storage** and **compression**.
+
+### 2. **Ordered by Timestamp**
+
+Every row has a timestamp, and data naturally arrives in chronological order (or close to it). Old data is almost never inserted out of order.
+
+**Why it matters:** This ordering enables optimizations like **chunk partitioning by time** — you can automatically split data into discrete time buckets and manage them independently.
+
+### 3. **High Cardinality**
+
+You might have thousands or millions of unique **series** (e.g., device IDs, sensor locations, user IDs, stock symbols).
+
+**Why it matters:** Indexes on these high-cardinality columns must be efficient, and query plans must avoid expensive full-table scans. TimescaleDB uses **adaptive indexing** to handle this.
+
+### 4. **High Ingest Rate**
+
+Time-series systems handle thousands to millions of writes per second. A single sensor network alone might produce terabytes of data monthly.
+
+**Why it matters:** Writes must be fast and cheap. You can't afford the overhead of random-access optimizations (like row-level locking for updates).
+
+### 5. **Time-Range Query Patterns**
+
+Users almost always query by time ranges:
+- "Show me CPU usage for all servers in the last hour"
+- "Get me daily revenue totals for the past month"
+- "What's the average temperature across sensors between 3 PM and 5 PM?"
+
+**Why it matters:** Queries filter by timestamp ranges, not individual row lookups. This is the opposite of a relational database's typical access pattern.
+
+### 6. **Lifecycle Management**
+
+Old data often needs to be:
+- **Compressed** (save storage)
+- **Downsampled** (aggregate 1-minute readings into 1-hour readings)
+- **Archived** (moved to cold storage)
+- **Expired** (automatically deleted)
+
+**Why it matters:** Time-series systems need **automatic, policy-based lifecycle management** to avoid manual intervention.
+
+---
+
+## Real-World Example
+
+Imagine a **stock price monitoring system**:
+
+- **High ingest rate**: Prices tick thousands of times per second across all symbols
+- **Append-only**: A price at 10:30:45 AM is final; it's never updated
+- **High cardinality**: Thousands of stock symbols (AAPL, MSFT, TSLA, etc.)
+- **Time-range queries**: "Show me AAPL's price movements in the last hour"
+- **Lifecycle**: Keep 1-second granularity for the last day, compress to 1-minute for the last month, delete after 2 years
+
+A standard relational database would struggle with the write volume and query efficiency. A time-series database is purpose-built for this.
+
+---
+
+<div style="display: flex; justify-content: flex-end; margin-top: 40px;">
+  <a href="/learn/tiger-data-academy/tiger-data-101/working-with-time-series-data/time-series-vs-relational-data-models" style="text-decoration: none; display: block; width: 100%;">
+    <div style="background: linear-gradient(135deg, #4f6bed 0%, #667eea 100%); border-radius: 8px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(79, 107, 237, 0.15); cursor: pointer; transition: all 0.2s ease; text-align: right;">
+      <div style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-bottom: 12px;">
+        <span style="font-weight: 700; font-size: 16px;">NEXT PAGE</span>
+        <span style="font-size: 20px;">→</span>
+      </div>
+      <div style="color: #e0e7ff; font-weight: 500; font-size: 15px; margin-bottom: 8px; margin-top: 0;">Time-Series vs. Relational Data Models</div>
+      <div style="color: #e0e7ff; font-size: 14px; line-height: 1.5;">
+        Explore how time-series data models differ fundamentally from the relational data models that power traditional applications.
+      </div>
+    </div>
+  </a>
+</div>
