@@ -1,0 +1,53 @@
+import * as C from "@constants";
+
+## Permission denied on a referenced table when inserting into a {C.HYPERTABLE} with foreign keys
+
+**Message:**
+
+```
+ERROR: permission denied for table <REFERENCED_TABLE>
+```
+
+You might see this error on an `INSERT` or `COPY` that writes to a time range not yet covered by a {C.CHUNK},
+after you upgrade to {C.TIMESCALE_DB} 2.32.1 or later. Writes that land in existing {C.CHUNK}s keep working,
+so the error often appears only when a new {C.CHUNK} is created.
+
+When {C.TIMESCALE_DB} creates a {C.CHUNK} for a {C.HYPERTABLE} that has foreign keys, it adds those foreign keys to
+the new {C.CHUNK}. From 2.32.1, it does this as the {C.HYPERTABLE} owner rather than as a privileged catalog owner.
+{C.PG} requires the role that creates a foreign key to hold the `REFERENCES` privilege on the referenced table,
+so {C.CHUNK} creation fails when the {C.HYPERTABLE} owner does not have it. This is common when the referenced
+table and the {C.HYPERTABLE} are owned by different roles.
+
+To find the {C.HYPERTABLE}s whose owner is missing `REFERENCES` on a referenced table, run:
+
+```sql
+SELECT DISTINCT
+    format('%I.%I', ht.schema_name, ht.table_name) AS hypertable,
+    c.relowner::regrole AS hypertable_owner,
+    con.confrelid::regclass AS referenced_table
+FROM _timescaledb_catalog.hypertable ht
+JOIN pg_namespace n ON n.nspname = ht.schema_name
+JOIN pg_class c ON c.relnamespace = n.oid AND c.relname = ht.table_name
+JOIN pg_constraint con ON con.conrelid = c.oid AND con.contype = 'f'
+WHERE EXISTS (
+    SELECT FROM unnest(con.confkey) AS k(attnum)
+    WHERE NOT has_column_privilege(c.relowner, con.confrelid, k.attnum, 'REFERENCES')
+);
+```
+
+To resolve this problem, grant `REFERENCES` on each referenced table to the {C.HYPERTABLE} owner. Run the
+grant as the owner of the referenced table, or as a member of that owner role:
+
+```sql
+GRANT REFERENCES ON TABLE <REFERENCED_TABLE> TO <HYPERTABLE_OWNER>;
+```
+
+For example, if the `metrics` {C.HYPERTABLE} is owned by `ingest` and has a foreign key to the `devices` table
+owned by `app_admin`, connect as `app_admin` and run:
+
+```sql
+GRANT REFERENCES ON TABLE devices TO ingest;
+```
+
+For more information about the `REFERENCES` privilege, see the
+[{C.PG} documentation](https://www.postgresql.org/docs/current/ddl-priv.html).
