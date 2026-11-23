@@ -217,23 +217,27 @@ Livesync copies each table with one `COPY` stream, so one large table can set th
 <NumberedList>
 <NumberedItem title="Choose the split column and the ranges">
 
-- Use a column of the replica identity, usually the primary key. If the filter uses other columns, the source rejects `UPDATE` and `DELETE` on the table.
-- Use a column whose values do not change. When an update moves a row to a different range, one subscription deletes the row and a different subscription inserts it, in no fixed order.
-- Make sure that the ranges do not overlap and that they include all rows, also future rows. Leave the last range open. Livesync does not sync a row that matches no filter, such as a row with `NULL` in the split column.
-- If the target is a hypertable, split on its time column or on a column that increases with time. Each subscription then writes to different chunks.
+- Split on the time column. If the target is a hypertable, each range then writes to its own chunks. Choose bounds that give each range a similar number of rows.
+- Make sure that the time column is part of the replica identity, for example `PRIMARY KEY (device_id, time)`. If it is not, the source rejects `UPDATE` and `DELETE` on the table. As an alternative, set `REPLICA IDENTITY FULL`, which logs the full old row for each change.
+- Do not move rows between ranges. When an update changes the time of a row to a different range, one subscription deletes the row and a different subscription inserts it, in no fixed order.
+- Make sure that the ranges do not overlap and that they include all rows, also future rows. Leave the last range open. Livesync does not sync a row that matches no filter.
 
 </NumberedItem>
 
 <NumberedItem title="Create one publication for each range">
 
 ```sql
-CREATE PUBLICATION metrics_p0 FOR TABLE public.metrics WHERE (id < 25000000);
-CREATE PUBLICATION metrics_p1 FOR TABLE public.metrics WHERE (id >= 25000000 AND id < 50000000);
-CREATE PUBLICATION metrics_p2 FOR TABLE public.metrics WHERE (id >= 50000000 AND id < 75000000);
-CREATE PUBLICATION metrics_p3 FOR TABLE public.metrics WHERE (id >= 75000000);
+CREATE PUBLICATION metrics_p0 FOR TABLE public.metrics
+  WHERE (time < '2025-01-01 00:00+00');
+CREATE PUBLICATION metrics_p1 FOR TABLE public.metrics
+  WHERE (time >= '2025-01-01 00:00+00' AND time < '2025-07-01 00:00+00');
+CREATE PUBLICATION metrics_p2 FOR TABLE public.metrics
+  WHERE (time >= '2025-07-01 00:00+00' AND time < '2026-01-01 00:00+00');
+CREATE PUBLICATION metrics_p3 FOR TABLE public.metrics
+  WHERE (time >= '2026-01-01 00:00+00');
 ```
 
-Do not put the table in a different publication of these subscriptions. Put the other tables in a separate publication, and give it to one subscription only.
+Write each bound with a UTC offset. Otherwise, {C.PG} uses the time zone of the session that creates the publication. Do not put the table in a different publication of these subscriptions. Put the other tables in a separate publication, and give it to one subscription only.
 
 </NumberedItem>
 
