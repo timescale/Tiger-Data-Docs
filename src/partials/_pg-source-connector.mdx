@@ -210,7 +210,9 @@ Point the application connections at the new source. Resume writes on the new so
 
 To add tables later, first create each table on the target. Then add it to the source publication. Run `refresh-publication` with `--copy-data=true`, or restart Livesync with `--copy-data=true`. Livesync copies only the new tables.
 
-### Parallelize the initial copy of a large table
+### Parallelize the initial copy of large tables with updates and deletes
+
+Use this procedure for a large table that receives `UPDATE` and `DELETE`. For a table that receives only `INSERT`, use [Backfill append-only large tables using timescaledb-parallel-copy](#backfill-append-only-large-tables-using-timescaledb-parallel-copy).
 
 Livesync copies each table with one `COPY` stream, so one large table can set the time for the full initial copy. To split this copy, run several self-hosted Livesync subscriptions. Give each subscription a publication with a row filter that selects a different range of the same table. Row filters need {C.PG} 15 or later on the source.
 
@@ -267,7 +269,9 @@ After the copy, each subscription continues to stream the changes of its range. 
 
 ### Backfill append-only large tables using timescaledb-parallel-copy
 
-If the old rows of a large table do not change, split the table at a time watermark. [timescaledb-parallel-copy](https://github.com/timescale/timescaledb-parallel-copy) copies the rows before the watermark with several workers, and it can continue a copy that stops. Livesync copies the rows from the watermark, and then streams all new changes. This procedure uses the self-hosted connector, and needs {C.PG} 15 or later on the source.
+Use this procedure for a large append-only table, which receives only `INSERT`. For a table that also receives `UPDATE` and `DELETE`, use [Parallelize the initial copy of large tables with updates and deletes](#parallelize-the-initial-copy-of-large-tables-with-updates-and-deletes).
+
+Split the table at a time watermark. [timescaledb-parallel-copy](https://github.com/timescale/timescaledb-parallel-copy) copies the rows before the watermark with several workers, and it can continue a copy that stops. Livesync copies the rows from the watermark, and then streams all new changes. This procedure uses the self-hosted connector, and needs {C.PG} 15 or later on the source.
 
 <NumberedList>
 <NumberedItem title="Choose the watermark">
