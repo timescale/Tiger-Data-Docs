@@ -1,0 +1,85 @@
+---
+title: Data Lifecycle & Design for Scale
+description: Implement retention, compression, and scaling strategies
+products: [cloud, self_hosted]
+---
+
+import * as C from "@constants";
+
+**Module:** Tiger Data 101 → An Introduction to TimescaleDB  
+**Section:** Putting TimescaleDB Into Action  
+**Estimated time:** 10–12 minutes total (this page: ~3 minutes)
+
+---
+
+## Full data lifecycle
+
+Combine retention, compression, and tiering for optimal cost and performance:
+
+```sql
+-- 1. Compression after 7 days
+SELECT add_compression_policy('sensor_data', INTERVAL '7 days');
+
+-- 2. Tiering (move to object storage after 30 days)
+SELECT add_tiering_policy('sensor_data', INTERVAL '30 days', 's3://my-bucket/');
+
+-- 3. Retention (drop after 2 years)
+SELECT add_retention_policy('sensor_data', INTERVAL '2 years');
+```
+
+**Result:** Hot (7d) → Warm (30d) → Cold (2yr) → Expired
+
+---
+
+## Designing for scale
+
+### Chunk interval sizing
+- **High cardinality + high ingest:** 1 hour chunks
+- **Medium workload:** 1 day chunks (default 7 days)
+- **Low cardinality:** 1 week chunks
+
+### High-cardinality handling
+- Add space partitioning by dimension (device_id, region, etc.)
+- This creates 2D grid: time × space
+- Keeps each chunk small and queryable
+
+### Query optimization
+- Time filters are crucial (enables chunk exclusion)
+- Composite indexes on (tag, time)
+- Continuous Aggregates for multi-resolution dashboards
+- Avoid SELECT * queries
+
+---
+
+## Reference architecture
+
+```
+Raw sensor data
+    ↓ (INSERT)
+sensor_readings (hypertable)
+    ↓ (Continuous Aggregates)
+hourly_summary
+    ↓
+daily_summary
+    ↓
+Application Dashboards (query pre-computed aggregates)
+
+Data Lifecycle:
+  - 0-7 days: uncompressed (hot)
+  - 7-30 days: compressed (warm)
+  - 30d-2yr: tiered to S3 (cold)
+  - 2yr+: dropped (expired)
+```
+
+---
+
+<div style="background: linear-gradient(135deg, #4f6bed 0%, #667eea 100%); border-radius: 8px; padding: 20px; margin: 28px 0; color: white; box-shadow: 0 4px 12px rgba(79, 107, 237, 0.15);">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+    <span style="font-size: 20px;">→</span>
+    <span style="font-weight: 700; font-size: 16px;">NEXT MODULE</span>
+  </div>
+  <a href="/learn/tiger-data-academy/tiger-data-101/putting-timescaledb-into-action/case-studies-and-knowledge-check" style="color: #e0e7ff; text-decoration: none; font-weight: 500; display: block; font-size: 15px;">
+    **Case Studies & Knowledge Check** — Learn from real-world implementations.
+  </a>
+</div>
+
