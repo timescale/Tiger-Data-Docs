@@ -264,3 +264,49 @@ After the copy, each subscription continues to stream the changes of its range. 
 
 </NumberedItem>
 </NumberedList>
+
+### Copy the old rows of an append-only table with timescaledb-parallel-copy
+
+If the old rows of a large table do not change, split the table at a time watermark. [timescaledb-parallel-copy](https://github.com/timescale/timescaledb-parallel-copy) copies the rows before the watermark with several workers, and it can continue a copy that stops. Livesync copies the rows from the watermark, and then streams all new changes. This procedure uses the self-hosted connector, and needs {C.PG} 15 or later on the source.
+
+<NumberedList>
+<NumberedItem title="Choose the watermark">
+
+Choose a time before which no row changes during the migration: no `INSERT`, `UPDATE`, or `DELETE`. Livesync does not sync changes to these rows. A recent watermark gives Livesync less data to copy, so leave only a margin for late rows. As in the previous section, the time column must be part of the replica identity.
+
+</NumberedItem>
+
+<NumberedItem title="Create a publication for the rows from the watermark">
+
+```sql
+CREATE PUBLICATION livesync_pub FOR TABLE public.metrics
+  WHERE (time >= '2026-11-01 00:00+00'), public.devices;
+```
+
+The row filter applies only to `public.metrics`. Livesync copies and syncs the other tables in full.
+
+</NumberedItem>
+
+<NumberedItem title="Start Livesync">
+
+Start Livesync with `--publication livesync_pub`. It copies only the rows of `public.metrics` from the watermark.
+
+</NumberedItem>
+
+<NumberedItem title="Copy the rows before the watermark">
+
+You can do this step while Livesync runs:
+
+```bash
+psql "$SOURCE" -c "COPY (SELECT * FROM public.metrics
+    WHERE time < '2026-11-01 00:00+00' ORDER BY device_id, time)
+    TO STDOUT WITH (FORMAT csv, HEADER)" \
+  | timescaledb-parallel-copy --connection "$TARGET" \
+      --schema public --table metrics --skip-header \
+      --workers 8 --import-id metrics-before-2026-11-01
+```
+
+If the copy stops, run the same command again. With the same `--import-id`, `timescaledb-parallel-copy` skips the batches that it committed before. It finds these batches by row position, so the query must return the rows in the same order each time. Order by the primary key.
+
+</NumberedItem>
+</NumberedList>
