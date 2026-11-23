@@ -1,0 +1,102 @@
+name: Plan lint
+
+# Keeps a page and its doc-testing test plan in step. When a PR changes a page that carries a
+# `<TestPlan>`, or a partial such a page imports, the doc-testing tool's `lint-plan` reads the
+# page as the PR leaves it and reports a plan step that no longer matches the page: a statement
+# the page changed but the plan still runs in the old form, a new fenced statement no step runs,
+# a reordered procedure, a control the page no longer names. A finding is a warning annotation,
+# and the lint's own report (step and fix) goes to the job summary.
+#
+# Advisory for now: the check stays green on a finding. To make it gate, delete the
+# `continue-on-error` line on the lint step and change its `::warning::` to `::error::`.
+#
+# This is the page-side half of the guardrail; the plan-side half (a run) stays out of CI because it
+# needs a service, a browser and credentials. The lint needs only the two checkouts: no browser, no
+# service, no secret (the tool repo is public). Pages without a plan are reported as
+# "nothing to lint" and never fail.
+#
+# Not caught here: a statement deleted from the page while its plan still runs it. The run still
+# passes, so say in the PR when you remove a documented statement from a page with a plan.
+
+on:
+  pull_request:
+    paths:
+      - "src/content/docs/**/*.mdx"
+      - "src/content/docs/**/*.md"
+      - "src/partials/**/*.mdx"
+      - ".github/workflows/plan-lint.yml"
+      - ".github/scripts/plan_lint_pages.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  plan-lint:
+    name: Plan lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the docs
+        uses: actions/checkout@v4
+        with:
+          # Full history so the base commit is available for the diff below.
+          fetch-depth: 0
+
+      - name: Check out the doc tester
+        # Pinned to one commit of the tool, so a change to the lint reaches docs CI only when this
+        # ref is bumped (after `node scripts/lint-plan.mjs --all` is clean against the docs main).
+        uses: actions/checkout@v4
+        with:
+          repository: timescale/doc-tester
+          ref: 9cbe6cb4261cf16dc760540422103d35814e544f
+          path: doc-tester
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install the tool's dependencies
+        # The lint imports nothing from Playwright, and --ignore-scripts keeps its
+        # postinstall from running; the package itself is small.
+        working-directory: doc-tester
+        run: npm ci --ignore-scripts
+
+      - name: Find the pages this PR can affect
+        id: pages
+        run: |
+          # Three dots: what the PR adds since its merge base, not what main did meanwhile.
+          # `:(glob)` makes `**` cross directories; without it a file directly under
+          # src/partials/ never matches (the same trap scripts/lint-prose.mjs documents).
+          git diff --name-only --diff-filter=AMR \
+            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
+            -- ':(glob)src/content/docs/**/*.mdx' ':(glob)src/content/docs/**/*.md' ':(glob)src/partials/**/*.mdx' \
+            > /tmp/changed.txt
+          node .github/scripts/plan_lint_pages.mjs $(cat /tmp/changed.txt) > /tmp/pages.txt
+          echo "count=$(wc -l < /tmp/pages.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          echo "Pages to lint:"; cat /tmp/pages.txt
+
+      - name: Lint the plans
+        if: steps.pages.outputs.count != '0'
+        continue-on-error: true # advisory: see the header
+        working-directory: doc-tester
+        env:
+          DOCS_REPO: ${{ github.workspace }}
+        run: |
+          set +e
+          node scripts/lint-plan.mjs $(cat /tmp/pages.txt) | tee /tmp/lint.txt
+          status=${PIPESTATUS[0]}
+          {
+            echo "## Plan lint"
+            echo
+            echo '```'
+            cat /tmp/lint.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -ne 0 ]; then
+            echo "::warning::A test plan no longer matches its page. Update the plan on the page, or the page, so the run and a reader see the same steps. Details in the job summary."
+          fi
+          exit "$status"
+
+      - name: Nothing to lint
+        if: steps.pages.outputs.count == '0'
+        run: echo "No changed page or partial maps to a page; nothing to lint."

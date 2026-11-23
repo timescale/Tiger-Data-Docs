@@ -46,7 +46,7 @@ Run `build` and `lint:prose` in parallel since they don't share write targets:
 wait
 ```
 
-If either fails, show the tail of the failing log and stop: do not commit until it's fixed. `TigerData.CompressionAPIs` is the only Vale rule that gates; other Vale findings are advisory, so use judgment on whether to fix them now or leave them for reviewer discussion (never silently ignore a `CompressionAPIs` failure).
+If either fails, show the tail of the failing log and stop: do not commit until it's fixed. `TigerData.CompressionAPIs`, `TigerData.UIElementsCodeFont` and `TigerData.TigerLakeSpelling` gate; `TigerData.NoEmDash` is advisory, so use judgment on whether to fix it now or leave it for reviewer discussion (never silently ignore a gating failure).
 
 ## 4. Commit
 

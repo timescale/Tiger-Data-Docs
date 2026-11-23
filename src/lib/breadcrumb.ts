@@ -39,8 +39,14 @@ export function findBreadcrumbTrail(
 
   for (const entry of entries) {
     if (entry.type === "link") {
-      const normalizedHref = normalizePath(entry.href);
-      if (normalizedHref === normalizedTarget) {
+      const [hrefPath, anchor] = entry.href.split("#");
+      const normalizedHref = normalizePath(hrefPath);
+      // An entry for an anchor on the target page (REST reference topics): the page is the
+      // entry's group, which is already the last item of the trail.
+      if (anchor && normalizedHref === normalizedTarget && trail.length > 0) {
+        return trail;
+      }
+      if (!anchor && normalizedHref === normalizedTarget) {
         const fullTrail = [...trail, { title: entry.label, href: entry.href }];
         if (includeCurrentPage || fullTrail.length === 1) {
           return fullTrail;

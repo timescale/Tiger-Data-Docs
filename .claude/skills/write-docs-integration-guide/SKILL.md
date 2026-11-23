@@ -228,7 +228,7 @@ import * as C from "@constants";
 
 Use the matching constant for every product, brand, or term it covers. The full list lives in `src/constants.ts` — read it directly. Common ones: `{C.PG}` (PostgreSQL), `{C.CLOUD_LONG}` (Tiger Cloud), `{C.SERVICE_LONG}` (Tiger Cloud service), `{C.SELF_LONG}` (self-hosted TimescaleDB), `{C.TIMESCALE_DB}`, `{C.CONSOLE}`, `{C.HYPERTABLE}`, `{C.COMPANY}`.
 
-Never hardcode a product or brand name in prose when a constant exists. The `TigerData.ProductConstants` Vale rule (run by the `vale.yml` CI check) nudges literal product/brand names toward their constant, including `{C.PG}` for PostgreSQL/Postgres. Inside backticks or URLs, the literal string is fine.
+Never hardcode a product or brand name in prose when a constant exists, including `{C.PG}` for PostgreSQL/Postgres. Inside backticks or URLs, the literal string is fine.
 
 In `NumberedItem` titles, use a template literal when interpolating:
 
@@ -240,7 +240,7 @@ Preserve inline backticks in titles — they render correctly.
 
 ## Authoring rules
 
-- **Headings are sentence case.** Proper nouns and acronyms excepted. The `Google.Headings` Vale rule (run by the `vale.yml` CI check) enforces this.
+- **Headings are sentence case.** Proper nouns and acronyms excepted.
 - **No `## Step N:` prefix.** `NumberedList` handles numbering; use plain verb-phrase headings.
 - **No `---` horizontal rules.** Section headings already separate content.
 - **No Latinisms.** "for example" not "e.g.", "that is" not "i.e.", "and so on" not "etc.", "versus" not "vs.".

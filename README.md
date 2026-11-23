@@ -160,7 +160,7 @@ Examples:
 - Headings: `## Using {C.PG} with time-series data`
 - In component props (JS expressions): `` title={`Install ${C.PG}`} ``
 
-The database name is intentionally centralized: use `{C.PG}` or `{C.POSTGRESQL}` instead of literal "PostgreSQL" or "Postgres" in prose and headings. This is nudged by the `TigerData.ProductConstants` Vale rule; run `pnpm lint:prose` to check changed files (see the `vale.yml` CI workflow). **Exceptions:** literal "PostgreSQL"/"Postgres" is allowed inside URLs (for example, `https://postgresql.org`) and inside backticks (UI elements, code, file paths, commands).
+The database name is intentionally centralized: use `{C.PG}` or `{C.POSTGRESQL}` instead of literal "PostgreSQL" or "Postgres" in prose and headings. **Exceptions:** literal "PostgreSQL"/"Postgres" is allowed inside URLs (for example, `https://postgresql.org`) and inside backticks (UI elements, code, file paths, commands).
 
 ## Right-rail Learn more card
 
