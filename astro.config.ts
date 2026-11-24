@@ -3,6 +3,7 @@ import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
+import { unified } from "@astrojs/markdown-remark";
 import type { AstroIntegration } from "astro";
 import { fileSystemSDKJSONLoader, stainlessDocs } from "@stainless-api/docs";
 import starlightLlmsTxt from "starlight-llms-txt";
@@ -44,99 +45,6 @@ const docsComponentsScriptsPath = require.resolve("@stainless-api/docs/component
 // release that moves `react/Routing.tsx` or `globalJs/` fails the build here. Remove it
 // when Stainless exports the renderer or can group endpoints on one page.
 const stainlessPluginPath = join(require.resolve("@stainless-api/docs/plugin"), "..");
-
-/**
- * Vite 7 compat:
- *
- * 1) Some plugins declare `transform`/`load`/`resolveId` as `{ filter }` without a
- *    `handler`, which crashes EnvironmentPluginContainer when it calls handler.call().
- *    We patch hooks in `config` + `configResolved` (below).
- *
- * 2) Plugins such as `@vitejs/plugin-react` may delete `transform` in `configResolved`
- *    after Vite has cached which plugins expose `transform`, so `getHookHandler` returns
- *    undefined and handler.call() throws (upstream: vitejs/vite#21162). We ship a pnpm
- *    patch for `vite@7.3.7` (`patches/vite@7.3.7.patch`) that skips when `!handler`.
- */
-const HOOK_NAMES = ["transform", "load", "resolveId"] as const;
-const noopHandlers: Record<(typeof HOOK_NAMES)[number], () => null> = {
-  transform: () => null,
-  load: () => null,
-  resolveId: () => null,
-};
-
-function patchHook(hook: unknown, hookName: (typeof HOOK_NAMES)[number]): unknown {
-  // Vite's getHookHandler(hook) returns hook.handler when hook is an object, else hook.
-  // If a plugin has transform: { filter } with no handler, getHookHandler returns undefined and handler.call() throws.
-  if (hook === undefined || hook === null) {
-    return { handler: noopHandlers[hookName] };
-  }
-  if (
-    typeof hook === "object" &&
-    typeof (hook as { handler?: unknown }).handler !== "function"
-  ) {
-    return { ...(hook as object), handler: noopHandlers[hookName] };
-  }
-  if (typeof hook !== "function") {
-    return { handler: noopHandlers[hookName] };
-  }
-  return hook;
-}
-
-function createPluginProxy(plugin: Record<string, unknown>): Record<string, unknown> {
-  return new Proxy(plugin, {
-    get(target, prop: string) {
-      const value = target[prop];
-      if (HOOK_NAMES.includes(prop as (typeof HOOK_NAMES)[number])) {
-        return patchHook(value, prop as (typeof HOOK_NAMES)[number]);
-      }
-      return value;
-    },
-  });
-}
-
-function patchAllPlugins(plugins: unknown[]): void {
-  if (!Array.isArray(plugins)) return;
-  for (const plugin of plugins as Record<string, unknown>[]) {
-    if (plugin && typeof plugin === "object") {
-      for (const hookName of HOOK_NAMES) {
-        const hook = plugin[hookName];
-        if (
-          hook &&
-          typeof hook === "object" &&
-          typeof (hook as { handler?: unknown }).handler !== "function" &&
-          typeof hook !== "function"
-        ) {
-          (plugin as Record<string, unknown>)[hookName] = {
-            ...(hook as object),
-            handler: noopHandlers[hookName],
-          };
-        }
-      }
-    }
-  }
-}
-
-function vite7CompatPlugin(): {
-  name: string;
-  enforce: "post";
-  config: (config: { plugins?: unknown[] }) => { plugins?: unknown[] };
-  configResolved: (config: { plugins: unknown[] }) => void;
-} {
-  return {
-    name: "vite7-compat-patch-hooks",
-    enforce: "post",
-    config(config: { plugins?: unknown[] }) {
-      patchAllPlugins(config.plugins ?? []);
-      return {};
-    },
-    configResolved(config: { plugins: unknown[] }) {
-      // In-place patch only. Replacing config.plugins with proxy-wrapped plugins can break
-      // Astro virtual modules (e.g. astro:server-app). patchAllPlugins mutates hook objects
-      // so transform/load/resolveId have a callable handler when they were missing one.
-      patchAllPlugins(config.plugins ?? []);
-    },
-  };
-}
 
 /**
  * Post-build safety net: walks every generated .html file and prefixes
@@ -238,13 +146,21 @@ export default defineConfig({
   site: 'https://www.tigerdata.com',
   base: BASE,
   trailingSlash: "never",
+  // Starlight forced `where` until 0.43 and now follows this setting; keep the selector
+  // specificity our overrides were written against.
+  scopedStyleStrategy: "where",
   markdown: {
-    gfm: true,
-    remarkPlugins: [remarkResolveConstantsInHeadings],
-    rehypePlugins: [[rehypeBasePath, { base: BASE }], rehypePagefindWeight],
+    // Astro 7 defaults to the Sätteri processor; our three plugins are remark/rehype, so keep the
+    // unified pipeline explicitly (the top-level remarkPlugins/rehypePlugins keys are deprecated).
+    processor: unified({
+      gfm: true,
+      // The MDX pipeline never applied smart punctuation before Astro 7; keep the straight quotes.
+      smartypants: false,
+      remarkPlugins: [remarkResolveConstantsInHeadings],
+      rehypePlugins: [[rehypeBasePath, { base: BASE }], rehypePagefindWeight],
+    }),
   },
     vite: {
-      plugins: [vite7CompatPlugin()] as any,
       resolve: {
         alias: [
           { find: "@components", replacement: new URL("./src/components", import.meta.url).pathname },
@@ -432,7 +348,7 @@ export default defineConfig({
             {
               label: "News and updates",
               collapsed: true,
-              autogenerate: { directory: "get-started/news" },
+              items: [{ autogenerate: { directory: "get-started/news" } }],
             },
             {
               label: "Contribute to docs",
