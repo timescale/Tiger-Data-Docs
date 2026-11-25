@@ -4,9 +4,9 @@ Single source of truth for AI coding agents working in this repository (Claude C
 
 ## Project overview
 
-Tiger Data Docs is a documentation site built with **Astro 6 + Starlight + Stainless Docs** (`@stainless-api/docs`). It covers Tiger Cloud and TimescaleDB (including self-hosted and Managed Service for TimescaleDB). Deployed on Vercel.
+Tiger Data Docs is a documentation site built with **Astro 7 + Starlight + Stainless Docs** (`@stainless-api/docs`). It covers Tiger Cloud and TimescaleDB (including self-hosted and Managed Service for TimescaleDB). Deployed on Vercel.
 
-**Node requirement:** >=22.12.0. Uses pnpm.
+**Node requirement:** >=22.23.4 (`.nvmrc` pins 22.23.5). Uses pnpm.
 
 ## Commands
 
@@ -64,6 +64,8 @@ Key overrides and components in `src/components/`:
 - React `.tsx` components for interactive pieces: `CopyToClipboard`, `Prerequisites`.
 
 ### Custom plugins
+
+Markdown plugins are registered through `markdown.processor: unified({...})` in `astro.config.ts`, not the top-level `remarkPlugins` and `rehypePlugins` keys, which Astro 7 deprecates.
 
 - `src/plugins/remark-resolve-constants-in-headings.ts`: resolves `{C.CONSTANT}` syntax in headings.
 - `src/plugins/rehype-base-path.ts`: adds `BASE_PATH` to relative URLs.

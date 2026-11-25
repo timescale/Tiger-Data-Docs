@@ -6,7 +6,7 @@ If you're an external contributor looking to report a docs issue, suggest a chan
 
 ## Local setup
 
-- **Node.js** >=22.12.0, **pnpm** as the package manager.
+- **Node.js** >=22.23.4, **pnpm** as the package manager.
 - Clone the repo, then:
   ```bash
   pnpm install

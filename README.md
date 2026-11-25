@@ -1,10 +1,10 @@
 # Tiger Data Docs
 
-Documentation site for Tiger Data, built on Astro 6, Starlight, and the Stainless Docs renderer.
+Documentation site for Tiger Data, built on Astro 7, Starlight, and the Stainless Docs renderer.
 
 ## Prerequisites
 
-- **Node.js** (v22.12.0 or later, as required by `package.json`): [nodejs.org](https://nodejs.org/)
+- **Node.js** (v22.23.4 or later, as required by `package.json`; `.nvmrc` pins 22.23.5): [nodejs.org](https://nodejs.org/)
 - **pnpm** (package manager): install with `npm install -g pnpm` or see [pnpm.io/installation](https://pnpm.io/installation)
 
 ## Development quickstart
