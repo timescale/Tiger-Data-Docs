@@ -11,6 +11,7 @@ import {
 import type { StarlightRouteData } from "@astrojs/starlight/route-data";
 import Default from "@astrojs/starlight/components/PageTitle.astro";
 import { AIDropdown } from "@stainless-api/docs/components/AIDropdown";
+import { getBodyWeight, getProductWeight } from "../plugins/rehype-pagefind-weight";
 import Breadcrumbs from "./Breadcrumbs.astro";
 import PageLabels from "./PageLabels.astro";
 
@@ -59,6 +60,22 @@ const shouldRenderDescription = RENDER_PAGE_DESCRIPTIONS;
 const widePage = Boolean(
   (Astro.locals.starlightRoute.entry.data as { widePage?: boolean }).widePage
 );
+
+/*
+ * Search weights. The title and the keywords decide the ranking, at the
+ * same weight: a keyword is a synonym for the title. The description and
+ * the body are tiebreakers (see rehype-pagefind-weight). All scale with the
+ * page's product weight so Cloud pages rank first: title 7 on a Cloud-only
+ * page. Pagefind reads `data-pagefind-index-attrs` text at the weight of
+ * the enclosing element, hence the wrapper; it renders nothing.
+ */
+const { keywords = [], products } = Astro.locals.starlightRoute.entry.data as {
+  keywords?: string[];
+  products?: Parameters<typeof getProductWeight>[0];
+};
+const isReference = Astro.locals.starlightRoute.entry.id.startsWith("reference/");
+const titleWeight = (3.5 * getProductWeight(products)).toFixed(2);
+const bodyWeight = getBodyWeight(products, isReference);
 ---
 
 {
@@ -74,12 +91,24 @@ const widePage = Boolean(
         />
         {showAIDropdown && <AIDropdown />}
       </div>
-      <Default />
+      <div data-pagefind-weight={titleWeight}>
+        <Default />
+      </div>
       <PageLabels />
       {!!description && shouldRenderDescription && (
-        <p class="description">{description}</p>
+        <p class="description" data-pagefind-weight={bodyWeight}>
+          {description}
+        </p>
       )}
       {widePage && <div data-wide-page hidden />}
+      {keywords.length > 0 && (
+        <div data-pagefind-weight={titleWeight} hidden>
+          <span
+            data-pagefind-index-attrs="data-keywords"
+            data-keywords={keywords.join(", ")}
+          />
+        </div>
+      )}
     </>
   )
 }
@@ -113,7 +142,8 @@ const widePage = Boolean(
       min-width: 0;
     }
     .stl-page-nav-container + h1#_top,
-    .stl-page-nav-container ~ h1#_top {
+    .stl-page-nav-container ~ h1#_top,
+    .stl-page-nav-container ~ div > h1#_top {
       margin-top: 1.125rem !important;
     }
     main [class*="content-panel"] .stl-page-nav-container ~ .l-markdown-content > h1#_top:first-child,

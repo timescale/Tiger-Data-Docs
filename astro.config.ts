@@ -846,7 +846,7 @@ export default defineConfig({
                           collapsed: true,
                           items: [
                             {
-                              label: "Set up Iceberg connector",
+                              label: "Set up Tiger Lake Iceberg connector",
                               link: "/integrate/connectors/destination/tigerlake",
                               attrs: { "data-no-flatten": "true" },
                             },

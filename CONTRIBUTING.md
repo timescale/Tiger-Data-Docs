@@ -24,6 +24,10 @@ If you're an external contributor looking to report a docs issue, suggest a chan
 - [`README-changelog.md`](./README-changelog.md): how to add a changelog entry
 - [`src/components/LearnMore.README.md`](./src/components/LearnMore.README.md): the right-rail "Learn more" card
 
+## License and CLA
+
+Content is licensed under [CC BY 4.0](./LICENSE) and code under the [Apache License 2.0](./LICENSE-CODE); a contribution is published under the license of what it changes. A bot asks you to sign the Contributor License Agreement on your first PR.
+
 ## Before you open a PR
 
 Run these locally so CI doesn't surprise you:
