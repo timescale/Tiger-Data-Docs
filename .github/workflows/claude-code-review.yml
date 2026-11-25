@@ -8,23 +8,12 @@ name: Claude Code Review
 on:
   pull_request:
     types: [opened, ready_for_review, synchronize]
-  # TEMPORARY, for pre-merge testing only - remove before merge. claude-code-action
-  # refuses to run with full effect on a pull_request event until this workflow file
-  # matches what's on main (a deliberate security check), so this is the only way to
-  # manually exercise it (Concentrate auth, review quality) beforehand.
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: "PR number to review"
-        required: true
-        type: string
 
 jobs:
   claude-review:
     if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.draft == false &&
-       github.event.pull_request.user.type != 'Bot')
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.type != 'Bot'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -52,7 +41,7 @@ jobs:
         with:
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
 
             Review this pull request against Tiger Data Docs' own conventions
             (AGENTS.md / CLAUDE.md), not generic best practices. Read AGENTS.md first.
@@ -92,11 +81,8 @@ jobs:
             produce — those arrive by automated PR and aren't hand-edited.
 
             Post your findings as a single PR review comment (not inline per-line
-            comments) using `gh pr comment <PR NUMBER above>` (and `gh pr diff <PR
-            NUMBER above>` to get the diff - don't rely on bare `gh pr diff`/`gh pr
-            comment` auto-detecting the PR from the checked-out branch, since this run
-            may not have that PR's branch checked out). If you find nothing worth
-            flagging, post a short comment saying so rather than staying silent, so it's
-            clear the review ran.
+            comments) using `gh pr comment`. If you find nothing worth flagging, post a
+            short comment saying so rather than staying silent, so it's clear the review
+            ran.
           claude_args: |
             --allowedTools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read,Grep,Glob"
