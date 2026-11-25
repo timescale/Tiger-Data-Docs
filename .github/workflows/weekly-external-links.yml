@@ -14,7 +14,10 @@ name: "Weekly external links"
 #
 # Required repository secrets:
 #   - TIGER_DEN_TOKEN      read-only Tiger Den content token
-#   - ANTHROPIC_API_KEY    Claude API key (matching step)
+#   - CONCENTRATE_API_KEY  Concentrate AI key (matching step; shared with
+#                          claude-code-review.yml) - all LLM access goes through
+#                          Concentrate, not a raw Anthropic key; see
+#                          https://github.com/timescale/engineering-docs/blob/main/tools/llm-gateway.md
 #   - ORG_AUTOMATION_TOKEN token used to open the PR (same as other workflows)
 
 on:
@@ -52,7 +55,8 @@ jobs:
       - name: Refresh external links
         env:
           TIGER_DEN_TOKEN: ${{ secrets.TIGER_DEN_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: https://api.concentrate.ai
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.CONCENTRATE_API_KEY }}
           DAYS: ${{ github.event.inputs.days || '7' }}
         run: |
           set -euo pipefail

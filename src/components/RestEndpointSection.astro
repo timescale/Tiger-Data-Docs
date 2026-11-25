@@ -1,0 +1,21 @@
+---
+/**
+ * One endpoint on a REST topic page. Stainless's renderer gives every schema node an id built
+ * from the model, not the endpoint (`(resource) projects.services > (model) service > ...`), and
+ * links each property name to its own id. A topic page renders the same models under many
+ * endpoints, so the ids would repeat and every such link would land on the first copy. This
+ * wrapper prefixes the schema ids and their in-page links with the endpoint id, so each section
+ * is its own namespace. The section id itself is the sidebar anchor and stays as it is.
+ */
+interface Props {
+  id: string;
+}
+
+const { id } = Astro.props;
+const prefix = `${id}-`;
+const html = (await Astro.slots.render("default"))
+  .replaceAll('id="(', `id="${prefix}(`)
+  .replaceAll('href="#(', `href="#${prefix}(`);
+---
+
+<section id={id} class="rest-topic-endpoint" set:html={html} />

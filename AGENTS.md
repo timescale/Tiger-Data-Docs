@@ -42,7 +42,7 @@ All product/brand names are centralized in `src/constants.ts`. Import as:
 import * as C from "@constants";
 ```
 
-Then use `{C.CLOUD_LONG}`, `{C.PG}`, `{C.TIMESCALE_DB}`, and so on in MDX content. The `TigerData.ProductConstants` Vale rule nudges literals toward their constant. Exceptions: inside backticks, URLs, frontmatter, image alts, and the changelog (see below). Treat `src/constants.ts` as the source of truth for available constants.
+Then use `{C.CLOUD_LONG}`, `{C.PG}`, `{C.TIMESCALE_DB}`, and so on in MDX content. Exceptions: inside backticks, URLs, frontmatter, image alts, and the changelog (see below). Treat `src/constants.ts` as the source of truth for available constants.
 
 **Do not use constants in the changelog.** `src/content/docs/get-started/news/new.mdx` uses literal product names (`Tiger Cloud`, `PostgreSQL`, `TimescaleDB`, and so on), not `{C.X}` constants. Changelog entries are a permanent historical record, so they must not shift when a constant's value changes; write the product names out as they were at the time of the entry.
 
@@ -99,7 +99,7 @@ Every page starts with YAML frontmatter:
 title: Page title in sentence case
 description: One sentence used for the sidebar subtitle, search results, and meta description.
 products: [cloud, self_hosted]   # which products the page applies to
-keywords: [topic, technology]    # optional, improves search
+keywords: [topic, technology]    # optional; terms readers search for to find the page, ranked like title words in site search; on Integrate pages also the technology filter
 ---
 ```
 
@@ -164,21 +164,23 @@ Use root-absolute internal links of the form `/section/page`, with no `.mdx` ext
 
 ## Content conventions
 
-House prose style follows the Google developer documentation style guide, enforced by Vale (`.vale.ini`), plus the TigerData-specific rules below. Accepted product/brand/feature spellings live in the `TigerData` vocabulary (`.github/styles/config/vocabularies/TigerData/accept.txt`). The human-facing version of this guidance lives in `src/content/docs/get-started/contributing.mdx` (published at `/get-started/contributing`).
+House prose style follows the Google developer documentation style guide, plus the TigerData-specific rules below. Vale (`.vale.ini`) checks four of them on the lines a PR changes: `TigerData.CompressionAPIs`, `TigerData.UIElementsCodeFont` and `TigerData.TigerLakeSpelling` at error (they gate CI) and `TigerData.NoEmDash` at warning. Review covers the rest. Accepted product/brand/feature spellings live in the `TigerData` vocabulary (`.github/styles/config/vocabularies/TigerData/accept.txt`). The human-facing version of this guidance lives in `src/content/docs/get-started/contributing.mdx` (published at `/get-started/contributing`).
 
-- **Use constants for product names.** `TigerData.ProductConstants` nudges literal product/brand names toward their constant (suggestion). It covers only product/brand-name constants (the `// General` and `// Products` sections of `src/constants.ts`). Feature/service/project common-nouns (hypertable, chunk, service, job, columnstore, and the like) are accepted in the Vale vocabulary instead. The rule is hand-maintained at `.github/styles/TigerData/ProductConstants.yml`. When you add or rename a product/brand name in `constants.ts`, update the swap list there too. Enforced terms must never be added to the Vale vocabulary, or the nudge is globally suppressed.
+- **Use constants for product names.** Product/brand-name constants are the `// General` and `// Products` sections of `src/constants.ts`. Feature/service/project common-nouns (hypertable, chunk, service, job, columnstore, and the like) are written out.
 - **No em dashes.** `TigerData.NoEmDash` flags em dashes in prose (warning); rewrite the sentence. Prefer commas, semicolons, colons, parentheses, or two sentences. For label-and-description lines, use a colon: `**Label**: description`.
-- **UI elements in code font, not bold.** `TigerData.UIElementsCodeFont` flags `**Bold**` UI labels after action verbs (warning).
+- **UI elements in code font, not bold.** `TigerData.UIElementsCodeFont` flags `**Bold**` UI labels after action verbs (error, gates CI).
 - **Tiger Lake is two words.** Write `Tiger Lake` (or `{C.LAKE}`), never `TigerLake`. `TigerData.TigerLakeSpelling` enforces this (gating error, including in the changelog).
 - **Partials use underscore prefix:** `_partial-name.mdx`.
 - **No deprecated compression APIs.** TimescaleDB 2.18.0 renamed the compression API to columnstore/hypercore (`compress_chunk` to `convert_to_columnstore`, `*_compression_policy` to `*_columnstore_policy`, `timescaledb.compress` to `timescaledb.enable_columnstore`, and so on). Old names still work as backwards-compat aliases but must not appear in new docs. `TigerData.CompressionAPIs` enforces this (gating error, scans SQL too). Full mapping, carve-outs, and verification grep: [`.claude/references/deprecated-compression-apis.md`](./.claude/references/deprecated-compression-apis.md).
 
 ## CI checks
 
-- **vale.yml**: lints prose against the Google style guide plus custom `TigerData` rules. Only the lines a PR changes are checked, and only errors gate. `TigerData.CompressionAPIs`, `TigerData.UIElementsCodeFont`, `TigerData.Headings`, and `TigerData.TigerLakeSpelling` are the only rules set to error (everything else is advisory). Failures are explained in the run's step summary plus inline annotations. See `.github/scripts/vale_pr_lint.py`.
+- **vale.yml**: lints prose against the four `TigerData` rules in `.vale.ini`. Only the lines a PR changes are checked, and only errors gate: `TigerData.CompressionAPIs`, `TigerData.UIElementsCodeFont` and `TigerData.TigerLakeSpelling`; `TigerData.NoEmDash` is advisory. Failures are explained in the run's step summary plus inline annotations. See `.github/scripts/vale_pr_lint.py`.
+- **plan-lint.yml**: when a PR changes a page that carries a `<TestPlan>`, or a partial such a page imports, checks out [timescale/doc-tester](https://github.com/timescale/doc-tester) at a pinned commit and runs its `lint-plan` on that page as the PR leaves it. A finding (a statement the page changed but the plan still runs in the old form, a new statement no step runs, a reordered procedure, a control the page no longer names) is reported as a warning and in the job summary; the check is advisory for now and does not fail the PR. It does not catch a statement deleted from the page while the plan still runs it; say so in the PR. `.github/scripts/plan_lint_pages.mjs` maps changed files to pages.
+- **secrets.yml**: runs gitleaks on the commits a PR adds and fails on a committed credential (connection string, private key, API token, high-entropy key). Rules and allowlist: `.gitleaks.toml`. Write sample credentials as `<PLACEHOLDER>` values.
 - **pr-checklist-check.yml**: ensures PR checklist items are addressed.
 - **affected-pages.yml**: posts preview links for changed pages on successful deploy.
-- **weekly-external-links.yml** (scheduled, Mondays): runs the `weekly-external-links` skill to draft `learnMore` right-rail cards from content published in [Tiger Den](https://den.tigerdata.com) and opens a draft review PR. Reads from Tiger Den with `TIGER_DEN_TOKEN` and matches to pages with `ANTHROPIC_API_KEY` (both repo secrets). Full guide and tuning knobs: [`.claude/skills/weekly-external-links/SKILL.md`](./.claude/skills/weekly-external-links/SKILL.md).
+- **weekly-external-links.yml** (scheduled, Mondays): runs the `weekly-external-links` skill to draft `learnMore` right-rail cards from content published in [Tiger Den](https://den.tigerdata.com) and opens a draft review PR. Reads from Tiger Den with `TIGER_DEN_TOKEN` and matches to pages with `CONCENTRATE_API_KEY` (both repo secrets; the latter is a [Concentrate AI](https://github.com/timescale/engineering-docs/blob/main/tools/llm-gateway.md) key, not a raw Anthropic key). Full guide and tuning knobs: [`.claude/skills/weekly-external-links/SKILL.md`](./.claude/skills/weekly-external-links/SKILL.md).
 
 ## Pull requests
 
