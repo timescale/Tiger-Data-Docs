@@ -303,7 +303,7 @@ This section shows you how to run fast analytical queries using {C.TIME_BUCKET}s
 
 <NumberedItem title={`In ${C.CONSOLE}, select the ${C.SERVICE_SHORT} you uploaded data to`}></NumberedItem>
 
-<NumberedItem title="Click `Explorer`, select the `crypto_ticks` hypertable, then click `Create continuous aggregate`">
+<NumberedItem title="Click `Explorer`, select the `crypto_ticks` hypertable under `public`, then click `Create continuous aggregate`">
 
 Selecting the {C.HYPERTABLE} opens it in its own tab, with `Create continuous aggregate` at the top.
 
@@ -498,28 +498,30 @@ What next? See [Build](/build) for more advanced tutorials, interact with the da
 37. run SQL: SELECT * FROM assets_candlestick_daily ORDER BY day DESC, symbol LIMIT 10;
 38. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
 39. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
-40. click `Explorer` > `Data Tiering`
-41. click `Enable tiered storage`
-42. confirm `Let's go!`
-43. run SQL: SELECT add_tiering_policy('assets_candlestick_daily', INTERVAL '3 weeks');
-44. run SQL: set timescaledb.enable_tiered_reads = true;
-45. run SQL: SELECT * FROM crypto_ticks srt LIMIT 10;
-46. run SQL: set timescaledb.enable_tiered_reads = false;
-47. go to /overview
-48. click `Operations` > `High availability`
-49. expect url /operations
-50. choose an unselected option
-51. click `Change configuration`
-52. click `Change config`
-53. run SQL: DROP MATERIALIZED VIEW assets_candlestick_daily;
-54. expect no rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
-55. click `Explorer`
-56. click `crypto_ticks`
-57. click `Create continuous aggregate`
-58. type `assets_candlestick_daily` into `View name`
-59. click `Continue`
-60. click `1 day`
-61. replace the statement with:
+40. click `Explorer`
+41. go to /explorer/general
+42. click `Enable tiered storage`
+43. confirm `Let's go!`
+44. run SQL: SELECT add_tiering_policy('assets_candlestick_daily', INTERVAL '3 weeks');
+45. run SQL: set timescaledb.enable_tiered_reads = true;
+46. run SQL: SELECT * FROM crypto_ticks srt LIMIT 10;
+47. run SQL: set timescaledb.enable_tiered_reads = false;
+48. go to /overview
+49. click `Operations` > `High availability`
+50. expect url /operations
+51. choose an unselected option
+52. click `Change configuration`
+53. click `Change config`
+54. run SQL: DROP MATERIALIZED VIEW assets_candlestick_daily;
+55. expect no rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+56. click `Explorer`
+57. click `public`
+58. click `crypto_ticks`
+59. click `Create continuous aggregate`
+60. type `assets_candlestick_daily` into `View name`
+61. click `Continue`
+62. click `1 day`
+63. replace the statement with:
      CREATE MATERIALIZED VIEW assets_candlestick_daily
      WITH (timescaledb.continuous) AS
      SELECT
@@ -532,17 +534,21 @@ What next? See [Build](/build) for more advanced tutorials, interact with the da
      FROM "public"."crypto_ticks" srt
      GROUP BY bucket, symbol
      WITH NO DATA;
-62. click `Run and proceed`
-63. click `3 weeks` in `Start offset`
-64. click `24 hours` in `End offset`
-65. click `3 hours` in `Schedule interval`
-66. click `Continue`
-67. click `Run and proceed`
-68. click `Close`
-69. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
-70. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
-71. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND (config->>'start_offset')::interval = INTERVAL '3 weeks'`
-72. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND (config->>'end_offset')::interval = INTERVAL '24 hours'`
-73. expect rows: `SELECT 1 FROM information_schema.columns WHERE table_name = 'assets_candlestick_daily' AND column_name IN ('symbol','high','open','close','low') GROUP BY table_name HAVING count(*) = 5`
+64. click `Run and proceed`
+65. click `3 weeks` in `Start offset`
+66. click `24 hours` in `End offset`
+67. click `3 hours` in `Schedule interval`
+68. click `Continue`
+69. click `Run and proceed`
+70. click `Close`
+71. expect rows: SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'assets_candlestick_daily'
+72. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND schedule_interval = INTERVAL '3 hours'`
+73. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND (config->>'start_offset')::interval = INTERVAL '3 weeks'`
+74. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE proc_name = 'policy_refresh_continuous_aggregate' AND hypertable_name = 'assets_candlestick_daily' AND (config->>'end_offset')::interval = INTERVAL '24 hours'`
+75. expect rows: `SELECT 1 FROM information_schema.columns WHERE table_name = 'assets_candlestick_daily' AND column_name IN ('symbol','high','open','close','low') GROUP BY table_name HAVING count(*) = 5`
+
+Why step 41 is `go to` and not a click: the Explorer's home tab is an icon with no accessible name, so
+the page cannot name it and a plan cannot press it. `go to /explorer/general` lands where the icon
+leads; `Enable tiered storage` is the documented click.
 
 </TestPlan>
