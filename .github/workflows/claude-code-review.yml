@@ -1,0 +1,79 @@
+name: Claude Code Review
+
+# Automated review on every human-authored PR once it's out of draft. Skips bot-authored
+# PRs (Stainless API sync, weekly-external-links, Dependabot, and so on) and drafts, since
+# those are either machine-generated or explicitly still in progress (see the `pr` skill
+# and pr-checklist-check.yml for this repo's draft-until-ready convention).
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, synchronize]
+
+jobs:
+  claude-review:
+    if: |
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Review this pull request against Tiger Data Docs' own conventions
+            (AGENTS.md / CLAUDE.md), not generic best practices. Read AGENTS.md first.
+
+            Vale (vale.yml) already gates `TigerData.CompressionAPIs`,
+            `TigerData.UIElementsCodeFont`, `TigerData.Headings`, and
+            `TigerData.TigerLakeSpelling` as errors, and flags the rest as advisory —
+            don't re-report what that check already covers. Focus instead on things CI
+            doesn't catch:
+
+            - Product/brand names written as literals in MDX body content instead of
+              `{C.X}` constants from `@constants` (not required in frontmatter, inside
+              backticks, URLs, image alts, or the changelog).
+            - Deprecated compression API names (`compress_chunk`, `*_compression_policy`,
+              `timescaledb.compress`, and so on) that Vale's SQL scan might miss outside
+              fenced code blocks; see
+              `.claude/references/deprecated-compression-apis.md` for the full mapping.
+            - Missing or incorrect frontmatter: `title`, `description`, `products`
+              (`cloud` and/or `self_hosted`; `mst` only under `deploy/mst`).
+            - Internal links not in root-absolute `/section/page` form (no `.mdx`, no
+              trailing slash), or pointing at a section that doesn't match one of the
+              seven top-level tabs.
+            - New or moved pages missing a matching entry in `vercel.json`'s `redirects`
+              (see AGENTS.md's "Redirects" section for the two-block ordering and the
+              wildcard-ordering gotcha that broke redirects in review before).
+            - Component misuse: `Callout` variants other than `tip`, `note`, `important`,
+              `warning`, `callout`; `Tabs`/`TabItem` imported from somewhere other than
+              `@astrojs/starlight/components`.
+            - SQL examples using `create_hypertable()` where `CREATE TABLE ... WITH
+              (tsdb.hypertable, ...)` would do, per AGENTS.md's stated preference.
+            - For astro.config.ts, component, or script changes: correctness issues a
+              human reviewer would want flagged — don't review astro.config.ts's sidebar
+              nav/tabs structure itself unless the PR changed it.
+
+            Skip changes to generated reference content under `stainless/openapi.yml` /
+            `stainless/stainless.yml` and the Tiger Cloud REST reference pages they
+            produce — those arrive by automated PR and aren't hand-edited.
+
+            Post your findings as a single PR review comment (not inline per-line
+            comments) using `gh pr comment`. If you find nothing worth flagging, post a
+            short comment saying so rather than staying silent, so it's clear the review
+            ran.
+          claude_args: |
+            --allowedTools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read,Grep,Glob"
