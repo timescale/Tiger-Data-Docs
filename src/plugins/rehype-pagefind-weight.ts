@@ -34,12 +34,25 @@ interface VFile {
   data?: { astro?: { frontmatter?: { products?: Product[] } } };
 }
 
-function getWeight(products: Product[] | undefined): string {
-  if (!products || products.length === 0) return "1";
+/** Cloud-only 2, Cloud plus another 1.5, no products 1, self-hosted or MST only 0.4. */
+export function getProductWeight(products: Product[] | undefined): number {
+  if (!products || products.length === 0) return 1;
   const hasCloud = products.includes("cloud");
-  if (hasCloud && products.length === 1) return "2";
-  if (hasCloud) return "1.5";
-  return "0.4";
+  if (hasCloud && products.length === 1) return 2;
+  if (hasCloud) return 1.5;
+  return 0.4;
+}
+
+/**
+ * Body text is a tiebreaker: titles and keywords (see PageTitle.astro) decide
+ * the ranking, and the body only orders pages that match on neither.
+ * Pagefind stores a weight as the integer part of weight * 24, so each value
+ * sits just above its step: Cloud-only pages take 2/24 and every other page
+ * 1/24, reference pages included: they are found by name, and their body
+ * repeats common words such as "install".
+ */
+export function getBodyWeight(products: Product[] | undefined, isReference: boolean): string {
+  return !isReference && getProductWeight(products) === 2 ? "0.0834" : "0.0417";
 }
 
 export default function rehypePagefindWeight() {
@@ -47,7 +60,8 @@ export default function rehypePagefindWeight() {
     if (!file.path?.includes("/src/content/docs/")) return;
 
     const products = file.data?.astro?.frontmatter?.products;
-    const weight = getWeight(products);
+    const isReference = file.path.includes("/src/content/docs/reference/");
+    const weight = getBodyWeight(products, isReference);
 
     // `mdxjsEsm` nodes carry the file's import/export declarations and must
     // stay at the root for MDX module resolution. Wrapping them inside an

@@ -99,7 +99,7 @@ Every page starts with YAML frontmatter:
 title: Page title in sentence case
 description: One sentence used for the sidebar subtitle, search results, and meta description.
 products: [cloud, self_hosted]   # which products the page applies to
-keywords: [topic, technology]    # optional, improves search
+keywords: [topic, technology]    # optional; terms readers search for to find the page, ranked like title words in site search; on Integrate pages also the technology filter
 ---
 ```
 
