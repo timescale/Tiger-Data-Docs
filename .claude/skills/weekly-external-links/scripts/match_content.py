@@ -24,7 +24,12 @@ import sys
 import urllib.request
 import urllib.error
 
-ENDPOINT = "https://api.anthropic.com/v1/messages"
+# All LLM access goes through Concentrate AI, the org's model gateway (raw Anthropic
+# keys are no longer issued) - see
+# https://github.com/timescale/engineering-docs/blob/main/tools/llm-gateway.md.
+# Concentrate speaks the Anthropic Messages API at this base URL and expects a Bearer
+# token rather than Anthropic's own x-api-key header.
+DEFAULT_BASE_URL = "https://api.concentrate.ai"
 DEFAULT_MODEL = "claude-opus-4-8"
 DEFAULT_MAX_LINKS = 4
 
@@ -140,7 +145,7 @@ MAPPING_SCHEMA = {
 }
 
 
-def call_claude(items, catalog, api_key, model, max_links):
+def call_claude(items, catalog, endpoint, api_key, model, max_links):
     user_content = (
         "Tiger Den content items (JSON):\n"
         + json.dumps(items, indent=1)
@@ -162,10 +167,10 @@ def call_claude(items, catalog, api_key, model, max_links):
     }).encode()
 
     req = urllib.request.Request(
-        ENDPOINT,
+        endpoint,
         data=body,
         headers={
-            "x-api-key": api_key,
+            "Authorization": f"Bearer {api_key}",
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         },
@@ -217,9 +222,11 @@ def main():
     ap.add_argument("--out", required=True, help="Path to write the mapping JSON.")
     args = ap.parse_args()
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = os.environ.get("ANTHROPIC_AUTH_TOKEN")
     if not api_key:
-        sys.exit("ANTHROPIC_API_KEY is not set. Add it to .env (see .env.example).")
+        sys.exit("ANTHROPIC_AUTH_TOKEN is not set. Add it to .env (see .env.example).")
+    base_url = os.environ.get("ANTHROPIC_BASE_URL", DEFAULT_BASE_URL)
+    endpoint = f"{base_url.rstrip('/')}/v1/messages"
     model = os.environ.get("ANTHROPIC_MODEL", DEFAULT_MODEL)
     max_links = int(os.environ.get("MAX_LINKS_PER_CARD", DEFAULT_MAX_LINKS))
 
@@ -233,7 +240,7 @@ def main():
             json.dump({"cards": [], "dropped": []}, f, indent=2)
         return
 
-    mapping = call_claude(items, catalog, api_key, model, max_links)
+    mapping = call_claude(items, catalog, endpoint, api_key, model, max_links)
 
     # Safety net: enforce the cap in code even if the model overshoots.
     for card in mapping.get("cards", []):
