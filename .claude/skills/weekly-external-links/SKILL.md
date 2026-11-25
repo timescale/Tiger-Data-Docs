@@ -28,7 +28,8 @@ Access is the read-only **`TIGER_DEN_TOKEN`**. The matching step uses
 Concentrate, not a raw Anthropic key; see
 [the org's LLM gateway doc](https://github.com/timescale/engineering-docs/blob/main/tools/llm-gateway.md)).
 Both live in the gitignored `.env` locally (see `.env.example`) and as repository
-secrets (named `CONCENTRATE_WEEKLY_LINKS_API_KEY` there) for the scheduled run.
+secrets (named `CONCENTRATE_API_KEY` there, shared with `claude-code-review.yml`)
+for the scheduled run.
 
 ## Pipeline
 
@@ -128,7 +129,7 @@ open a PR. Clean up `.learnmore-work/` when done (it's scratch; never commit it)
 `.github/workflows/weekly-external-links.yml` runs the pipeline weekly (and on
 manual dispatch), then opens a **pull request** against `main` with the drafted
 cards and a summary body. It never pushes to or merges `main`. Required repository
-secrets: `TIGER_DEN_TOKEN`, `CONCENTRATE_WEEKLY_LINKS_API_KEY`, and
+secrets: `TIGER_DEN_TOKEN`, `CONCENTRATE_API_KEY`, and
 `ORG_AUTOMATION_TOKEN` (the existing token used by the other PR-opening workflows).
 
 ## Idempotency
