@@ -190,4 +190,4 @@ learnMore:
 
 ## License
 
-The documentation, everything under `src/content` and `src/assets`, is licensed under [CC BY 4.0](LICENSE). The code that builds and serves it, everything else in this repository, is licensed under the [Apache License 2.0](LICENSE-CODE).
+The documentation is licensed under [CC BY 4.0](LICENSE): the pages under `src/content`, the shared snippets under `src/partials`, the images under `src/assets`, the files readers download under `public/files`, and the glossary definitions in `src/lib/glossary-data.ts`. The code that builds and serves it, everything else in this repository, is licensed under the [Apache License 2.0](LICENSE-CODE).
