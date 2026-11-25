@@ -33,11 +33,15 @@ jobs:
           # (https://github.com/timescale/engineering-docs/blob/main/tools/llm-gateway.md)
           # - raw Anthropic API keys are no longer issued. CONCENTRATE_API_KEY should be
           # a team-owned key named `svc:gh-code-review` per that doc's naming convention.
-          # ANTHROPIC_API_KEY must stay empty: Claude Code reads ANTHROPIC_AUTH_TOKEN
-          # instead when set, and a non-empty ANTHROPIC_API_KEY would take precedence.
+          # Use ANTHROPIC_API_KEY, not ANTHROPIC_AUTH_TOKEN: anthropics/claude-code-action's
+          # own env validation (base-action/src/validate-env.ts) only recognizes
+          # ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN, or workload identity federation, and
+          # fails the job before Claude Code even runs if none are set. The Claude Code CLI
+          # version this action installs sends ANTHROPIC_API_KEY as an `Authorization: Bearer`
+          # header, identical to ANTHROPIC_AUTH_TOKEN, so this authenticates to Concentrate
+          # the same way while also satisfying the action's check.
           ANTHROPIC_BASE_URL: https://api.concentrate.ai
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.CONCENTRATE_API_KEY }}
-          ANTHROPIC_API_KEY: ""
+          ANTHROPIC_API_KEY: ${{ secrets.CONCENTRATE_API_KEY }}
         with:
           prompt: |
             REPO: ${{ github.repository }}
