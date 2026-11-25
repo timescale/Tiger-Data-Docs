@@ -200,7 +200,7 @@ To view {C.JOB}s, select your {C.SERVICE_SHORT} in {C.CONSOLE}, then click `Moni
 
 <ThemeImage light={imgTigerConsoleJobsTableLight} dark={imgTigerConsoleJobsTableDark} alt="Jobs" />
 
-Click `Timeline` at the top right to see the recent job runs with their statuses. Select the timeframe, from 1 to 24 hours, in the `Last 24 hours` drop-down.
+`Timeline` shows the job runs in the timeframe you select in `Last 24 hours`. Select `Show jobs with no runs` to include the jobs that did not run in it. `Table` lists all jobs.
 
 Use the `Job type` filter to narrow the list to a single kind of {C.JOB}: `User defined`, `Continuous Aggregate Refresh`, `Columnstore`, `Compaction`, `Retention`, `Tiered Storage`, or `Reorder`.
 
@@ -296,33 +296,37 @@ For more examples and detailed explanations, see the [blog post on identifying p
 
 1. fork the service
 2. select the service
-3. click `Monitoring` > `Metrics`
-4. expect url /monitoring/metrics
-5. click `Monitoring` > `Logs`
-6. expect url /monitoring/logs
-7. click `Monitoring` > `Insights`
-8. expect url /monitoring/insights
-9. click `Monitoring` > `Jobs`
-10. expect url /monitoring/jobs
-11. click `Timeline`
-12. select another option in `Last 24 hours`
-13. open the first row in the list
-14. expect url /monitoring/jobs/
-15. expect label `Job run history`
-16. click `Edit job config`
-17. expect label `Change configuration`
-18. type `00:10:00` into `Max runtime`
-19. click `Run`
-20. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE max_runtime = INTERVAL '00:10:00'`
-21. click `Monitoring` > `Connections`
-22. expect url /monitoring/connections
-23. click `Monitoring` > `Recommendations`
-24. expect url /monitoring/recommendations
-25. run SQL: `SELECT * FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user;`
-26. expect rows: `SELECT 1 FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user`
-27. run SQL: `SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5;`
-28. expect rows: `SELECT 1 FROM (SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
-29. run SQL: `SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5;`
-30. expect rows: `SELECT 1 FROM (SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
+3. run SQL: `CREATE TABLE sensor_readings (time TIMESTAMPTZ NOT NULL, value DOUBLE PRECISION) WITH (tsdb.hypertable, tsdb.partition_column = 'time');`
+4. run SQL: `SELECT add_retention_policy('sensor_readings', INTERVAL '30 days');`
+5. click `Monitoring` > `Metrics`
+6. expect url /monitoring/metrics
+7. click `Monitoring` > `Logs`
+8. expect url /monitoring/logs
+9. click `Monitoring` > `Insights`
+10. expect url /monitoring/insights
+11. click `Monitoring` > `Jobs`
+12. expect url /monitoring/jobs
+13. click `Timeline`
+14. select another option in `Last 24 hours`
+15. toggle `Show jobs with no runs` on
+16. click `Table`
+17. open the first row in the list
+18. expect url /monitoring/jobs/
+19. expect label `Job run history`
+20. click `Edit job config`
+21. expect label `Change configuration`
+22. type `00:10:00` into `Max runtime`
+23. click `Run`
+24. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE max_runtime = INTERVAL '00:10:00'`
+25. click `Monitoring` > `Connections`
+26. expect url /monitoring/connections
+27. click `Monitoring` > `Recommendations`
+28. expect url /monitoring/recommendations
+29. run SQL: `SELECT * FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user;`
+30. expect rows: `SELECT 1 FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user`
+31. run SQL: `SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5;`
+32. expect rows: `SELECT 1 FROM (SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
+33. run SQL: `SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5;`
+34. expect rows: `SELECT 1 FROM (SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
 
 </TestPlan>

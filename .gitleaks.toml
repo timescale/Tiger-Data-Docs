@@ -1,0 +1,39 @@
+# gitleaks configuration for Tiger-Data-Docs: the built-in rules (AWS, GitHub, Slack, JWTs,
+# private keys, generic high-entropy strings, ...) plus one rule of our own for database URLs
+# with a password in them, which the built-in set does not cover.
+#
+# Runs in CI on every PR (.github/workflows/secrets.yml) and by hand:
+#   gitleaks git . --config .gitleaks.toml --redact --exit-code=1     # all of the history
+#   gitleaks dir . --config .gitleaks.toml --redact                   # the working tree
+#
+# A sample credential in a docs example that trips a rule is a placeholder problem first: write it
+# as <API_KEY> or similar. Only when a page has to show a realistic-looking value, add it to an
+# [allowlist] here with the page and the reason.
+
+title = "Tiger-Data-Docs gitleaks config"
+
+[extend]
+useDefault = true
+
+# A database URL with a real password in it. Not in the default rules, and the one secret a docs
+# repo is most likely to leak: a connection string copied from a terminal into an example. The
+# secret group is the password; the entropy floor and the allowlist below keep the docs' sample
+# strings (`<PASSWORD>`, `password`, `your_password`, `$PASSWORD`, ...) out of it.
+[[rules]]
+id = "database-url-password"
+description = "Database connection URL with an embedded password"
+regex = '''(?i)\b(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?|redis|amqp|mssql)://[^\s:/@"'`]+:([^\s@"'`]{8,})@'''
+secretGroup = 1
+# 2.5 catches weak real passwords (Summer2026, hunter22hunter22) and keeps the placeholders out.
+entropy = 2.5
+keywords = ["postgres://", "postgresql://", "mysql://", "mariadb://", "mongodb://", "mongodb+srv://", "redis://", "amqp://", "mssql://"]
+  [rules.allowlist]
+  regexTarget = "secret"
+  # gitleaks joins these into one alternation, so a `(?i)` in one entry reaches the others; every
+  # entry sets its own case flag.
+  regexes = [
+    '''(?i)^(?:your[-_]?|my[-_]?|the[-_]?|example[-_]?|sample[-_]?|test[-_]?|db[-_]?|dummy[-_]?|a[-_]?)?(?:pass(?:word|wd|w)?|pwd|secret)(?:[-_]?(?:here|value|123|1234|12345))?\]?$''',
+    '''(?i)^(?:tsdbadmin|postgres|changeme|replaceme|redacted|xxx+|\*+)$''',
+    '''(?-i)^[A-Z]+(?:_[A-Z]+)+$''',
+    '''^<[^<>]+>$|^\{\{.*\}\}$|^\$\{.*\}$|^\$[A-Za-z_]+$|^%[^%]+%$''',
+  ]

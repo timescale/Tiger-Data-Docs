@@ -33,6 +33,24 @@ import Search from "virtual:starlight/components/Search";
   </div>
 </div>
 
+<script>
+  import { pagefindUserConfig } from "virtual:starlight/pagefind-config";
+
+  // The search dialog is Stainless's `docs-search`, which imports `pagefind.js`
+  // and calls `search()` directly, so Starlight's `pagefind.ranking` never
+  // reaches it. Both load the same module URL, so setting the ranking on that
+  // module here applies to the dialog's searches too. Pagefind's own defaults
+  // let a query like "cli" prefix-match "clipboard" and "client" and rank by
+  // term density.
+  const { ranking } = pagefindUserConfig;
+  if (!import.meta.env.DEV && ranking) {
+    const pagefindPath = `${import.meta.env.BASE_URL}/pagefind/pagefind.js`.replace(/\/+/g, "/");
+    import(/* @vite-ignore */ pagefindPath)
+      .then((pagefind) => pagefind.options({ ranking }))
+      .catch((error) => console.error("Could not apply the Pagefind ranking:", error));
+  }
+</script>
+
 <style>
   .header-search-bar {
     flex: 1 0 0;
