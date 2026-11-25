@@ -239,7 +239,7 @@ CREATE PUBLICATION metrics_p3 FOR TABLE public.metrics
   WHERE (time >= '2026-01-01 00:00+00');
 ```
 
-Write each bound with a UTC offset. Otherwise, {C.PG} uses the time zone of the session that creates the publication. Do not put the table in a different publication of these subscriptions. Put the other tables in a separate publication, and give it to one subscription only.
+Write each bound with a UTC offset. Otherwise, {C.PG} uses the time zone of the session that creates the publication. Do not add this table to a different publication of these subscriptions. If a subscription has two publications with this table, {C.PG} combines their filters with OR, and that subscription copies more than its range. Put the other tables in a separate publication, and give it to one subscription only.
 
 </NumberedItem>
 
@@ -276,7 +276,7 @@ Split the table at a time watermark. [timescaledb-parallel-copy](https://github.
 <NumberedList>
 <NumberedItem title="Choose the watermark">
 
-Choose a time before which no row changes during the migration: no `INSERT`, `UPDATE`, or `DELETE`. Livesync does not sync changes to these rows. A recent watermark gives Livesync less data to copy, so leave only a margin for late rows. As in the previous section, the time column must be part of the replica identity.
+Choose a time before which no row changes during the migration: no `INSERT`, `UPDATE`, or `DELETE`. Livesync does not sync changes to these rows. A recent watermark gives Livesync less data to copy, so leave only a margin for late rows. The publication in the next step also publishes `UPDATE` and `DELETE`, which is the default. If the time column is not part of the replica identity, the source then rejects all `UPDATE` and `DELETE` on the table. This also applies to the rows before the watermark.
 
 </NumberedItem>
 
