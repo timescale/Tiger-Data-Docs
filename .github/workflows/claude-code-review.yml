@@ -28,8 +28,17 @@ jobs:
 
       - name: Run Claude Code Review
         uses: anthropics/claude-code-action@v1
+        env:
+          # All LLM API access goes through Concentrate AI, the org's model gateway
+          # (https://github.com/timescale/engineering-docs/blob/main/tools/llm-gateway.md)
+          # - raw Anthropic API keys are no longer issued. CONCENTRATE_API_KEY should be
+          # a team-owned key named `svc:gh-code-review` per that doc's naming convention.
+          # ANTHROPIC_API_KEY must stay empty: Claude Code reads ANTHROPIC_AUTH_TOKEN
+          # instead when set, and a non-empty ANTHROPIC_API_KEY would take precedence.
+          ANTHROPIC_BASE_URL: https://api.concentrate.ai
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.CONCENTRATE_API_KEY }}
+          ANTHROPIC_API_KEY: ""
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
