@@ -180,7 +180,7 @@ House prose style follows the Google developer documentation style guide, plus t
 - **secrets.yml**: runs gitleaks on the commits a PR adds and fails on a committed credential (connection string, private key, API token, high-entropy key). Rules and allowlist: `.gitleaks.toml`. Write sample credentials as `<PLACEHOLDER>` values.
 - **pr-checklist-check.yml**: ensures PR checklist items are addressed.
 - **affected-pages.yml**: posts preview links for changed pages on successful deploy.
-- **weekly-external-links.yml** (scheduled, Mondays): runs the `weekly-external-links` skill to draft `learnMore` right-rail cards from content published in [Tiger Den](https://den.tigerdata.com) and opens a draft review PR. Reads from Tiger Den with `TIGER_DEN_TOKEN` and matches to pages with `ANTHROPIC_API_KEY` (both repo secrets). Full guide and tuning knobs: [`.claude/skills/weekly-external-links/SKILL.md`](./.claude/skills/weekly-external-links/SKILL.md).
+- **weekly-external-links.yml** (scheduled, Mondays): runs the `weekly-external-links` skill to draft `learnMore` right-rail cards from content published in [Tiger Den](https://den.tigerdata.com) and opens a draft review PR. Reads from Tiger Den with `TIGER_DEN_TOKEN` and matches to pages with `CONCENTRATE_API_KEY` (both repo secrets; the latter is a [Concentrate AI](https://github.com/timescale/engineering-docs/blob/main/tools/llm-gateway.md) key, not a raw Anthropic key). Full guide and tuning knobs: [`.claude/skills/weekly-external-links/SKILL.md`](./.claude/skills/weekly-external-links/SKILL.md).
 
 ## Pull requests
 
