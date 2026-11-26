@@ -49,6 +49,16 @@ Want to save some time? Check out [**Recommendations**](#recommendations) for al
 
 This page explains what specific data you get at each point.
 
+## Filter and refresh
+
+`Metrics`, `Logs`, `Insights`, and `Jobs` share the same filter row: the filters that page offers, then `Reset filters`, with `Refresh` at the end of the row.
+
+Your filters are kept in the page address, so you can bookmark a view, or send the link to a teammate and they see what you see. {C.CONSOLE_LONG} carries them with you while you move between the monitoring pages, and goes back to the defaults when you leave `Monitoring`. Click `Reset filters` to clear the filters on the page you are on. The button counts the filters you have set, and is disabled when there is nothing to reset.
+
+Click `Refresh` to load the latest data now. Click the arrow next to it to turn auto refresh `On` or `Off`; the choice applies to every monitoring page. The menu also tells you how often the page refreshes, which depends on the page and on the period you select. The dot on the button shows whether auto refresh is running.
+
+On `Logs`, `Insights`, and `Jobs`, auto refresh stops after five minutes with no mouse or keyboard activity, and runs once when you come back. If a refresh fails, the page keeps showing the data it already has under a `Couldn't load the latest data` notice, and waits until you click `Retry`.
+
 ## Metrics
 
 {C.CLOUD_LONG} shows you CPU, memory, and storage metrics for up to 30 previous days and with down to 10-second granularity.
@@ -133,7 +143,7 @@ Click an entry to see its details. From there, you can filter the logs by any fi
 
 Insights help you get a comprehensive understanding of how your queries perform over time, and make the most efficient use of your resources.
 
-To view insights, select your {C.SERVICE_SHORT}, then click `Monitoring` > `Insights`. Narrow the queries shown with `Search by keyword`, `Show results from`, `Query type`, and `Max time >= (ms)`; click `Reset filters` to clear them.
+To view insights, select your {C.SERVICE_SHORT}, then click `Monitoring` > `Insights`. Narrow the queries shown with `Instances`, `Show results from`, `Query type`, and `Max time ≥ (ms)` in the filter row, and with `Search queries by text` in the row underneath it. Click `Reset filters` to clear them.
 
 <ThemeImage light={imgInsightsOverviewTigerConsoleLight} dark={imgInsightsOverviewTigerConsoleDark} alt="Insights" />
 
@@ -202,7 +212,7 @@ To view {C.JOB}s, select your {C.SERVICE_SHORT} in {C.CONSOLE}, then click `Moni
 
 `Timeline` shows the job runs in the timeframe you select in `Last 24 hours`. Select `Show jobs with no runs` to include the jobs that did not run in it. `Table` lists all jobs.
 
-Use the `Job type` filter to narrow the list to a single kind of {C.JOB}: `User defined`, `Continuous Aggregate Refresh`, `Columnstore`, `Compaction`, `Retention`, `Tiered Storage`, or `Reorder`.
+Use the `Job type` filter to narrow the list to a single kind of {C.JOB}: `User defined`, `Continuous Aggregate Refresh`, `Columnstore`, `Compaction`, `Retention`, `Tiered Storage`, or `Reorder`. Narrow it further by `Procedure name`, `Target object`, and `Status`. Click `Reset filters` to clear them.
 
 </NumberedItem>
 
@@ -304,29 +314,34 @@ For more examples and detailed explanations, see the [blog post on identifying p
 8. expect url /monitoring/logs
 9. click `Monitoring` > `Insights`
 10. expect url /monitoring/insights
-11. click `Monitoring` > `Jobs`
-12. expect url /monitoring/jobs
-13. click `Timeline`
-14. select another option in `Last 24 hours`
-15. toggle `Show jobs with no runs` on
-16. click `Table`
-17. open the first row in the list
-18. expect url /monitoring/jobs/
-19. expect label `Job run history`
-20. click `Edit job config`
-21. expect label `Change configuration`
-22. type `00:10:00` into `Max runtime`
-23. click `Run`
-24. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE max_runtime = INTERVAL '00:10:00'`
-25. click `Monitoring` > `Connections`
-26. expect url /monitoring/connections
-27. click `Monitoring` > `Recommendations`
-28. expect url /monitoring/recommendations
-29. run SQL: `SELECT * FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user;`
-30. expect rows: `SELECT 1 FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user`
-31. run SQL: `SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5;`
-32. expect rows: `SELECT 1 FROM (SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
-33. run SQL: `SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5;`
-34. expect rows: `SELECT 1 FROM (SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
+11. type `300` into `Max time ≥ (ms)`
+12. click `Reset filters`
+13. click `Refresh`
+14. click `Monitoring` > `Jobs`
+15. expect url /monitoring/jobs
+16. type `policy` into `Procedure name`
+17. click `Reset filters`
+18. click `Timeline`
+19. select another option in `Last 24 hours`
+20. toggle `Show jobs with no runs` on
+21. click `Table`
+22. open the first row in the list
+23. expect url /monitoring/jobs/
+24. expect label `Job run history`
+25. click `Edit job config`
+26. expect label `Change configuration`
+27. type `00:10:00` into `Max runtime`
+28. click `Run`
+29. expect rows: `SELECT 1 FROM timescaledb_information.jobs WHERE max_runtime = INTERVAL '00:10:00'`
+30. click `Monitoring` > `Connections`
+31. expect url /monitoring/connections
+32. click `Monitoring` > `Recommendations`
+33. expect url /monitoring/recommendations
+34. run SQL: `SELECT * FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user;`
+35. expect rows: `SELECT 1 FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user`
+36. run SQL: `SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5;`
+37. expect rows: `SELECT 1 FROM (SELECT calls, mean_exec_time, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user ORDER BY mean_exec_time DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
+38. run SQL: `SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5;`
+39. expect rows: `SELECT 1 FROM (SELECT calls, stddev_exec_time/mean_exec_time*100 AS rel_std_dev, query FROM pg_stat_statements WHERE pg_get_userbyid(userid) = current_user AND mean_exec_time > 0 ORDER BY rel_std_dev DESC LIMIT 5) top HAVING count(*) BETWEEN 1 AND 5`
 
 </TestPlan>
