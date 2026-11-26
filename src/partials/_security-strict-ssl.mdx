@@ -18,19 +18,9 @@ This section provides instructions for setting up a stricter SSL connection.
 ## SSL certificates
 
 As part of the secure connection protocol, the server proves its identity by
-providing clients with a certificate. This certificate should be issued and
-signed by a well-known and trusted Certificate Authority.
-
-Because requesting a certificate from a Certificate Authority takes some time,
-{C.SERVICE_LONG}s are initialized with a self-signed certificate. This
-lets you start up a {C.SERVICE_SHORT} immediately. After your {C.SERVICE_SHORT} is started, a
-signed certificate is requested behind the scenes. The new certificate is
-usually received within 30 minutes. Your certificate is then replaced
-with almost no interruption. Connections are reset, and most clients reconnect
-automatically. Free services do not supply SSL certificates.
-
-With the signed certificate, you can switch your connections to a stricter SSL
-mode, such as `verify-ca` or `verify-full`.
+providing clients with a certificate. {C.SERVICE_LONG}s present a certificate
+issued by Google Trust Services from the moment they start, so you can connect
+with a stricter SSL mode, such as `verify-ca` or `verify-full`, right away.
 
 For more information on the different SSL modes, see the [{C.PG} SSL mode
 descriptions](https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS).
@@ -39,8 +29,8 @@ descriptions](https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-S
 
 If your client uses libpq 16 or later, `psql` included, you don't need a certificate file. Set `sslrootcert` to
 `system` so that the client verifies the server against the operating system's trust store, which already holds
-the root certificates of both certificate authorities that {C.CLOUD_LONG} uses. Replace `<HOST>` and `<PORT>` with
-the host and port of your {C.SERVICE_SHORT}:
+the root certificate of Google Trust Services, the certificate authority that {C.CLOUD_LONG} uses. Replace `<HOST>`
+and `<PORT>` with the host and port of your {C.SERVICE_SHORT}:
 
 ```shell
 psql "postgres://tsdbadmin@<HOST>:<PORT>/tsdb?sslmode=verify-full&sslrootcert=system"
@@ -130,15 +120,12 @@ psql "postgres://tsdbadmin@<HOST>:<PORT>/tsdb?sslmode=verify-full"
 
 </NumberedList>
 
-## Verify the certificate type used by your database
+## Verify the certificate used by your database
 
-To check whether the certificate has been replaced yet, connect to your
-database instance and inspect the returned certificate. We are using two
-certificate providers - Google and ZeroSSL, that's why chances are you can have
-a certificate issued by either of those CAs:
+To print the issuer of the certificate your {C.SERVICE_SHORT} presents, run:
 
 ```shell
-openssl s_client -showcerts -partial_chain -starttls postgres -connect <HOST>:<PORT> < /dev/null 2>/dev/null  | grep "Google\|ZeroSSL"
+openssl s_client -starttls postgres -connect <HOST>:<PORT> < /dev/null 2>/dev/null | openssl x509 -noout -issuer
 ```
 
 <TestPlan>
@@ -153,9 +140,10 @@ openssl s_client -showcerts -partial_chain -starttls postgres -connect <HOST>:<P
 8. click `Generate Chain`
 9. save the download as ~/.postgresql/root.crt
 10. run command: `psql "postgres://tsdbadmin@<HOST>:<PORT>/tsdb?sslmode=verify-full"`
-11. run command: `openssl s_client -showcerts -partial_chain -starttls postgres -connect <HOST>:<PORT> < /dev/null 2>/dev/null | grep "Google\|ZeroSSL"`
-12. select the service
-13. expect rows: `SELECT 1 FROM pg_stat_ssl WHERE pid = pg_backend_pid() AND ssl`
+11. run command: `openssl s_client -starttls postgres -connect <HOST>:<PORT> < /dev/null 2>/dev/null | openssl x509 -noout -issuer`
+12. expect output contains `Google Trust Services`
+13. select the service
+14. expect rows: `SELECT 1 FROM pg_stat_ssl WHERE pid = pg_backend_pid() AND ssl`
 
 Not scripted:
 - Copy the bundle to your clipboard: the run pastes the file directly.
