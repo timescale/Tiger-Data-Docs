@@ -209,3 +209,108 @@ Point the application connections at the new source. Resume writes on the new so
 </NumberedList>
 
 To add tables later, first create each table on the target. Then add it to the source publication. Run `refresh-publication` with `--copy-data=true`, or restart Livesync with `--copy-data=true`. Livesync copies only the new tables.
+
+### Parallelize the initial copy of large tables with updates and deletes
+
+Use this procedure for a large table that receives `UPDATE` and `DELETE`. For a table that receives only `INSERT`, use [Backfill append-only large tables using timescaledb-parallel-copy](#backfill-append-only-large-tables-using-timescaledb-parallel-copy).
+
+Livesync copies each table with one `COPY` stream, so one large table can set the time for the full initial copy. To split this copy, run several self-hosted Livesync subscriptions. Give each subscription a publication with a row filter that selects a different range of the same table. Row filters need {C.PG} 15 or later on the source.
+
+<NumberedList>
+<NumberedItem title="Choose the split column and the ranges">
+
+- Split on the time column. If the target is a hypertable, each range then writes to its own chunks. Choose bounds that give each range a similar number of rows.
+- Make sure that the time column is part of the replica identity, for example `PRIMARY KEY (device_id, time)`. If it is not, the source rejects `UPDATE` and `DELETE` on the table. As an alternative, set `REPLICA IDENTITY FULL`, which logs the full old row for each change.
+- Do not move rows between ranges. When an update changes the time of a row to a different range, one subscription deletes the row and a different subscription inserts it, in no fixed order.
+- Make sure that the ranges do not overlap and that they include all rows, also future rows. Leave the last range open. Livesync does not sync a row that matches no filter.
+
+</NumberedItem>
+
+<NumberedItem title="Create one publication for each range">
+
+```sql
+CREATE PUBLICATION metrics_p0 FOR TABLE public.metrics
+  WHERE (time < '2025-01-01 00:00+00');
+CREATE PUBLICATION metrics_p1 FOR TABLE public.metrics
+  WHERE (time >= '2025-01-01 00:00+00' AND time < '2025-07-01 00:00+00');
+CREATE PUBLICATION metrics_p2 FOR TABLE public.metrics
+  WHERE (time >= '2025-07-01 00:00+00' AND time < '2026-01-01 00:00+00');
+CREATE PUBLICATION metrics_p3 FOR TABLE public.metrics
+  WHERE (time >= '2026-01-01 00:00+00');
+```
+
+Write each bound with a UTC offset. Otherwise, {C.PG} uses the time zone of the session that creates the publication. Do not add this table to a different publication of these subscriptions. If a subscription has two publications with this table, {C.PG} combines their filters with OR, and that subscription copies more than its range. Put the other tables in a separate publication, and give it to one subscription only.
+
+</NumberedItem>
+
+<NumberedItem title="Start one subscription for each publication">
+
+```bash
+for i in 0 1 2 3; do
+  docker run -d --rm --name livesync-$i timescale/live-sync:latest run \
+    --publication metrics_p$i \
+    --subscription metrics_p$i \
+    --source "$SOURCE" \
+    --target "$TARGET" \
+    --table-sync-workers 1
+done
+```
+
+Each subscription uses one replication slot and one WAL sender for its stream, and one more of each for each table-sync worker. Set `max_replication_slots` and `max_wal_senders` on the source for all subscriptions. The parallel copies also add read load on the source.
+
+</NumberedItem>
+
+<NumberedItem title="Monitor the subscriptions">
+
+After the copy, each subscription continues to stream the changes of its range. Run `status --subscription metrics_p<i>` for each subscription. A source transaction that changes rows in more than one range goes to more than one subscription. So the target can show only a part of that transaction for a short time. To stop the sync, run `drop` for each subscription.
+
+</NumberedItem>
+</NumberedList>
+
+### Backfill append-only large tables using timescaledb-parallel-copy
+
+Use this procedure for a large append-only table, which receives only `INSERT`. For a table that also receives `UPDATE` and `DELETE`, use [Parallelize the initial copy of large tables with updates and deletes](#parallelize-the-initial-copy-of-large-tables-with-updates-and-deletes).
+
+Split the table at a time watermark. [timescaledb-parallel-copy](https://github.com/timescale/timescaledb-parallel-copy) copies the rows before the watermark with several workers, and it can continue a copy that stops. Livesync copies the rows from the watermark, and then streams all new changes. This procedure uses the self-hosted connector, and needs {C.PG} 15 or later on the source.
+
+<NumberedList>
+<NumberedItem title="Choose the watermark">
+
+Choose a time before which no row changes during the migration: no `INSERT`, `UPDATE`, or `DELETE`. Livesync does not sync changes to these rows. A recent watermark gives Livesync less data to copy, so leave only a margin for late rows. The publication in the next step also publishes `UPDATE` and `DELETE`, which is the default. If the time column is not part of the replica identity, the source then rejects all `UPDATE` and `DELETE` on the table. This also applies to the rows before the watermark.
+
+</NumberedItem>
+
+<NumberedItem title="Create a publication for the rows from the watermark">
+
+```sql
+CREATE PUBLICATION livesync_pub FOR TABLE public.metrics
+  WHERE (time >= '2026-11-01 00:00+00'), public.devices;
+```
+
+The row filter applies only to `public.metrics`. Livesync copies and syncs the other tables in full.
+
+</NumberedItem>
+
+<NumberedItem title="Start Livesync">
+
+Start Livesync with `--publication livesync_pub`. It copies only the rows of `public.metrics` from the watermark.
+
+</NumberedItem>
+
+<NumberedItem title="Copy the rows before the watermark">
+
+You can do this step while Livesync runs:
+
+```bash
+psql "$SOURCE" -c "COPY (SELECT * FROM public.metrics
+    WHERE time < '2026-11-01 00:00+00' ORDER BY device_id, time)
+    TO STDOUT WITH (FORMAT csv, HEADER)" \
+  | timescaledb-parallel-copy --connection "$TARGET" \
+      --schema public --table metrics --skip-header \
+      --workers 8 --import-id metrics-before-2026-11-01
+```
+
+If the copy stops, run the same command again. With the same `--import-id`, `timescaledb-parallel-copy` skips the batches that it committed before. It finds these batches by row position, so the query must return the rows in the same order each time. Order by the primary key.
+
+</NumberedItem>
+</NumberedList>
