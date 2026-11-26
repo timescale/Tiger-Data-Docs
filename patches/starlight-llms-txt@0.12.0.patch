@@ -1,5 +1,5 @@
 diff --git a/entryToSimpleMarkdown.ts b/entryToSimpleMarkdown.ts
-index d0ce19a6abed550fe3a4eb09fa186815055daa15..62c2647c23882bdfdbb08b17e7c185304731d6ce 100644
+index 0354f11fb5fd294ba494c02c7cb1f794f957a707..83ad74897e4c02a01b5be7574165a15e4297198e 100644
 --- a/entryToSimpleMarkdown.ts
 +++ b/entryToSimpleMarkdown.ts
 @@ -1,4 +1,5 @@
@@ -8,11 +8,12 @@ index d0ce19a6abed550fe3a4eb09fa186815055daa15..62c2647c23882bdfdbb08b17e7c18530
  import type { APIContext } from 'astro';
  import { experimental_AstroContainer } from 'astro/container';
  import { render, type CollectionEntry } from 'astro:content';
-@@ -29,7 +30,10 @@ const selectors = [...minify.customSelectors];
- if (minify.details) selectors.unshift('details');
+@@ -51,7 +52,11 @@ if (minify.details) smallSelectors.unshift('details');
+ const fullSelectors = [...userCustomFull];
  
  const astroContainer = await experimental_AstroContainer.create({
 -	renderers: [{ name: 'astro:jsx', ssr: mdxServer }],
++	// Docs pages embed React islands; without this renderer the container throws NoMatchingRenderer.
 +	renderers: [
 +		{ name: 'astro:jsx', ssr: mdxServer },
 +		{ name: '@astrojs/react', ssr: reactServer },
@@ -20,12 +21,12 @@ index d0ce19a6abed550fe3a4eb09fa186815055daa15..62c2647c23882bdfdbb08b17e7c18530
  });
  
  const htmlToMarkdownPipeline = unified()
-@@ -179,6 +183,29 @@ export async function entryToSimpleMarkdown(
+@@ -217,6 +222,29 @@ export async function entryToSimpleMarkdown(
  		return entry.body || '';
  	}
  
-+	// Provide a stub starlightRoute so components that read from
-+	// Astro.locals.starlightRoute don't throw during container rendering.
++	// Components that read Astro.locals.starlightRoute (PageTitle, LearnMore) need a stub when
++	// rendered outside a Starlight route.
 +	try {
 +		context.locals.starlightRoute = {
 +			entry,
