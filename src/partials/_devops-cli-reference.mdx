@@ -226,9 +226,9 @@ You see something like:
 
 ```txt
 ┌───────────────────┬──────────────────────────────────────────┐
-│ Tiger CLI Version │ 0.29.0                                   │
-│ Build Time        │ 2026-11-17T16:12:43Z                     │
-│ Git Commit        │ 7e00e887fc2b71d84d8b3d27593cd94142066451 │
+│ Tiger CLI Version │ 0.30.0                                   │
+│ Build Time        │ 2026-11-24T17:52:48Z                     │
+│ Git Commit        │ d7fe6e24ed90c82aa363c52c3aaeee69550e0c2a │
 │ Go Version        │ go1.27.4                                 │
 │ Platform          │ darwin/arm64                             │
 └───────────────────┴──────────────────────────────────────────┘
@@ -252,11 +252,11 @@ tiger upgrade
 If you installed {C.CLI_LONG} with the direct install script and a newer version is available, you see:
 
 ```txt
-Upgrading Tiger CLI 0.28.0 → v0.29.0
-Downloading https://cli.tigerdata.com/releases/v0.29.0/tiger-cli_Darwin_arm64.tar.gz
+Upgrading Tiger CLI 0.29.0 → v0.30.0
+Downloading https://cli.tigerdata.com/releases/v0.30.0/tiger-cli_Darwin_arm64.tar.gz
 Verifying checksum
 Installing new binary to <install-path>/tiger
-Upgraded Tiger CLI to v0.29.0
+Upgraded Tiger CLI to v0.30.0
 ```
 
 If you installed {C.CLI_LONG} with a package manager such as Homebrew, `apt`, or `yum`/`dnf`, this command refuses to run and points you to that package manager instead.
@@ -913,7 +913,7 @@ Read-only: enabled
 | `--read-only` | Enforce permanent read-only for the role using `tsdb_admin.read_only_role`. This enforces read-only, it doesn't grant read access: the new role can log in and has `USAGE` on `public`, but no table privileges, so `SELECT` fails until you [grant it](/deploy/tiger-cloud/tiger-cloud-aws/security/read-only-role#create-a-read-only-user). |
 | `--from` | Inherit grants from one or more roles, for example `--from app_role,readonly_role`. |
 | `--statement-timeout` | Statement timeout for the role, for example `30s`, `5m`. |
-| `--password` | Role password (falls back to `TIGER_NEW_PASSWORD`, otherwise auto-generated). |
+| `--password` | Role password (falls back to `TIGER_NEW_PASSWORD`, otherwise auto-generated). The password is sent to the database as a SCRAM-SHA-256 hash, never in plaintext. A password with characters that database clients normalize inconsistently (ligatures, full-width letters, non-ASCII spaces, invisible characters) is refused. |
 | `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
 ### `tiger db schema`
@@ -1020,24 +1020,26 @@ You see:
 Connection successful
 ```
 
-If the connection fails, the reason is printed once, as a message:
+If the connection fails, the reason is printed once, as an error:
 
 ```txt
-Connection failed: failed to connect to `user=tsdbadmin database=tsdb`: <ip>:<port> (<host>): failed SASL auth: FATAL: password authentication failed for user "tsdbadmin" (SQLSTATE 28P01)
+Error: failed to connect to `user=tsdbadmin database=tsdb`: <ip>:<port> (<host>): failed SASL auth: FATAL: password authentication failed for user "tsdbadmin" (SQLSTATE 28P01)
 ```
+
+When more than one address was tried, each is listed on its own line under the error.
 
 Use the exit code in scripts:
 
 | Exit code | Meaning |
 | --- | --- |
 | `0` | The connection succeeded. |
-| `1` | {C.CLI_LONG} didn't run the check, because a flag or argument was invalid. |
+| `1` | A flag value was invalid, so the check didn't run; or the server rejected the connection, for example while starting up. |
 | `2` | The connection was attempted and failed: the server was unreachable, the attempt timed out, or the credentials were rejected. |
 | `3` | No attempt was made, because no {C.SERVICE_SHORT} with that ID exists or no ID was given. |
 
 | Flag | Description |
 | --- | --- |
-| `--timeout, -t` | Connection timeout (default: `3s`, `0` for none). |
+| `--timeout, -t` | Timeout for the whole check (default: `30s`, `0` for none). A host can resolve to several addresses; each gets up to `5s`, or `PGCONNECT_TIMEOUT` if set, before the check moves on to the next, so a `--timeout` shorter than that limits the first address too. |
 | `--pooled` | Use connection pooling (default: `false`). |
 | `--role` | Database role (default: `tsdbadmin`). |
 
