@@ -226,10 +226,10 @@ You see something like:
 
 ```txt
 ┌───────────────────┬──────────────────────────────────────────┐
-│ Tiger CLI Version │ 0.28.0                                   │
-│ Build Time        │ 2026-11-02T21:07:15Z                     │
-│ Git Commit        │ 793e16bfd1910736367ffacfe4fac6cdb4fd23a6 │
-│ Go Version        │ go1.27.3                                 │
+│ Tiger CLI Version │ 0.30.0                                   │
+│ Build Time        │ 2026-11-24T17:52:48Z                     │
+│ Git Commit        │ d7fe6e24ed90c82aa363c52c3aaeee69550e0c2a │
+│ Go Version        │ go1.27.4                                 │
 │ Platform          │ darwin/arm64                             │
 └───────────────────┴──────────────────────────────────────────┘
 ```
@@ -252,11 +252,11 @@ tiger upgrade
 If you installed {C.CLI_LONG} with the direct install script and a newer version is available, you see:
 
 ```txt
-Upgrading Tiger CLI 0.27.0 → v0.28.0
-Downloading https://cli.tigerdata.com/releases/v0.28.0/tiger-cli_Darwin_arm64.tar.gz
+Upgrading Tiger CLI 0.29.0 → v0.30.0
+Downloading https://cli.tigerdata.com/releases/v0.30.0/tiger-cli_Darwin_arm64.tar.gz
 Verifying checksum
 Installing new binary to <install-path>/tiger
-Upgraded Tiger CLI to v0.28.0
+Upgraded Tiger CLI to v0.30.0
 ```
 
 If you installed {C.CLI_LONG} with a package manager such as Homebrew, `apt`, or `yum`/`dnf`, this command refuses to run and points you to that package manager instead.
@@ -401,7 +401,7 @@ Then the {C.SERVICE_SHORT}'s details, in the same format as [`service get`](#tig
 | `--name` | Service name (auto-generated if omitted). |
 | `--addons` | Addons to enable: `time-series` ({C.TIMESCALE_DB}). Set to `none` for vanilla {C.PG}. Before {C.CLI_LONG} 0.26, there was also a deprecated `ai` addon. |
 | `--region` | Region code. [Free services](/get-started/quickstart/create-service#what-is-a-tiger-cloud-service) (shared CPU/memory) must use `us-east-1`. |
-| `--cpu` | CPU allocation in millicores. Set to `shared` for a free service. |
+| `--cpu` | CPU allocation in cores, for example `0.5` or `2`. Set to `shared` for a free service. Before {C.CLI_LONG} 0.29, the value was in millicores; those values still work. |
 | `--memory` | Memory allocation in gigabytes. Set to `shared` for a free service. |
 | `--replicas` | Number of high-availability replicas. |
 | `--environment` | Environment tag: `DEV` or `PROD` (default: `DEV`). |
@@ -461,10 +461,11 @@ You see something like:
 │ Type              │ TIMESCALEDB                                                                              │
 │ Region            │ us-east-1                                                                                │
 │ Environment       │ DEV                                                                                      │
-│ CPU               │ 0.5 cores (500m)                                                                         │
+│ CPU               │ 0.5 cores                                                                                │
 │ Memory            │ 2 GB                                                                                     │
-│ Direct Endpoint   │ <service-id>.<project-id>.tsdb.cloud.timescale.com:<port>                                │
+│ Storage           │ 1.5 GB used                                                                              │
 │ Created           │ 2026-08-11 09:00:00 UTC                                                                  │
+│ Direct Endpoint   │ <service-id>.<project-id>.tsdb.cloud.timescale.com:<port>                                │
 │ Connection String │ postgresql://tsdbadmin@<direct-endpoint>/tsdb?sslmode=require                            │
 │ Console URL       │ https://console.cloud.tigerdata.com/projects/<project-id>/services/<service-id>/overview │
 └───────────────────┴──────────────────────────────────────────────────────────────────────────────────────────┘
@@ -513,27 +514,26 @@ Before {C.CLI_LONG} 0.26, you had to choose exactly one timing option, and forki
 
 ### `tiger service resize`
 
-Change a {C.SERVICE_SHORT}'s CPU and memory. The service may be briefly unavailable during the resize.
+Change a {C.SERVICE_SHORT}'s CPU and memory. The command returns as soon as the request is accepted; the resize may take
+several minutes, and the {C.SERVICE_SHORT} may be briefly unavailable while it runs. Check progress with
+[`service get`](#tiger-service-get).
 
 **Usage**: `tiger service resize <name-or-id> [flags]`
 
 ```bash
-tiger service resize <name-or-id> --cpu 4000 --memory 16
+tiger service resize <name-or-id> --cpu 4 --memory 16
 ```
 
 You see something like:
 
 ```txt
-Resizing service 'analytics' (<service-id>) to 4 CPU/16 GB...
-Resize request accepted for service 'analytics' (<service-id>).
-Waiting for resize to complete (timeout: 10m0s)...
-Service resized to 4 CPU/16 GB.
+Resizing service 'analytics' (<service-id>) to 4 CPU/16 GB.
+The resize is in progress and may take several minutes to complete.
 ```
 
 | Flag | Description |
 | --- | --- |
-| `--cpu`, `--memory` | New allocation. CPU is in millicores, memory in gigabytes, so 4 CPU / 16 GB is `--cpu 4000 --memory 16`. See [`service create`](#tiger-service-create) for allowed configurations. You cannot resize to `shared`. |
-| `--no-wait`, `--wait-timeout` | Wait behavior (default timeout: `10m`). |
+| `--cpu`, `--memory` | New allocation. CPU is in cores, memory in gigabytes, so 4 CPU / 16 GB is `--cpu 4 --memory 16`. See [`service create`](#tiger-service-create) for allowed configurations. You cannot resize to `shared`. |
 
 ### `tiger service start`
 
@@ -913,7 +913,7 @@ Read-only: enabled
 | `--read-only` | Enforce permanent read-only for the role using `tsdb_admin.read_only_role`. This enforces read-only, it doesn't grant read access: the new role can log in and has `USAGE` on `public`, but no table privileges, so `SELECT` fails until you [grant it](/deploy/tiger-cloud/tiger-cloud-aws/security/read-only-role#create-a-read-only-user). |
 | `--from` | Inherit grants from one or more roles, for example `--from app_role,readonly_role`. |
 | `--statement-timeout` | Statement timeout for the role, for example `30s`, `5m`. |
-| `--password` | Role password (falls back to `TIGER_NEW_PASSWORD`, otherwise auto-generated). |
+| `--password` | Role password (falls back to `TIGER_NEW_PASSWORD`, otherwise auto-generated). The password is sent to the database as a SCRAM-SHA-256 hash, never in plaintext. A password with characters that database clients normalize inconsistently (ligatures, full-width letters, non-ASCII spaces, invisible characters) is refused. |
 | `--output, -o` | Output format: `json`, `yaml`, or `table`. |
 
 ### `tiger db schema`
@@ -1020,24 +1020,26 @@ You see:
 Connection successful
 ```
 
-If the connection fails, the reason is printed once, as a message:
+If the connection fails, the reason is printed once, as an error:
 
 ```txt
-Connection failed: failed to connect to `user=tsdbadmin database=tsdb`: <ip>:<port> (<host>): failed SASL auth: FATAL: password authentication failed for user "tsdbadmin" (SQLSTATE 28P01)
+Error: failed to connect to `user=tsdbadmin database=tsdb`: <ip>:<port> (<host>): failed SASL auth: FATAL: password authentication failed for user "tsdbadmin" (SQLSTATE 28P01)
 ```
+
+When more than one address was tried, each is listed on its own line under the error.
 
 Use the exit code in scripts:
 
 | Exit code | Meaning |
 | --- | --- |
 | `0` | The connection succeeded. |
-| `1` | {C.CLI_LONG} didn't run the check, because a flag or argument was invalid. |
+| `1` | A flag value was invalid, so the check didn't run; or the server rejected the connection, for example while starting up. |
 | `2` | The connection was attempted and failed: the server was unreachable, the attempt timed out, or the credentials were rejected. |
 | `3` | No attempt was made, because no {C.SERVICE_SHORT} with that ID exists or no ID was given. |
 
 | Flag | Description |
 | --- | --- |
-| `--timeout, -t` | Connection timeout (default: `3s`, `0` for none). |
+| `--timeout, -t` | Timeout for the whole check (default: `30s`, `0` for none). A host can resolve to several addresses; each gets up to `5s`, or `PGCONNECT_TIMEOUT` if set, before the check moves on to the next, so a `--timeout` shorter than that limits the first address too. |
 | `--pooled` | Use connection pooling (default: `false`). |
 | `--role` | Database role (default: `tsdbadmin`). |
 
@@ -1047,7 +1049,7 @@ Install and manage {C.MCP_LONG}, the tool your AI agent uses to work with {C.CLO
 
 ### `tiger mcp install`
 
-Install and configure {C.MCP_LONG} for an AI agent. Supported clients: `claude-code`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `vscode`, `antigravity`, `kiro-cli`. If no client is given, you are prompted to choose. Alias: `add`.
+Install and configure {C.MCP_LONG} for an AI agent. Supported clients: `claude-code`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `vscode`, `antigravity`, `kiro-cli`, `pi`. If no client is given, you are prompted to choose. Alias: `add`.
 
 The `copilot` client configures the GitHub Copilot CLI, and the GitHub Copilot desktop app picks up the same configuration. The `antigravity` client writes to `~/.gemini/config/`, which Antigravity 2.0, the Antigravity IDE, and the Antigravity CLI all read. Before {C.CLI_LONG} 0.27, it wrote to `~/.gemini/antigravity/mcp_config.json`, which only the IDE reads.
 
@@ -1097,6 +1099,7 @@ You see something like:
 │ tool   │ db_query                               │
 │ tool   │ db_schema                              │
 │ tool   │ feedback                               │
+│ tool   │ get_context                            │
 │ tool   │ search_docs                            │
 │ tool   │ service_create                         │
 │ tool   │ service_delete                         │
@@ -1218,7 +1221,7 @@ Each argument selects an install location, either by name or by the name of a cl
 
 | Location | Directory | Read by |
 | --- | --- | --- |
-| `universal` | `~/.agents/skills` | Cursor, Devin, Codex, Gemini CLI, VS Code, GitHub Copilot CLI |
+| `universal` | `~/.agents/skills` | Cursor, Devin, Codex, Gemini CLI, VS Code, GitHub Copilot CLI, Pi |
 | `claude-code` | `~/.claude/skills` | Claude Code |
 | `antigravity` | `~/.gemini/config/skills` | Google Antigravity |
 | `kiro-cli` | `~/.kiro/skills` | Kiro CLI |
